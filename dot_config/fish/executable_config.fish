@@ -14,10 +14,10 @@ if status is-interactive
 
     # ===================== ALIASES =====================
     alias clear "printf '\033[2J\033[3J\033[1;1H'"
-    alias celar "clear"
-    alias claer "clear"
+    alias celar clear
+    alias claer clear
 
-    alias pamcan "pacman"
+    alias pamcan pacman
     alias q 'qs -c ii'
 
     # eza
@@ -62,3 +62,6 @@ abbr -a fast fastfetch
 abbr -a fastf fastfetch
 
 stty -ixon
+
+alias poweroff='systemctl poweroff'
+alias reboot='systemctl reboot'
