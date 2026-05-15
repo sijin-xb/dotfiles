@@ -1,0 +1,35 @@
+animations {
+    // 整体放慢到 1.2 倍，增加优雅的迟滞感
+    slowdown 1.2
+
+    // --- 窗口打开：像果冻一样弹出来 ---
+    window-open {
+        // stiffness 降到 350 (慢)，damping 0.7 (产生轻微回弹)
+        spring damping-ratio=0.7 stiffness=350 epsilon=0.0001
+    }
+
+    // --- 窗口关闭：温柔地缩回去 ---
+    window-close {
+        spring damping-ratio=0.9 stiffness=450 epsilon=0.0001
+    }
+
+    // --- 核心交互：像在水里推窗户 ---
+    workspace-switch {
+        // stiffness 300 是极慢的丝滑感
+        spring damping-ratio=1.0 stiffness=300 epsilon=0.0001
+    }
+    window-movement {
+        spring damping-ratio=1.0 stiffness=300 epsilon=0.0001
+    }
+
+    // --- 窗口 Resize：这是果冻感最强的地方 ---
+    window-resize {
+        // damping 0.6 会让窗口在调整大小时有明显的“晃动”回弹感
+        spring damping-ratio=0.6 stiffness=400 epsilon=0.0001
+    }
+
+    // --- 概览模式：像拉开大幕一样 ---
+    overview-open-close {
+        spring damping-ratio=0.85 stiffness=350 epsilon=0.0001
+    }
+}

@@ -1,0 +1,131 @@
+//Original written by; https://github.com/XansiVA
+
+animations {
+    workspace-switch {
+        spring damping-ratio=0.80 stiffness=523 epsilon=0.0001
+    }
+window-open {
+    duration-ms 700
+    curve "ease-out-expo"
+    custom-shader r"
+    vec4 line_expand(vec3 coords_geo, vec3 size_geo) {
+        float progress = niri_clamped_progress;
+        
+        // Add extra easing on top of the curve
+        float eased_progress = progress * progress * (3.0 - 2.0 * progress); // smoothstep
+        
+        // Calculate the center of the window
+        float window_center_y = size_geo.y * 0.5;
+        
+        // Current pixel's Y position
+        float pixel_y = coords_geo.y * size_geo.y;
+        
+        // Distance from center
+        float dist_from_center = abs(pixel_y - window_center_y);
+        
+        // How much of the window should be visible
+        float visible_radius = (size_geo.y * 0.5) * eased_progress;
+        
+        // If outside visible area, hide it
+        if (dist_from_center > visible_radius) {
+            return vec4(0.0);
+        }
+        
+        // Draw a bright line at the expanding edges (top and bottom)
+        float edge_thickness = 3.0;
+        bool at_edge = abs(dist_from_center - visible_radius) < edge_thickness;
+        
+        // Show the pixel
+        vec3 coords_tex = niri_geo_to_tex * coords_geo;
+        vec4 color = texture2D(niri_tex, coords_tex.st);
+        
+        // Make the edge line bright white
+        if (at_edge && eased_progress < 0.99) {
+            color.rgb = mix(color.rgb, vec3(1.0, 1.0, 1.0), 0.8);
+        }
+        
+        return color;
+    }
+    vec4 open_color(vec3 coords_geo, vec3 size_geo) {
+        return line_expand(coords_geo, size_geo);
+    }"
+}
+
+    
+   window-close {
+    duration-ms 500
+    curve "ease-out-expo"
+    custom-shader r"
+    vec4 line_collapse(vec3 coords_geo, vec3 size_geo) {
+        float progress = niri_clamped_progress;
+        
+        // Add extra easing on top of the curve
+        float eased_progress = progress * progress * (3.0 - 2.0 * progress); // smoothstep
+        
+        // Reverse the progress so it goes from full to line
+        float reversed_progress = 1.0 - eased_progress;
+        
+        // Calculate the center of the window
+        float window_center_y = size_geo.y * 0.5;
+        
+        // Current pixel's Y position
+        float pixel_y = coords_geo.y * size_geo.y;
+        
+        // Distance from center
+        float dist_from_center = abs(pixel_y - window_center_y);
+        
+        // How much of the window should be visible (shrinking)
+        float visible_radius = (size_geo.y * 0.5) * reversed_progress;
+        
+        // If outside visible area, hide it
+        if (dist_from_center > visible_radius) {
+            return vec4(0.0);
+        }
+        
+        // Draw a bright line at the collapsing edges
+        float edge_thickness = 2.0;
+        bool at_edge = abs(dist_from_center - visible_radius) < edge_thickness;
+        
+        // Show the pixel
+        vec3 coords_tex = niri_geo_to_tex * coords_geo;
+        vec4 color = texture2D(niri_tex, coords_tex.st);
+        
+        // Make the edge line bright white
+        if (at_edge && reversed_progress > 0.01) {
+            color.rgb = mix(color.rgb, vec3(1.0, 1.0, 1.0), 0.8);
+        }
+        
+        return color;
+    }
+    vec4 close_color(vec3 coords_geo, vec3 size_geo) {
+        return line_collapse(coords_geo, size_geo);
+    }"
+}
+
+    
+    horizontal-view-movement {
+        spring damping-ratio=0.85 stiffness=423 epsilon=0.0001
+    }
+    window-movement {
+        spring damping-ratio=0.75 stiffness=323 epsilon=0.0001
+    }
+    window-resize {
+        custom-shader r"
+            vec4 resize_color(vec3 coords_curr_geo, vec3 size_curr_geo) {
+                vec3 coords_tex_next = niri_geo_to_tex_next * coords_curr_geo;
+                vec4 color = texture2D(niri_tex_next, coords_tex_next.st);
+                return color;
+            }
+        "
+    }
+    config-notification-open-close {
+        spring damping-ratio=0.95 stiffness=923 epsilon=0.02
+    }
+    screenshot-ui-open {
+        duration-ms 300
+        curve "ease-out-quad"
+    }
+    overview-open-close {
+        spring damping-ratio=0.85 stiffness=800 epsilon=0.0001
+    }
+}

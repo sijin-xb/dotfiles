@@ -1,0 +1,147 @@
+//This was a nightmare to make but here
+// original code from; https://github.com/XansiVA
+
+animations {
+    workspace-switch {
+        spring damping-ratio=0.80 stiffness=523 epsilon=0.0001
+    }
+window-open {
+    duration-ms 600
+    curve "ease-out-quad"
+    custom-shader "
+    vec4 open_color(vec3 coords_geo, vec3 size_geo) {
+        float progress = niri_clamped_progress;
+        
+        // Completely random angle (0 to 2*PI)
+        float random_angle = niri_random_seed * 6.28318;
+        
+        // Rotate the coordinates to create tilted ribbons
+        vec2 coords = coords_geo.xy - 0.5;
+        float cos_a = cos(random_angle);
+        float sin_a = sin(random_angle);
+        vec2 rotated = vec2(
+            coords.x * cos_a - coords.y * sin_a,
+            coords.x * sin_a + coords.y * cos_a
+        );
+        
+        // Now work with rotated Y position for ribbon indexing
+        float y_pos = rotated.y + 0.5;
+        
+        // Equal-sized ribbons (20 total)
+        float ribbon_count = 20.0;
+        float ribbon_index = floor(y_pos * ribbon_count);
+        
+        // Alternating pattern: even = left, odd = right
+        float direction = mod(ribbon_index, 2.0) == 0.0 ? -1.0 : 1.0;
+        
+        // Cascading delay
+        float delay = ribbon_index / ribbon_count * 0.5;
+        float ribbon_progress = clamp((progress - delay) / (1.0 - delay), 0.0, 1.0);
+        
+        // Slide along the rotated X axis
+        rotated.x += (1.0 - ribbon_progress) * direction * 2.0;
+        
+        // Rotate back to get final coordinates
+        coords = vec2(
+            rotated.x * cos_a + rotated.y * sin_a,
+            -rotated.x * sin_a + rotated.y * cos_a
+        );
+        coords += 0.5;
+        
+        // Regular sampling
+        vec3 coords_tex = niri_geo_to_tex * vec3(coords.x, coords.y, 1.0);
+        vec4 color = texture2D(niri_tex, coords_tex.xy);
+        
+        // Check if ribbon hasn't arrived yet
+        if (coords.x < 0.0 || coords.x > 1.0) {
+            return vec4(0.0);
+        }
+        
+        return color;
+    }"
+}
+
+    
+window-close {
+    duration-ms 800
+    curve "ease-out-quad"
+    custom-shader "
+    vec4 close_color(vec3 coords_geo, vec3 size_geo) {
+        float progress = niri_clamped_progress;
+        
+        // Completely random angle (0 to 2*PI)
+        float random_angle = niri_random_seed * 6.28318;
+        
+        // Rotate the coordinates to create tilted ribbons
+        vec2 coords = coords_geo.xy - 0.5; // center
+        float cos_a = cos(random_angle);
+        float sin_a = sin(random_angle);
+        vec2 rotated = vec2(
+            coords.x * cos_a - coords.y * sin_a,
+            coords.x * sin_a + coords.y * cos_a
+        );
+        
+        // Now work with rotated Y position for ribbon indexing
+        float y_pos = rotated.y + 0.5;
+        
+        // Equal-sized ribbons (20 total)
+        float ribbon_count = 20.0;
+        float ribbon_index = floor(y_pos * ribbon_count);
+        
+        // Alternating pattern: even = left, odd = right
+        float direction = mod(ribbon_index, 2.0) == 0.0 ? -1.0 : 1.0;
+        
+        // Cascading delay
+        float delay = ribbon_index / ribbon_count * 0.5;
+        float ribbon_progress = clamp((progress - delay) / (1.0 - delay), 0.0, 1.0);
+        
+        // Slide along the rotated X axis
+        rotated.x += ribbon_progress * direction * 2.0;
+        
+        // Rotate back to get final coordinates
+        coords = vec2(
+            rotated.x * cos_a + rotated.y * sin_a,
+            -rotated.x * sin_a + rotated.y * cos_a
+        );
+        coords += 0.5; // uncenter
+        
+        // Regular sampling
+        vec3 coords_tex = niri_geo_to_tex * vec3(coords.x, coords.y, 1.0);
+        vec4 color = texture2D(niri_tex, coords_tex.xy);
+        
+        // Check if ribbon has moved out of bounds
+        if (coords.x < 0.0 || coords.x > 1.0) {
+            return vec4(0.0);
+        }
+        
+        return color;
+    }"
+}
+
+    
+    horizontal-view-movement {
+        spring damping-ratio=0.85 stiffness=423 epsilon=0.0001
+    }
+    window-movement {
+        spring damping-ratio=0.75 stiffness=323 epsilon=0.0001
+    }
+    window-resize {
+        custom-shader r"
+            vec4 resize_color(vec3 coords_curr_geo, vec3 size_curr_geo) {
+                vec3 coords_tex_next = niri_geo_to_tex_next * coords_curr_geo;
+                vec4 color = texture2D(niri_tex_next, coords_tex_next.st);
+                return color;
+            }
+        "
+    }
+    config-notification-open-close {
+        spring damping-ratio=0.65 stiffness=923 epsilon=0.001
+    }
+    screenshot-ui-open {
+        duration-ms 200
+        curve "ease-out-quad"
+    }
+    overview-open-close {
+        spring damping-ratio=0.85 stiffness=800 epsilon=0.0001
+    }
+}

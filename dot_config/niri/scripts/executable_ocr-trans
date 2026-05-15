@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ocr_langs="${OCR_TRANSLATE_OCR_LANGS:-eng}"
+translate_source_lang="${OCR_TRANSLATE_SOURCE_LANG:-en}"
+translate_target_lang="${OCR_TRANSLATE_TARGET_LANG:-zh-CN}"
+dialog_title="OCR 翻译结果"
+
+tmp_image="$(mktemp --suffix=.png)"
+result_file="$(mktemp)"
+
+cleanup() {
+    rm -f "$tmp_image" "$result_file"
+}
+
+trap cleanup EXIT
+
+require() {
+    if ! command -v "$1" >/dev/null 2>&1; then
+        if command -v kdialog >/dev/null 2>&1; then
+            kdialog --error "缺少命令: $1" --title "OCR 翻译"
+        else
+            printf '缺少命令: %s\n' "$1" >&2
+        fi
+        exit 1
+    fi
+}
+
+show_error() {
+    kdialog --error "$1" --title "OCR 翻译"
+}
+
+normalize_text() {
+    sed -E '
+        s/\r//g;
+        s/[[:space:]]*\|[[:space:]]*/ /g;
+        s/[“”]/"/g;
+        s/[‘’]/'\''/g;
+        s/[[:space:]]+/ /g;
+        s/^[[:space:]]+//;
+        s/[[:space:]]+$//
+    '
+}
+
+translate_text() {
+    local text="$1"
+
+    if command -v timeout >/dev/null 2>&1; then
+        timeout 15s trans -e google -brief "${translate_source_lang}:${translate_target_lang}" "$text" 2>&1
+    else
+        trans -e google -brief "${translate_source_lang}:${translate_target_lang}" "$text" 2>&1
+    fi
+}
+
+require grim
+require slurp
+require tesseract
+require trans
+require wl-copy
+require kdialog
+
+if ! region="$(slurp)"; then
+    exit 0
+fi
+
+if [[ -z "$region" ]]; then
+    exit 0
+fi
+
+if ! grim -g "$region" "$tmp_image"; then
+    show_error "截图失败"
+    exit 1
+fi
+
+ocr_text="$(
+    tesseract "$tmp_image" stdout \
+        -l "$ocr_langs" \
+        --oem 1 \
+        --psm 6 \
+        2>/dev/null \
+        | sed '/^[[:space:]]*$/d' \
+        | paste -sd ' ' - \
+        | normalize_text
+)"
+
+if [[ -z "$ocr_text" ]]; then
+    show_error "没有识别到文本"
+    exit 1
+fi
+
+if ! translated="$(translate_text "$ocr_text")"; then
+    if [[ "$translated" == *"timed out"* ]]; then
+        show_error "翻译超时，请稍后重试"
+    else
+        show_error "$translated"
+    fi
+    exit 1
+fi
+
+translated="$(printf '%s\n' "$translated" | normalize_text)"
+
+if [[ -z "$translated" ]]; then
+    show_error "翻译结果为空"
+    exit 1
+fi
+
+printf '%s' "$translated" | wl-copy
+
+cat >"$result_file" <<EOF
+翻译:
+$translated
+
+原文:
+$ocr_text
+
+翻译结果已复制到剪贴板。
+EOF
+
+kdialog --textbox "$result_file" 900 640 --title "$dialog_title"

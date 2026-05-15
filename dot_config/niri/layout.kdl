@@ -1,0 +1,50 @@
+layout {
+    //设置工作区背景颜色
+    //background-color "transparent"
+    // Set gaps around windows in logical pixels.
+    // 窗口和窗口之间的间距
+    gaps 10
+    //empty-workspace-above-first
+    center-focused-column "on-overflow"
+    // 即使只有一个列也始终居中
+    always-center-single-column
+    // 预设窗口宽度
+    preset-column-widths {
+        proportion 0.33333
+        proportion 0.5
+        proportion 0.66667
+    }
+    // 默认的窗口宽度
+    default-column-width { proportion 0.5; }
+    focus-ring {
+        width 2
+    }
+    // 窗口边框
+    border {
+        off
+        width 4
+        active-color "#ffc87f"
+        inactive-color "#505050"
+        urgent-color "#9b0000"
+    }
+    // 阴影
+    shadow {
+        on
+        softness 20
+        spread 2
+        offset x=-4 y=-4
+        color "rgba(0, 0, 0, 0.7)"
+    }
+    //窗口距离屏幕边缘的距离
+    struts {
+        //left 64
+        // right 64
+        // top 64
+        // bottom 64
+    }
+}
+workspace "1"
+workspace "2"
+workspace "3"
+workspace "4"
+workspace "5"

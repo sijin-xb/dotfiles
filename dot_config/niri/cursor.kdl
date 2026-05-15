@@ -1,0 +1,13 @@
+// 光标配置
+cursor {
+    xcursor-theme "VivianBLZ"
+
+    // 按照你的要求设定为 24
+    xcursor-size 28
+
+    // 5秒无操作自动隐藏
+    hide-after-inactive-ms 5000
+
+    // 打字时隐藏光标
+    hide-when-typing
+}
