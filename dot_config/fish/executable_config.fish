@@ -60,3 +60,5 @@ abbr -a fa fastfetch
 abbr -a fas fastfetch
 abbr -a fast fastfetch
 abbr -a fastf fastfetch
+
+stty -ixon
