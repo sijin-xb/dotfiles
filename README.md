@@ -1,8 +1,8 @@
-#  sijin-xb's Dotfiles 
+# 🐧 sijin-xb's Dotfiles 
 
 这是我的个人 Linux 配置文件托管仓库。主要运行在 **CachyOS (Arch Linux)** 上，追求极致的响应速度与现代化工作流。
 
-##  核心工具栈
+## 🛠️ 核心工具栈
 
 | 类别 | 工具 |
 | :--- | :--- |
@@ -14,7 +14,7 @@
 
 ## 🚀 快速恢复 (Installation)
 
-如果你想在全新的系统中还原这些配置，只需安装 `chezmoi` 后运行一行命令：
+如果你想在全新的系统中还原这些配置，只需安装 `chezmoi` 后运行以下命令：
 
 ```bash
 # 安装 chezmoi (Arch)
