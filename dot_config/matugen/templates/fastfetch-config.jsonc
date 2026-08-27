@@ -95,8 +95,6 @@
             "type": "disk",
             "key": " 󰋊  DISK ",
             "keyColor": "{{colors.secondary_fixed.default.hex}}"
-        },
-        "break",
-        "colors"
+        }
     ]
 }

@@ -95,8 +95,6 @@
             "type": "disk",
             "key": " 󰋊  DISK ",
             "keyColor": "#e0e2ea"
-        },
-        "break",
-        "colors"
+        }
     ]
 }
