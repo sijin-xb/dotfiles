@@ -1,0 +1,102 @@
+{
+    "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/master/doc/json_schema.json",
+    "logo": {
+        "source": "CachyOS_small",
+        "type": "auto",
+        "color": {
+            "1": "{{colors.primary.default.hex}}",
+            "2": "{{colors.primary.default.hex}}"
+        },
+        "padding": {
+            "top": 2,
+            "left": 3
+        }
+    },
+    "display": {
+        "separator": "  ",
+        "color": {
+            "title": "{{colors.on_surface.default.hex}}",
+            "output": "{{colors.on_surface_variant.default.hex}}"
+        }
+    },
+    "modules": [
+        "break",
+        {
+            "type": "os",
+            "key": " 󰣇  OS   ",
+            "keyColor": "{{colors.primary.default.hex}}"
+        },
+        {
+            "type": "kernel",
+            "key": "   KER  ",
+            "keyColor": "{{colors.primary.default.hex}}"
+        },
+        {
+            "type": "packages",
+            "key": " 󰏖  PKG  ",
+            "format": "{all}",
+            "keyColor": "{{colors.primary.default.hex}}"
+        },
+        {
+            "type": "title",
+            "key": "   USER ",
+            "keyColor": "{{colors.primary.default.hex}}"
+        },
+        "break",
+        {
+            "type": "wm",
+            "key": "   WM   ",
+            "keyColor": "{{colors.tertiary.default.hex}}"
+        },
+        {
+            "type": "shell",
+            "key": "   SHELL ",
+            "keyColor": "{{colors.tertiary.default.hex}}"
+        },
+        {
+            "type": "terminal",
+            "key": "   TERM ",
+            "keyColor": "{{colors.tertiary.default.hex}}"
+        },
+        {
+            "type": "terminalfont",
+            "key": "   FONT ",
+            "keyColor": "{{colors.tertiary.default.hex}}"
+        },
+        "break",
+        {
+            "type": "host",
+            "key": " 󰍹  HOST ",
+            "keyColor": "{{colors.secondary_fixed.default.hex}}"
+        },
+        {
+            "type": "cpu",
+            "key": "   CPU  ",
+            "keyColor": "{{colors.secondary_fixed.default.hex}}"
+        },
+        {
+            "type": "memory",
+            "key": "   RAM  ",
+            "keyColor": "{{colors.secondary_fixed.default.hex}}"
+        },
+        {
+            "type": "gpu",
+            "key": " 󰢮  GPU  ",
+            "format": "{1} {2}",
+            "keyColor": "{{colors.secondary_fixed.default.hex}}"
+        },
+        {
+            "type": "display",
+            "key": "   MON  ",
+            "format": "{name} {width}x{height}@{refresh-rate}",
+            "keyColor": "{{colors.secondary_fixed.default.hex}}"
+        },
+        {
+            "type": "disk",
+            "key": " 󰋊  DISK ",
+            "keyColor": "{{colors.secondary_fixed.default.hex}}"
+        },
+        "break",
+        "colors"
+    ]
+}
