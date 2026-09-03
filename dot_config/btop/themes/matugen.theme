@@ -1,0 +1,52 @@
+# Matugen template for btop
+
+# Colors should be in 6 or 2 character hexadecimal or single spaced rgb decimal:
+# "#RRGGBB", "#BW" or "0-255 0-255 0-255".
+
+# Main background must remain empty for terminal transparency.
+theme[main_bg]=""
+theme[main_fg]="#f0dedd"
+theme[title]="#ffb3b1"
+theme[hi_fg]="#e6bdbb"
+theme[selected_bg]="#ffb3b1"
+theme[selected_fg]="#571d1f"
+theme[inactive_fg]="#d7c1c0"
+theme[proc_misc]="#e4c18d"
+
+theme[cpu_box]="#a08c8b"
+theme[mem_box]="#a08c8b"
+theme[net_box]="#a08c8b"
+theme[proc_box]="#a08c8b"
+theme[div_line]="#524342"
+
+theme[temp_start]="#e6bdbb"
+theme[temp_mid]="#ffb3b1"
+theme[temp_end]="#ffb4ab"
+
+theme[cpu_start]="#e6bdbb"
+theme[cpu_mid]="#ffb3b1"
+theme[cpu_end]="#ffb4ab"
+
+theme[free_start]="#e6bdbb"
+theme[free_mid]=""
+theme[free_end]="#5d3f3e"
+
+theme[cached_start]="#e4c18d"
+theme[cached_mid]=""
+theme[cached_end]="#5a4319"
+
+theme[available_start]="#ffb3b1"
+theme[available_mid]=""
+theme[available_end]="#733334"
+
+theme[used_start]="#ffb4ab"
+theme[used_mid]=""
+theme[used_end]="#93000a"
+
+theme[download_start]="#e6bdbb"
+theme[download_mid]="#ffb3b1"
+theme[download_end]="#e4c18d"
+
+theme[upload_start]="#e6bdbb"
+theme[upload_mid]="#ffb3b1"
+theme[upload_end]="#e4c18d"

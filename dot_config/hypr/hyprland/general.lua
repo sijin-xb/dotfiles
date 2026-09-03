@@ -69,8 +69,8 @@ hl.config({
         }
     },
     decoration = {
-        active_opacity = 0.94,
-        inactive_opacity = 0.88,
+        active_opacity = 0.85,
+        inactive_opacity = 0.75,
         fullscreen_opacity = 1,
         -- 2 = circle, higher = squircle, 4 = very obvious squircle
         -- Fuck clearly visible squircles. 100% Apple brainrot.
@@ -78,17 +78,17 @@ hl.config({
         rounding = 18,
 
         blur = {
-            enabled = true,
+            enabled = false,
             xray = true,
             special = false,
             new_optimizations = true,
-            size = 14,
-            passes = 4,
+            size = 2,
+            passes = 1,
             brightness = 1,
-            noise = 0.05,
-            contrast = 0.89,
-            vibrancy = 0.65,
-            vibrancy_darkness = 0.6,
+            noise = 0.02,
+            contrast = 0.95,
+            vibrancy = 0.4,
+            vibrancy_darkness = 0.5,
             popups = false,
             popups_ignorealpha = 0.6,
             input_methods = true,
@@ -158,33 +158,37 @@ hl.curve("stall", {
     type = "bezier",
     points = {{1, -0.1}, {0.7, 0.85}}
 })
+hl.curve("bounce", {
+    type = "bezier",
+    points = {{0.34, 1.56}, {0.64, 1}}
+})
 -- Configs
 -- windows
 hl.animation({
     leaf = "windowsIn",
     enabled = true,
-    speed = 8,
-    bezier = "emphasizedDecel",
-    style = "popin 80%"
+    speed = 6,
+    bezier = "bounce",
+    style = "popin 60%"
 })
 hl.animation({
     leaf = "fadeIn",
     enabled = true,
-    speed = 8,
-    bezier = "emphasizedDecel"
+    speed = 6,
+    bezier = "bounce"
 })
 hl.animation({
     leaf = "windowsOut",
     enabled = true,
-    speed = 8,
+    speed = 5,
     bezier = "emphasizedDecel",
-    style = "popin 90%"
+    style = "popin 0%"
 })
 hl.animation({
     leaf = "fadeOut",
     enabled = true,
-    speed = 8,
-    bezier = "emphasizedDecel"
+    speed = 7,
+    bezier = "standardDecel"
 })
 hl.animation({
     leaf = "windowsMove",

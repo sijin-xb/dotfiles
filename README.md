@@ -14,25 +14,11 @@
 
 ## 🚀 快速恢复 (Installation)
 
-如果你想在全新的系统中还原这些配置，请先登录 GitHub（私有仓库需要访问权限）：
+如果你想在全新的系统中还原这些配置，只需安装 `chezmoi` 后运行以下命令：
 
 ```bash
-sudo pacman -S --needed github-cli
-gh auth login
-```
+# 安装 chezmoi (Arch)
+sudo pacman -S chezmoi
 
-### Arch Linux 一键安装
-
-登录后执行下面的命令。它会从私有仓库读取并运行安装脚本：
-
-```bash
-gh api repos/sijin-xb/dotfiles/contents/install.sh --jq .content \
-  | base64 -d | bash
-```
-
-脚本会安装 `git` 和 `chezmoi`，然后初始化并应用配置。也可以先克隆仓库后审阅脚本：
-
-```bash
-gh repo clone sijin-xb/dotfiles ~/.local/share/chezmoi
-bash ~/.local/share/chezmoi/install.sh
-```
+# 初始化并应用配置
+chezmoi init --apply [https://github.com/sijin-xb/dotfiles.git](https://github.com/sijin-xb/dotfiles.git)

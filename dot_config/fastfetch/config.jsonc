@@ -1,100 +1,175 @@
 {
-    "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/master/doc/json_schema.json",
+    "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
     "logo": {
         "source": "CachyOS_small",
         "type": "auto",
         "color": {
-            "1": "#bdc7d9",
-            "2": "#bdc7d9"
+            "1": "#ffb3ac",
+            "2": "#ffb3ac"
         },
         "padding": {
             "top": 2,
-            "left": 3
+            "left": 3,
+            "right": 6
         }
     },
     "display": {
         "separator": "  ",
         "color": {
-            "title": "#e6e1e5",
-            "output": "#c5c6cc"
+            "title": "#f1dedc",
+            "output": "#d8c2bf"
         }
     },
     "modules": [
         "break",
         {
-            "type": "os",
-            "key": " 󰣇  OS   ",
-            "keyColor": "#bdc7d9"
+          "type": "custom",
+          "format": "\u001b[92m┌──────────────󰋊 Hardware󰋊──────────────┐"
         },
         {
-            "type": "kernel",
-            "key": "   KER  ",
-            "keyColor": "#bdc7d9"
+          "type": "host",
+          "key": " PC",
+          "keyColor": "green"
         },
         {
-            "type": "packages",
-            "key": " 󰏖  PKG  ",
-            "format": "{all}",
-            "keyColor": "#bdc7d9"
+          "type": "memory",
+          "key": "│ ├󰍛",
+          "keyColor": "green"
         },
         {
-            "type": "title",
-            "key": "   USER ",
-            "keyColor": "#bdc7d9"
-        },
-        "break",
-        {
-            "type": "wm",
-            "key": "   WM   ",
-            "keyColor": "#d6c0d3"
+          "type": "disk",
+          "key": "│ ├󰋊",
+          "keyColor": "green",
+          "format": "{1} / {2} ({3})"
         },
         {
-            "type": "shell",
-            "key": "   SHELL ",
-            "keyColor": "#d6c0d3"
+          "type": "cpu",
+          "key": "│ ├󰍙",
+          "keyColor": "green",
+          "format": "{1}, {3} Cores"
         },
         {
-            "type": "terminal",
-            "key": "   TERM ",
-            "keyColor": "#d6c0d3"
+          "type": "gpu",
+          "key": "│ └󰍛",
+          "keyColor": "green",
+          "format": "{2}, {3}"
         },
         {
-            "type": "terminalfont",
-            "key": "   FONT ",
-            "keyColor": "#d6c0d3"
+          "type": "custom",
+          "format": "\u001b[92m└──────────────────────────────────────┘"
         },
         "break",
         {
-            "type": "host",
-            "key": " 󰍹  HOST ",
-            "keyColor": "#e0e2ea"
+          "type": "custom",
+          "format": "\u001b[93m┌──────────────󰻠 System󰻠───────────────┐"
         },
         {
-            "type": "cpu",
-            "key": "   CPU  ",
-            "keyColor": "#e0e2ea"
+          "type": "os",
+          "key": " OS",
+          "keyColor": "yellow",
+          "format": "{name}"
         },
         {
-            "type": "memory",
-            "key": "   RAM  ",
-            "keyColor": "#e0e2ea"
+          "type": "wm",
+          "key": "│ ├󰉲",
+          "keyColor": "yellow"
         },
         {
-            "type": "gpu",
-            "key": " 󰢮  GPU  ",
-            "format": "{1} {2}",
-            "keyColor": "#e0e2ea"
+          "type": "de",
+          "key": "│ ├󰧭",
+          "keyColor": "yellow"
         },
         {
-            "type": "display",
-            "key": "   MON  ",
-            "format": "{name} {width}x{height}@{refresh-rate}",
-            "keyColor": "#e0e2ea"
+          "type": "kernel",
+          "key": "│ └󰣠",
+          "keyColor": "yellow"
         },
         {
-            "type": "disk",
-            "key": " 󰋊  DISK ",
-            "keyColor": "#e0e2ea"
-        }
+          "type": "custom",
+          "format": "\u001b[93m└──────────────────────────────────────┘"
+        },
+        "break",
+        {
+          "type": "custom",
+          "format": "\u001b[94m┌──────────────󰔎 Theme󰔎────────────────┐"
+        },
+        {
+          "type": "shell",
+          "key": " sh",
+          "keyColor": "blue",
+          "format": "{1}"
+        },
+        {
+          "type": "wmtheme",
+          "key": "│ ├󰉼",
+          "keyColor": "blue"
+        },
+        {
+          "type": "terminal",
+          "key": "│ ├󰆍",
+          "keyColor": "blue",
+          "format": "{1}"
+        },
+        {
+          "type": "packages",
+          "key": "│ └󰏖",
+          "keyColor": "blue"
+        },
+        {
+          "type": "custom",
+          "format": "\u001b[94m└──────────────────────────────────────┘"
+        },
+        "break",
+        {
+          "type": "custom",
+          "format": "\u001b[95m┌──────────────󰚭 Times󰚭───────────────┐"
+        },
+        {
+          "type": "command",
+          "key": "  OS Age ",
+          "keyColor": "magenta",
+          "keyWidth": 12,
+          "text": "birth_install=$(stat -c %W /); current=$(date +%s); time_progression=$((current - birth_install)); days_difference=$((time_progression / 86400)); echo $days_difference days"
+        },
+        {
+          "type": "uptime",
+          "key": "  Uptime ",
+          "keyColor": "magenta"
+        },
+        {
+          "type": "custom",
+          "format": "\u001b[95m└──────────────────────────────────────┘"
+        },
+        "break",
+        {
+          "type": "custom",
+          "format": "\u001b[96m┌──────────────󰚭 Music󰚭───────────────┐"
+        },
+        {
+          "type": "command",
+          "key": "  󰎆 Now ",
+          "keyColor": "cyan",
+          "keyWidth": 12,
+          "text": "playerctl metadata --format \"$(printf '%s%sartist%s%s - %s%stitle%s%s' '{' '{' '}' '}' '{' '{' '}' '}')\" 2>/dev/null || echo 'Not Playing'"
+        },
+        {
+          "type": "command",
+          "key": "  󰎅 Album ",
+          "keyColor": "cyan",
+          "keyWidth": 12,
+          "text": "playerctl metadata --format \"$(printf '%s%salbum%s%s' '{' '{' '}' '}')\" 2>/dev/null || echo '-'"
+        },
+        {
+          "type": "command",
+          "key": "  󰎄 Source ",
+          "keyColor": "cyan",
+          "keyWidth": 12,
+          "text": "playerctl --format \"$(printf '%s%splayerName%s%s' '{' '{' '}' '}')\" status 2>/dev/null || echo '-'"
+        },
+        {
+          "type": "custom",
+          "format": "\u001b[96m└──────────────────────────────────────┘"
+        },
+        "break"
     ]
 }

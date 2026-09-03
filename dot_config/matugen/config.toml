@@ -36,3 +36,11 @@ output_path = '~/.local/state/quickshell/user/generated/color.txt'
 [templates.wallpaper]
 input_path = '~/.config/matugen/templates/wallpaper.txt'
 output_path = '~/.local/state/quickshell/user/generated/wallpaper/path.txt'
+
+[templates.niri]
+input_path = '~/.config/matugen/templates/niri-colors.kdl'
+output_path = '~/.config/niri/matugen-colors.kdl'
+
+[templates.cava]
+input_path = '~/.local/src/clavis/matugen/templates/cava-colors.ini'
+output_path = '~/.config/cava/themes/matugen'

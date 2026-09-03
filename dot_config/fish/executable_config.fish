@@ -65,3 +65,7 @@ stty -ixon
 
 alias poweroff='systemctl poweroff'
 alias reboot='systemctl reboot'
+
+
+# Added by Antigravity CLI installer
+set -gx PATH "/home/xibie/.local/bin" $PATH
