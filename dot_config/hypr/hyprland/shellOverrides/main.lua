@@ -2,7 +2,7 @@
 -- In other words, I ain't writing a lua parser for this, so please be a good boi/girl/whatever
 hl.config({ decoration = { rounding = 22 } })
 hl.config({ decoration = { blur = { enabled = true } } })
-hl.config({ decoration = { blur = { size = 2 } } })
+hl.config({ decoration = { blur = { size = 1 } } })
 hl.config({ decoration = { blur = { passes = 3 } } })
 hl.config({ decoration = { active_opacity = 0.76 } })
 hl.config({ decoration = { inactive_opacity = 0.68 } })

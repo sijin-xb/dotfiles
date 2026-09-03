@@ -17,6 +17,22 @@ output_path = '~/.config/hypr/hyprlock/colors.conf'
 input_path = '~/.config/matugen/templates/fuzzel/fuzzel_theme.ini'
 output_path = '~/.config/fuzzel/fuzzel_theme.ini'
 
+[templates.alacritty]
+input_path = '~/.config/matugen/templates/alacritty/matugen-theme.toml'
+output_path = '~/.config/alacritty/matugen-theme.toml'
+
+[templates.kitty]
+input_path = '~/.config/matugen/templates/kitty/current-theme.conf'
+output_path = '~/.config/kitty/current-theme.conf'
+
+[templates.foot]
+input_path = '~/.config/matugen/templates/foot/foot.ini'
+output_path = '~/.config/foot/matugen.ini'
+
+[templates.mako]
+input_path = '~/.config/matugen/templates/mako/colors.conf'
+output_path = '~/.config/mako/colors.conf'
+
 [templates.fastfetch]
 input_path = '~/.config/matugen/templates/fastfetch-config.jsonc'
 output_path = '~/.config/fastfetch/config.jsonc'

@@ -4,8 +4,8 @@
         "source": "CachyOS_small",
         "type": "auto",
         "color": {
-            "1": "#ffb3ac",
-            "2": "#ffb3ac"
+            "1": "#ffb3b1",
+            "2": "#ffb3b1"
         },
         "padding": {
             "top": 2,
@@ -16,8 +16,8 @@
     "display": {
         "separator": "  ",
         "color": {
-            "title": "#f1dedc",
-            "output": "#d8c2bf"
+            "title": "#f0dedd",
+            "output": "#d7c1c0"
         }
     },
     "modules": [
