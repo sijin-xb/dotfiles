@@ -18,4 +18,9 @@ if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
   gh auth setup-git
 fi
 
-chezmoi init --apply https://github.com/sijin-xb/dotfiles.git
+source_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ "$source_dir" == "$(chezmoi source-path)" ]]; then
+  chezmoi apply
+else
+  chezmoi init --apply https://github.com/sijin-xb/dotfiles.git
+fi
