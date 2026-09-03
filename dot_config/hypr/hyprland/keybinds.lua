@@ -8,6 +8,7 @@ local qsScripts = "$HOME/.config/quickshell/$qsConfig/scripts"
 local hyprScripts = "$HOME/.config/hypr/hyprland/scripts"
 local qsIpcCall = "qs -c $qsConfig ipc call"
 local qsIsAlive = qsIpcCall .. " TEST_ALIVE"
+local fullScreenshot = "mkdir -p \"$HOME/Pictures/Screenshots/Hyprland-screenshots\" && save_path=\"$HOME/Pictures/Screenshots/Hyprland-screenshots/screenshot-$(date '+%Y-%m-%d_%H-%M-%S').png\" && grim \"$save_path\" && wl-copy -t image/png < \"$save_path\" && notify-send '屏幕截图' '已保存并复制到剪贴板'"
 
 hl.bind("SUPER + SUPER_L", hl.dsp.global("quickshell:searchToggleRelease"), { description = "Shell: Toggle search" })
 hl.bind("SUPER + SUPER_R", hl.dsp.global("quickshell:searchToggleRelease"))
@@ -92,8 +93,8 @@ hl.bind("SUPER + SHIFT + ALT + R", hl.dsp.exec_cmd(qsScripts .. "/videos/record.
 --# Screenshot entry points use end-4's region selector and action menu.
 hl.bind("Print", hl.dsp.global("quickshell:regionScreenshot"),
     { locked = true, description = "Utilities: Screenshot region" })
-hl.bind("CTRL + Print", hl.dsp.global("quickshell:regionScreenshot"),
-    { locked = true, description = "Utilities: Screenshot region" })
+hl.bind("CTRL + Print", hl.dsp.exec_cmd(fullScreenshot),
+    { locked = true, description = "Utilities: Screenshot screen" })
 hl.bind("SHIFT + Print", hl.dsp.global("quickshell:regionScreenshot"),
     { locked = true, description = "Utilities: Screenshot region" })
 --# AI

@@ -1,5 +1,0 @@
-output "HDMI-A-1" {
-    mode "1920x1080@100.000"
-    scale 1.00
-    position x=0 y=0
-}

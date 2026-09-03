@@ -3,12 +3,11 @@ hl.on("hyprland.start", function ()
 
     -- Input method
     hl.exec_cmd("fcitx5 -d")
-    hl.exec_cmd("sleep 1 && fcitx5-remote -o && fcitx5-remote -s rime")
-    hl.exec_cmd("dbus-update-activation-environment --systemd XMODIFIERS GTK_IM_MODULE QT_IM_MODULE QT_IM_MODULES LANG LANGUAGE")
+    hl.exec_cmd("while ! fcitx5-remote --check >/dev/null 2>&1; do sleep 0.1; done; fcitx5-remote -o; fcitx5-remote -s rime; dbus-update-activation-environment --systemd XMODIFIERS GTK_IM_MODULE QT_IM_MODULE QT_IM_MODULES LANG LANGUAGE")
 
     -- Bar, wallpaper
     hl.exec_cmd("$HOME/.config/hypr/hyprland/scripts/start_geoclue_agent.sh")
-    hl.exec_cmd("env QT_IM_MODULE=fcitx QT_IM_MODULES=fcitx qs -c $qsConfig")
+    hl.exec_cmd("while ! fcitx5-remote --check >/dev/null 2>&1; do sleep 0.1; done; env -u GTK_IM_MODULE -u QT_IM_MODULE -u QT_IM_MODULES QT_QPA_PLATFORM=wayland QT_WAYLAND_TEXT_INPUT_PROTOCOL=zwp_text_input_v3 qs -c $qsConfig")
     hl.exec_cmd("$HOME/.config/hypr/custom/scripts/__restore_video_wallpaper.sh")
 
     -- Core components (authentication, lock screen, notification daemon)
