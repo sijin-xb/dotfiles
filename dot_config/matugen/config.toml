@@ -59,8 +59,20 @@ output_path = '~/.config/niri/matugen-colors.kdl'
 
 [templates.cava]
 input_path = '~/.config/matugen/templates/cava-colors.ini'
-output_path = '~/.config/cava/themes/matugen'
+output_path = '~/.config/cava/config'
 
 [templates.fcitx5]
 input_path = '~/.config/matugen/templates/fcitx5-theme.conf'
 output_path = '~/.local/share/fcitx5/themes/Matugen/theme.conf'
+
+[templates.waybar_colors]
+input_path = '~/.config/matugen/templates/colors.css'
+output_path = '~/.config/waybar/colors.css'
+
+[templates.waybar_niri_colors]
+input_path = '~/.config/matugen/templates/colors.css'
+output_path = '~/.config/waybar-niri-Win11Like/colors.css'
+
+[templates.starship]
+input_path = '~/.config/matugen/templates/starship.toml'
+output_path = '~/.config/starship.toml'
