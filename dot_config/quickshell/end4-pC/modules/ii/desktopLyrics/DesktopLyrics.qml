@@ -15,8 +15,9 @@ import qs.modules.common.functions as CF
  * palette. The window is fully click-through and hides when playback stops.
  *
  * Lyrics pushed by MoeKoe are Kugou KRC style: "[startMs,durMs,0]<s,d,0>word..."
- * with an optional "[language:<base64 json>]" tag carrying per-line Chinese
- * translations. Standard LRC ([mm:ss.xx]) is also supported as a fallback.
+ * with per-word timestamps kept for a karaoke fill effect on the current
+ * line, plus an optional "[language:<base64 json>]" tag carrying per-line
+ * Chinese translations. Standard LRC ([mm:ss.xx]) is also supported as a fallback.
  *
  * Toggle with: qs -c end4-pC ipc call desktoplyrics toggle
  */
@@ -119,11 +120,30 @@ PanelWindow {
                 continue;
             let start = -1;
             let text = "";
+            let words = null;
             const krc = raw.match(krcRe);
             const lrc = raw.match(lrcRe);
             if (krc) {
                 start = Number(krc[1]) / 1000;
-                text = raw.slice(krc[0].length).replace(/<[^>]*>/g, "").trim();
+                const body = raw.slice(krc[0].length);
+                words = [];
+                const wordRe = /<(\d+),(\d+),\d+>([^<]*)/g;
+                let word;
+                while ((word = wordRe.exec(body)) !== null) {
+                    if (word[3].length === 0)
+                        continue;
+                    // Word timestamps are absolute ms when they fall after the
+                    // line start, otherwise relative to it (both appear in the wild)
+                    const rawStart = Number(word[1]);
+                    const wordStart = rawStart >= krc[1] ? rawStart / 1000 : start + rawStart / 1000;
+                    words.push({
+                        text: word[3],
+                        start: wordStart,
+                        dur: Number(word[2]) / 1000
+                    });
+                    text += word[3];
+                }
+                text = text.trim();
             } else if (lrc) {
                 const frac = lrc[3] !== undefined ? Number("0." + lrc[3]) : 0;
                 start = Number(lrc[1]) * 60 + Number(lrc[2]) + frac;
@@ -138,7 +158,8 @@ PanelWindow {
             lines.push({
                 start: start,
                 text: text,
-                trans: (trans !== text) ? trans.trim() : ""
+                trans: (trans !== text) ? trans.trim() : "",
+                words: (words && words.length > 0) ? words : null
             });
         }
         lines.sort((a, b) => a.start - b.start);
@@ -190,6 +211,25 @@ PanelWindow {
         }
     }
 
+    function escapeHtml(s) {
+        return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    // Karaoke fill for the current line: sung words take the primary color,
+    // upcoming ones stay dim. Plain lines are only HTML-escaped.
+    function buildLineHtml(line) {
+        if (!line.words)
+            return escapeHtml(line.text);
+        const t = currentTime + lyricOffset;
+        let html = "";
+        for (const w of line.words) {
+            const sung = t >= w.start + w.dur - 0.02;
+            const color = sung ? Appearance.colors.colPrimary : Appearance.colors.colSecondary;
+            html += `<font color="${color}">${escapeHtml(w.text)}</font>`;
+        }
+        return html;
+    }
+
     function resetReconnectBackoff() {
         reconnectInterval = 3000;
         reconnectTimer.interval = reconnectInterval;
@@ -199,14 +239,15 @@ PanelWindow {
     onCurrentTimeChanged: updateCurrentLine()
     onLyricLinesChanged: updateCurrentLine()
 
-    // Smooth progress between server updates
+    // Smooth progress between server updates; 100ms keeps the karaoke
+    // word fill from visibly stuttering
     Timer {
-        interval: 250
+        interval: 100
         running: root.shouldShow && root.isPlaying
         repeat: true
         onTriggered: {
             if (root.lyricLines.length > 0) {
-                root.currentTime = root.currentTime + 0.25;
+                root.currentTime = root.currentTime + 0.1;
                 if (root.currentLineIndex >= 0 && root.currentLineIndex + 1 < root.lyricLines.length) {
                     const current = root.lyricLines[root.currentLineIndex];
                     const next = root.lyricLines[root.currentLineIndex + 1];
@@ -334,7 +375,10 @@ PanelWindow {
 
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: parent.modelData.text
+                    // Current line re-colors per word as time advances
+                    // (karaoke); other lines are static escaped text
+                    text: parent.isCurrent ? root.buildLineHtml(parent.modelData) : root.escapeHtml(parent.modelData.text)
+                    textFormat: Text.RichText
                     font.family: Appearance.font.family.expressive
                     font.pixelSize: parent.isCurrent ? 21 : 14
                     font.weight: parent.isCurrent ? Font.DemiBold : Font.Normal
