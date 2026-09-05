@@ -110,13 +110,14 @@ MouseArea {
     //     }
     // }
 
-    // Ambient album art background: while music is playing, the wallpaper is
-    // replaced by the cover blurred full-screen (Android ambient style), with
-    // a scrim so the password box stays readable. Fades in/out.
+    // Ambient album art background: whenever a player has a current track
+    // with artwork, the lock background fades to the cover blurred
+    // full-screen (Android ambient style) with a light scrim so the
+    // password box stays readable. Falls back to the wallpaper otherwise.
     Item {
         id: ambientArtBg
         anchors.fill: parent
-        readonly property bool active: root.artUrl !== "" && root.activePlayer?.playbackState == MprisPlaybackState.Playing
+        readonly property bool active: root.artUrl !== "" && root.activePlayer !== null
         visible: opacity > 0.001
         opacity: active ? 1 : 0
         Behavior on opacity {
@@ -138,11 +139,11 @@ MouseArea {
         FastBlur {
             anchors.fill: parent
             source: ambientArtSource
-            radius: 100
+            radius: 48
         }
         Rectangle {
             anchors.fill: parent
-            color: Qt.rgba(0, 0, 0, 0.35)
+            color: Qt.rgba(0, 0, 0, 0.25)
         }
     }
 
