@@ -11,6 +11,8 @@ hl.on("hyprland.start", function ()
     -- Fcitx backend can swallow ordinary key events in QtQuick.
     hl.exec_cmd("while ! fcitx5-remote --check >/dev/null 2>&1; do sleep 0.1; done; env QT_IM_MODULE=fcitx 'QT_IM_MODULES=wayland;fcitx' GTK_IM_MODULE=fcitx XMODIFIERS=@im=fcitx QT_QPA_PLATFORM='wayland;xcb' QT_WAYLAND_TEXT_INPUT_PROTOCOL=zwp_text_input_v3 qs -c $qsConfig")
     hl.exec_cmd("$HOME/.config/hypr/custom/scripts/__restore_video_wallpaper.sh")
+    -- Refresh pinyin search aliases for CJK-named apps (used by AppSearch)
+    hl.exec_cmd("$HOME/.local/state/quickshell/.venv/bin/python $HOME/.config/hypr/hyprland/scripts/generate_app_pinyin.py")
 
     -- Core components (authentication, lock screen, notification daemon)
     hl.exec_cmd("gnome-keyring-daemon --start --components=secrets")
@@ -27,8 +29,18 @@ hl.on("hyprland.start", function ()
     hl.exec_cmd("wl-paste --type text --watch bash -c 'cliphist store && qs -c $qsConfig ipc call cliphistService update'")
     hl.exec_cmd("wl-paste --type image --watch bash -c 'cliphist store && qs -c $qsConfig ipc call cliphistService update'")
 
-    -- Cursor
-    hl.env("XCURSOR_THEME", "catppuccin-mocha-flamingo-cursors")
+    -- Cursor: theme follows the matugen palette (nearest catppuccin mocha accent),
+    -- persisted by apply_cursor_theme.py to ~/.cache/cursor_theme
+    local cursorThemeFile = io.open(home_dir .. "/.cache/cursor_theme", "r")
+    local cursorTheme = "catppuccin-mocha-flamingo-cursors"
+    if cursorThemeFile then
+        local content = cursorThemeFile:read("*l")
+        cursorThemeFile:close()
+        if content and string.len(content) > 0 then
+            cursorTheme = content
+        end
+    end
+    hl.env("XCURSOR_THEME", cursorTheme)
     hl.env("XCURSOR_SIZE", "24")
-    hl.exec_cmd("hyprctl setcursor catppuccin-mocha-flamingo-cursors 24")
+    hl.exec_cmd("hyprctl setcursor " .. cursorTheme .. " 24")
 end)

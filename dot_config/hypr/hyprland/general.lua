@@ -69,8 +69,8 @@ hl.config({
         }
     },
     decoration = {
-        active_opacity = 0.85,
-        inactive_opacity = 0.75,
+        active_opacity = 0.65,
+        inactive_opacity = 0.65,
         fullscreen_opacity = 1,
         -- 2 = circle, higher = squircle, 4 = very obvious squircle
         -- Fuck clearly visible squircles. 100% Apple brainrot.

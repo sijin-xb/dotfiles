@@ -58,5 +58,9 @@ input_path = '~/.config/matugen/templates/niri-colors.kdl'
 output_path = '~/.config/niri/matugen-colors.kdl'
 
 [templates.cava]
-input_path = '~/.local/src/clavis/matugen/templates/cava-colors.ini'
+input_path = '~/.config/matugen/templates/cava-colors.ini'
 output_path = '~/.config/cava/themes/matugen'
+
+[templates.fcitx5]
+input_path = '~/.config/matugen/templates/fcitx5-theme.conf'
+output_path = '~/.local/share/fcitx5/themes/Matugen/theme.conf'
