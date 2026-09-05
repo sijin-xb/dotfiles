@@ -190,7 +190,8 @@ PanelWindow {
             currentTime = data.currentTime ?? currentTime;
             const song = data.currentSong ?? {};
             songName = song.name ?? song.songName ?? song.title ?? "";
-            const rawLyrics = data.lyricsData ?? "";
+            // lyricsData can be false/an object when a track has no lyrics
+            const rawLyrics = typeof data.lyricsData === "string" ? data.lyricsData : "";
             // MoeKoe re-pushes the full lyrics text periodically while playing:
             // only re-parse (regex + base64 + JSON + sort) when it changes
             if (rawLyrics !== lastRawLyrics) {
