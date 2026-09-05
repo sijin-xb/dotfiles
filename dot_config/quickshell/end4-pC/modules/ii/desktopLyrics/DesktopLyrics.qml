@@ -26,10 +26,15 @@ PanelWindow {
     readonly property string wsUrl: "ws://127.0.0.1:6520/"
     property bool enabled: true
     property bool connected: false
+    // Exponential reconnect backoff: 3s → 6s → 12s → …, so a not-running
+    // MoeKoe isn't probed every 3 seconds forever
+    property int reconnectInterval: 3000
+    readonly property int reconnectMaxInterval: 30000
     property bool isPlaying: false
     property real currentTime: 0
     property real lyricOffset: 0
     property string songName: ""
+    property string lastRawLyrics: "" // last lyrics text seen, to skip re-parsing
     property var lyricLines: [] // [{ start: seconds, text: string, trans: string }]
     property int currentLineIndex: -1
     readonly property string currentText: (currentLineIndex >= 0 && currentLineIndex < lyricLines.length) ? lyricLines[currentLineIndex].text : ""
@@ -164,9 +169,15 @@ PanelWindow {
             currentTime = data.currentTime ?? currentTime;
             const song = data.currentSong ?? {};
             songName = song.name ?? song.songName ?? song.title ?? "";
-            lyricLines = parseLyrics(data.lyricsData ?? "");
-            const offsetMatch = (data.lyricsData ?? "").match(/\[offset:(-?\d+)\]/);
-            lyricOffset = offsetMatch ? -Number(offsetMatch[1]) / 1000 : 0;
+            const rawLyrics = data.lyricsData ?? "";
+            // MoeKoe re-pushes the full lyrics text periodically while playing:
+            // only re-parse (regex + base64 + JSON + sort) when it changes
+            if (rawLyrics !== lastRawLyrics) {
+                lastRawLyrics = rawLyrics;
+                lyricLines = parseLyrics(rawLyrics);
+                const offsetMatch = rawLyrics.match(/\[offset:(-?\d+)\]/);
+                lyricOffset = offsetMatch ? -Number(offsetMatch[1]) / 1000 : 0;
+            }
             updateCurrentLine();
         } else if (msg.type === "playerState" && data) {
             isPlaying = data.isPlaying ?? isPlaying;
@@ -177,6 +188,12 @@ PanelWindow {
                 currentTime = t;
             updateCurrentLine();
         }
+    }
+
+    function resetReconnectBackoff() {
+        reconnectInterval = 3000;
+        reconnectTimer.interval = reconnectInterval;
+        reconnectTimer.restart();
     }
 
     onCurrentTimeChanged: updateCurrentLine()
@@ -191,9 +208,12 @@ PanelWindow {
             if (root.lyricLines.length > 0) {
                 root.currentTime = root.currentTime + 0.25;
                 if (root.currentLineIndex >= 0 && root.currentLineIndex + 1 < root.lyricLines.length) {
+                    const current = root.lyricLines[root.currentLineIndex];
                     const next = root.lyricLines[root.currentLineIndex + 1];
                     if (root.currentTime > next.start + 1.5) // drifted too far, wait for server
-                        root.currentTime = next.start - 1.5;
+                        // Clamp to the current line start: with gaps under 1.5s,
+                        // rewinding to next.start - 1.5 would fall back a line
+                        root.currentTime = Math.max(current.start, next.start - 1.5);
                 }
             }
         }
@@ -206,12 +226,17 @@ PanelWindow {
         onStatusChanged: status => {
             if (status === WebSocket.Open) {
                 root.connected = true;
+                root.reconnectInterval = 3000;
                 reconnectTimer.stop();
             } else if (status === WebSocket.Closed || status === WebSocket.Error) {
                 root.connected = false;
                 root.lyricLines = [];
+                root.lastRawLyrics = "";
                 root.currentLineIndex = -1;
+                // Retry after the current delay, then double it for next time
+                reconnectTimer.interval = root.reconnectInterval;
                 reconnectTimer.restart();
+                root.reconnectInterval = Math.min(root.reconnectInterval * 2, root.reconnectMaxInterval);
             }
         }
     }
@@ -234,9 +259,12 @@ PanelWindow {
         target: "desktoplyrics"
         function toggle(): void {
             root.enabled = !root.enabled;
+            if (root.enabled)
+                root.resetReconnectBackoff();
         }
         function show(): void {
             root.enabled = true;
+            root.resetReconnectBackoff();
         }
         function hide(): void {
             root.enabled = false;
@@ -252,14 +280,21 @@ PanelWindow {
     margins.bottom: 90
     // Anchored children do not contribute implicit sizes: the window needs an
     // explicit height, otherwise it collapses to 0 and stays invisible
-    // Anchored children do not contribute implicit sizes: the window needs an
-    // explicit height, otherwise it collapses to 0 and stays invisible
     implicitHeight: 180
     exclusiveZone: -1
     // Fully click-through: lyrics never block the mouse
     mask: Region {}
 
     color: "transparent"
+
+    // Unmap the surface when there is nothing to show so the compositor can
+    // skip it entirely; linger a little after hiding so the fade-out completes
+    visible: root.shouldShow || fadeOutLinger.running
+    Timer {
+        id: fadeOutLinger
+        interval: 400 // slightly longer than the 350ms opacity fade
+        running: !root.shouldShow
+    }
 
     Item {
         id: lyricWrap

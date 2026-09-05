@@ -60,16 +60,26 @@ Singleton {
         id: pinyinAliasesFile
         path: `${Directories.state}/user/generated/app_pinyin.json`
         watchChanges: true
+        // watchChanges only signals a change: the content must be re-read
+        // explicitly, otherwise aliases regenerated at login (racing shell
+        // startup) are never picked up
+        onFileChanged: {
+            reload();
+            root.parsePinyinAliases();
+        }
+        onLoaded: root.parsePinyinAliases()
+        onLoadFailed: root.pinyinAliases = ({})
     }
-    readonly property var pinyinAliases: {
-        if (!pinyinAliasesFile.loaded)
-            return {}
+    property var pinyinAliases: ({})
+
+    function parsePinyinAliases() {
         try {
-            return JSON.parse(pinyinAliasesFile.text())
+            pinyinAliases = JSON.parse(pinyinAliasesFile.text());
         } catch (e) {
-            return {}
+            pinyinAliases = {};
         }
     }
+
     readonly property var preppedPinyin: Object.keys(pinyinAliases).map(appId => {
         // Resolve from `list` (localized names), not DesktopEntries.byId,
         // otherwise the matched result shows up with an empty name
@@ -87,6 +97,8 @@ Singleton {
         entry: a
     }))
 
+    // Merged once so fuzzyQuery doesn't allocate a fresh array per keystroke
+    readonly property var preppedNamesAndPinyin: root.preppedNames.concat(root.preppedPinyin)
 
     function fuzzyQuery(search: string): var { // Idk why list<DesktopEntry> doesn't work
         if (root.sloppySearch) {
@@ -102,7 +114,7 @@ Singleton {
                 .map(item => item.entry)
         }
 
-        const results = Fuzzy.go(search, root.preppedNames.concat(root.preppedPinyin), {
+        const results = Fuzzy.go(search, root.preppedNamesAndPinyin, {
             all: true,
             key: "name"
         }).map(r => {
