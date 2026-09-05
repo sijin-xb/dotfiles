@@ -43,6 +43,43 @@ Singleton {
     property var recognizedTrack: ({ title:"", subtitle:"", url:"", image:"" })
     property bool manuallyStopped: false
 
+    // Music diary: recently recognized tracks, persisted for the sidebar card
+    readonly property string historyPath: `${Directories.state}/user/generated/songrec_history.json`
+    readonly property int historyLimit: 30
+    property var history: []
+
+    FileView {
+        id: historyFile
+        path: root.historyPath
+        watchChanges: true
+        onFileChanged: reload()
+        onLoaded: root.loadHistory()
+        onLoadFailed: root.history = []
+    }
+
+    function loadHistory() {
+        try {
+            history = JSON.parse(historyFile.text())
+        } catch (e) {
+            history = []
+        }
+    }
+
+    function recordHistory() {
+        const t = root.recognizedTrack;
+        if (!t.title) return;
+        const list = Array.from(root.history ?? []);
+        // Same song as the most recent entry: just refresh its timestamp
+        if (list.length > 0 && list[0].title === t.title && list[0].subtitle === t.subtitle) {
+            list[0].timestamp = Date.now();
+        } else {
+            list.unshift({ title: t.title, subtitle: t.subtitle, url: t.url, image: t.image, timestamp: Date.now() });
+        }
+        if (list.length > root.historyLimit) list.length = root.historyLimit;
+        root.history = list;
+        historyFile.setText(JSON.stringify(list, null, 2));
+    }
+
     function handleRecognition(jsonText) {
         try {
             const obj = JSON.parse(jsonText)
@@ -53,6 +90,7 @@ Singleton {
                 url: track.url ?? "",
                 image: track.image ?? ""
             }
+            root.recordHistory();
             musicReconizedProc.running = true
         } catch(e) {
             Quickshell.execDetached(["notify-send", Translation.tr("Couldn't recognize music"), Translation.tr("Perhaps what you're listening to is too niche"), "-a", "Shell"])
