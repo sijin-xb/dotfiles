@@ -59,9 +59,10 @@ Singleton {
 
     function loadHistory() {
         try {
-            history = JSON.parse(historyFile.text())
+            const parsed = JSON.parse(historyFile.text());
+            history = Array.isArray(parsed) ? parsed : [];
         } catch (e) {
-            history = []
+            history = [];
         }
     }
 

@@ -11,6 +11,33 @@ import qs.modules.common.widgets
 Item {
     id: root
 
+    readonly property var entries: SongRec.history ?? []
+
+    // Stats over the last 7 days: total recognitions + most recognized artist
+    readonly property var weeklyStats: {
+        const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
+        const recent = root.entries.filter(e => (e.timestamp ?? 0) >= weekAgo);
+        const counts = {};
+        let top = "";
+        let topCount = 0;
+        for (const e of recent) {
+            const artist = e.subtitle ?? "";
+            counts[artist] = (counts[artist] ?? 0) + 1;
+            if (counts[artist] > topCount) {
+                topCount = counts[artist];
+                top = artist;
+            }
+        }
+        return { count: recent.length, top: top, topCount: topCount };
+    }
+    readonly property string weeklyText: {
+        const stats = weeklyStats;
+        if (stats.count === 0) return "";
+        let text = `${stats.count} this week`;
+        if (stats.top) text += ` · ${stats.top} ×${stats.topCount}`;
+        return text;
+    }
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 10
@@ -33,8 +60,34 @@ Item {
             }
         }
 
+        // Weekly report strip: recognition count over the last 7 days
+        Rectangle {
+            visible: root.weeklyText.length > 0
+            Layout.fillWidth: true
+            implicitWidth: weeklyRow.implicitWidth + 20
+            implicitHeight: weeklyRow.implicitHeight + 10
+            radius: height / 2
+            color: Appearance.colors.colSecondaryContainer
+
+            RowLayout {
+                id: weeklyRow
+                anchors.centerIn: parent
+                spacing: 6
+                MaterialSymbol {
+                    text: "insights"
+                    iconSize: Appearance.font.pixelSize.small
+                    color: Appearance.colors.colOnSecondaryContainer
+                }
+                StyledText {
+                    text: root.weeklyText
+                    color: Appearance.colors.colOnSecondaryContainer
+                    font.pixelSize: Appearance.font.pixelSize.smaller
+                }
+            }
+        }
+
         StyledText {
-            visible: SongRec.history.length === 0
+            visible: root.entries.length === 0
             Layout.fillWidth: true
             horizontalAlignment: Text.AlignHCenter
             text: Translation.tr("Songs recognized with music recognition will show up here")
@@ -43,17 +96,17 @@ Item {
 
         ListView {
             id: entryList
-            visible: SongRec.history.length > 0
+            visible: root.entries.length > 0
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
             spacing: 6
-            model: SongRec.history.length
+            model: root.entries.length
 
             delegate: RowLayout {
                 id: entryRow
                 required property int index
-                readonly property var entry: SongRec.history[index]
+                readonly property var entry: root.entries[index]
                 spacing: 10
                 width: entryList.width
 
