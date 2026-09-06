@@ -542,7 +542,7 @@ Singleton {
             }
 
             property JsonObject language: JsonObject {
-                property string ui: "auto" // UI language. "auto" for system locale, or specific language code like "zh_CN", "en_US"
+                property string ui: "zh_CN" // UI language. "auto" for system locale, or specific language code like "zh_CN", "en_US"
                 property JsonObject translator: JsonObject {
                     property string engine: "auto" // Run `trans -list-engines` for available engines. auto should use google
                     property string targetLanguage: "auto" // Run `trans -list-all` for available languages
