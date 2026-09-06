@@ -31,4 +31,32 @@ else
   chezmoi init --apply "$REPO_URL"
 fi
 
-printf '%s\n' 'Dotfiles applied. Log out and back in (or reboot) to start the full session.'
+# --- 会话运行时依赖（只警告不失败；CachyOS 大多自带）---
+declare -A runtime_deps=(
+  [hyprland]=hyprland
+  [qs]=quickshell
+  [kitty]=kitty
+  [jq]=jq
+  [fish]=fish
+  [matugen]=matugen
+  [grim]=grim
+  [wl-copy]=wl-clipboard
+  [wtype]=wtype
+  [playerctl]=playerctl
+  [fcitx5]=fcitx5
+  [python3]=python
+)
+missing=()
+for cmd in "${!runtime_deps[@]}"; do
+  command -v "$cmd" >/dev/null 2>&1 || missing+=("${runtime_deps[$cmd]}")
+done
+if ((${#missing[@]})); then
+  printf '%s\n' 'Warning: missing runtime packages (configs applied, but the session needs these):' \
+    "  sudo pacman -S --needed ${missing[*]}"
+fi
+
+printf '%s\n' \
+  'Dotfiles applied.' \
+  '- Hyprland (lua config) entry: ~/.config/hypr/hyprland.lua — 选择 Hyprland 会话登录即可。' \
+  '- Quickshell 随会话自启（hypr execs.lua）；SUPER+T = 终端召唤，SUPER+S = scratchpad。' \
+  'Log out and back in (or reboot) to start the full session.'

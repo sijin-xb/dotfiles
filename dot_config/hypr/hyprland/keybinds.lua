@@ -351,7 +351,7 @@ hl.bind("CTRL + SHIFT + ALT + SUPER + Delete", function() hl.exec_cmd("systemctl
 
 --##! Apps
 hl.bind("SUPER + Return", function() hl.exec_cmd(terminal) end, { description = "App: Terminal" })
-hl.bind("SUPER + T", function() hl.exec_cmd(terminal) end)
+hl.bind("SUPER + T", function() hl.exec_cmd(qsScripts .. "/hyprland/term-summon.sh") end, { description = "App: 终端召唤（special:quake 浮动居中，再按隐藏）" })
 hl.bind("CTRL + ALT + T", hl.dsp.global("quickshell:wallpaperSelectorToggle"),
     { description = "Shell: Wallpaper selector" })
 hl.bind("SUPER + E", function() hl.exec_cmd(fileManager) end, { description = "App: File manager" })
