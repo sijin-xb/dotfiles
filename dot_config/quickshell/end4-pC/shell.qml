@@ -6,6 +6,7 @@
 ////@ pragma Env QT_SCALE_FACTOR=1
 import "modules/common"
 import "modules/ii/desktopLyrics"
+import "modules/ii/pet"
 import "services"
 import "panelFamilies"
 import QtQuick
@@ -58,6 +59,8 @@ ShellRoot {
     }
 
     DesktopLyrics {}
+
+    PetWindow {}
 
     component PanelFamilyLoader: LazyLoader {
         required property string identifier
