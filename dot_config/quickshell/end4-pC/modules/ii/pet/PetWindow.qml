@@ -21,7 +21,7 @@ import Quickshell.Wayland
 PanelWindow {
     id: root
 
-    property bool petEnabled: true
+    readonly property bool petEnabled: Config.options.petEnabled
     // 桌面歌词实例（shell.qml 传入）：给猫猫提供逐字卡拉OK数据
     property var lyricsProvider: null
 
@@ -60,13 +60,18 @@ PanelWindow {
         target: "pet"
 
         function toggle(): void {
-            root.petEnabled = !root.petEnabled;
+            Config.options.petEnabled = !Config.options.petEnabled;
         }
         function show(): void {
-            root.petEnabled = true;
+            Config.options.petEnabled = true;
+        }
+        // qs CLI 的 "show" 是保留动词（会打印函数列表而不是调用），
+        // 命令行里请用：qs -c end4-pC ipc call pet open
+        function open(): void {
+            Config.options.petEnabled = true;
         }
         function hide(): void {
-            root.petEnabled = false;
+            Config.options.petEnabled = false;
         }
         function mood(mood: string): void {
             petState.moodOverride = mood;

@@ -25,7 +25,7 @@ PanelWindow {
     id: root
 
     readonly property string wsUrl: "ws://127.0.0.1:6520/"
-    property bool enabled: true
+    readonly property bool enabled: Config.options.desktopLyricsEnabled
     property bool connected: false
     // Exponential reconnect backoff: 3s → 6s → 12s → …, so a not-running
     // MoeKoe isn't probed every 3 seconds forever
@@ -300,16 +300,21 @@ PanelWindow {
     IpcHandler {
         target: "desktoplyrics"
         function toggle(): void {
-            root.enabled = !root.enabled;
-            if (root.enabled)
+            Config.options.desktopLyricsEnabled = !Config.options.desktopLyricsEnabled;
+            if (Config.options.desktopLyricsEnabled)
                 root.resetReconnectBackoff();
         }
         function show(): void {
-            root.enabled = true;
+            Config.options.desktopLyricsEnabled = true;
             root.resetReconnectBackoff();
         }
         function hide(): void {
-            root.enabled = false;
+            Config.options.desktopLyricsEnabled = false;
+        }
+        // CLI 别名：qs 的 "show" 是保留动词，命令行用 open
+        function open(): void {
+            Config.options.desktopLyricsEnabled = true;
+            root.resetReconnectBackoff();
         }
     }
 
