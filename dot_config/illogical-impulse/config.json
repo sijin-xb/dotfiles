@@ -372,13 +372,7 @@
     "hoverToReveal": true,
     "ignoredAppRegexes": [],
     "monochromeIcons": false,
-    "pinnedApps": [
-      "kitty",
-      "qq",
-      "cn.moekoe.music",
-      "org.jackhuang.hmcl.launcher",
-      "google-chrome"
-    ],
+    "pinnedApps": [],
     "pinnedOnStartup": false,
     "showAppsButton": true,
     "showBackground": true,
