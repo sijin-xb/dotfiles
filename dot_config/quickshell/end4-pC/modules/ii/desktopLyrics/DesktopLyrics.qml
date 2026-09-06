@@ -4,6 +4,7 @@ import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
+import Quickshell.Services.Mpris
 import qs.modules.common
 import qs.modules.common.functions as CF
 
@@ -13,6 +14,12 @@ import qs.modules.common.functions as CF
  * Connects to MoeKoe Music's WebSocket API (ws://127.0.0.1:6520/) and displays
  * the current lyric line at the bottom of the screen, following the matugen
  * palette. The window is fully click-through and hides when playback stops.
+ *
+ * Detection is event-driven: MoeKoe registers its MPRIS interface the moment it
+ * launches, so a MoeKoe player showing up triggers an immediate connect attempt
+ * (plus a short burst of fast retries in case its WebSocket server needs another
+ * second to bind). While MoeKoe is closed, an exponential reconnect backoff
+ * (3s → 6s → … → 30s) keeps idle probing cheap as a fallback.
  *
  * Lyrics pushed by MoeKoe are Kugou KRC style: "[startMs,durMs,0]<s,d,0>word..."
  * with per-word timestamps kept for a karaoke fill effect on the current
@@ -28,9 +35,16 @@ PanelWindow {
     readonly property bool enabled: Config.options.desktopLyricsEnabled
     property bool connected: false
     // Exponential reconnect backoff: 3s → 6s → 12s → …, so a not-running
-    // MoeKoe isn't probed every 3 seconds forever
+    // MoeKoe isn't probed every 3 seconds forever. Only used while no MoeKoe
+    // MPRIS player has shown up to trigger a fast connect.
     property int reconnectInterval: 3000
     readonly property int reconnectMaxInterval: 30000
+    // Fast burst after MoeKoe launches: retry at 700ms up to 12 times (~8s),
+    // covering the gap between its MPRIS registration and the WebSocket
+    // server binding the port
+    property int fastRetriesLeft: 0
+    readonly property int fastRetryInterval: 700
+    readonly property int fastRetryAttempts: 12
     property bool isPlaying: false
     property real currentTime: 0
     property real lyricOffset: 0
@@ -231,10 +245,60 @@ PanelWindow {
         return html;
     }
 
-    function resetReconnectBackoff() {
-        reconnectInterval = 3000;
-        reconnectTimer.interval = reconnectInterval;
+    function attemptConnect() {
+        if (!enabled || connected || socket.status === WebSocket.Connecting)
+            return;
+        // Resetting the url forces a fresh connection even when the socket is
+        // stuck in a closed/error state with active still true
+        socket.url = "";
+        socket.url = wsUrl;
+        socket.active = true;
+    }
+
+    function scheduleReconnect(interval) {
+        if (!enabled)
+            return;
+        reconnectTimer.interval = interval;
         reconnectTimer.restart();
+    }
+
+    // MoeKoe just launched (or lyrics were just enabled): connect right away
+    // and retry fast for a few seconds, then fall back to the idle backoff
+    function startFastConnect() {
+        reconnectInterval = 3000;
+        fastRetriesLeft = fastRetryAttempts;
+        attemptConnect();
+        scheduleReconnect(fastRetryInterval);
+    }
+
+    // MoeKoe shows up on MPRIS the moment it launches, so its appearance
+    // (pushed over DBus, no polling) doubles as the "MoeKoe is starting" signal
+    readonly property var moekoePlayer: {
+        const players = Mpris.players?.values ?? [];
+        return players.find(p =>
+            (p.identity ?? "").toLowerCase().includes("moekoe") ||
+            (p.dbusName ?? "").toLowerCase().includes("moekoe")) ?? null;
+    }
+    onMoekoePlayerChanged: {
+        if (moekoePlayer && enabled)
+            startFastConnect();
+    }
+
+    onEnabledChanged: {
+        if (enabled) {
+            startFastConnect();
+        } else {
+            fastRetriesLeft = 0;
+            reconnectTimer.stop();
+            socket.active = false;
+        }
+    }
+
+    Component.onCompleted: {
+        // Shell (re)loaded while MoeKoe is already running: skip the initial
+        // 3s probe delay entirely
+        if (enabled)
+            moekoePlayer ? startFastConnect() : scheduleReconnect(reconnectInterval);
     }
 
     onCurrentTimeChanged: updateCurrentLine()
@@ -268,17 +332,26 @@ PanelWindow {
         onStatusChanged: status => {
             if (status === WebSocket.Open) {
                 root.connected = true;
-                root.reconnectInterval = 3000;
+                root.fastRetriesLeft = 0;
+                root.reconnectInterval = 3000; // gentle idle probe next time
                 reconnectTimer.stop();
             } else if (status === WebSocket.Closed || status === WebSocket.Error) {
                 root.connected = false;
                 root.lyricLines = [];
                 root.lastRawLyrics = "";
                 root.currentLineIndex = -1;
-                // Retry after the current delay, then double it for next time
-                reconnectTimer.interval = root.reconnectInterval;
-                reconnectTimer.restart();
-                root.reconnectInterval = Math.min(root.reconnectInterval * 2, root.reconnectMaxInterval);
+                if (!root.enabled)
+                    return; // self-inflicted close while disabled: nothing to schedule
+                if (root.fastRetriesLeft > 0) {
+                    // MoeKoe is launching: MPRIS is already up, give the
+                    // WebSocket server another beat to bind the port
+                    root.fastRetriesLeft -= 1;
+                    root.scheduleReconnect(root.fastRetryInterval);
+                } else {
+                    // Idle probing: retry after the current delay, then double it
+                    root.reconnectInterval = Math.min(root.reconnectInterval * 2, root.reconnectMaxInterval);
+                    root.scheduleReconnect(root.reconnectInterval);
+                }
             }
         }
     }
@@ -286,27 +359,21 @@ PanelWindow {
     Timer {
         id: reconnectTimer
         interval: 3000
-        running: root.enabled
-        repeat: true
-        onTriggered: {
-            if (root.enabled && !root.connected && socket.status !== WebSocket.Connecting) {
-                socket.url = "";
-                socket.url = root.wsUrl;
-                socket.active = true;
-            }
-        }
+        running: false
+        repeat: false
+        onTriggered: root.attemptConnect()
     }
 
     IpcHandler {
         target: "desktoplyrics"
         function toggle(): void {
             Config.options.desktopLyricsEnabled = !Config.options.desktopLyricsEnabled;
-            if (Config.options.desktopLyricsEnabled)
-                root.resetReconnectBackoff();
         }
         function show(): void {
             Config.options.desktopLyricsEnabled = true;
-            root.resetReconnectBackoff();
+            // Still fires when enabled didn't change: forces an immediate
+            // reconnect instead of waiting out the current backoff
+            root.startFastConnect();
         }
         function hide(): void {
             Config.options.desktopLyricsEnabled = false;
@@ -314,7 +381,7 @@ PanelWindow {
         // CLI 别名：qs 的 "show" 是保留动词，命令行用 open
         function open(): void {
             Config.options.desktopLyricsEnabled = true;
-            root.resetReconnectBackoff();
+            root.startFastConnect();
         }
     }
 
