@@ -30,8 +30,12 @@ Scope {
         WlrLayershell.keyboardFocus: GlobalStates.overviewOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
         color: "transparent"
 
+        // 点击空白处关闭：打开时把输入 mask 扩到整个窗口，
+        // 捕获层垫在面板下面，点到空白就收起。
+        // 故意不用 HyprlandFocusGrab —— 它会弄坏 fcitx5 的输入法桥接，
+        // 搜索框就打不了中文了（见下面的 Connections 注释）
         mask: Region {
-            item: GlobalStates.overviewOpen ? columnLayout : null
+            item: GlobalStates.overviewOpen ? fullArea : null
         }
 
         anchors {
@@ -76,54 +80,65 @@ Scope {
             searchWidget.focusFirstItem();
         }
 
-        Column {
-            id: columnLayout
-            visible: GlobalStates.overviewOpen
-            anchors {
-                horizontalCenter: parent.horizontalCenter
-                top: parent.top
-            }
-            spacing: -8
+        Item {
+            id: fullArea
+            anchors.fill: parent
 
-            Keys.onPressed: event => {
-                if (event.key === Qt.Key_Escape) {
-                    GlobalStates.overviewOpen = false;
-                } else if (event.key === Qt.Key_Left) {
-                    if (!panelWindow.searchingText)
-                        Hyprland.dispatch("workspace r-1");
-                } else if (event.key === Qt.Key_Right) {
-                    if (!panelWindow.searchingText)
-                        Hyprland.dispatch("workspace r+1");
+            MouseArea {
+                id: outsideClickArea
+                anchors.fill: parent
+                onClicked: GlobalStates.overviewOpen = false
+            }
+
+            Column {
+                id: columnLayout
+                visible: GlobalStates.overviewOpen
+                anchors {
+                    horizontalCenter: parent.horizontalCenter
+                    top: parent.top
                 }
-            }
+                spacing: -8
 
-            SearchWidget {
-                id: searchWidget
-                anchors.horizontalCenter: parent.horizontalCenter
-                Synchronizer on searchingText {
-                    property alias source: panelWindow.searchingText
-                }
-            }
-
-            Loader {
-                id: overviewLoader
-                active: GlobalStates.overviewOpen && (Config?.options.overview.enable ?? true)
-                sourceComponent: (Config?.options.overview.style ?? "default") === "niri" ? niriComponent : defaultComponent
-
-                Component {
-                    id: defaultComponent
-                    OverviewWidget {
-                        screen: panelWindow.screen
-                        visible: (panelWindow.searchingText == "")
+                Keys.onPressed: event => {
+                    if (event.key === Qt.Key_Escape) {
+                        GlobalStates.overviewOpen = false;
+                    } else if (event.key === Qt.Key_Left) {
+                        if (!panelWindow.searchingText)
+                            Hyprland.dispatch("workspace r-1");
+                    } else if (event.key === Qt.Key_Right) {
+                        if (!panelWindow.searchingText)
+                            Hyprland.dispatch("workspace r+1");
                     }
                 }
 
-                Component {
-                    id: niriComponent
-                    NiriOverview {
-                        screen: panelWindow.screen
-                        panelWindow: panelWindow
-                        visible: (panelWindow.searchingText == "")
+                SearchWidget {
+                    id: searchWidget
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    Synchronizer on searchingText {
+                        property alias source: panelWindow.searchingText
+                    }
+                }
+
+                Loader {
+                    id: overviewLoader
+                    active: GlobalStates.overviewOpen && (Config?.options.overview.enable ?? true)
+                    sourceComponent: (Config?.options.overview.style ?? "default") === "niri" ? niriComponent : defaultComponent
+
+                    Component {
+                        id: defaultComponent
+                        OverviewWidget {
+                            screen: panelWindow.screen
+                            visible: (panelWindow.searchingText == "")
+                        }
+                    }
+
+                    Component {
+                        id: niriComponent
+                        NiriOverview {
+                            screen: panelWindow.screen
+                            panelWindow: panelWindow
+                            visible: (panelWindow.searchingText == "")
+                        }
                     }
                 }
             }

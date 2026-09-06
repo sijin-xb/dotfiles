@@ -77,6 +77,12 @@ Item {
         anchors.fill: parent
         anchors.margins: Appearance.sizes.elevationMargin
 
+        // 面板卡片自身的空白处吞掉点击，避免误触外面的"点空白关闭"
+        MouseArea {
+            anchors.fill: parent
+            z: -1
+        }
+
         implicitWidth: workspaceColumnLayout.implicitWidth + padding * 2
         implicitHeight: workspaceColumnLayout.implicitHeight + padding * 2
         radius: root.largeWorkspaceRadius + padding

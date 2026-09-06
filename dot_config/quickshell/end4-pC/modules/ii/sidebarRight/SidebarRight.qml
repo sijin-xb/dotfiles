@@ -63,7 +63,7 @@ Scope {
             top: true
             right: true
             bottom: true
-            left: animatedEntrance
+            left: true
         }
 
         margins {
@@ -96,11 +96,12 @@ Scope {
         Item {
             anchors.fill: parent
 
+            // 点击面板以外的空白处关闭（窗口已扩成全宽；面板本身在
+            // entranceWrapper 里吞掉自己的点击）。同样不碰键盘焦点，
+            // todo/notes 的 fcitx5 中文输入不受影响
             MouseArea {
                 id: outsideClickArea
                 anchors.fill: parent
-                enabled: panelWindow.animatedEntrance
-                visible: panelWindow.animatedEntrance
                 onClicked: panelWindow.hide()
             }
 

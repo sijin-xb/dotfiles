@@ -8,19 +8,22 @@ import Quickshell.Io
 import Quickshell.Wayland
 
 /**
- * The desktop pet: a tiny shell-native creature in the bottom-right corner.
- * Its mood comes from real system state (see PetState). It is NOT a
- * standalone desktop-pet app — it lives inside the shell, follows the
- * matugen palette, and never gets in the way: only its body takes input.
+ * 桌宠窗口：全屏透明覆盖层，只有猫猫本体占的矩形接收输入（mask），其余全部穿透。
+ * 猫猫可以被抓住拖走、甩出去（惯性 + 屏幕边缘反弹 + 落地压扁扬尘），
+ * 落点持久化在 ~/.local/state/quickshell/pet-position.json。
  *
  * IPC:
  *   qs -c end4-pC ipc call pet toggle|show|hide|status
- *   qs -c end4-pC ipc call pet mood busy    (force a mood; "auto" releases)
+ *   qs -c end4-pC ipc call pet mood busy     (强制心情；"auto" 释放)
+ *   qs -c end4-pC ipc call pet home          (回老家)
+ *   qs -c end4-pC ipc call pet toss -800 -400 (扔猫；无参数 = 随机方向)
  */
 PanelWindow {
     id: root
 
     property bool petEnabled: true
+    // 桌面歌词实例（shell.qml 传入）：给猫猫提供逐字卡拉OK数据
+    property var lyricsProvider: null
 
     WlrLayershell.namespace: "quickshell:pet"
     WlrLayershell.layer: WlrLayer.Top
@@ -29,19 +32,13 @@ PanelWindow {
     visible: root.petEnabled
 
     anchors {
+        top: true
         bottom: true
+        left: true
         right: true
     }
-    margins {
-        bottom: 12
-        right: 12
-    }
-    // Anchored children do not contribute implicit sizes: the window needs an
-    // explicit size, otherwise it collapses to 0 and stays invisible
-    implicitWidth: 220
-    implicitHeight: 250
 
-    // Only the creature's bounding box takes input; the rest clicks through
+    // 只有猫猫占的矩形接收输入
     mask: Region {
         item: petContent.interactionRoot
     }
@@ -54,7 +51,9 @@ PanelWindow {
     Pet {
         id: petContent
         anchors.fill: parent
+        active: root.petEnabled
         vitals: petState
+        lyricsProvider: root.lyricsProvider
     }
 
     IpcHandler {
@@ -74,6 +73,12 @@ PanelWindow {
         }
         function status(): string {
             return petState.mood;
+        }
+        function home(): void {
+            petContent.goHome();
+        }
+        function toss(dx: int, dy: int): void {
+            petContent.toss(dx, dy);
         }
     }
 }

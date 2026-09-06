@@ -58,9 +58,12 @@ ShellRoot {
         component: IllogicalImpulseFamily {}
     }
 
-    DesktopLyrics {}
+    DesktopLyrics { id: desktopLyrics }
 
-    PetWindow {}
+    // 桌宠：拿桌面歌词的逐字 KRC 数据来"唱歌"
+    PetWindow {
+        lyricsProvider: desktopLyrics
+    }
 
     component PanelFamilyLoader: LazyLoader {
         required property string identifier

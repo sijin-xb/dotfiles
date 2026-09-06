@@ -6,24 +6,54 @@ import qs.modules.common.widgets
 import qs.modules.common.functions
 import QtQuick
 import QtQuick.Shapes
+import Quickshell.Io
 
 /**
- * 桌宠本尊：一只 bongo cat 风格的小白猫，纯 QML 手绘（无素材、无 Live2D，
- * 它就是 Shell 的一部分）。毛色固定为白色，让"猫"的身份稳定；道具
- * （zzz、箱子、键盘、耳机…）用 matugen 主题色，跟桌面融为一体。
+ * bongo cat 本体：纯 QML 手绘的小白猫，是 Shell 的一部分（无素材、无 Live2D）。
+ * 毛色固定白色，道具（zzz、箱子、键盘、耳机…）用 matugen 主题色。
  *
- * 心情来自 PetState。招牌动作是交替拍爪（bong bong）：
- * 打字时在键盘上快拍、听歌时跟节拍拍、平时慢悠悠地拍。
+ * 玩法：
+ * - 点它 = 摸摸（爱心 + bong bong ♪）
+ * - 拖它 = 拎起来：耳朵后倒、爪子随速度摆、身体朝移动方向倾斜，喵喵抗议
+ * - 甩它 = 飞出去：惯性滑行、屏幕边缘反弹、落地压扁 + 扬尘；摔狠了眼冒圈圈
+ * - 落哪住哪：位置持久化，`ipc call pet home` 回老家
+ * - 唱歌：听歌时接桌面歌词的逐字 KRC 时间戳，每个字张一次嘴，
+ *   点头频率跟随这一行的字密度；没有逐字数据的播放器退化为哼歌模式
+ *
+ * 心情来自 PetState。motion: 0=rest 1=held 2=flying
  */
 Item {
     id: root
 
     property var vitals
+    property var lyricsProvider: null
+    property bool active: true // 由 PetWindow 绑定到 petEnabled
     property alias interactionRoot: creatureWrap
     readonly property string mood: vitals?.mood ?? "sleep"
     readonly property bool sleeping: mood === "sleep"
     property bool blinking: false
+
+    // ——— 运动状态 ———
+    property int motion: 0 // 0=rest 1=held 2=flying
+    readonly property bool grabbed: motion === 1
+    readonly property bool airborne: motion === 2
+    property real catX: -1
+    property real catY: -1
+    property real vx: 0
+    property real vy: 0
+    property real sVx: 0 // 平滑后的速度（驱动姿态）
+    property real sVy: 0
+    property real pawSwing: 0
+    property bool dizzy: false
+    property bool positionLoaded: false
+    property bool settling: false // 落地/扔出后还在回弹，物理循环保持运行
+
+    // ——— 唱歌 ———
+    property real singOpen: 0 // 0..1 张嘴程度
+    property int singBobPeriod: 620
+
     readonly property bool petted: pettedTimer.running
+    property string sayText: ""
 
     // ——— 固定猫猫配色（不随深浅色主题变化）———
     readonly property color furColor: "#FDFDFD"
@@ -35,36 +65,397 @@ Item {
     // Shell 侧的道具（zzz、键盘、耳机…）沿用主题强调色
     readonly property color accentColor: Appearance.colors.colPrimary
 
-    readonly property bool bubbleVisible: petArea.containsMouse || petted
-    readonly property string bubbleLabel: petted ? "bong bong ♪" : (vitals?.moodLabel ?? "")
-    readonly property string bubbleDetail: petted ? "" : (vitals?.moodDetail ?? "")
+    readonly property bool bubbleVisible: petArea.containsMouse || sayTimer.running
+    readonly property string bubbleLabel: sayText.length > 0 ? sayText : (vitals?.moodLabel ?? "")
+    readonly property string bubbleDetail: sayText.length > 0 ? "" : (vitals?.moodDetail ?? "")
 
     // 呼吸幅度/周期随心情变化
     readonly property real breathAmp: sleeping ? 0.05 : (mood === "busy" ? 0.045 : 0.03)
     readonly property int breathPeriod: sleeping ? 2600 : (mood === "busy" ? 1100 : 1700)
     // 尾巴：睡着不动，忙碌/焦虑时烦躁地快甩
     readonly property int tailPeriod: sleeping ? 0 : (mood === "busy" || mood === "anxious" ? 500 : (mood === "music" ? 700 : 1500))
-    // 拍爪：打字/搬货时不拍（有专门动作），醒着就拍，听歌跟节拍
-    readonly property bool pawTapActive: !sleeping && mood !== "typing" && mood !== "carry"
+    // 拍爪：醒着、没被拎/飞、没有专门动作（打字/举箱）时拍
+    readonly property bool pawTapActive: !sleeping && motion === 0 && mood !== "typing" && mood !== "carry"
     readonly property int pawTapPeriod: mood === "music" ? 640 : 1700
+
+    // 耳朵：焦虑耷拉 + 被拎/飞行时往后倒
+    property real earDroopL: mood === "anxious" ? -18 : 0
+    Behavior on earDroopL {
+        NumberAnimation {
+            duration: 300
+            easing.type: Easing.OutCubic
+        }
+    }
+    property real earDroopR: mood === "anxious" ? 18 : 0
+    Behavior on earDroopR {
+        NumberAnimation {
+            duration: 300
+            easing.type: Easing.OutCubic
+        }
+    }
+    property real earFlyL: (grabbed || airborne) ? -24 : 0
+    Behavior on earFlyL {
+        NumberAnimation {
+            duration: 220
+            easing.type: Easing.OutCubic
+        }
+    }
+    property real earFlyR: (grabbed || airborne) ? 24 : 0
+    Behavior on earFlyR {
+        NumberAnimation {
+            duration: 220
+            easing.type: Easing.OutCubic
+        }
+    }
+
+    function clamp(v, a, b) {
+        return Math.max(a, Math.min(b, v));
+    }
+
+    function say(text, ms) {
+        sayText = text;
+        sayTimer.interval = ms;
+        sayTimer.restart();
+    }
 
     function pet() {
         pettedTimer.restart();
         heartAnim.restart();
         wiggleAnim.restart();
+        say("bong bong ♪", 2200);
     }
 
     onMoodChanged: {
-        // 动画可能被打断在半路；把位移归零
+        // 心情动画可能被打断在半路；把位移归零
         body.x = 0;
         body.rotation = 0;
         pawLRot.angle = 0;
         pawRRot.angle = 0;
     }
 
-    Timer { // 摸摸反应
+    // ——— 位置与物理 ———
+    function clampCat() {
+        const maxX = Math.max(8, width - creatureWrap.width - 8);
+        const maxY = Math.max(8, height - creatureWrap.height - 8);
+        catX = clamp(catX, 8, maxX);
+        catY = clamp(catY, 8, maxY);
+    }
+
+    function moveCatTo(x, y) {
+        catX = x;
+        catY = y;
+        clampCat();
+    }
+
+    function defaultX() {
+        return width - creatureWrap.width - 14;
+    }
+    function defaultY() {
+        return height - creatureWrap.height - 10;
+    }
+
+    function applyDefaultPosition() {
+        if (width > 0 && height > 0) {
+            catX = defaultX();
+            catY = defaultY();
+        }
+    }
+
+    Component.onCompleted: fallbackPositionTimer.restart()
+
+    // 文件不存在时 loadFailed 在部分路径下不可靠：超时兜底直接用默认位
+    Timer {
+        id: fallbackPositionTimer
+        interval: 400
+        onTriggered: {
+            if (!root.positionLoaded) {
+                root.applyDefaultPosition();
+                root.positionLoaded = true;
+            }
+        }
+    }
+
+    FileView {
+        id: positionFile
+        path: `${Directories.state}/pet-position.json`
+        watchChanges: false
+        onLoaded: {
+            if (adapter.x >= 0 && adapter.y >= 0 && root.width > 0) {
+                root.catX = adapter.x;
+                root.catY = adapter.y;
+                root.clampCat();
+            } else {
+                root.applyDefaultPosition();
+            }
+            root.positionLoaded = true;
+        }
+        onLoadFailed: {
+            root.applyDefaultPosition();
+            root.positionLoaded = true;
+        }
+        onSaveFailed: error => console.warn("[Pet] position save failed:", error)
+        JsonAdapter {
+            id: adapter
+            property real x: -1
+            property real y: -1
+        }
+    }
+
+    function savePosition() {
+        if (!positionLoaded)
+            return;
+        adapter.x = catX;
+        adapter.y = catY;
+        positionFile.writeAdapter();
+    }
+    Timer {
+        id: saveTimer
+        interval: 700
+        onTriggered: root.savePosition()
+    }
+
+    function startHold() {
+        if (motion === 1)
+            return;
+        motion = 1;
+        vx = 0;
+        vy = 0;
+        singOpen = 0.15;
+        say("喵呜——放我下来！", 1800);
+    }
+
+    function releaseWithVelocity(ivx, ivy) {
+        const speed = Math.hypot(ivx, ivy);
+        if (speed > 260) {
+            startFly(ivx, ivy);
+        } else {
+            landSoft();
+        }
+    }
+
+    function startFly(ivx, ivy) {
+        const speed = Math.hypot(ivx, ivy);
+        const cap = 2800;
+        const scale = speed > cap ? cap / speed : 1;
+        vx = ivx * scale;
+        vy = ivy * scale;
+        sVx = vx;
+        sVy = vy;
+        motion = 2;
+        say("喵啊啊!!", 900);
+    }
+
+    function toss(dx, dy) {
+        if (motion === 1)
+            return;
+        if (dx === 0 && dy === 0) {
+            startFly((Math.random() * 2 - 1) * 1500, -(700 + Math.random() * 900));
+        } else {
+            startFly(dx, dy);
+        }
+    }
+
+    function landSoft() {
+        motion = 0;
+        stretchS.xScale = 1.12;
+        stretchS.yScale = 0.9;
+        pawLRot.angle = 0;
+        pawRRot.angle = 0;
+        body.x = 0;
+        settling = true;
+        saveTimer.restart();
+    }
+
+    function impact(strength, x, y) {
+        // 落地/撞墙：压扁 + 扬尘 + (狠了)眩晕
+        settling = true;
+        stretchS.xScale = clamp(1 + strength / 5200, 1, 1.28);
+        stretchS.yScale = 1 / stretchS.xScale;
+        if (strength > 420)
+            dustAnim.restart();
+        if (strength > 1100 && !dizzy) {
+            dizzy = true;
+            dizzyTimer.restart();
+            say("摔晕了…嗝", 1500);
+        }
+    }
+
+    Timer {
+        id: dizzyTimer
+        interval: 1100
+        onTriggered: root.dizzy = false
+    }
+
+    function land() {
+        motion = 0;
+        settling = true;
+        pawLRot.angle = 0;
+        pawRRot.angle = 0;
+        body.x = 0;
+        saveTimer.restart();
+    }
+
+    function bounce() {
+        const pad = 8;
+        let hit = 0;
+        if (catX <= pad && vx < 0) {
+            catX = pad;
+            hit = Math.abs(vx);
+            vx = -vx * 0.55;
+        } else if (catX >= width - creatureWrap.width - pad && vx > 0) {
+            catX = width - creatureWrap.width - pad;
+            hit = Math.abs(vx);
+            vx = -vx * 0.55;
+        }
+        if (catY <= pad && vy < 0) {
+            catY = pad;
+            hit = Math.max(hit, Math.abs(vy));
+            vy = -vy * 0.55;
+        } else if (catY >= height - creatureWrap.height - pad && vy > 0) {
+            catY = height - creatureWrap.height - pad;
+            hit = Math.max(hit, Math.abs(vy));
+            vy = -vy * 0.55;
+        }
+        if (hit > 0)
+            impact(hit, catX, catY);
+    }
+
+    function goHome() {
+        motion = 0;
+        settling = true;
+        homeAnimX.to = defaultX();
+        homeAnimY.to = defaultY();
+        homeAnim.restart();
+    }
+    SequentialAnimation {
+        id: homeAnim
+        running: false
+        onStopped: root.savePosition()
+        NumberAnimation {
+            id: homeAnimX
+            target: root
+            property: "catX"
+            duration: 650
+            easing.type: Easing.InOutBack
+        }
+        NumberAnimation {
+            id: homeAnimY
+            target: root
+            property: "catY"
+            duration: 650
+            easing.type: Easing.InOutBack
+        }
+    }
+
+    // 每帧积分：飞行物理 + 姿态（倾斜/摆爪/挤压拉伸）
+    FrameAnimation {
+        running: root.active && root.positionLoaded && (root.motion !== 0 || root.settling)
+        onTriggered: root.stepPhysics(frameTime)
+    }
+
+    function stepPhysics(dt) {
+        const k = Math.min(1, dt * 10);
+        // 速度平滑（驱动姿态）
+        sVx += (vx - sVx) * Math.min(1, dt * 9);
+        sVy += (vy - sVy) * Math.min(1, dt * 9);
+
+        if (motion === 2) {
+            const drag = Math.exp(-1.5 * dt);
+            vx *= drag;
+            vy *= drag;
+            catX += vx * dt;
+            catY += vy * dt;
+            clampCat();
+            bounce();
+            if (Math.hypot(vx, vy) < 26)
+                land();
+        }
+
+        // 挤压拉伸：被拎/飞行时沿速度方向拉长，静止时弹回
+        const speed = Math.hypot(sVx, sVy);
+        const targetSx = (motion !== 0) ? 1 + Math.min(0.16, speed / 5200) : 1;
+        stretchS.xScale += (targetSx - stretchS.xScale) * k;
+        stretchS.yScale += ((1 / targetSx) - stretchS.yScale) * k;
+
+        // 身体朝移动方向倾斜
+        const tiltTarget = (motion !== 0) ? clamp(sVx * 0.045, -18, 18) : 0;
+        poseTilt.angle += (tiltTarget - poseTilt.angle) * k;
+
+        // 爪子随速度摆动（拎起来时像钟摆）
+        const swingTarget = (motion !== 0) ? clamp(-sVx * 0.07, -30, 30) : 0;
+        pawSwing += (swingTarget - pawSwing) * Math.min(1, dt * 9);
+        if (motion !== 0) {
+            pawLRot.angle = pawSwing;
+            pawRRot.angle = pawSwing * 0.75;
+        }
+
+        // 静止且回弹结束 → 物理循环歇菜
+        if (motion === 0 && Math.abs(stretchS.xScale - 1) < 0.004 && Math.abs(poseTilt.angle) < 0.2 && Math.abs(pawSwing) < 0.4)
+            settling = false;
+    }
+
+    // ——— 唱歌 ———
+    Timer {
+        id: singTimer
+        interval: 33
+        running: root.active && root.mood === "music"
+        repeat: true
+        onTriggered: root.updateSing()
+    }
+
+    function updateSing() {
+        if (motion !== 0) { // 被拎着时吓得不唱了
+            singOpen += (0.12 - singOpen) * 0.5;
+            return;
+        }
+        if (mood !== "music") {
+            singOpen += (0 - singOpen) * 0.5;
+            return;
+        }
+        const prov = root.lyricsProvider;
+        const hasKrc = prov && prov.shouldShow && prov.lyricLines && prov.lyricLines.length > 0;
+        if (hasKrc) {
+            const t = prov.currentTime + prov.lyricOffset;
+            const line = prov.lyricLines[prov.currentLineIndex];
+            if (!line) {
+                singOpen += (0.08 - singOpen) * 0.5;
+                return;
+            }
+            const words = line.words;
+            if (words && words.length > 0) {
+                // 这一行的字密度 = 歌的节奏 → 点头周期
+                let sum = 0;
+                for (const w of words)
+                    sum += w.dur;
+                singBobPeriod = clamp((sum / words.length) * 2000, 300, 760);
+                let open = 0.06;
+                for (const w of words) {
+                    if (t >= w.start && t < w.start + w.dur) {
+                        open = w.dur < 0.16 ? 0.65 : 1;
+                        break;
+                    }
+                }
+                singOpen += (open - singOpen) * 0.55;
+            } else {
+                // LRC 兜底：固定频率张合
+                singOpen += ((Math.sin(t * Math.PI * 2 * 1.3) > 0 ? 0.85 : 0.1) - singOpen) * 0.5;
+                singBobPeriod = 560;
+            }
+        } else {
+            // 哼歌模式：别的播放器在放但没有逐字数据
+            singOpen += ((Math.sin(Date.now() / 1000 * Math.PI * 2 * 1.2) > 0 ? 0.55 : 0.12) - singOpen) * 0.4;
+            singBobPeriod = 620;
+        }
+    }
+
+    // ——— 摸摸 / 说话 ———
+    Timer { // 摸摸反应特效
         id: pettedTimer
         interval: 2200
+    }
+    Timer {
+        id: sayTimer
+        onTriggered: root.sayText = ""
     }
 
     Timer {
@@ -88,7 +479,7 @@ Item {
     Timer { // 猫猫 random 耳朵抽动
         id: earTwitchTimer
         interval: 3200 + Math.random() * 4200
-        running: root.visible && !root.sleeping
+        running: root.visible && !root.sleeping && root.motion === 0
         onTriggered: {
             if (Math.random() < 0.5)
                 earTwitchL.restart();
@@ -99,14 +490,24 @@ Item {
         }
     }
 
+    onWidthChanged: {
+        if (!positionLoaded)
+            applyDefaultPosition();
+        else
+            clampCat();
+    }
+    onHeightChanged: {
+        if (!positionLoaded)
+            applyDefaultPosition();
+        else
+            clampCat();
+    }
+
     // ——— 气泡 ———
     Rectangle {
         id: bubble
-        anchors {
-            bottom: creatureWrap.top
-            bottomMargin: 10
-            horizontalCenter: creatureWrap.horizontalCenter
-        }
+        x: creatureWrap.x + (creatureWrap.width - width) / 2
+        y: creatureWrap.y - height - 10 < 8 ? creatureWrap.y + creatureWrap.height + 10 : creatureWrap.y - height - 10
         width: bubbleColumn.implicitWidth + 22
         height: bubbleColumn.implicitHeight + 14
         radius: 11
@@ -168,11 +569,8 @@ Item {
     // ——— 猫猫 ———
     Item {
         id: creatureWrap
-        anchors {
-            bottom: parent.bottom
-            bottomMargin: 20
-            horizontalCenter: parent.horizontalCenter
-        }
+        x: root.catX
+        y: root.catY
         width: 150
         height: 160
 
@@ -199,6 +597,19 @@ Item {
                     origin.x: 46
                     origin.y: 70
                     yScale: 1
+                },
+                Scale {
+                    id: stretchS
+                    origin.x: 46
+                    origin.y: 35
+                    xScale: 1
+                    yScale: 1
+                },
+                Rotation {
+                    id: poseTilt
+                    origin.x: 46
+                    origin.y: 55
+                    angle: 0
                 }
             ]
 
@@ -222,7 +633,7 @@ Item {
             }
 
             SequentialAnimation { // 忙碌发抖
-                running: root.mood === "busy"
+                running: root.mood === "busy" && root.motion === 0
                 loops: Animation.Infinite
                 NumberAnimation {
                     target: body
@@ -244,7 +655,7 @@ Item {
                 }
             }
             SequentialAnimation { // 焦虑颤抖
-                running: root.mood === "anxious"
+                running: root.mood === "anxious" && root.motion === 0
                 loops: Animation.Infinite
                 NumberAnimation {
                     target: body
@@ -266,7 +677,7 @@ Item {
                 }
             }
             SequentialAnimation { // 找网络时踱步
-                running: root.mood === "lost"
+                running: root.mood === "lost" && root.motion === 0
                 loops: Animation.Infinite
                 NumberAnimation {
                     target: body
@@ -290,33 +701,33 @@ Item {
                     easing.type: Easing.InOutSine
                 }
             }
-            SequentialAnimation { // 听歌点头
-                running: root.mood === "music" && !root.petted
+            SequentialAnimation { // 听歌点头（周期跟随歌词字密度）
+                running: root.mood === "music" && !root.petted && root.motion === 0
                 loops: Animation.Infinite
                 NumberAnimation {
                     target: body
                     property: "rotation"
                     to: 4
-                    duration: 300
+                    duration: root.singBobPeriod * 0.5
                     easing.type: Easing.InOutSine
                 }
                 NumberAnimation {
                     target: body
                     property: "rotation"
                     to: -4
-                    duration: 600
+                    duration: root.singBobPeriod
                     easing.type: Easing.InOutSine
                 }
                 NumberAnimation {
                     target: body
                     property: "rotation"
                     to: 0
-                    duration: 300
+                    duration: root.singBobPeriod * 0.5
                     easing.type: Easing.InOutSine
                 }
             }
 
-            // ——— 尾巴：身体右后方的描边曲线，会摇 ———
+            // ——— 尾巴 ———
             Shape {
                 anchors.fill: parent
                 transform: Rotation {
@@ -363,8 +774,7 @@ Item {
                 }
             }
 
-            // ——— 耳朵：不闭合路径（fill 自动闭合，底边不描边藏在身体里），
-            //      可以抽动、焦虑时耷拉 ———
+            // ——— 耳朵 ———
             Shape {
                 anchors.fill: parent
                 transform: Rotation {
@@ -372,7 +782,7 @@ Item {
                     origin.x: 27
                     origin.y: 10
                     property real twitchAngle: 0
-                    angle: root.earDroopL + earLRot.twitchAngle
+                    angle: root.earDroopL + root.earFlyL + earLRot.twitchAngle
                 }
                 ShapePath {
                     strokeColor: root.furBorder
@@ -396,7 +806,7 @@ Item {
                     origin.x: 65
                     origin.y: 10
                     property real twitchAngle: 0
-                    angle: root.earDroopR + earRRot.twitchAngle
+                    angle: root.earDroopR + root.earFlyR + earRRot.twitchAngle
                 }
                 ShapePath {
                     strokeColor: root.furBorder
@@ -422,7 +832,7 @@ Item {
                 height: width
                 radius: width / 2
                 color: root.faceColor
-                visible: !root.sleeping && !root.blinking
+                visible: (!root.sleeping && !root.blinking || root.motion !== 0) && !root.dizzy
             }
             Rectangle {
                 x: 57
@@ -431,7 +841,7 @@ Item {
                 height: width
                 radius: width / 2
                 color: root.faceColor
-                visible: !root.sleeping && !root.blinking
+                visible: (!root.sleeping && !root.blinking || root.motion !== 0) && !root.dizzy
             }
             Rectangle { // 眼睛高光
                 x: 26.5
@@ -440,7 +850,7 @@ Item {
                 height: 3.5
                 radius: 1.75
                 color: "#FFFFFF"
-                visible: !root.sleeping && !root.blinking
+                visible: (!root.sleeping && !root.blinking || root.motion !== 0) && !root.dizzy
             }
             Rectangle {
                 x: 59.5
@@ -449,11 +859,11 @@ Item {
                 height: 3.5
                 radius: 1.75
                 color: "#FFFFFF"
-                visible: !root.sleeping && !root.blinking
+                visible: (!root.sleeping && !root.blinking || root.motion !== 0) && !root.dizzy
             }
             Shape { // 睡着/眨眼：⌒ ⌒
                 anchors.fill: parent
-                visible: root.sleeping || root.blinking
+                visible: (root.sleeping || root.blinking) && root.motion === 0
                 ShapePath {
                     strokeColor: root.faceColor
                     strokeWidth: 2.6
@@ -470,6 +880,54 @@ Item {
                     fillColor: "transparent"
                     PathSvg {
                         path: "M 57 30 Q 63 24 69 30"
+                    }
+                }
+            }
+            Rectangle { // 摔晕的圈圈眼
+                x: 23
+                y: 19
+                width: 13
+                height: 13
+                radius: 6.5
+                color: "transparent"
+                border.width: 2.4
+                border.color: root.faceColor
+                visible: root.dizzy
+                transform: Rotation {
+                    origin.x: 6.5
+                    origin.y: 6.5
+                }
+                SequentialAnimation on rotation {
+                    running: root.dizzy
+                    loops: Animation.Infinite
+                    NumberAnimation {
+                        from: 0
+                        to: 360
+                        duration: 700
+                    }
+                }
+            }
+            Rectangle {
+                x: 56
+                y: 19
+                width: 13
+                height: 13
+                radius: 6.5
+                color: "transparent"
+                border.width: 2.4
+                border.color: root.faceColor
+                visible: root.dizzy
+                transform: Rotation {
+                    origin.x: 6.5
+                    origin.y: 6.5
+                }
+                SequentialAnimation on rotation {
+                    running: root.dizzy
+                    loops: Animation.Infinite
+                    NumberAnimation {
+                        from: 0
+                        to: -360
+                        duration: 700
                     }
                 }
             }
@@ -503,9 +961,9 @@ Item {
                 }
             }
 
-            Shape { // "ω" 猫嘴
+            Shape { // "ω" 猫嘴（不唱歌时）
                 anchors.fill: parent
-                visible: root.mood !== "sleep" && root.mood !== "busy" && root.mood !== "anxious"
+                visible: root.mood !== "sleep" && root.mood !== "busy" && root.mood !== "anxious" && root.mood !== "music" && root.motion === 0
                 ShapePath {
                     strokeColor: root.faceColor
                     strokeWidth: 2.2
@@ -516,9 +974,41 @@ Item {
                     }
                 }
             }
+            Rectangle { // 唱歌的嘴（高度跟 singOpen 走，逐字张合）
+                x: 40
+                y: 34
+                width: 12
+                height: 3 + root.singOpen * 10
+                radius: 5
+                color: root.faceColor
+                visible: root.mood === "music" && root.motion === 0
+                Rectangle { // 小舌头
+                    anchors {
+                        bottom: parent.bottom
+                        bottomMargin: 1
+                        horizontalCenter: parent.horizontalCenter
+                    }
+                    width: 6
+                    height: Math.min(4, parent.height - 2)
+                    radius: 2
+                    color: root.nosePink
+                    visible: parent.height > 6
+                }
+            }
+            Rectangle { // 被拎/飞行吓到的 "O" 嘴
+                x: 41
+                y: 37
+                width: 10
+                height: 11
+                radius: 5
+                color: "transparent"
+                border.width: 2.2
+                border.color: root.faceColor
+                visible: root.motion !== 0
+            }
             Shape { // 认真抿嘴
                 anchors.fill: parent
-                visible: root.mood === "busy"
+                visible: root.mood === "busy" && root.motion === 0
                 ShapePath {
                     strokeColor: root.faceColor
                     strokeWidth: 2.4
@@ -531,7 +1021,7 @@ Item {
             }
             Shape { // 担心波浪嘴
                 anchors.fill: parent
-                visible: root.mood === "anxious"
+                visible: root.mood === "anxious" && root.motion === 0
                 ShapePath {
                     strokeColor: root.faceColor
                     strokeWidth: 2.4
@@ -551,10 +1041,10 @@ Item {
                 color: "transparent"
                 border.width: 2
                 border.color: root.faceColor
-                visible: root.sleeping
+                visible: root.sleeping && root.motion === 0
             }
 
-            // ——— 前爪（趴着的 bongo 爪）：打字/举箱时会换专门动作 ———
+            // ——— 前爪（趴着的 bongo 爪）———
             Rectangle {
                 id: pawFrontL
                 x: 17
@@ -669,19 +1159,164 @@ Item {
                 }
             }
 
+            // ——— 落地扬尘 ———
+            Item {
+                id: dustGroup
+                anchors {
+                    top: body.bottom
+                    topMargin: -10
+                    horizontalCenter: parent.horizontalCenter
+                }
+                width: 70
+                height: 14
+                Rectangle {
+                    id: dustA
+                    x: 30
+                    y: 6
+                    width: 8
+                    height: 8
+                    radius: 4
+                    color: ColorUtils.transparentize("#BEB7C9", 0.35)
+                    opacity: 0
+                }
+                Rectangle {
+                    id: dustB
+                    x: 33
+                    y: 4
+                    width: 6
+                    height: 6
+                    radius: 3
+                    color: ColorUtils.transparentize("#BEB7C9", 0.45)
+                    opacity: 0
+                }
+                Rectangle {
+                    id: dustC
+                    x: 36
+                    y: 6
+                    width: 5
+                    height: 5
+                    radius: 2.5
+                    color: ColorUtils.transparentize("#BEB7C9", 0.45)
+                    opacity: 0
+                }
+                SequentialAnimation {
+                    id: dustAnim
+                    running: false
+                    ParallelAnimation {
+                        NumberAnimation {
+                            target: dustA
+                            property: "x"
+                            from: 35
+                            to: 2
+                            duration: 420
+                            easing.type: Easing.OutCubic
+                        }
+                        NumberAnimation {
+                            target: dustA
+                            property: "opacity"
+                            to: 0
+                            duration: 420
+                        }
+                    }
+                    ParallelAnimation {
+                        NumberAnimation {
+                            target: dustB
+                            property: "x"
+                            from: 35
+                            to: 58
+                            duration: 380
+                            easing.type: Easing.OutCubic
+                        }
+                        NumberAnimation {
+                            target: dustB
+                            property: "opacity"
+                            from: 0.9
+                            to: 0
+                            duration: 380
+                        }
+                    }
+                    ParallelAnimation {
+                        NumberAnimation {
+                            target: dustC
+                            property: "x"
+                            from: 35
+                            to: 66
+                            duration: 440
+                            easing.type: Easing.OutCubic
+                        }
+                        NumberAnimation {
+                            target: dustC
+                            property: "opacity"
+                            from: 0.9
+                            to: 0
+                            duration: 440
+                        }
+                    }
+                }
+            }
+
             MouseArea {
                 id: petArea
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onClicked: root.pet()
+                preventStealing: true
+                property point pressGlobal
+                property point grabOffset
+                property var velSamples: []
+                property bool moved: false
+
+                onPressed: mouse => {
+                    moved = false;
+                    velSamples = [];
+                    const g = mapToItem(root, mouse.x, mouse.y);
+                    pressGlobal = g;
+                    grabOffset = Qt.point(g.x - creatureWrap.x, g.y - creatureWrap.y);
+                }
+                onPositionChanged: mouse => {
+                    if (!pressed)
+                        return;
+                    const g = mapToItem(root, mouse.x, mouse.y);
+                    if (!moved && Math.hypot(g.x - pressGlobal.x, g.y - pressGlobal.y) > 7) {
+                        moved = true;
+                        root.startHold();
+                    }
+                    if (moved) {
+                        velSamples.push({
+                            t: Date.now(),
+                            x: g.x,
+                            y: g.y
+                        });
+                        if (velSamples.length > 6)
+                            velSamples.shift();
+                        root.moveCatTo(g.x - grabOffset.x, g.y - grabOffset.y);
+                    }
+                }
+                onReleased: mouse => {
+                    if (moved && root.motion === 1) {
+                        // 用最近 ~120ms 的采样算出手速
+                        let ivx = 0, ivy = 0;
+                        const now = Date.now();
+                        const old = velSamples.find(s => now - s.t <= 130) ?? velSamples[0];
+                        const last = velSamples[velSamples.length - 1];
+                        if (old && last && last.t > old.t) {
+                            const dt = (last.t - old.t) / 1000;
+                            ivx = (last.x - old.x) / dt;
+                            ivy = (last.y - old.y) / dt;
+                        }
+                        root.releaseWithVelocity(ivx, ivy);
+                    } else if (!moved) {
+                        root.pet();
+                    }
+                    moved = false;
+                }
             }
         }
 
         // ——— 道具 ———
         Item { // 睡觉的 zzz
             id: zzzGroup
-            visible: root.sleeping
+            visible: root.sleeping && root.motion === 0
             anchors {
                 bottom: body.top
                 bottomMargin: 6
@@ -705,7 +1340,7 @@ Item {
                     x: zzzText.index * 11
                     y: -zzzText.index * 9
                     SequentialAnimation {
-                        running: root.sleeping
+                        running: root.sleeping && root.motion === 0
                         loops: Animation.Infinite
                         PauseAnimation {
                             duration: zzzText.index * 500
@@ -1369,22 +2004,6 @@ Item {
                 to: 0
                 duration: 140
             }
-        }
-    }
-
-    // 焦虑时耳朵耷拉
-    property real earDroopL: mood === "anxious" ? -18 : 0
-    Behavior on earDroopL {
-        NumberAnimation {
-            duration: 300
-            easing.type: Easing.OutCubic
-        }
-    }
-    property real earDroopR: mood === "anxious" ? 18 : 0
-    Behavior on earDroopR {
-        NumberAnimation {
-            duration: 300
-            easing.type: Easing.OutCubic
         }
     }
 }
