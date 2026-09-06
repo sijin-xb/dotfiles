@@ -60,7 +60,7 @@ if ! have yay && ! have paru; then
     (cd "$tmpdir/yay" && makepkg -si --noconfirm)
     rm -rf "$tmpdir"
 fi
-for p in matugen mpvpaper fcitx5-shorin-patched-git; do
+for p in matugen mpvpaper; do
     if pacman -Q "$p" >/dev/null 2>&1; then
         echo "    已安装: $p"
     elif aur_install "$p"; then

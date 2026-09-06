@@ -17,7 +17,7 @@
 仅支持 **Arch Linux 系**（CachyOS / Arch / EndeavourOS 等）。脚本会：
 
 1. 通过 pacman 安装全部会话依赖（含系统升级，`--needed` 幂等）
-2. AUR 包（matugen / mpvpaper / fcitx5-shorin-patched-git）自动引导 yay 安装
+2. AUR 包（matugen / mpvpaper）自动引导 yay 安装
 3. **quickshell 三级回退**：二进制仓库 → AUR → 自动源码编译（无需手动编译）
 4. 部署配置：自动拉取 [pctrade/end4-pC](https://github.com/pctrade/end4-pC) 作为 quickshell 底盘，再覆盖本仓库的差异层（`dot_config` → `~/.config`；覆盖有差异的旧文件前自动备份到 `~/.local/state/dotfiles-backup/`）
 5. 创建启动器拼音搜索所需的 Python venv
