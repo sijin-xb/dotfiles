@@ -20,8 +20,15 @@ import qs.services
  * Features automatic per-player latency compensation (Spotify +450ms, browsers +300ms,
  * KA Music +150ms) plus runtime manual fine-tuning via IPC commands.
  *
+ * Song-switch latency: a "♪ title — artist" placeholder line appears the moment
+ * the track changes (no stale lyrics from the previous song), metadata updates
+ * are debounced so title+artist trigger a single fetch, and every fetch carries
+ * a generation id echoed back by the script (@@KRCGEN) so output from a
+ * superseded fetch can never flash on screen.
+ *
  * IPC commands:
  *   qs -c end4-pC ipc call desktoplyrics toggle
+ *   qs -c end4-pC ipc call desktoplyrics refetch       (force re-fetch, skip cache)
  *   qs -c end4-pC ipc call desktoplyrics offset_faster   (advance lyrics +0.1s)
  *   qs -c end4-pC ipc call desktoplyrics offset_slower   (delay lyrics -0.1s)
  *   qs -c end4-pC ipc call desktoplyrics set_offset 0.3  (set manual offset in seconds)
@@ -32,7 +39,38 @@ PanelWindow {
     id: root
 
     readonly property bool enabled: Config.options.desktopLyricsEnabled
-    readonly property MprisPlayer activePlayer: MprisController.activePlayer
+    // Sticky lyrics player: follow whoever is PLAYING and don't get stolen by
+    // a paused browser session (Electron players like MoeKoeMusic expose a
+    // chromium.* bus name, so they used to fight with real browsers over
+    // MprisController.activePlayer). Honours the pinned preferredPlayer when set.
+    property MprisPlayer lyricPlayer: null
+    readonly property MprisPlayer activePlayer: lyricPlayer ?? MprisController.activePlayer
+
+    function pickPlayer() {
+        const pool = MprisController.players ?? [];
+        if (lyricPlayer) {
+            if (pool.indexOf(lyricPlayer) === -1) {
+                lyricPlayer = null;
+            } else if (lyricPlayer.isPlaying) {
+                return; // sticky: keep the current player while it plays
+            }
+        }
+        const preferred = (Config.options.bar?.media?.preferredPlayer ?? "").trim().toLowerCase();
+        let candidates = pool;
+        if (preferred.length > 0) {
+            const m = pool.filter(p =>
+                ((p.identity ?? "") + " " + (p.desktopEntry ?? "")).toLowerCase().includes(preferred));
+            if (m.length > 0)
+                candidates = m;
+        }
+        const playing = candidates.filter(p => p.isPlaying);
+        if (playing.length > 0) {
+            if (playing.indexOf(lyricPlayer) === -1)
+                lyricPlayer = playing[0];
+        } else if (!lyricPlayer && candidates.length > 0) {
+            lyricPlayer = candidates[0];
+        }
+    }
     readonly property bool isPlaying: (activePlayer?.isPlaying ?? false) && (activePlayer?.playbackState === MprisPlaybackState.Playing || activePlayer?.playbackState === 1 || activePlayer?.isPlaying === true)
 
     property bool connected: true // Kept for backwards compatibility
@@ -49,6 +87,11 @@ PanelWindow {
         const id = ((activePlayer.identity ?? "") + " " + (activePlayer.dbusName ?? "")).toLowerCase();
         // Spotify on Linux has known audio output buffer latency (~400-500ms)
         if (id.includes("spotify")) return 0.45;
+        // MoeKoeMusic (Electron/Kugou client): must be matched BEFORE the generic
+        // Chromium rule — its MPRIS bus name contains "chromium" (Electron).
+        // Its built-in lyrics view renders the KRC timeline natively, so the
+        // desktop overlay should follow the raw timeline (+0) to stay in sync.
+        if (id.includes("moekoe")) return 0.0;
         // Web browsers (Firefox, Chrome/Chromium) audio pipeline delay (~300ms)
         if (id.includes("firefox") || id.includes("chromium") || id.includes("chrome")) return 0.30;
         // KA Music (KugouAvaloniaPlayer) BASS audio engine buffer (~150ms)
@@ -70,6 +113,9 @@ PanelWindow {
     property string lastRawLyrics: ""
     property var lyricLines: [] // [{ start: seconds, text: string, trans: string, words: [...] }]
     property int currentLineIndex: -1
+    // Bumped on every fetch; the script echoes it back (@@KRCGEN) so output
+    // from a killed (superseded) fetch is discarded instead of applied.
+    property int fetchGeneration: 0
 
     readonly property string currentText: (currentLineIndex >= 0 && currentLineIndex < lyricLines.length) ? lyricLines[currentLineIndex].text : ""
     readonly property string currentTrans: (currentLineIndex >= 0 && currentLineIndex < lyricLines.length) ? lyricLines[currentLineIndex].trans : ""
@@ -209,12 +255,46 @@ PanelWindow {
         currentLineIndex = index;
     }
 
-    function fetchLyrics() {
+    // Coalesces rapid metadata changes (trackTitle/trackArtist usually fire
+    // together on song switch) into a single fetch.
+    property bool pendingRefresh: false
+    Timer {
+        id: fetchDebounce
+        interval: 50
+        onTriggered: root.doFetch(root.pendingRefresh)
+    }
+
+    function requestFetch(refresh) {
+        if (refresh)
+            pendingRefresh = true;
+        if (enabled)
+            fetchDebounce.restart();
+    }
+
+    function normalizeTitleArtist(title, artist) {
+        // Some players pack "artist - title" into the title field (or leave artist empty)
+        const m = title.match(/^(.{1,60}?)\s+[-–—]\s+(.+)$/);
+        if (m) {
+            const left = m[1].trim();
+            const right = m[2].trim();
+            if (artist.length === 0)
+                return { title: right, artist: left };
+            if (left.toLowerCase() === artist.toLowerCase())
+                return { title: right, artist: artist };
+        }
+        return { title: title, artist: artist };
+    }
+
+    function doFetch(refresh) {
+        pendingRefresh = false;
         if (!enabled)
             return;
 
-        const title = (activePlayer?.trackTitle ?? "").trim();
-        const artist = (activePlayer?.trackArtist ?? "").trim();
+        const rawTitle = (activePlayer?.trackTitle ?? "").trim();
+        const rawArtist = (activePlayer?.trackArtist ?? "").trim();
+        const norm = normalizeTitleArtist(rawTitle, rawArtist);
+        const title = norm.title;
+        const artist = norm.artist;
         const dur = activePlayer?.length ?? 0;
 
         if (!title) {
@@ -226,21 +306,29 @@ PanelWindow {
         }
 
         const songKey = `${title} - ${artist}`;
-        if (songKey === lastSongKey && lyricLines.length > 0) {
+        if (!refresh && songKey === lastSongKey && lyricLines.length > 0) {
             return;
         }
 
         lastSongKey = songKey;
         songName = title;
 
+        // Show the new song instantly instead of stale lyrics from the
+        // previous track; replaced as soon as the fetch returns.
+        lyricLines = [{
+            start: 0,
+            text: "♪ " + title + (artist.length > 0 ? " — " + artist : ""),
+            trans: "",
+            words: null
+        }];
+
+        fetchGeneration += 1;
+        const cmd = ["python3", `${Directories.scriptPath}/lyrics/kugou_lyrics.py`];
+        if (refresh)
+            cmd.push("--refresh");
+        cmd.push(title, artist, String(Math.floor(dur)), String(fetchGeneration));
         lyricsProc.running = false;
-        lyricsProc.command = [
-            "python3",
-            `${Directories.scriptPath}/lyrics/kugou_lyrics.py`,
-            title,
-            artist,
-            String(Math.floor(dur))
-        ];
+        lyricsProc.command = cmd;
         lyricsProc.running = true;
     }
 
@@ -266,18 +354,24 @@ PanelWindow {
         running: false
         stdout: StdioCollector {
             onStreamFinished: {
-                const raw = text.trim();
-                if (!raw) {
-                    root.lyricLines = [];
-                    root.currentLineIndex = -1;
+                const out = text;
+                let lyrics = "";
+                const genMatch = out.match(/^@@KRCGEN (\d+)\n/);
+                if (genMatch) {
+                    // Output from a fetch that was superseded by a newer song: discard.
+                    if (Number(genMatch[1]) !== root.fetchGeneration)
+                        return;
+                    lyrics = out.slice(genMatch[0].length).trim();
+                } else {
+                    lyrics = out.trim();
+                }
+                // No lyrics found: keep showing the "♪ song — artist" placeholder.
+                if (lyrics.length === 0)
                     return;
-                }
-                if (raw !== root.lastRawLyrics) {
-                    root.lastRawLyrics = raw;
-                    root.lyricLines = root.parseLyrics(raw);
-                    const offsetMatch = raw.match(/\[offset:(-?\d+)\]/);
-                    root.rawLyricOffset = offsetMatch ? -Number(offsetMatch[1]) / 1000 : 0;
-                }
+                root.lastRawLyrics = lyrics;
+                root.lyricLines = root.parseLyrics(lyrics);
+                const offsetMatch = lyrics.match(/\[offset:(-?\d+)\]/);
+                root.rawLyricOffset = offsetMatch ? -Number(offsetMatch[1]) / 1000 : 0;
                 root.updateCurrentLine();
             }
         }
@@ -287,10 +381,10 @@ PanelWindow {
         target: root.activePlayer
         function onTrackTitleChanged() {
             root.currentTime = root.activePlayer?.position ?? 0;
-            root.fetchLyrics();
+            root.requestFetch();
         }
         function onTrackArtistChanged() {
-            root.fetchLyrics();
+            root.requestFetch();
         }
         function onPlaybackStateChanged() {
             const pos = root.activePlayer?.position ?? 0;
@@ -309,7 +403,7 @@ PanelWindow {
     onActivePlayerChanged: {
         if (activePlayer) {
             currentTime = activePlayer.position ?? 0;
-            fetchLyrics();
+            requestFetch();
         } else {
             lyricLines = [];
             currentLineIndex = -1;
@@ -318,8 +412,9 @@ PanelWindow {
 
     onEnabledChanged: {
         if (enabled) {
-            fetchLyrics();
+            requestFetch();
         } else {
+            fetchDebounce.stop();
             lyricsProc.running = false;
             lyricLines = [];
             currentLineIndex = -1;
@@ -327,10 +422,30 @@ PanelWindow {
     }
 
     Component.onCompleted: {
+        pickPlayer();
         if (enabled && activePlayer) {
             currentTime = activePlayer.position ?? 0;
-            fetchLyrics();
+            requestFetch();
         }
+    }
+
+    // Player set / activity changes re-run the sticky player selection
+    Connections {
+        target: MprisController
+        function onPlayersChanged() {
+            root.pickPlayer();
+        }
+        function onActivePlayerChanged() {
+            root.pickPlayer();
+        }
+    }
+
+    // Safety net for missed signals while the overlay is enabled
+    Timer {
+        interval: 2000
+        running: root.enabled
+        repeat: true
+        onTriggered: root.pickPlayer()
     }
 
     onCurrentTimeChanged: updateCurrentLine()
@@ -380,14 +495,18 @@ PanelWindow {
         }
         function show(): void {
             Config.options.desktopLyricsEnabled = true;
-            root.fetchLyrics();
+            root.requestFetch();
         }
         function hide(): void {
             Config.options.desktopLyricsEnabled = false;
         }
         function open(): void {
             Config.options.desktopLyricsEnabled = true;
-            root.fetchLyrics();
+            root.requestFetch();
+        }
+        function refetch(): string {
+            root.requestFetch(true);
+            return "正在重新获取歌词（跳过缓存，仅缓存校验匹配的结果）…";
         }
 
         // 偏移微调命令：正数提前（快），负数延后（慢）
