@@ -134,8 +134,9 @@ while IFS= read -r -d '' f; do
 done < <(find "$SRC" -type f -print0)
 say "已部署 $installed 个文件；$backed 个有差异的旧文件备份于 $backup_dir"
 
-# ---------- [5/6] 拼音搜索 venv ----------
-say "[5/6] 拼音搜索环境"
+# ---------- [5/6] 拼音搜索环境与歌词缓存 ----------
+say "[5/6] 运行环境与歌词缓存"
+mkdir -p "$HOME/.cache/quickshell/kugou_lyrics"
 VENV="$HOME/.local/state/quickshell/.venv"
 if [[ ! -x "$VENV/bin/python" ]]; then
     mkdir -p "$HOME/.local/state/quickshell"
@@ -155,5 +156,7 @@ cat <<'EOF'
        SUPER+S      scratchpad
        SUPER        启动器（支持中文拼音搜索）
   4. 桌宠 / 桌面歌词开关：设置 → 桌面 → 小部件
+     （桌面歌词已解耦，自动适配 KA Music / Spotify / 浏览器等任意播放器）
+     （歌词偏快偏慢微调：qs -c end4-pC ipc call desktoplyrics offset_faster / offset_slower）
   5. fish 设为默认 shell（可选）: chsh -s "$(command -v fish)"
 EOF

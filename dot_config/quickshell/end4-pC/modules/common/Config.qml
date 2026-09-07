@@ -82,6 +82,7 @@ Singleton {
 
             property bool petEnabled: true // 桌宠总开关（设置 → 桌面 → 小部件）
             property bool desktopLyricsEnabled: true // 桌面歌词总开关
+            property real desktopLyricsOffset: 0.0 // 桌面歌词全局时间偏移微调（秒，正数提前，负数延后）
 
             property JsonObject policies: JsonObject {
                 property int ai: 1 // 0: No | 1: Yes | 2: Local

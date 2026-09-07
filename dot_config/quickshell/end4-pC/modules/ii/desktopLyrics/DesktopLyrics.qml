@@ -1,5 +1,4 @@
 import QtQuick
-import QtWebSockets
 import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
@@ -7,55 +6,75 @@ import Quickshell.Wayland
 import Quickshell.Services.Mpris
 import qs.modules.common
 import qs.modules.common.functions as CF
+import qs.services
 
 /**
- * Desktop lyrics overlay for MoeKoe Music (萌音).
+ * Universal Desktop Lyrics Overlay with Multi-Player Offset Compensation.
  *
- * Connects to MoeKoe Music's WebSocket API (ws://127.0.0.1:6520/) and displays
- * the current lyric line at the bottom of the screen, following the matugen
- * palette. The window is fully click-through and hides when playback stops.
+ * Automatically adapts to any active MPRIS player (KA Music, Spotify, MoeKoe,
+ * browsers, etc.) via MprisController.activePlayer.
  *
- * Detection is event-driven: MoeKoe registers its MPRIS interface the moment it
- * launches, so a MoeKoe player showing up triggers an immediate connect attempt
- * (plus a short burst of fast retries in case its WebSocket server needs another
- * second to bind). While MoeKoe is closed, an exponential reconnect backoff
- * (3s → 6s → … → 30s) keeps idle probing cheap as a fallback.
+ * Fetches high-precision Kugou KRC lyrics via python3 scripts/lyrics/kugou_lyrics.py
+ * with local caching and lrclib fallback.
  *
- * Lyrics pushed by MoeKoe are Kugou KRC style: "[startMs,durMs,0]<s,d,0>word..."
- * with per-word timestamps kept for a karaoke fill effect on the current
- * line, plus an optional "[language:<base64 json>]" tag carrying per-line
- * Chinese translations. Standard LRC ([mm:ss.xx]) is also supported as a fallback.
+ * Features automatic per-player latency compensation (Spotify +450ms, browsers +300ms,
+ * KA Music +150ms) plus runtime manual fine-tuning via IPC commands.
  *
- * Toggle with: qs -c end4-pC ipc call desktoplyrics toggle
+ * IPC commands:
+ *   qs -c end4-pC ipc call desktoplyrics toggle
+ *   qs -c end4-pC ipc call desktoplyrics offset_faster   (advance lyrics +0.1s)
+ *   qs -c end4-pC ipc call desktoplyrics offset_slower   (delay lyrics -0.1s)
+ *   qs -c end4-pC ipc call desktoplyrics set_offset 0.3  (set manual offset in seconds)
+ *   qs -c end4-pC ipc call desktoplyrics offset_reset    (reset manual offset)
+ *   qs -c end4-pC ipc call desktoplyrics get_offset      (print current offset info)
  */
 PanelWindow {
     id: root
 
-    readonly property string wsUrl: "ws://127.0.0.1:6520/"
     readonly property bool enabled: Config.options.desktopLyricsEnabled
-    property bool connected: false
-    // Exponential reconnect backoff: 3s → 6s → 12s → …, so a not-running
-    // MoeKoe isn't probed every 3 seconds forever. Only used while no MoeKoe
-    // MPRIS player has shown up to trigger a fast connect.
-    property int reconnectInterval: 3000
-    readonly property int reconnectMaxInterval: 30000
-    // Fast burst after MoeKoe launches: retry at 700ms up to 12 times (~8s),
-    // covering the gap between its MPRIS registration and the WebSocket
-    // server binding the port
-    property int fastRetriesLeft: 0
-    readonly property int fastRetryInterval: 700
-    readonly property int fastRetryAttempts: 12
-    property bool isPlaying: false
+    readonly property MprisPlayer activePlayer: MprisController.activePlayer
+    readonly property bool isPlaying: (activePlayer?.isPlaying ?? false) && (activePlayer?.playbackState === MprisPlaybackState.Playing || activePlayer?.playbackState === 1 || activePlayer?.isPlaying === true)
+
+    property bool connected: true // Kept for backwards compatibility
+
+    // Base playback progress (seconds) from MPRIS
     property real currentTime: 0
-    property real lyricOffset: 0
+
+    // Song-level offset from [offset:ms] tag in lyric file
+    property real rawLyricOffset: 0
+
+    // Player-specific automatic latency compensation (in seconds, positive = lead/earlier)
+    readonly property real playerOffset: {
+        if (!activePlayer) return 0.0;
+        const id = ((activePlayer.identity ?? "") + " " + (activePlayer.dbusName ?? "")).toLowerCase();
+        // Spotify on Linux has known audio output buffer latency (~400-500ms)
+        if (id.includes("spotify")) return 0.45;
+        // Web browsers (Firefox, Chrome/Chromium) audio pipeline delay (~300ms)
+        if (id.includes("firefox") || id.includes("chromium") || id.includes("chrome")) return 0.30;
+        // KA Music (KugouAvaloniaPlayer) BASS audio engine buffer (~150ms)
+        if (id.includes("kugou") || id.includes("ka music")) return 0.15;
+        return 0.15; // General IPC/compositor latency compensation
+    }
+
+    // Runtime manual adjustment via IPC (in seconds)
+    property real manualOffset: 0.0
+
+    // Effective total offset (positive = lyrics show earlier, negative = lyrics show later)
+    readonly property real effectiveOffset: rawLyricOffset + playerOffset + (Config.options.desktopLyricsOffset ?? 0.0) + manualOffset
+
+    // Backwards-compatible alias for Pet.qml
+    readonly property real lyricOffset: effectiveOffset
+
     property string songName: ""
-    property string lastRawLyrics: "" // last lyrics text seen, to skip re-parsing
-    property var lyricLines: [] // [{ start: seconds, text: string, trans: string }]
+    property string lastSongKey: ""
+    property string lastRawLyrics: ""
+    property var lyricLines: [] // [{ start: seconds, text: string, trans: string, words: [...] }]
     property int currentLineIndex: -1
+
     readonly property string currentText: (currentLineIndex >= 0 && currentLineIndex < lyricLines.length) ? lyricLines[currentLineIndex].text : ""
     readonly property string currentTrans: (currentLineIndex >= 0 && currentLineIndex < lyricLines.length) ? lyricLines[currentLineIndex].trans : ""
     readonly property string nextText: (currentLineIndex + 1 >= 0 && currentLineIndex + 1 < lyricLines.length) ? lyricLines[currentLineIndex + 1].text : ""
-    readonly property bool shouldShow: enabled && connected && isPlaying && currentText.length > 0
+    readonly property bool shouldShow: enabled && isPlaying && currentText.length > 0
 
     function base64Decode(input) {
         const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -146,8 +165,6 @@ PanelWindow {
                 while ((word = wordRe.exec(body)) !== null) {
                     if (word[3].length === 0)
                         continue;
-                    // Word timestamps are absolute ms when they fall after the
-                    // line start, otherwise relative to it (both appear in the wild)
                     const rawStart = Number(word[1]);
                     const wordStart = rawStart >= krc[1] ? rawStart / 1000 : start + rawStart / 1000;
                     words.push({
@@ -181,7 +198,7 @@ PanelWindow {
     }
 
     function updateCurrentLine() {
-        const t = currentTime + lyricOffset;
+        const t = currentTime + effectiveOffset;
         let index = -1;
         for (let i = 0; i < lyricLines.length; i++) {
             if (lyricLines[i].start <= t + 0.05)
@@ -192,50 +209,49 @@ PanelWindow {
         currentLineIndex = index;
     }
 
-    function handleMessage(message) {
-        let msg;
-        try {
-            msg = JSON.parse(message);
-        } catch (e) {
+    function fetchLyrics() {
+        if (!enabled)
+            return;
+
+        const title = (activePlayer?.trackTitle ?? "").trim();
+        const artist = (activePlayer?.trackArtist ?? "").trim();
+        const dur = activePlayer?.length ?? 0;
+
+        if (!title) {
+            lyricLines = [];
+            lastRawLyrics = "";
+            lastSongKey = "";
+            currentLineIndex = -1;
             return;
         }
-        const data = msg?.data;
-        if (msg.type === "lyrics" && data) {
-            currentTime = data.currentTime ?? currentTime;
-            const song = data.currentSong ?? {};
-            songName = song.name ?? song.songName ?? song.title ?? "";
-            // lyricsData can be false/an object when a track has no lyrics
-            const rawLyrics = typeof data.lyricsData === "string" ? data.lyricsData : "";
-            // MoeKoe re-pushes the full lyrics text periodically while playing:
-            // only re-parse (regex + base64 + JSON + sort) when it changes
-            if (rawLyrics !== lastRawLyrics) {
-                lastRawLyrics = rawLyrics;
-                lyricLines = parseLyrics(rawLyrics);
-                const offsetMatch = rawLyrics.match(/\[offset:(-?\d+)\]/);
-                lyricOffset = offsetMatch ? -Number(offsetMatch[1]) / 1000 : 0;
-            }
-            updateCurrentLine();
-        } else if (msg.type === "playerState" && data) {
-            isPlaying = data.isPlaying ?? isPlaying;
-            // MoeKoe always pushes currentTime: 0 in playerState — ignore it,
-            // real progress arrives in lyrics messages and is interpolated locally
-            const t = data.currentTime;
-            if (t > 0)
-                currentTime = t;
-            updateCurrentLine();
+
+        const songKey = `${title} - ${artist}`;
+        if (songKey === lastSongKey && lyricLines.length > 0) {
+            return;
         }
+
+        lastSongKey = songKey;
+        songName = title;
+
+        lyricsProc.running = false;
+        lyricsProc.command = [
+            "python3",
+            `${Directories.scriptPath}/lyrics/kugou_lyrics.py`,
+            title,
+            artist,
+            String(Math.floor(dur))
+        ];
+        lyricsProc.running = true;
     }
 
     function escapeHtml(s) {
         return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
-    // Karaoke fill for the current line: sung words take the primary color,
-    // upcoming ones stay dim. Plain lines are only HTML-escaped.
     function buildLineHtml(line) {
         if (!line.words)
             return escapeHtml(line.text);
-        const t = currentTime + lyricOffset;
+        const t = currentTime + effectiveOffset;
         let html = "";
         for (const w of line.words) {
             const sung = t >= w.start + w.dur - 0.02;
@@ -245,123 +261,116 @@ PanelWindow {
         return html;
     }
 
-    function attemptConnect() {
-        if (!enabled || connected || socket.status === WebSocket.Connecting)
-            return;
-        // Resetting the url forces a fresh connection even when the socket is
-        // stuck in a closed/error state with active still true
-        socket.url = "";
-        socket.url = wsUrl;
-        socket.active = true;
+    Process {
+        id: lyricsProc
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const raw = text.trim();
+                if (!raw) {
+                    root.lyricLines = [];
+                    root.currentLineIndex = -1;
+                    return;
+                }
+                if (raw !== root.lastRawLyrics) {
+                    root.lastRawLyrics = raw;
+                    root.lyricLines = root.parseLyrics(raw);
+                    const offsetMatch = raw.match(/\[offset:(-?\d+)\]/);
+                    root.rawLyricOffset = offsetMatch ? -Number(offsetMatch[1]) / 1000 : 0;
+                }
+                root.updateCurrentLine();
+            }
+        }
     }
 
-    function scheduleReconnect(interval) {
-        if (!enabled)
-            return;
-        reconnectTimer.interval = interval;
-        reconnectTimer.restart();
+    Connections {
+        target: root.activePlayer
+        function onTrackTitleChanged() {
+            root.currentTime = root.activePlayer?.position ?? 0;
+            root.fetchLyrics();
+        }
+        function onTrackArtistChanged() {
+            root.fetchLyrics();
+        }
+        function onPlaybackStateChanged() {
+            const pos = root.activePlayer?.position ?? 0;
+            if (pos > 0) root.currentTime = pos;
+            root.updateCurrentLine();
+        }
+        function onPositionChanged() {
+            const pos = root.activePlayer?.position ?? 0;
+            if (Math.abs(root.currentTime - pos) > 0.25) {
+                root.currentTime = pos;
+                root.updateCurrentLine();
+            }
+        }
     }
 
-    // MoeKoe just launched (or lyrics were just enabled): connect right away
-    // and retry fast for a few seconds, then fall back to the idle backoff
-    function startFastConnect() {
-        reconnectInterval = 3000;
-        fastRetriesLeft = fastRetryAttempts;
-        attemptConnect();
-        scheduleReconnect(fastRetryInterval);
-    }
-
-    // MoeKoe shows up on MPRIS the moment it launches, so its appearance
-    // (pushed over DBus, no polling) doubles as the "MoeKoe is starting" signal
-    readonly property var moekoePlayer: {
-        const players = Mpris.players?.values ?? [];
-        return players.find(p =>
-            (p.identity ?? "").toLowerCase().includes("moekoe") ||
-            (p.dbusName ?? "").toLowerCase().includes("moekoe")) ?? null;
-    }
-    onMoekoePlayerChanged: {
-        if (moekoePlayer && enabled)
-            startFastConnect();
+    onActivePlayerChanged: {
+        if (activePlayer) {
+            currentTime = activePlayer.position ?? 0;
+            fetchLyrics();
+        } else {
+            lyricLines = [];
+            currentLineIndex = -1;
+        }
     }
 
     onEnabledChanged: {
         if (enabled) {
-            startFastConnect();
+            fetchLyrics();
         } else {
-            fastRetriesLeft = 0;
-            reconnectTimer.stop();
-            socket.active = false;
+            lyricsProc.running = false;
+            lyricLines = [];
+            currentLineIndex = -1;
         }
     }
 
     Component.onCompleted: {
-        // Shell (re)loaded while MoeKoe is already running: skip the initial
-        // 3s probe delay entirely
-        if (enabled)
-            moekoePlayer ? startFastConnect() : scheduleReconnect(reconnectInterval);
+        if (enabled && activePlayer) {
+            currentTime = activePlayer.position ?? 0;
+            fetchLyrics();
+        }
     }
 
     onCurrentTimeChanged: updateCurrentLine()
     onLyricLinesChanged: updateCurrentLine()
+    onEffectiveOffsetChanged: updateCurrentLine()
 
-    // Smooth progress between server updates; 100ms keeps the karaoke
-    // word fill from visibly stuttering
+    // 1. High-precision MPRIS poll timer: actively pulls updated position from D-Bus every 350ms
+    Timer {
+        id: mprisSyncTimer
+        interval: 350
+        repeat: true
+        running: root.shouldShow && root.isPlaying && root.activePlayer !== null
+        onTriggered: {
+            if (root.activePlayer) {
+                root.activePlayer.positionChanged();
+                const realPos = root.activePlayer.position ?? 0;
+                if (realPos > 0) {
+                    const diff = realPos - root.currentTime;
+                    // Smoothly pull currentTime towards real position if minor drift
+                    if (Math.abs(diff) > 0.05 && Math.abs(diff) <= 0.5) {
+                        root.currentTime += diff * 0.4;
+                    } else if (Math.abs(diff) > 0.5) {
+                        root.currentTime = realPos;
+                    }
+                    root.updateCurrentLine();
+                }
+            }
+        }
+    }
+
+    // 2. Fluid 100ms local interpolation timer: smooth character-by-character color fill
     Timer {
         interval: 100
         running: root.shouldShow && root.isPlaying
         repeat: true
         onTriggered: {
             if (root.lyricLines.length > 0) {
-                root.currentTime = root.currentTime + 0.1;
-                if (root.currentLineIndex >= 0 && root.currentLineIndex + 1 < root.lyricLines.length) {
-                    const current = root.lyricLines[root.currentLineIndex];
-                    const next = root.lyricLines[root.currentLineIndex + 1];
-                    if (root.currentTime > next.start + 1.5) // drifted too far, wait for server
-                        // Clamp to the current line start: with gaps under 1.5s,
-                        // rewinding to next.start - 1.5 would fall back a line
-                        root.currentTime = Math.max(current.start, next.start - 1.5);
-                }
+                root.currentTime += 0.1;
             }
         }
-    }
-
-    WebSocket {
-        id: socket
-        url: root.wsUrl
-        onTextMessageReceived: message => root.handleMessage(message)
-        onStatusChanged: status => {
-            if (status === WebSocket.Open) {
-                root.connected = true;
-                root.fastRetriesLeft = 0;
-                root.reconnectInterval = 3000; // gentle idle probe next time
-                reconnectTimer.stop();
-            } else if (status === WebSocket.Closed || status === WebSocket.Error) {
-                root.connected = false;
-                root.lyricLines = [];
-                root.lastRawLyrics = "";
-                root.currentLineIndex = -1;
-                if (!root.enabled)
-                    return; // self-inflicted close while disabled: nothing to schedule
-                if (root.fastRetriesLeft > 0) {
-                    // MoeKoe is launching: MPRIS is already up, give the
-                    // WebSocket server another beat to bind the port
-                    root.fastRetriesLeft -= 1;
-                    root.scheduleReconnect(root.fastRetryInterval);
-                } else {
-                    // Idle probing: retry after the current delay, then double it
-                    root.reconnectInterval = Math.min(root.reconnectInterval * 2, root.reconnectMaxInterval);
-                    root.scheduleReconnect(root.reconnectInterval);
-                }
-            }
-        }
-    }
-
-    Timer {
-        id: reconnectTimer
-        interval: 3000
-        running: false
-        repeat: false
-        onTriggered: root.attemptConnect()
     }
 
     IpcHandler {
@@ -371,17 +380,49 @@ PanelWindow {
         }
         function show(): void {
             Config.options.desktopLyricsEnabled = true;
-            // Still fires when enabled didn't change: forces an immediate
-            // reconnect instead of waiting out the current backoff
-            root.startFastConnect();
+            root.fetchLyrics();
         }
         function hide(): void {
             Config.options.desktopLyricsEnabled = false;
         }
-        // CLI 别名：qs 的 "show" 是保留动词，命令行用 open
         function open(): void {
             Config.options.desktopLyricsEnabled = true;
-            root.startFastConnect();
+            root.fetchLyrics();
+        }
+
+        // 偏移微调命令：正数提前（快），负数延后（慢）
+        function offset_faster(): string {
+            root.manualOffset += 0.1;
+            root.updateCurrentLine();
+            const totalMs = (root.effectiveOffset * 1000).toFixed(0);
+            return `歌词已提前 +100ms | 当前播放器: ${root.activePlayer?.identity ?? "未知"} | 总时间补偿: ${totalMs}ms`;
+        }
+        function offset_slower(): string {
+            root.manualOffset -= 0.1;
+            root.updateCurrentLine();
+            const totalMs = (root.effectiveOffset * 1000).toFixed(0);
+            return `歌词已延后 -100ms | 当前播放器: ${root.activePlayer?.identity ?? "未知"} | 总时间补偿: ${totalMs}ms`;
+        }
+        function set_offset(seconds: real): string {
+            root.manualOffset = seconds;
+            root.updateCurrentLine();
+            const totalMs = (root.effectiveOffset * 1000).toFixed(0);
+            return `手动偏移已设为: ${seconds}s | 总时间补偿: ${totalMs}ms`;
+        }
+        function offset_reset(): string {
+            root.manualOffset = 0.0;
+            root.updateCurrentLine();
+            const totalMs = (root.effectiveOffset * 1000).toFixed(0);
+            return `手动偏移已重置为 0s | 自动播放器补偿: ${totalMs}ms`;
+        }
+        function get_offset(): string {
+            const pName = root.activePlayer?.identity ?? (root.activePlayer?.dbusName ?? "无播放器");
+            const pComp = (root.playerOffset * 1000).toFixed(0);
+            const mComp = (root.manualOffset * 1000).toFixed(0);
+            const gComp = ((Config.options.desktopLyricsOffset ?? 0.0) * 1000).toFixed(0);
+            const tagComp = (root.rawLyricOffset * 1000).toFixed(0);
+            const totalMs = (root.effectiveOffset * 1000).toFixed(0);
+            return `[歌词时间信息] 播放器: ${pName} | 自动补偿: ${pComp}ms | 手动偏移: ${mComp}ms | 全局设置: ${gComp}ms | 歌曲标签偏移: ${tagComp}ms | 总提前量: ${totalMs}ms`;
         }
     }
 
@@ -390,23 +431,17 @@ PanelWindow {
         left: true
         right: true
     }
-    // Sit above the dock bar
     margins.bottom: 90
-    // Anchored children do not contribute implicit sizes: the window needs an
-    // explicit height, otherwise it collapses to 0 and stays invisible
     implicitHeight: 180
     exclusiveZone: -1
-    // Fully click-through: lyrics never block the mouse
     mask: Region {}
 
     color: "transparent"
 
-    // Unmap the surface when there is nothing to show so the compositor can
-    // skip it entirely; linger a little after hiding so the fade-out completes
     visible: root.shouldShow || fadeOutLinger.running
     Timer {
         id: fadeOutLinger
-        interval: 400 // slightly longer than the 350ms opacity fade
+        interval: 400
         running: !root.shouldShow
     }
 
@@ -430,7 +465,6 @@ PanelWindow {
             model: root.lyricLines
             currentIndex: root.currentLineIndex
             spacing: 7
-            // Keep the current line centered and scroll smoothly to it
             highlightRangeMode: ListView.StrictlyEnforceRange
             preferredHighlightBegin: height / 2 - 20
             preferredHighlightEnd: height / 2 + 20
@@ -448,8 +482,6 @@ PanelWindow {
 
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    // Current line re-colors per word as time advances
-                    // (karaoke); other lines are static escaped text
                     text: parent.isCurrent ? root.buildLineHtml(parent.modelData) : root.escapeHtml(parent.modelData.text)
                     textFormat: Text.RichText
                     font.family: Appearance.font.family.expressive
