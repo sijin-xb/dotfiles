@@ -71,4 +71,5 @@ if is_file_exists(HOME .. "/.config/hypr/custom/env.lua") then
 
                             -- ---- Shell 覆盖项 ----
                             -- 放在最后加载，用于覆盖桌面 shell（如 Quickshell/Caelestia）相关的默认行为
+                            -- 这些值也可以在 quickshell 设置 → "配置文件" → "Hyprland" 面板中通过滑条修改
                             require("hyprland.shellOverrides.main")
