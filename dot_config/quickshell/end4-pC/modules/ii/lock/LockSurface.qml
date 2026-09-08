@@ -148,27 +148,41 @@ MouseArea {
     }
 
     // ── Desktop wallpaper backdrop (all compositors) ────────────
-    // Bugfix: the old backdrop Loader was niri-only, so Hyprland locks
-    // fell back to a blank/frozen frame. Mirror Background.qml's source
-    // chain so the lock always shows the live desktop wallpaper.
+    // Mirrors Background.qml's source chain 1:1 so the lock backdrop is
+    // always identical to what the desktop background shows while locked:
+    //   lockWall (if set) → preview → confirmed → config wallpaperPath,
+    //   video wallpapers resolve to their generated thumbnail,
+    //   blur radius/samples/zoom come from Config.options.lock.blur.
     Item {
         id: wallpaperBg
         anchors.fill: parent
         z: -1
 
+        readonly property string effectivePath: {
+            if (Config.options.background.lockWall !== "")
+                return Config.options.background.lockWall;
+            return Wallpapers.previewPath || Wallpapers.confirmedPath || Config.options.background.wallpaperPath;
+        }
+        readonly property bool isVideo: effectivePath.endsWith(".mp4") || effectivePath.endsWith(".webm")
+            || effectivePath.endsWith(".mkv") || effectivePath.endsWith(".avi") || effectivePath.endsWith(".mov")
+        readonly property string sourcePath: isVideo ? Config.options.background.thumbnailPath : effectivePath
+
         Image {
             id: lockWallpaperImg
             anchors.fill: parent
-            source: Wallpapers.previewPath || Wallpapers.confirmedPath || Config.options.background.wallpaperPath
+            source: wallpaperBg.sourcePath
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             cache: true
             visible: false
         }
         FastBlur {
+            id: lockWallBlur
             anchors.fill: parent
             source: lockWallpaperImg
-            radius: 28
+            radius: Config.options.lock.blur.enable ? Config.options.lock.blur.radius : 0
+            samples: Config.options.lock.blur.size
+            scale: Config.options.lock.blur.extraZoom
         }
         Rectangle {
             anchors.fill: parent
