@@ -1,125 +1,120 @@
 # sijin-xb's dotfiles
 
-Personal desktop configuration for Arch-based systems (developed on CachyOS)
-with Hyprland and Quickshell. The source tree uses chezmoi-style naming
-(`dot_` and `executable_` prefixes), but installation is handled by a
-standalone bash script; the chezmoi binary is not required.
+个人桌面配置：Arch 系（开发环境 CachyOS）+ Hyprland + Quickshell。
+源码树使用 chezmoi 风格命名（`dot_`、`executable_` 前缀），但安装由自带
+bash 脚本完成，不需要 chezmoi 二进制。
 
-## Contents
+> **English (brief)**: Personal desktop configuration for Arch-based systems
+> with Hyprland and Quickshell. Clone the repo and run `./install.sh` (TUI)
+> or `./install.sh install`; the same script provides `rollback`, `restore`,
+> `archive` and `uninstall`. Full documentation below is in Chinese.
 
-- Hyprland configuration in Lua. `hyprland/` is the template layer,
-  `custom/` is the user overlay; files in `custom/` load after the defaults
-  and override them.
-- Quickshell shell based on the end4-pC fork (bar, sidebars, launcher,
-  overview, settings). This repository tracks only the diff layer.
-- Lock screen: Quickshell LockSurface (clock, media card with album art and
-  seekable progress, password entry, power actions). hyprlock is the fallback
-  when quickshell is not running.
-- Desktop lyrics overlay with per-word timing (Kugou KRC). Works with any
-  MPRIS player.
-- matugen wallpaper-based color generation for kitty, alacritty, foot,
-  fastfetch, fcitx5, mako and Hyprland.
-- fish configuration with fzf bindings and nvm.
-- nvim (LazyVim-based), btop, fastfetch, fuzzel, mako configurations.
+## 包含内容
 
-## Requirements
+- Hyprland 配置（Lua）。`hyprland/` 为模板层，`custom/` 为个人覆盖层
+  （同名文件在模板之后加载并覆盖模板）
+- Quickshell（end4-pC fork）差异层：栏、侧边栏、启动器、总览、设置面板
+- 锁屏：Quickshell LockSurface（时钟、媒体卡片：专辑封面 / 可拖拽进度条 /
+  播放控制、密码输入、电源按钮）；quickshell 未运行时回退 hyprlock
+- 桌面歌词：逐字计时（酷狗 KRC），适配任意 MPRIS 播放器
+- matugen 壁纸取色：kitty / alacritty / foot / fastfetch / fcitx5 / mako /
+  Hyprland 联动配色
+- fish（fzf 绑定、nvm）、nvim（LazyVim）、btop、fastfetch、fuzzel、mako 配置
 
-- Arch-based distribution (`/etc/arch-release` present)
-- Hyprland on Wayland
-- sudo access for pacman; the script runs as a normal user
-- quickshell, matugen and mpvpaper are installed by the script if missing
-  (pacman, AUR, or source build, in that order)
+## 环境要求
 
-## Install
+- Arch 系发行版（存在 `/etc/arch-release`）
+- Hyprland（Wayland 会话）
+- 普通用户运行，需要 sudo 权限（pacman 用）
+- quickshell / matugen / mpvpaper 缺失时由脚本自动安装
+  （pacman → AUR → 源码编译）
+
+## 安装
 
 ```bash
 git clone https://github.com/sijin-xb/dotfiles.git
 cd dotfiles
-./install.sh           # TUI menu
-./install.sh install   # run all steps directly
+./install.sh           # TUI 二级菜单
+./install.sh install   # 直接执行完整安装
 ```
 
-Install steps:
+安装步骤：
 
-1. pacman dependencies (hyprland, kitty, fish, fuzzel, fcitx5, cliphist,
-   hypridle, hyprlock, xdg portals, qt6 toolchain)
-2. AUR packages (matugen, mpvpaper); bootstraps yay if no AUR helper exists
-3. quickshell: existing binary, else pacman, else AUR, else source build
-4. deploy `dot_*` entries to `$HOME`; differing existing files are backed up
-   to `~/.local/state/dotfiles-backup/` before overwrite
-5. clone the quickshell base (pctrade/end4-pC) on first run
-6. create a python venv with pypinyin and dbus-python for launcher pinyin
-   search
+1. pacman 基础依赖（hyprland、kitty、fish、fuzzel、fcitx5、cliphist、
+   hypridle、hyprlock、xdg portals、qt6 工具链）
+2. AUR 包（matugen、mpvpaper）；无 AUR helper 时自动安装 yay
+3. quickshell 三级回退：已有二进制 → pacman → AUR → 源码编译
+4. 部署 `dot_*` 条目到 `$HOME`；有差异的已存在文件先备份到
+   `~/.local/state/dotfiles-backup/` 再覆盖
+5. 首次运行克隆 quickshell 底盘（pctrade/end4-pC）
+6. 创建 python venv（pypinyin、dbus-python），供启动器拼音搜索使用
 
-Re-running the installer is idempotent.
+重复运行幂等。
 
-## Script commands
+## 脚本命令
 
-| Command | Behavior |
+| 命令 | 功能 |
 |---|---|
-| `install` | full install; takes a pre-install snapshot first |
-| `rollback` | restore the pre-install snapshot; takes a pre-rollback snapshot first |
-| `restore` | re-apply the pre-rollback snapshot (undo a rollback) |
-| `archive [-o PATH] [--delete]` | pack config, state and cache into a tar.gz with MANIFEST.txt; `--delete` removes sources after packing |
-| `uninstall` | optionally archive, then remove managed paths |
-| no args / `--tui` | two-level menu TUI |
-| `-h` | help |
+| `install` | 完整安装；开始前创建 pre-install 快照 |
+| `rollback` | 还原到 pre-install 快照；开始前创建 pre-rollback 快照 |
+| `restore` | 重新应用 pre-rollback 快照（撤销回档） |
+| `archive [-o PATH] [--delete]` | 打包配置 / 状态 / 缓存为 tar.gz（含 MANIFEST.txt）；`--delete` 打包后清理源文件 |
+| `uninstall` | 可选先存档，然后删除受管理路径 |
+| 无参数 / `--tui` | 二级菜单 TUI |
+| `-h` | 帮助 |
 
-Snapshots cover only the managed path list (`SNAP_PATHS` in the script).
-Files outside that list are never modified.
+快照仅覆盖脚本内受管理路径清单（`SNAP_PATHS`），清单外的文件不会被改动。
 
-## Keybinds (selection)
+## 快捷键（节选）
 
-| Key | Action |
+| 按键 | 功能 |
 |---|---|
-| Super | launcher (pinyin search) |
-| Super+T | terminal summon (quake-style kitty) |
-| Super+S | scratchpad |
-| Super+L | lock screen (quickshell lock surface) |
-| Super+Q | close window |
-| Super+1..0, Super+arrows | switch workspace / focus |
-| Super+Shift+arrows | move window |
-| Super+Shift+S, Print | region screenshot |
-| Super+Shift+R | region record |
-| Super+Shift+P / N / B | play-pause / next / previous |
-| Super+F1 | restart fcitx5 |
-| Ctrl+Super+T | wallpaper selector |
+| Super | 启动器（拼音搜索） |
+| Super+T | 终端召唤（quake 风格 kitty） |
+| Super+S | 临时工作区 scratchpad |
+| Super+L | 锁屏（quickshell 锁屏界面） |
+| Super+Q | 关闭窗口 |
+| Super+1..0、Super+方向键 | 切换工作区 / 焦点 |
+| Super+Shift+方向键 | 移动窗口 |
+| Super+Shift+S、Print | 区域截图 |
+| Super+Shift+R | 区域录屏 |
+| Super+Shift+P / N / B | 播放暂停 / 下一首 / 上一首 |
+| Super+F1 | 重启 fcitx5 |
+| Ctrl+Super+T | 壁纸选择器 |
 
-Full lists: `~/.config/hypr/hyprland/keybinds.lua` and
-`~/.config/hypr/custom/keybinds.lua`.
+完整列表：`~/.config/hypr/hyprland/keybinds.lua` 与
+`~/.config/hypr/custom/keybinds.lua`。
 
-## Directory layout
+## 目录结构
 
 ```
 dot_config/
   hypr/
-    hyprland.lua          entry point
-    hyprland/             template layer (keybinds, general, rules, env, execs, scripts)
-    custom/               user overlay (same filenames override the template)
-    hyprlock.conf         fallback lock screen config
-    hyprlock/             colors and helper scripts
-  quickshell/end4-pC/     shell diff layer (modules, services, scripts)
+    hyprland.lua          配置入口
+    hyprland/             模板层（keybinds、general、rules、env、execs、scripts）
+    custom/               个人覆盖层（同名文件覆盖模板）
+    hyprlock.conf         回退锁屏配置
+    hyprlock/             配色与辅助脚本
+  quickshell/end4-pC/     shell 差异层（modules、services、scripts）
   fish/  kitty/  foot/  alacritty/  nvim/  btop/  fastfetch/  fuzzel/  mako/  matugen/
-install.sh                installer / uninstaller / rollback / archive / TUI
+install.sh                安装 / 卸载 / 回档 / 存档 / TUI
 ```
 
-## Lock screen
+## 锁屏
 
-`Super+L` dispatches `quickshell:lock`. The lock surface shows the blurred
-desktop wallpaper (same source chain as the desktop background, including the
-optional `lockWall` override and video thumbnails), clock and date, a media
-card (album art, title/artist, seekable progress bar, previous/play/next),
-the password entry and power actions. hypridle triggers the same lock on
-idle timeout; hyprlock is used when quickshell is not running.
+`Super+L` 触发 `quickshell:lock`。锁屏界面显示模糊后的桌面壁纸（与桌面
+背景同一源链，含 `lockWall` 覆盖与视频缩略图分支）、时钟与日期、媒体卡片
+（专辑封面、歌名 / 艺术家、可拖拽进度条、上一首 / 播放暂停 / 下一首）、
+密码输入框与电源按钮。hypridle 超时锁屏走同一入口；quickshell 未运行时
+使用 hyprlock。
 
-## Notes
+## 说明
 
-- Colors regenerate on wallpaper change; templates live in
-  `dot_config/matugen/templates/`.
-- Desktop lyrics offset adjustment:
+- 更换壁纸会触发重新取色；模板位于 `dot_config/matugen/templates/`
+- 桌面歌词偏移微调：
   `qs -c end4-pC ipc call desktoplyrics offset_faster / offset_slower`
-- Backup root: `~/.local/state/dotfiles-backup/` (`snapshots/` and `state/`).
+- 备份根目录：`~/.local/state/dotfiles-backup/`（`snapshots/`、`state/`）
 
-## License
+## 许可证
 
 MIT
