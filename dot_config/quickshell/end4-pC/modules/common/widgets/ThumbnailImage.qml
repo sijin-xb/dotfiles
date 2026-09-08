@@ -33,8 +33,11 @@ StyledImage {
         animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
     }
 
-    onSourceSizeChanged: {
-        if (!root.generateThumbnail) return;
+    // Regenerate when the target thumbnail path changes: this covers both
+    // size changes and sourcePath changes (GridView delegate recycling),
+    // so newly added files get their missing thumbnail on first display.
+    onThumbnailPathChanged: {
+        if (!root.generateThumbnail || !root.sourcePath) return;
         thumbnailGeneration.running = false;
         thumbnailGeneration.running = true;
     }
