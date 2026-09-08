@@ -38,7 +38,6 @@ PRE_ROLLBACK_PREFIX="pre-rollback"
 # 缺失的路径在 tar 时会跳过，不报错
 SNAP_PATHS=(
     ".config/hypr"
-    ".config/hypr/hyprlock/scripts"
     ".config/quickshell/end4-pC"
     ".config/fish"
     ".config/kitty"
@@ -319,7 +318,7 @@ cmd_install() {
      （配置入口 ~/.config/hypr/hyprland.lua，Quickshell 随会话自启）
   2. 中文输入：fcitx5 + rime（SUPER+F1 可重启输入法）
   3. 键位速览：
-       SUPER+L      锁屏（毛玻璃 + 底部面板：时钟/日期/上一首·播放·下一首）
+       SUPER+L      锁屏（Quickshell LockSurface：MPRIS 媒体控制 + 专辑封面 + 电源）
        SUPER+T      终端召唤（居中浮动，再按隐藏）
        SUPER+S      scratchpad
        SUPER        启动器（支持中文拼音搜索）
@@ -608,7 +607,7 @@ show_help() {
     echo "  SUPER         启动器（中文拼音搜索 + 窗口缩略图信息卡）"
     echo "  SUPER+T       终端召唤（居中浮动半透明，再按隐藏）"
     echo "  SUPER+S       Scratchpad（临时工作区）"
-    echo "  SUPER+L       锁屏（毛玻璃 + 底部媒体面板：时钟/日期/音乐控制）"
+    echo "  SUPER+L       锁屏（Quickshell：MPRIS 媒体控制 + 专辑封面 + 电源按钮）"
     echo "  SUPER+F1      重启 fcitx5 输入法（rime 卡住时用）"
     echo "  SUPER+ESC     打开 quickshell 设置面板"
     echo "  SUPER+方向键  切换工作区 / 移动窗口焦点（配合 SHIFT 则移动窗口）"

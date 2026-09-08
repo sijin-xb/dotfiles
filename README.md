@@ -14,7 +14,7 @@
 | **拼音搜索启动器** | 中文拼音模糊搜索 + 窗口缩略图信息卡 + 悬浮预览 |
 | **终端召唤** | SUPER+T 居中浮动 quake 风格终端（kitty），状态保留、再按隐藏 |
 | **Material 3 取色** | matugen 壁纸→全局配色，11+ 应用（alacritty/kitty/hyprland/fcitx5/fastfetch...）联动 |
-| **锁屏媒体面板** | SUPER+L 锁屏时底部弹出交互面板：大号时钟/日期 + 媒体播放 ▶⏸⏭ + playerctl 控制 |
+| **Quickshell 锁屏** | SUPER+L 触发 LockSurface：MPRIS 媒体控制 + 专辑封面 + 电源/重启/休眠按钮 |
 
 ## 适配环境
 
@@ -53,9 +53,9 @@ cd ~/dotfiles
 
 ## 锁屏媒体面板
 
-**触发**: `SUPER+L`（自定义快捷键 → hyprlock-with-panel.sh）
+**触发**: `SUPER+L`（dispatch quickshell:lock → LockSurface.qml）
 
-锁屏时在屏幕底部显示毛玻璃半透明面板：
+Quickshell LockSurface 全屏锁屏，包含：
 
 ```
 ┌──────────────────────────────────────────────────────────┐
@@ -65,12 +65,12 @@ cd ~/dotfiles
 └──────────────────────────────────────────────────────────┘
 ```
 
-- 左侧：大号数字时钟 + 日期
-- 右侧：当前曲目标题 + 艺术家 + 播放器名称
-- 按钮：上一首 (⏮) / 播放暂停 (⏸▶) / 下一首 (⏭) —— 基于 playerctl
-- 状态指示器：绿色圆点=播放中 / 黄色=暂停 / 灰色=无播放器
-- 自动适配 hyprlock/colors.conf 配色（跟随 matugen 壁纸取色）
-- 解锁后面板自动关闭（watchdog 监控 hyprlock 进程）
+- MPRIS 集成：直接控制任意兼容播放器（Spotify/ncm/foorif...）
+- 专辑封面显示 + 曲目进度条
+- 电源按钮（关机/重启/休眠）可选密码保护
+- 自动切换锁屏主题色（matugen --colors_lock）
+- 锁屏时工作区隔离动画（切到空 workspace）
+- 键盘布局指示 + fcitx5 输入法状态
 
 ## 快捷键速览
 
@@ -111,12 +111,10 @@ cd ~/dotfiles
 │   │   ├── general.lua           # 液态玻璃高级参数
 │   │   ├── execs.lua             # 自定义自启
 │   │   └── ...
-│   ├── hyprlock.conf             # 锁屏配置（含 media label）
+│   ├── hyprlock.conf             # 锁屏配置（hyprlock 作为 quickshell 的 fallback）
 │   └── hyprlock/
 │       ├── colors.conf           # 锁屏配色（matugen 生成）
 │       ├── scripts/
-│       │   ├── hyprlock-panel.py        # GTK3 锁屏媒体面板
-│       │   ├── hyprlock-with-panel.sh   # 锁屏启动包装脚本
 │       │   ├── media-info.sh            # 媒体信息输出脚本
 │       │   ├── status.sh                # 系统状态（电池等）
 │       │   └── check-capslock.sh        # Caps Lock 指示
@@ -161,8 +159,8 @@ A: quickshell 设置 → 配置文件 → Hyprland：模糊半径 (10→8/12)，
 **Q: 安装脚本冲突 / 幂等吗？**  
 A: 完全幂等。重复运行仅安装缺失的包，覆盖有差异的文件前自动备份到 `~/.local/state/dotfiles-backup/`
 
-**Q: 锁屏媒体面板不显示？**  
-A: 确认安装了 `python-gobject`、`gtk-layer-shell`、`playerctl`。检查 `~/.config/hypr/hyprlock/scripts/hyprlock-panel.py` 是否存在且可执行。
+**Q: 锁屏没有媒体控制？**  
+A: 确认 quickshell 正在运行（`pidof quickshell`）。SUPER+L 触发的是 quickshell:lock dispatch，不是 hyprlock。hyprlock 仅在 quickshell 未运行时作为 fallback。
 
 ---
 

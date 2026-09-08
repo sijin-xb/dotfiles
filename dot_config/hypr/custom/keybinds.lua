@@ -10,7 +10,7 @@ hl.bind("SUPER + F10", shell("waypaper --random"), { description = "Random wallp
 hl.bind("SUPER + SHIFT + F10", shell("$HOME/.config/scripts/random-anime-wallpaper.sh"), { description = "Download random wallpaper" })
 hl.bind("SUPER + F12", hl.dsp.global("quickshell:regionScreenshot"), { description = "Screenshot region" })
 hl.bind("SUPER + Slash", shell("kitty --single-instance --class quickterminal"), { description = "Quick terminal" })
-hl.bind("SUPER + L", shell("$HOME/.config/hypr/hyprlock/scripts/hyprlock-with-panel.sh"), { description = "Lock screen（带媒体面板）" })
+hl.bind("SUPER + L", hl.dsp.global("quickshell:lock"), { description = "Lock screen（Quickshell 媒体面板）" })
 hl.bind("SUPER + ALT + T", shell("$HOME/.config/scripts/matugen-select-type.sh"), { description = "Change color strategy" })
 hl.bind("SUPER + U", hl.dsp.focus({ workspace = "r-" .. "1" }), { description = "Previous workspace" })
 hl.bind("SUPER + I", hl.dsp.focus({ workspace = "r+" .. "1" }), { description = "Next workspace" })
