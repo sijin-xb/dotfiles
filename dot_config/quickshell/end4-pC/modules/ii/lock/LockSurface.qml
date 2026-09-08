@@ -172,6 +172,73 @@ MouseArea {
         }
     }
 
+    // ── Clock + Date + Greeting ──────────────────────────────────
+    Column {
+        id: clockSection
+        anchors {
+            horizontalCenter: parent.horizontalCenter
+            bottom: mainIsland.top
+            bottomMargin: 60
+        }
+        spacing: 4
+        scale: root.toolbarScale
+        opacity: root.toolbarOpacity
+
+        property date now: new Date()
+        Timer {
+            interval: 1000
+            running: true
+            repeat: true
+            onTriggered: clockSection.now = new Date()
+        }
+
+        // Greeting
+        StyledText {
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: {
+                var h = clockSection.now.getHours()
+                if (h < 6) return Translation.tr("夜深了，注意休息")
+                if (h < 9) return Translation.tr("早上好")
+                if (h < 12) return Translation.tr("上午好")
+                if (h < 14) return Translation.tr("中午好")
+                if (h < 18) return Translation.tr("下午好")
+                return Translation.tr("晚上好")
+            }
+            font.pixelSize: Appearance.font.pixelSize.normal
+            color: Appearance.colors.colOnSurfaceVariant
+            horizontalAlignment: Text.AlignHCenter
+        }
+
+        // Large clock
+        StyledText {
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: {
+                var h = clockSection.now.getHours().toString().padStart(2, "0")
+                var m = clockSection.now.getMinutes().toString().padStart(2, "0")
+                return h + ":" + m
+            }
+            font.pixelSize: 72
+            font.weight: Font.Bold
+            font.family: "Google Sans Flex Medium"
+            color: Appearance.colors.colOnSurface
+            horizontalAlignment: Text.AlignHCenter
+        }
+
+        // Date
+        StyledText {
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: {
+                var days = ["日","一","二","三","四","五","六"]
+                var d = clockSection.now
+                return d.getFullYear() + "年" + (d.getMonth()+1) + "月" + d.getDate() + "日"
+                    + " 星期" + days[d.getDay()]
+            }
+            font.pixelSize: Appearance.font.pixelSize.small
+            color: Appearance.colors.colOnSurfaceVariant
+            horizontalAlignment: Text.AlignHCenter
+        }
+    }
+
     // Main toolbar: password box
     Toolbar {
         id: mainIsland
