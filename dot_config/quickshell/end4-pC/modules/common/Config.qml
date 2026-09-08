@@ -338,6 +338,8 @@ Singleton {
                         property string placementStrategy: "free"
                         property real x: 0
                         property real y: 0
+                        // 音频可视化样式: bars / mirror / line / wave / dots / area
+                        property string style: "bars"
                     }
 
                     property JsonObject customImage: JsonObject {

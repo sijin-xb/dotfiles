@@ -1118,5 +1118,12 @@
     "this session": "本次会话",
     "Wallpaper & style": "壁纸与样式",
     "DropShelf": "拖放搁架",
-    "Live Wallpaper": "动态壁纸"
+    "Live Wallpaper": "动态壁纸",
+    "Visualizer style": "可视化样式",
+    "Bars spectrum": "柱状频谱",
+    "Mirror spectrum": "镜像频谱",
+    "Line spectrum": "折线频谱",
+    "Wave curve": "波形曲线",
+    "Dot matrix": "点阵频谱",
+    "Filled wave": "填充波形"
 }
