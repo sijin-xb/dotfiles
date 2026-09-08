@@ -147,15 +147,6 @@ MouseArea {
         }
     }
 
-    // Refresh lyrics on every lock so the lock session always shows
-    // up-to-date lines (fixes stale / never-fetched lyrics).
-    Connections {
-        target: GlobalStates
-        function onScreenLockedChanged() {
-            if (GlobalStates.screenLocked) LyricsService.restartLyrics()
-        }
-    }
-
     // ── Desktop wallpaper backdrop (all compositors) ────────────
     // Bugfix: the old backdrop Loader was niri-only, so Hyprland locks
     // fell back to a blank/frozen frame. Mirror Background.qml's source
@@ -270,7 +261,7 @@ MouseArea {
             top: clockSection.bottom
             topMargin: 44
         }
-        width: 400
+        width: 340
         height: mediaCol.implicitHeight + 40
         visible: root.activePlayer !== null && Config.options.lock.showMedia
         scale: root.toolbarScale
@@ -327,14 +318,32 @@ MouseArea {
             anchors { left: parent.left; right: parent.right; top: parent.top; margins: 20 }
             spacing: 14
 
-            // Row: album art card + track info
-            Row {
-                spacing: 14
-                width: parent.width
+            // Album cover: centered hero element with soft shadow
+            Item {
+                width: 112
+                height: 112
+                anchors.horizontalCenter: parent.horizontalCenter
 
                 Rectangle {
+                    id: artShadowSrc
+                    anchors.fill: parent
+                    radius: 22
+                    color: "black"
+                    visible: false
+                }
+                DropShadow {
+                    anchors.fill: artShadowSrc
+                    source: artShadowSrc
+                    radius: 20
+                    samples: 40
+                    color: Qt.rgba(0, 0, 0, 0.55)
+                    verticalOffset: 8
+                    transparentBorder: true
+                }
+                Rectangle {
                     id: artCard
-                    width: 64; height: 64; radius: 16
+                    anchors.fill: parent
+                    radius: 22
                     color: Appearance.colors.colPrimaryContainer
                     clip: true
                     layer.enabled: true
@@ -356,43 +365,34 @@ MouseArea {
                         visible: root.artUrl === ""
                     }
                 }
-                DropShadow {
-                    anchors.fill: artCard
-                    source: artCard
-                    radius: 10
-                    samples: 24
-                    color: Qt.rgba(0, 0, 0, 0.35)
-                    verticalOffset: 4
-                    transparentBorder: true
-                }
+            }
 
-                Column {
-                    width: parent.width - 78
-                    spacing: 3
-                    anchors.verticalCenter: parent.verticalCenter
-
-                    StyledText {
-                        width: parent.width
-                        text: mediaCard.player?.trackTitle || ""
-                        font.pixelSize: 19
-                        font.bold: true
-                        color: Appearance.colors.colOnLayer2
-                        elide: Text.ElideMiddle
-                        maximumLineCount: 1
-                    }
-                    StyledText {
-                        width: parent.width
-                        text: {
-                            const artist = mediaCard.player?.trackArtist || ""
-                            const pname = mediaCard.player?.identity || ""
-                            return artist + (pname ? "  \u00b7  " + pname : "")
-                        }
-                        font.pixelSize: 13
-                        color: Appearance.colors.colSubtext
-                        elide: Text.ElideRight
-                        maximumLineCount: 1
-                    }
+            // Track title
+            StyledText {
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: parent.width - 8
+                text: mediaCard.player?.trackTitle || ""
+                font.pixelSize: 19
+                font.bold: true
+                color: Appearance.colors.colOnLayer2
+                elide: Text.ElideMiddle
+                maximumLineCount: 1
+                horizontalAlignment: Text.AlignHCenter
+            }
+            // Artist / player
+            StyledText {
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: parent.width - 8
+                text: {
+                    const artist = mediaCard.player?.trackArtist || ""
+                    const pname = mediaCard.player?.identity || ""
+                    return artist + (pname ? "  \u00b7  " + pname : "")
                 }
+                font.pixelSize: 13
+                color: Appearance.colors.colSubtext
+                elide: Text.ElideRight
+                maximumLineCount: 1
+                horizontalAlignment: Text.AlignHCenter
             }
 
             // Seekable progress bar
@@ -535,46 +535,6 @@ MouseArea {
                     MouseArea { id: nextMa; anchors.fill: parent; hoverEnabled: true; onClicked: mediaCard.player?.next() }
                 }
             }
-        }
-    }
-
-    // ── Live lyrics (auto-hidden when unavailable) ──────────────
-    Column {
-        id: lyricsBlock
-        anchors {
-            horizontalCenter: parent.horizontalCenter
-            top: mediaCard.visible ? mediaCard.bottom : clockSection.bottom
-            topMargin: 22
-        }
-        spacing: 6
-        visible: LyricsService.status === "ok"
-            && (LyricsService.slots[LyricsService.before] ?? "") !== ""
-            && root.activePlayer !== null && Config.options.lock.showMedia
-        scale: root.toolbarScale
-        opacity: root.toolbarOpacity
-        Behavior on opacity { NumberAnimation { duration: 350; easing.type: Easing.InOutQuad } }
-
-        StyledText {
-            anchors.horizontalCenter: parent.horizontalCenter
-            width: 420
-            text: LyricsService.slots[LyricsService.before] ?? ""
-            font.pixelSize: Appearance.font.pixelSize.normal
-            font.weight: Font.Medium
-            color: Qt.rgba(1, 1, 1, 0.75)
-            horizontalAlignment: Text.AlignHCenter
-            elide: Text.ElideRight
-            maximumLineCount: 1
-        }
-        StyledText {
-            anchors.horizontalCenter: parent.horizontalCenter
-            width: 420
-            text: LyricsService.slots[LyricsService.before + 1] ?? ""
-            font.pixelSize: Appearance.font.pixelSize.small
-            color: Qt.rgba(1, 1, 1, 0.38)
-            horizontalAlignment: Text.AlignHCenter
-            elide: Text.ElideRight
-            maximumLineCount: 1
-            visible: text !== ""
         }
     }
 
