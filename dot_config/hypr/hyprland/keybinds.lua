@@ -98,7 +98,7 @@ hl.bind("SUPER + SHIFT + R", hl.dsp.global("quickshell:regionRecord"),
 hl.bind("SUPER + SHIFT + R", function() hl.exec_cmd(qsIsAlive .. " || " .. qsScripts .. "/videos/record.sh") end, { locked = true })
 hl.bind("SUPER + ALT + R", hl.dsp.global("quickshell:regionRecord"), { locked = true })
 hl.bind("SUPER + ALT + R", function() hl.exec_cmd(qsIsAlive .. " || " .. qsScripts .. "/videos/record.sh") end, { locked = true })
-hl.bind("CTRL + ALT + R", function() hl.exec_cmd(qsScripts .. "/videos/record.sh --fullscreen") end, { locked = true })
+hl.bind("CTRL + ALT + R", function() hl.exec_cmd(qsScripts .. "/videos/record.sh --fullscreen --sound") end, { locked = true, description = "Utilities: Record screen (system audio only)" })
 hl.bind("SUPER + SHIFT + ALT + R", function() hl.exec_cmd(qsScripts .. "/videos/record.sh --fullscreen --sound") end,
     { locked = true, description = "Utilities: Record screen (with sound)" })
 --# Screenshot entry points use end-4's region selector and action menu.
