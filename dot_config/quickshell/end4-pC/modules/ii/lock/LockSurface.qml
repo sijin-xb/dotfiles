@@ -147,30 +147,44 @@ MouseArea {
         }
     }
 
-    Loader {
-        anchors.fill: parent
-        z: -1
-        active: WM.compositor === "niri"
-
-        sourceComponent: Item {
-            anchors.fill: parent
-
-            Image {
-                id: lockBgSource
-                anchors.fill: parent
-                source: Config.options.background.wallpaperPath
-                fillMode: Image.PreserveAspectCrop
-                asynchronous: true
-                cache: true
-                visible: false
-            }
-            FastBlur {
-                anchors.fill: parent
-                source: lockBgSource
-                radius: 0 // fixme
-            }
+    // Refresh lyrics on every lock so the lock session always shows
+    // up-to-date lines (fixes stale / never-fetched lyrics).
+    Connections {
+        target: GlobalStates
+        function onScreenLockedChanged() {
+            if (GlobalStates.screenLocked) LyricsService.restartLyrics()
         }
     }
+
+    // ── Desktop wallpaper backdrop (all compositors) ────────────
+    // Bugfix: the old backdrop Loader was niri-only, so Hyprland locks
+    // fell back to a blank/frozen frame. Mirror Background.qml's source
+    // chain so the lock always shows the live desktop wallpaper.
+    Item {
+        id: wallpaperBg
+        anchors.fill: parent
+        z: -1
+
+        Image {
+            id: lockWallpaperImg
+            anchors.fill: parent
+            source: Wallpapers.previewPath || Wallpapers.confirmedPath || Config.options.background.wallpaperPath
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
+            cache: true
+            visible: false
+        }
+        FastBlur {
+            anchors.fill: parent
+            source: lockWallpaperImg
+            radius: 28
+        }
+        Rectangle {
+            anchors.fill: parent
+            color: Qt.rgba(0, 0, 0, 0.18)
+        }
+    }
+
 
     // ── Dark scrim for text readability ─────────────────────────
     Rectangle {
@@ -248,57 +262,84 @@ MouseArea {
         }
     }
 
-    // ── Media Card (glassmorphism panel) ────────────────────────
+    // ── Media card: glass panel, seekable progress, micro-interactions ──
     Item {
         id: mediaCard
         anchors {
             horizontalCenter: parent.horizontalCenter
             top: clockSection.bottom
-            topMargin: 48
+            topMargin: 44
         }
-        width: 380
-        height: mediaColumn.implicitHeight + 36
+        width: 400
+        height: mediaCol.implicitHeight + 40
         visible: root.activePlayer !== null && Config.options.lock.showMedia
         scale: root.toolbarScale
-        opacity: root.toolbarOpacity ? 1 : 0
-        Behavior on opacity { NumberAnimation { duration: 400; easing.type: Easing.InOutQuad } }
+        opacity: root.toolbarOpacity
+        Behavior on opacity { NumberAnimation { duration: 350; easing.type: Easing.InOutQuad } }
 
-        // Card background (glass)
+        readonly property MprisPlayer player: root.activePlayer
+        readonly property real progress: player ? Math.min(1, player.position / Math.max(1, player.length)) : 0
+        property real dragPos: 0
+        readonly property real shownProgress: seekArea.dragging ? dragPos : progress
+
+        function fmtTime(s) {
+            s = Math.max(0, Math.floor(s || 0));
+            return Math.floor(s / 60) + ":" + (s % 60).toString().padStart(2, "0");
+        }
+
+        // Mpris position updates lazily; ping it while the card is visible
+        Timer {
+            interval: 500
+            running: mediaCard.visible && mediaCard.player !== null
+            repeat: true
+            onTriggered: mediaCard.player.positionChanged()
+        }
+
+        // Soft shadow under the card
+        Rectangle {
+            id: cardShadowSrc
+            anchors.fill: parent
+            radius: 24
+            color: Appearance.colors.colLayer2
+            visible: false
+        }
+        DropShadow {
+            anchors.fill: cardShadowSrc
+            source: cardShadowSrc
+            radius: 28
+            samples: 48
+            color: Qt.rgba(0, 0, 0, 0.45)
+            verticalOffset: 10
+            transparentBorder: true
+        }
+
+        // Card surface (theme-aware)
         Rectangle {
             anchors.fill: parent
             radius: 24
-            color: Qt.rgba(1, 1, 1, 0.08)
+            color: Appearance.colors.colLayer2
             border.width: 1
-            border.color: Qt.rgba(1, 1, 1, 0.12)
-        }
-        // Inner glow shadow
-        Rectangle {
-            anchors { fill: parent; margins: -1 }
-            radius: 25
-            color: "transparent"
-            border.width: 1
-            border.color: Qt.rgba(1, 1, 1, 0.04)
+            border.color: ColorUtils.transparentize(Appearance.colors.colOnLayer2, 0.92)
         }
 
         Column {
-            id: mediaColumn
-            anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: 18 }
-            width: parent.width - 36
-            spacing: 12
+            id: mediaCol
+            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 20 }
+            spacing: 14
 
-            // Track info row: art + title/artist
+            // Row: album art card + track info
             Row {
                 spacing: 14
-                anchors.horizontalCenter: parent.horizontalCenter
+                width: parent.width
 
-                // Album art card
                 Rectangle {
-                    width: 72; height: 72; radius: 14
+                    id: artCard
+                    width: 64; height: 64; radius: 16
                     color: Appearance.colors.colPrimaryContainer
                     clip: true
                     layer.enabled: true
                     layer.effect: OpacityMask {
-                        maskSource: Rectangle { width: 72; height: 72; radius: 14 }
+                        maskSource: Rectangle { width: artCard.width; height: artCard.height; radius: artCard.radius }
                     }
                     StyledImage {
                         anchors.fill: parent
@@ -311,182 +352,229 @@ MouseArea {
                         anchors.centerIn: parent
                         fill: 1; text: "music_note"
                         iconSize: Appearance.font.pixelSize.hugeass
-                        color: Appearance.colors.colOnSecondaryContainer
+                        color: Appearance.colors.colOnPrimaryContainer
                         visible: root.artUrl === ""
                     }
                 }
+                DropShadow {
+                    anchors.fill: artCard
+                    source: artCard
+                    radius: 10
+                    samples: 24
+                    color: Qt.rgba(0, 0, 0, 0.35)
+                    verticalOffset: 4
+                    transparentBorder: true
+                }
 
-                // Title + Artist
                 Column {
-                    width: parent.width - 86
-                    spacing: 2
+                    width: parent.width - 78
+                    spacing: 3
                     anchors.verticalCenter: parent.verticalCenter
 
                     StyledText {
                         width: parent.width
-                        text: root.activePlayer?.trackTitle || ""
-                        font.pixelSize: Appearance.font.pixelSize.larger
-                        font.weight: Font.DemiBold
-                        color: "#ffffff"
-                        elide: Text.ElideRight
+                        text: mediaCard.player?.trackTitle || ""
+                        font.pixelSize: 19
+                        font.bold: true
+                        color: Appearance.colors.colOnLayer2
+                        elide: Text.ElideMiddle
                         maximumLineCount: 1
                     }
                     StyledText {
                         width: parent.width
                         text: {
-                            var artist = root.activePlayer?.trackArtist || ""
-                            var player = root.activePlayer?.identity || ""
-                            return artist + (player ? " · " + player : "")
+                            const artist = mediaCard.player?.trackArtist || ""
+                            const pname = mediaCard.player?.identity || ""
+                            return artist + (pname ? "  \u00b7  " + pname : "")
                         }
-                        font.pixelSize: Appearance.font.pixelSize.small
-                        color: Qt.rgba(1, 1, 1, 0.6)
+                        font.pixelSize: 13
+                        color: Appearance.colors.colSubtext
                         elide: Text.ElideRight
                         maximumLineCount: 1
                     }
                 }
             }
 
-            // Progress bar
+            // Seekable progress bar
             Item {
-                width: parent.width; height: 20
+                width: parent.width
+                height: 20
+
                 StyledText {
                     anchors { left: parent.left; verticalCenter: parent.verticalCenter }
-                    text: {
-                        var pos = root.activePlayer?.position ?? 0
-                        var m = Math.floor(pos / 60)
-                        var s = Math.floor(pos % 60)
-                        return m + ":" + s.toString().padStart(2, "0")
-                    }
+                    text: mediaCard.fmtTime(mediaCard.shownProgress * (mediaCard.player?.length ?? 0))
                     font.pixelSize: Appearance.font.pixelSize.smaller
-                    color: Qt.rgba(1, 1, 1, 0.5)
+                    color: Appearance.colors.colSubtext
                 }
                 StyledText {
                     anchors { right: parent.right; verticalCenter: parent.verticalCenter }
-                    text: {
-                        var len = root.activePlayer?.length ?? 0
-                        var m = Math.floor(len / 60)
-                        var s = Math.floor(len % 60)
-                        return m + ":" + s.toString().padStart(2, "0")
-                    }
+                    text: mediaCard.fmtTime(mediaCard.player?.length ?? 0)
                     font.pixelSize: Appearance.font.pixelSize.smaller
-                    color: Qt.rgba(1, 1, 1, 0.5)
+                    color: Appearance.colors.colSubtext
                 }
-                // Track bg
+
                 Rectangle {
-                    anchors { fill: parent; leftMargin: 38; rightMargin: 38; verticalCenter: parent.verticalCenter }
-                    height: 4; radius: 2
-                    color: Qt.rgba(1, 1, 1, 0.15)
-                    // Fill
+                    id: trackBg
+                    anchors { left: parent.left; right: parent.right; leftMargin: 40; rightMargin: 40; verticalCenter: parent.verticalCenter }
+                    height: 4
+                    radius: 2
+                    color: ColorUtils.transparentize(Appearance.colors.colOnLayer2, 0.85)
+
                     Rectangle {
                         anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
-                        width: parent.width * ((root.activePlayer?.position ?? 0) / Math.max(1, root.activePlayer?.length ?? 1))
+                        width: parent.width * mediaCard.shownProgress
                         radius: 2
                         gradient: Gradient {
                             GradientStop { position: 0; color: Appearance.colors.colPrimary }
-                            GradientStop { position: 1; color: Appearance.colors.colTertiary }
+                            GradientStop { position: 1; color: Appearance.colors.colSecondary }
                         }
                     }
-                    // Slider dot
+
                     Rectangle {
-                        readonly property real progress: (root.activePlayer?.position ?? 0) / Math.max(1, root.activePlayer?.length ?? 1)
-                        x: parent.width * progress - width / 2
+                        id: thumb
+                        x: parent.width * mediaCard.shownProgress - width / 2
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 12; height: 12; radius: 6
-                        color: "#ffffff"
-                        layer.enabled: true
-                        layer.effect: FastBlur { radius: 3 }
+                        width: seekArea.containsMouse || seekArea.dragging ? 14 : 10
+                        height: width
+                        radius: width / 2
+                        color: Appearance.colors.colPrimary
+                        Behavior on width { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+                    }
+                    DropShadow {
+                        anchors.fill: thumb
+                        source: thumb
+                        radius: 8
+                        samples: 16
+                        color: Appearance.colors.colPrimary
+                        transparentBorder: true
+                        visible: seekArea.containsMouse || seekArea.dragging
+                    }
+
+                    MouseArea {
+                        id: seekArea
+                        anchors { fill: parent; topMargin: -8; bottomMargin: -8; leftMargin: -4; rightMargin: -4 }
+                        hoverEnabled: true
+                        enabled: mediaCard.player !== null && mediaCard.player.canSeek
+                        property bool dragging: false
+                        cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+
+                        function ratioAt(mx) {
+                            const px = mapToItem(trackBg, mx, 0).x
+                            return Math.max(0, Math.min(1, px / trackBg.width))
+                        }
+                        onPressed: mouse => {
+                            dragging = true
+                            mediaCard.dragPos = ratioAt(mouse.x)
+                        }
+                        onPositionChanged: mouse => {
+                            if (dragging) mediaCard.dragPos = ratioAt(mouse.x)
+                        }
+                        onReleased: {
+                            dragging = false
+                            if (mediaCard.player)
+                                mediaCard.player.position = mediaCard.dragPos * mediaCard.player.length
+                        }
                     }
                 }
             }
 
-            // Control buttons row
+            // Transport controls with hover/press micro-interactions
             Row {
-                spacing: 20
+                spacing: 18
                 anchors.horizontalCenter: parent.horizontalCenter
 
-                // Previous
                 Rectangle {
-                    width: 40; height: 40; radius: 20
-                    color: prevMa.containsPress ? Qt.rgba(1,1,1,0.2) : prevMa.containsMouse ? Qt.rgba(1,1,1,0.1) : "transparent"
+                    width: 42; height: 42; radius: 21
+                    color: prevMa.pressed ? Appearance.colors.colLayer2Active
+                         : prevMa.containsMouse ? Appearance.colors.colLayer2Hover
+                         : "transparent"
                     Behavior on color { ColorAnimation { duration: 150 } }
+                    scale: prevMa.pressed ? 0.92 : 1
+                    Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
                     MaterialSymbol {
                         anchors.centerIn: parent
                         text: "skip_previous"; fill: 1
                         iconSize: Appearance.font.pixelSize.hugeass
-                        color: "#ffffff"
+                        color: Appearance.colors.colOnLayer2
                     }
-                    MouseArea {
-                        id: prevMa
-                        anchors.fill: parent; hoverEnabled: true
-                        onClicked: root.activePlayer?.previous()
-                    }
+                    MouseArea { id: prevMa; anchors.fill: parent; hoverEnabled: true; onClicked: mediaCard.player?.previous() }
                 }
 
-                // Play/Pause (larger, accent)
                 Rectangle {
                     width: 52; height: 52; radius: 26
-                    color: Appearance.colors.colPrimary
-                    scale: playMa.containsPress ? 0.92 : playMa.containsMouse ? 1.05 : 1.0
-                    Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+                    color: playMa.pressed ? Appearance.colors.colPrimaryActive
+                         : playMa.containsMouse ? Appearance.colors.colPrimaryHover
+                         : Appearance.colors.colPrimary
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                    scale: playMa.pressed ? 0.92 : playMa.containsMouse ? 1.06 : 1
+                    Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
                     MaterialSymbol {
                         anchors.centerIn: parent
-                        text: root.activePlayer?.isPlaying ? "pause" : "play_arrow"
+                        text: mediaCard.player?.isPlaying ? "pause" : "play_arrow"
                         fill: 1
                         iconSize: Appearance.font.pixelSize.hugeass
                         color: Appearance.colors.colOnPrimary
                     }
-                    MouseArea {
-                        id: playMa
-                        anchors.fill: parent; hoverEnabled: true
-                        onClicked: root.activePlayer?.togglePlaying()
-                    }
+                    MouseArea { id: playMa; anchors.fill: parent; hoverEnabled: true; onClicked: mediaCard.player?.togglePlaying() }
                 }
 
-                // Next
                 Rectangle {
-                    width: 40; height: 40; radius: 20
-                    color: nextMa.containsPress ? Qt.rgba(1,1,1,0.2) : nextMa.containsMouse ? Qt.rgba(1,1,1,0.1) : "transparent"
+                    width: 42; height: 42; radius: 21
+                    color: nextMa.pressed ? Appearance.colors.colLayer2Active
+                         : nextMa.containsMouse ? Appearance.colors.colLayer2Hover
+                         : "transparent"
                     Behavior on color { ColorAnimation { duration: 150 } }
+                    scale: nextMa.pressed ? 0.92 : 1
+                    Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
                     MaterialSymbol {
                         anchors.centerIn: parent
                         text: "skip_next"; fill: 1
                         iconSize: Appearance.font.pixelSize.hugeass
-                        color: "#ffffff"
+                        color: Appearance.colors.colOnLayer2
                     }
-                    MouseArea {
-                        id: nextMa
-                        anchors.fill: parent; hoverEnabled: true
-                        onClicked: root.activePlayer?.next()
-                    }
+                    MouseArea { id: nextMa; anchors.fill: parent; hoverEnabled: true; onClicked: mediaCard.player?.next() }
                 }
             }
         }
     }
 
-    // ── Lyrics display (below media card) ───────────────────────
-    Loader {
-        id: lyricsLoader
+    // ── Live lyrics (auto-hidden when unavailable) ──────────────
+    Column {
+        id: lyricsBlock
         anchors {
             horizontalCenter: parent.horizontalCenter
             top: mediaCard.visible ? mediaCard.bottom : clockSection.bottom
-            topMargin: 20
+            topMargin: 22
         }
-        width: 360
-        visible: active
-        active: root.activePlayer !== null && Config.options.lock.showMedia
+        spacing: 6
+        visible: LyricsService.status === "ok"
             && (LyricsService.slots[LyricsService.before] ?? "") !== ""
+            && root.activePlayer !== null && Config.options.lock.showMedia
         scale: root.toolbarScale
-        opacity: root.toolbarOpacity ? 0.7 : 0
+        opacity: root.toolbarOpacity
+        Behavior on opacity { NumberAnimation { duration: 350; easing.type: Easing.InOutQuad } }
 
-        sourceComponent: StyledText {
-            width: 360
+        StyledText {
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: 420
             text: LyricsService.slots[LyricsService.before] ?? ""
             font.pixelSize: Appearance.font.pixelSize.normal
             font.weight: Font.Medium
-            color: Qt.rgba(1, 1, 1, 0.55)
+            color: Qt.rgba(1, 1, 1, 0.75)
             horizontalAlignment: Text.AlignHCenter
             elide: Text.ElideRight
-            maximumLineCount: 2
+            maximumLineCount: 1
+        }
+        StyledText {
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: 420
+            text: LyricsService.slots[LyricsService.before + 1] ?? ""
+            font.pixelSize: Appearance.font.pixelSize.small
+            color: Qt.rgba(1, 1, 1, 0.38)
+            horizontalAlignment: Text.AlignHCenter
+            elide: Text.ElideRight
+            maximumLineCount: 1
+            visible: text !== ""
         }
     }
 
@@ -639,142 +727,16 @@ MouseArea {
         IconAndTextPair {
             Layout.leftMargin: 8
             icon: "account_circle"
-            visible: !Config.options.lock.showMedia || MprisController.activePlayer === null
+            visible: true
             text: SystemInfo.username
         }
 
-        // Media player info 
-        Loader {
-            Layout.leftMargin: 2
-            Layout.rightMargin: 2
-            Layout.alignment: Qt.AlignVCenter
-            active: MprisController.activePlayer !== null
-            visible: active && Config.options.lock.showMedia
-            
-            sourceComponent: Item {
-                implicitWidth: mediaRow.implicitWidth
-                implicitHeight: mediaRow.implicitHeight
-                
-                readonly property MprisPlayer activePlayer: MprisController.activePlayer
-                readonly property string cleanedTitle: StringUtils.cleanMusicTitle(activePlayer?.trackTitle) || ""
-                
-                Timer {
-                    running: activePlayer?.playbackState == MprisPlaybackState.Playing
-                    interval: Config.options.resources.updateInterval
-                    repeat: true
-                    onTriggered: activePlayer.positionChanged()
-                }
-                
-                RowLayout {
-                    id: mediaRow
-                    spacing: 8
-                    anchors.centerIn: parent
-                    
-                    Rectangle {
-                        id: artRect
-                        implicitWidth: 40
-                        implicitHeight: 40
-                        radius: Appearance.rounding.full
-                        color: Appearance.colors.colPrimaryContainer
-                        Layout.alignment: Qt.AlignVCenter
-                        clip: true 
-
-                        layer.enabled: true
-                        layer.effect: OpacityMask {
-                            maskSource: Rectangle {
-                                width: artRect.width
-                                height: artRect.height
-                                radius: artRect.radius
-                            }
-                        }
-
-                        StyledImage {
-                            anchors.centerIn: parent
-                            width: artRect.width
-                            height: artRect.height
-                            source: root.artUrl
-                            fillMode: Image.PreserveAspectCrop
-                            cache: false
-                            antialiasing: true
-                            sourceSize.width: artRect.width * 2
-                            sourceSize.height: artRect.height * 2
-                            visible: root.artUrl !== ""
-                        }
-
-                        MaterialSymbol {
-                            anchors.centerIn: parent
-                            fill: 1
-                            text: "music_note"
-                            iconSize: Appearance.font.pixelSize.normal
-                            color: Appearance.colors.colOnSecondaryContainer
-                            visible: root.artUrl === ""
-                        }
-                    }
-                    
-                    Column {
-                        Layout.alignment: Qt.AlignVCenter
-                        spacing: -2
-                        
-                        StyledText {
-                            horizontalAlignment: Text.AlignLeft
-                            elide: Text.ElideRight
-                            maximumLineCount: 1
-                            width: Math.min(implicitWidth, 180) 
-                            color: Appearance.colors.colOnSurfaceVariant
-                            text: {
-                                var artist = activePlayer?.trackArtist || " ";
-                                return artist.length > 25 ? artist.substring(0, 25) + "..." : artist;
-                            }
-                            font.pixelSize: Appearance.font.pixelSize.smaller
-                        }
-                        
-                        StyledText {
-                            horizontalAlignment: Text.AlignLeft
-                            elide: Text.ElideRight
-                            maximumLineCount: 1
-                            width: Math.min(implicitWidth, 180) 
-                            color: Appearance.colors.colOnSurfaceVariant
-                            text: {
-                                var title = cleanedTitle;
-                                return title.length > 30 ? title.substring(0, 30) + "..." : title;
-                            }
-                            font.weight: Font.Medium
-                            font.pixelSize: Appearance.font.pixelSize.small
-                        }
-                    }
-                    
-                    ClippedFilledCircularProgress {
-                        id: mediaCircProg
-                        Layout.alignment: Qt.AlignVCenter
-                        lineWidth: Appearance.rounding.unsharpen
-                        value: activePlayer?.position / activePlayer?.length
-                        implicitSize: 24
-                        colPrimary: Appearance.colors.colOnSurfaceVariant
-                        enableAnimation: false
-                        
-                        Item {
-                            anchors.centerIn: parent
-                            width: mediaCircProg.implicitSize
-                            height: mediaCircProg.implicitSize
-                            
-                            MaterialSymbol {
-                                anchors.centerIn: parent
-                                fill: 1
-                                text: "music_note"
-                                iconSize: Appearance.font.pixelSize.normal
-                                color: Appearance.colors.colOnSurfaceVariant
-                            }
-                        }
-                    }
-                }
-            }
-        }
 
         // Keyboard layout (Xkb)
         Loader {
             Layout.rightMargin: 8
             Layout.fillHeight: true
-            visible: !Config.options.lock.showMedia || MprisController.activePlayer === null
+            visible: true
 
             sourceComponent: Row {
                 spacing: 8
