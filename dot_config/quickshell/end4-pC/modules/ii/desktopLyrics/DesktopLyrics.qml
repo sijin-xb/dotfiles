@@ -165,6 +165,40 @@ PanelWindow {
         return out;
     }
 
+    // Romaji (phonetic) detection. Kugou ships a transliteration block
+    // (mora tokens like "wa ta ku shi") alongside the semantic translation
+    // for Japanese songs. Romaji tokens fully decompose into Japanese
+    // syllables; Chinese/English sentences do not.
+    function isRomajiToken(raw) {
+        let t = raw.replace(/^'+|'+$/g, "");
+        if (t.length === 0)
+            return true;
+        t = t.replace(/^([kstcbgdpfhjz])\1/, "$1");
+        const syl = /^(she|chi|tsu|[kgstnhmyrwgzdbpfcjv]y[auo]|[kgstnhmyrwgzdbpfcjv]h?[aiueo]|[aiueo]|n)/;
+        let rest = t;
+        while (rest.length > 0) {
+            const m = rest.match(syl);
+            if (!m)
+                return false;
+            rest = rest.slice(m[0].length);
+        }
+        return true;
+    }
+
+    function isRomajiText(s) {
+        if (!s || /[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/.test(s))
+            return false;
+        const tokens = s.toLowerCase().match(/[a-z]+(?:'[a-z]+)?/g);
+        if (!tokens || tokens.length === 0)
+            return false;
+        let ok = 0;
+        for (const t of tokens) {
+            if (isRomajiToken(t))
+                ok += 1;
+        }
+        return ok / tokens.length >= 0.85;
+    }
+
     function parseTranslations(lrcText) {
         const result = [];
         const match = lrcText.match(/\[language:([A-Za-z0-9+/=]*)\]/);
@@ -176,9 +210,23 @@ PanelWindow {
             const bytes = base64Decode(b64);
             const json = JSON.parse(utf8Decode(bytes));
             const contents = json?.content ?? [];
-            for (const block of contents)
+            for (const block of contents) {
+                const lines = [];
                 for (const line of (block?.lyricContent ?? []))
-                    result.push(Array.isArray(line) ? line.join(" ") : String(line));
+                    lines.push(Array.isArray(line) ? line.join("") : String(line));
+                if (lines.length === 0)
+                    continue;
+                // Skip the phonetic/transliteration block; keep the first
+                // semantic translation block only (1:1 line alignment).
+                const sample = lines.slice(0, 8).filter(l => l.trim().length > 0);
+                if (sample.length > 0 && isRomajiText(sample.join(" ")))
+                    continue;
+                if (result.length === 0) {
+                    for (const l of lines)
+                        result.push(l);
+                    break;
+                }
+            }
         } catch (e) {
             console.log("[DesktopLyrics] translation parse failed:", e);
         }
@@ -235,7 +283,7 @@ PanelWindow {
             lines.push({
                 start: start,
                 text: text,
-                trans: (trans !== text) ? trans.trim() : "",
+                trans: (trans !== text && !isRomajiText(trans)) ? trans.trim() : "",
                 words: (words && words.length > 0) ? words : null
             });
         }
