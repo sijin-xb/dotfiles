@@ -181,7 +181,6 @@ MouseArea {
             anchors.fill: parent
             source: lockWallpaperImg
             radius: Config.options.lock.blur.enable ? Config.options.lock.blur.radius : 0
-            samples: Config.options.lock.blur.size
             scale: Config.options.lock.blur.extraZoom
         }
         Rectangle {
