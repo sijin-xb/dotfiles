@@ -172,15 +172,21 @@ MouseArea {
         }
     }
 
-    // ── Clock + Date + Greeting ──────────────────────────────────
+    // ── Dark scrim for text readability ─────────────────────────
+    Rectangle {
+        anchors.fill: parent
+        color: Qt.rgba(0, 0, 0, 0.30)
+    }
+
+    // ── Clock + Date + Greeting (centered upper zone) ──────────
     Column {
         id: clockSection
         anchors {
             horizontalCenter: parent.horizontalCenter
-            bottom: mainIsland.top
-            bottomMargin: 60
+            top: parent.top
+            topMargin: parent.height * 0.18
         }
-        spacing: 4
+        spacing: 2
         scale: root.toolbarScale
         opacity: root.toolbarOpacity
 
@@ -192,23 +198,6 @@ MouseArea {
             onTriggered: clockSection.now = new Date()
         }
 
-        // Greeting
-        StyledText {
-            anchors.horizontalCenter: parent.horizontalCenter
-            text: {
-                var h = clockSection.now.getHours()
-                if (h < 6) return Translation.tr("夜深了，注意休息")
-                if (h < 9) return Translation.tr("早上好")
-                if (h < 12) return Translation.tr("上午好")
-                if (h < 14) return Translation.tr("中午好")
-                if (h < 18) return Translation.tr("下午好")
-                return Translation.tr("晚上好")
-            }
-            font.pixelSize: Appearance.font.pixelSize.normal
-            color: Appearance.colors.colOnSurfaceVariant
-            horizontalAlignment: Text.AlignHCenter
-        }
-
         // Large clock
         StyledText {
             anchors.horizontalCenter: parent.horizontalCenter
@@ -217,25 +206,287 @@ MouseArea {
                 var m = clockSection.now.getMinutes().toString().padStart(2, "0")
                 return h + ":" + m
             }
-            font.pixelSize: 72
+            font.pixelSize: 88
             font.weight: Font.Bold
             font.family: "Google Sans Flex Medium"
-            color: Appearance.colors.colOnSurface
+            color: "#ffffff"
             horizontalAlignment: Text.AlignHCenter
+            style: Text.Raised
+            styleColor: Qt.rgba(0, 0, 0, 0.25)
         }
 
-        // Date
+        // Date line
         StyledText {
             anchors.horizontalCenter: parent.horizontalCenter
             text: {
                 var days = ["日","一","二","三","四","五","六"]
                 var d = clockSection.now
-                return d.getFullYear() + "年" + (d.getMonth()+1) + "月" + d.getDate() + "日"
-                    + " 星期" + days[d.getDay()]
+                return (d.getMonth()+1) + "月" + d.getDate() + "日 · 星期" + days[d.getDay()]
             }
-            font.pixelSize: Appearance.font.pixelSize.small
-            color: Appearance.colors.colOnSurfaceVariant
+            font.pixelSize: Appearance.font.pixelSize.hugeass
+            font.weight: Font.Medium
+            color: Qt.rgba(1, 1, 1, 0.80)
             horizontalAlignment: Text.AlignHCenter
+        }
+
+        // Greeting
+        StyledText {
+            anchors.horizontalCenter: parent.horizontalCenter
+            topPadding: 8
+            text: {
+                var h = clockSection.now.getHours()
+                if (h < 6) return "夜深了，注意休息"
+                if (h < 9) return "早上好 ☀"
+                if (h < 12) return "上午好"
+                if (h < 14) return "中午好 🍱"
+                if (h < 18) return "下午好"
+                return "晚上好 🌙"
+            }
+            font.pixelSize: Appearance.font.pixelSize.normal
+            color: Qt.rgba(1, 1, 1, 0.55)
+            horizontalAlignment: Text.AlignHCenter
+        }
+    }
+
+    // ── Media Card (glassmorphism panel) ────────────────────────
+    Item {
+        id: mediaCard
+        anchors {
+            horizontalCenter: parent.horizontalCenter
+            top: clockSection.bottom
+            topMargin: 48
+        }
+        width: 380
+        height: mediaColumn.implicitHeight + 36
+        visible: root.activePlayer !== null && Config.options.lock.showMedia
+        scale: root.toolbarScale
+        opacity: root.toolbarOpacity ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 400; easing.type: Easing.InOutQuad } }
+
+        // Card background (glass)
+        Rectangle {
+            anchors.fill: parent
+            radius: 24
+            color: Qt.rgba(1, 1, 1, 0.08)
+            border.width: 1
+            border.color: Qt.rgba(1, 1, 1, 0.12)
+        }
+        // Inner glow shadow
+        Rectangle {
+            anchors { fill: parent; margins: -1 }
+            radius: 25
+            color: "transparent"
+            border.width: 1
+            border.color: Qt.rgba(1, 1, 1, 0.04)
+        }
+
+        Column {
+            id: mediaColumn
+            anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: 18 }
+            width: parent.width - 36
+            spacing: 12
+
+            // Track info row: art + title/artist
+            Row {
+                spacing: 14
+                anchors.horizontalCenter: parent.horizontalCenter
+
+                // Album art card
+                Rectangle {
+                    width: 72; height: 72; radius: 14
+                    color: Appearance.colors.colPrimaryContainer
+                    clip: true
+                    layer.enabled: true
+                    layer.effect: OpacityMask {
+                        maskSource: Rectangle { width: 72; height: 72; radius: 14 }
+                    }
+                    StyledImage {
+                        anchors.fill: parent
+                        source: root.artUrl
+                        fillMode: Image.PreserveAspectCrop
+                        cache: false
+                        visible: root.artUrl !== ""
+                    }
+                    MaterialSymbol {
+                        anchors.centerIn: parent
+                        fill: 1; text: "music_note"
+                        iconSize: Appearance.font.pixelSize.hugeass
+                        color: Appearance.colors.colOnSecondaryContainer
+                        visible: root.artUrl === ""
+                    }
+                }
+
+                // Title + Artist
+                Column {
+                    width: parent.width - 86
+                    spacing: 2
+                    anchors.verticalCenter: parent.verticalCenter
+
+                    StyledText {
+                        width: parent.width
+                        text: root.activePlayer?.trackTitle || ""
+                        font.pixelSize: Appearance.font.pixelSize.larger
+                        font.weight: Font.DemiBold
+                        color: "#ffffff"
+                        elide: Text.ElideRight
+                        maximumLineCount: 1
+                    }
+                    StyledText {
+                        width: parent.width
+                        text: {
+                            var artist = root.activePlayer?.trackArtist || ""
+                            var player = root.activePlayer?.identity || ""
+                            return artist + (player ? " · " + player : "")
+                        }
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        color: Qt.rgba(1, 1, 1, 0.6)
+                        elide: Text.ElideRight
+                        maximumLineCount: 1
+                    }
+                }
+            }
+
+            // Progress bar
+            Item {
+                width: parent.width; height: 20
+                StyledText {
+                    anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                    text: {
+                        var pos = root.activePlayer?.position ?? 0
+                        var m = Math.floor(pos / 60)
+                        var s = Math.floor(pos % 60)
+                        return m + ":" + s.toString().padStart(2, "0")
+                    }
+                    font.pixelSize: Appearance.font.pixelSize.smaller
+                    color: Qt.rgba(1, 1, 1, 0.5)
+                }
+                StyledText {
+                    anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                    text: {
+                        var len = root.activePlayer?.length ?? 0
+                        var m = Math.floor(len / 60)
+                        var s = Math.floor(len % 60)
+                        return m + ":" + s.toString().padStart(2, "0")
+                    }
+                    font.pixelSize: Appearance.font.pixelSize.smaller
+                    color: Qt.rgba(1, 1, 1, 0.5)
+                }
+                // Track bg
+                Rectangle {
+                    anchors { fill: parent; leftMargin: 38; rightMargin: 38; verticalCenter: parent.verticalCenter }
+                    height: 4; radius: 2
+                    color: Qt.rgba(1, 1, 1, 0.15)
+                    // Fill
+                    Rectangle {
+                        anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                        width: parent.width * ((root.activePlayer?.position ?? 0) / Math.max(1, root.activePlayer?.length ?? 1))
+                        radius: 2
+                        gradient: Gradient {
+                            GradientStop { position: 0; color: Appearance.colors.colPrimary }
+                            GradientStop { position: 1; color: Appearance.colors.colTertiary }
+                        }
+                    }
+                    // Slider dot
+                    Rectangle {
+                        readonly property real progress: (root.activePlayer?.position ?? 0) / Math.max(1, root.activePlayer?.length ?? 1)
+                        x: parent.width * progress - width / 2
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 12; height: 12; radius: 6
+                        color: "#ffffff"
+                        layer.enabled: true
+                        layer.effect: FastBlur { radius: 3 }
+                    }
+                }
+            }
+
+            // Control buttons row
+            Row {
+                spacing: 20
+                anchors.horizontalCenter: parent.horizontalCenter
+
+                // Previous
+                Rectangle {
+                    width: 40; height: 40; radius: 20
+                    color: prevMa.containsPress ? Qt.rgba(1,1,1,0.2) : prevMa.containsMouse ? Qt.rgba(1,1,1,0.1) : "transparent"
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                    MaterialSymbol {
+                        anchors.centerIn: parent
+                        text: "skip_previous"; fill: 1
+                        iconSize: Appearance.font.pixelSize.hugeass
+                        color: "#ffffff"
+                    }
+                    MouseArea {
+                        id: prevMa
+                        anchors.fill: parent; hoverEnabled: true
+                        onClicked: root.activePlayer?.previous()
+                    }
+                }
+
+                // Play/Pause (larger, accent)
+                Rectangle {
+                    width: 52; height: 52; radius: 26
+                    color: Appearance.colors.colPrimary
+                    scale: playMa.containsPress ? 0.92 : playMa.containsMouse ? 1.05 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+                    MaterialSymbol {
+                        anchors.centerIn: parent
+                        text: root.activePlayer?.isPlaying ? "pause" : "play_arrow"
+                        fill: 1
+                        iconSize: Appearance.font.pixelSize.hugeass
+                        color: Appearance.colors.colOnPrimary
+                    }
+                    MouseArea {
+                        id: playMa
+                        anchors.fill: parent; hoverEnabled: true
+                        onClicked: root.activePlayer?.togglePlaying()
+                    }
+                }
+
+                // Next
+                Rectangle {
+                    width: 40; height: 40; radius: 20
+                    color: nextMa.containsPress ? Qt.rgba(1,1,1,0.2) : nextMa.containsMouse ? Qt.rgba(1,1,1,0.1) : "transparent"
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                    MaterialSymbol {
+                        anchors.centerIn: parent
+                        text: "skip_next"; fill: 1
+                        iconSize: Appearance.font.pixelSize.hugeass
+                        color: "#ffffff"
+                    }
+                    MouseArea {
+                        id: nextMa
+                        anchors.fill: parent; hoverEnabled: true
+                        onClicked: root.activePlayer?.next()
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Lyrics display (below media card) ───────────────────────
+    Loader {
+        id: lyricsLoader
+        anchors {
+            horizontalCenter: parent.horizontalCenter
+            top: mediaCard.visible ? mediaCard.bottom : clockSection.bottom
+            topMargin: 20
+        }
+        width: 360
+        visible: active
+        active: root.activePlayer !== null && Config.options.lock.showMedia
+            && (LyricsService.slots[LyricsService.before] ?? "") !== ""
+        scale: root.toolbarScale
+        opacity: root.toolbarOpacity ? 0.7 : 0
+
+        sourceComponent: StyledText {
+            width: 360
+            text: LyricsService.slots[LyricsService.before] ?? ""
+            font.pixelSize: Appearance.font.pixelSize.normal
+            font.weight: Font.Medium
+            color: Qt.rgba(1, 1, 1, 0.55)
+            horizontalAlignment: Text.AlignHCenter
+            elide: Text.ElideRight
+            maximumLineCount: 2
         }
     }
 
