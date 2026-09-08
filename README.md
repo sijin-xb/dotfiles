@@ -1,62 +1,171 @@
-# 🐧 sijin-xb's Dotfiles
+# sijin-xb's dotfiles — Rice v2.0 液态玻璃版
 
-这是我的个人 Linux 配置文件托管仓库。主要运行在 **CachyOS (Arch Linux)** 上，追求极致的响应速度与现代化工作流。
+> Arch Linux · Hyprland · Quickshell (end4-pC) · Material 3 动态取色
 
-## 🛠️ 核心工具栈
+---
 
-| 类别 | 工具 |
-| :--- | :--- |
-| **OS** | [CachyOS](https://cachyos.org/) (Arch Linux Based) |
-| **WM** | [Hyprland](https://hyprland.org/)（shell 为 [end-4 illogical-impulse](https://github.com/end-4/dots-hyprland) Quickshell 配置的深度定制版） |
-| **Shell** | [fish](https://fishshell.com/) (with Fisher & fzf) |
-| **Terminal** | [kitty](https://sw.kovidgoyal.net/kitty/) + SUPER+T 终端召唤 |
-| **部署** | 自研 `install.sh`（纯 bash，无 chezmoi 依赖） |
+## 核心特性
 
-## 🚀 一键安装 (Installation)
+| 特性 | 说明 |
+|------|------|
+| **液态玻璃毛玻璃** | 阴影代替边框，柔和光晕 + vibrancy 色彩染色，quickshell 面板 10px 模糊半径 |
+| **Bongo Cat 桌宠** | 系统状态换心情、拎起甩动有惯性、落点跨重启持久化 |
+| **桌面歌词逐字卡拉OK** | MoeKoe Music / Spotify / 浏览器适配，歌词偏移实时微调 |
+| **拼音搜索启动器** | 中文拼音模糊搜索 + 窗口缩略图信息卡 + 悬浮预览 |
+| **终端召唤** | SUPER+T 居中浮动 quake 风格终端（kitty），状态保留、再按隐藏 |
+| **Material 3 取色** | matugen 壁纸→全局配色，11+ 应用（alacritty/kitty/hyprland/fcitx5/fastfetch...）联动 |
+| **锁屏媒体面板** | SUPER+L 锁屏时底部弹出交互面板：大号时钟/日期 + 媒体播放 ▶⏸⏭ + playerctl 控制 |
 
-仅支持 **Arch Linux 系**（CachyOS / Arch / EndeavourOS 等）。脚本会：
+## 适配环境
 
-1. 通过 pacman 安装全部会话依赖（含系统升级，`--needed` 幂等）
-2. AUR 包（matugen / mpvpaper）自动引导 yay 安装
-3. **quickshell 三级回退**：二进制仓库 → AUR → 自动源码编译（无需手动编译）
-4. 部署配置：自动拉取 [pctrade/end4-pC](https://github.com/pctrade/end4-pC) 作为 quickshell 底盘，再覆盖本仓库的差异层（`dot_config` → `~/.config`；覆盖有差异的旧文件前自动备份到 `~/.local/state/dotfiles-backup/`）
-5. 创建启动器拼音搜索所需的 Python venv
+- **OS**: CachyOS / Arch Linux / EndeavourOS（需要 /etc/arch-release）
+- **会话**: Wayland · Hyprland + Quickshell (end4-pC)
+- **GPU 建议**: Intel UHD 620+ / AMD Vega 3+ / NVIDIA（需开启 modeset）
+- **Shell**: fish（推荐设为默认）
+
+## 快速安装
 
 ```bash
-git clone https://github.com/sijin-xb/dotfiles.git
-cd dotfiles
+# 克隆仓库
+git clone https://github.com/sijin-xb/dotfiles.git ~/dotfiles
+cd ~/dotfiles
+
+# TUI 交互模式（推荐）
 ./install.sh
+
+# 或一键静默安装
+./install.sh install
+
+# 查看所有子命令
+./install.sh --help
 ```
 
-然后注销重新登录，会话选择 **Hyprland** 即可。
+### 子命令一览
 
-### 键位速览
+| 命令 | 功能 |
+|------|------|
+| `./install.sh` / `--tui` | 进入二级菜单 TUI（推荐新手） |
+| `install` | 6 步全自动安装 |
+| `rollback` | 回档到最近一次 install 之前的状态 |
+| `restore` | 从 rollback 前快照恢复 |
+| `archive [-o PATH] [--delete]` | 打包存档所有配置，可选清理源文件 |
+| `uninstall` | 卸载 rice（可选先存档） |
 
-| 键位 | 功能 |
-| :--- | :--- |
-| `SUPER` | 启动器（支持中文拼音搜索） |
-| `SUPER+T` | 终端召唤（居中浮动半透明，再按隐藏，状态保留） |
-| `SUPER+S` | scratchpad |
+## 锁屏媒体面板
+
+**触发**: `SUPER+L`（自定义快捷键 → hyprlock-with-panel.sh）
+
+锁屏时在屏幕底部显示毛玻璃半透明面板：
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  14:30              Beautiful World · 米津玄師            │
+│  Saturday · 09月08日 · 2026        ⏮  ⏸  ⏭             │
+│                    ● 锁屏中 · 键盘快捷键同样可用           │
+└──────────────────────────────────────────────────────────┘
+```
+
+- 左侧：大号数字时钟 + 日期
+- 右侧：当前曲目标题 + 艺术家 + 播放器名称
+- 按钮：上一首 (⏮) / 播放暂停 (⏸▶) / 下一首 (⏭) —— 基于 playerctl
+- 状态指示器：绿色圆点=播放中 / 黄色=暂停 / 灰色=无播放器
+- 自动适配 hyprlock/colors.conf 配色（跟随 matugen 壁纸取色）
+- 解锁后面板自动关闭（watchdog 监控 hyprlock 进程）
+
+## 快捷键速览
+
+| 快捷键 | 功能 |
+|--------|------|
+| `SUPER` | 启动器（中文拼音搜索） |
+| `SUPER+T` | 终端召唤（quake 风格） |
+| `SUPER+S` | Scratchpad 临时工作区 |
+| `SUPER+L` | 锁屏（带媒体面板） |
 | `SUPER+F1` | 重启 fcitx5 输入法 |
+| `SUPER+Q` | 关闭窗口 |
+| `SUPER+方向键` | 切换窗口焦点 |
+| `SUPER+数字` | 切换工作区 |
+| `SUPER+SHIFT+方向键` | 移动窗口 |
+| `SUPER+SHIFT+S` | 区域截图 |
+| `SUPER+SHIFT+R` | 区域录屏 |
+| `SUPER+SHIFT+P` | 播放/暂停媒体 |
+| `SUPER+SHIFT+N` | 下一曲 |
+| `SUPER+SHIFT+B` | 上一曲 |
+| `XF86Audio*` | 音量/亮度/播放控制（锁屏下仍可用） |
 
-### 特色功能
+## 目录结构
 
-- **Bongo Cat 桌宠**：跟随系统状态换心情（空闲打盹 / 高负载流汗 / 下载举箱 / 编译敲键盘 / 听歌戴耳机逐字唱 / 低电量焦虑 / 断网找网），可拎起来甩、带惯性反弹，落点持久化
-- **桌面歌词**：MoeKoe Music 逐字卡拉OK，猫猫嘴型跟着唱
-- **启动器悬浮信息卡**：窗口缩略图悬停显示实时 CPU / 内存 / 工作区，可直接聚焦或关闭
-- 以上均可在 **设置 → 桌面 → 小部件** 中开关
+```
+~/.config/
+├── hypr/
+│   ├── hyprland.lua              # Hyprland 配置入口
+│   ├── hyprland/                 # 默认模板层（建议只读）
+│   │   ├── keybinds.lua          # 默认快捷键
+│   │   ├── general.lua           # 通用设置（圆角/边框/模糊）
+│   │   ├── env.lua               # 环境变量
+│   │   ├── execs.lua             # 开机自启
+│   │   ├── rules.lua             # 窗口规则
+│   │   ├── colors.lua            # 配色（由 matugen 生成）
+│   │   └── scripts/              # Hyprland 辅助脚本
+│   ├── custom/                   # 用户差异层（你的个性化配置）
+│   │   ├── keybinds.lua          # 自定义快捷键（覆盖默认）
+│   │   ├── general.lua           # 液态玻璃高级参数
+│   │   ├── execs.lua             # 自定义自启
+│   │   └── ...
+│   ├── hyprlock.conf             # 锁屏配置（含 media label）
+│   └── hyprlock/
+│       ├── colors.conf           # 锁屏配色（matugen 生成）
+│       ├── scripts/
+│       │   ├── hyprlock-panel.py        # GTK3 锁屏媒体面板
+│       │   ├── hyprlock-with-panel.sh   # 锁屏启动包装脚本
+│       │   ├── media-info.sh            # 媒体信息输出脚本
+│       │   ├── status.sh                # 系统状态（电池等）
+│       │   └── check-capslock.sh        # Caps Lock 指示
+├── quickshell/
+│   └── end4-pC/                  # quickshell 底盘（差异层）
+└── scripts/                      # 通用辅助脚本
+```
 
-## 🗑️ 卸载
+## 回档 / 恢复 / 存档机制
 
-配置文件是普通拷贝（非软链），删除对应路径即可；被覆盖的旧文件备份在 `~/.local/state/dotfiles-backup/`。本仓库涉及的路径清单见 `install.sh` 与 `dot_config/` 目录结构。
+### 回档 (Rollback)
+```bash
+./install.sh rollback
+```
+- 安装前自动创建 **pre-install 快照**
+- 回档前自动创建 **pre-rollback 快照**（供 restore 用）
+- 只覆盖快照内包含的文件，不删除其他用户文件
 
-## 🙏 致谢 / Credits
+### 恢复 (Restore)
+```bash
+./install.sh restore
+```
+- 从 pre-rollback 快照还原配置
+- 用于回档后反悔，回到回档前的 rice 状态
 
-- [end-4/dots-hyprland](https://github.com/end-4/dots-hyprland) — 本仓库 `dot_config/quickshell/end4-pC/` 与部分 Hyprland 配置基于其 illogical-impulse shell（经 pctrade/end4-pC 一路定制而来），遵循其 **GPL-3.0** 许可证
-- [outfoxxed/quickshell](https://github.com/outfoxxed/quickshell) — 强大的 Wayland shell 工具箱
-- [Hyprland](https://hyprland.org/) · [matugen](https://github.com/InioX/matugen) · [MoeKoe Music](https://github.com/iAJue/MoeKoeMusic) 及所有上游项目
+### 存档 (Archive)
+```bash
+./install.sh archive -o ~/backup.tar.gz --delete
+```
+- 打包所有 rice 配置 + 状态 + 缓存
+- MANIFEST.txt 包含元数据（用户名/时间戳/路径清单）
+- `--delete` 打包后自动清理源文件（卸载前的备份步骤）
 
-## 📄 许可证 (License)
+## FAQ
 
-本项目遵循 **GPL-3.0**（见 [LICENSE](LICENSE)），与上游 end-4/dots-hyprland 保持一致。
-其中 `dot_config/quickshell/end4-pC/` 及 Hyprland lua 配置为 end-4 illogical-impulse 的衍生作品；其余部分（宠物模块、悬浮信息卡、安装脚本等）由我编写，同样以 GPL-3.0 发布。
+**Q: 回档后想再换回 rice？**  
+A: 执行 `./install.sh restore`（rollback 前自动保存了快照）
+
+**Q: 液态玻璃效果太浓 / 太淡？**  
+A: quickshell 设置 → 配置文件 → Hyprland：模糊半径 (10→8/12)，活动不透明度 (82→更高更清晰或更低更通透)。细项在 `~/.config/hypr/custom/general.lua`
+
+**Q: 安装脚本冲突 / 幂等吗？**  
+A: 完全幂等。重复运行仅安装缺失的包，覆盖有差异的文件前自动备份到 `~/.local/state/dotfiles-backup/`
+
+**Q: 锁屏媒体面板不显示？**  
+A: 确认安装了 `python-gobject`、`gtk-layer-shell`、`playerctl`。检查 `~/.config/hypr/hyprlock/scripts/hyprlock-panel.py` 是否存在且可执行。
+
+---
+
+## License
+
+MIT

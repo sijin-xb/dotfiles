@@ -340,7 +340,7 @@ hl.bind("SUPER + ALT + Equal",
     function() hl.exec_cmd("notify-send 'Urgent notification' 'Ah hell no' -u critical -a 'Hyprland keybind'") end) -- # [hidden]
 
 --##! Session
-hl.bind("SUPER + L", function() hl.exec_cmd("loginctl lock-session") end, { description = "Session: Lock" })
+-- [OVERWRITTEN by custom/keybinds.lua] -- [OVERWRITTEN by custom/keybinds.lua] SUPER+L now uses hyprlock+panel via custom overlay
 hl.bind("SUPER + SHIFT + L", function() hl.exec_cmd("systemctl suspend || loginctl suspend") end,
     { locked = true, description = "Session: Sleep" }) -- Sleep
 -- hl.bind("switch:on:Lid Switch", function() hl.exec_cmd("systemctl suspend || loginctl suspend") end, {locked = true} ) -- # [hidden] Suspend when laptop lid is closed, uncomment if for whatever reason it's not the default behavior
