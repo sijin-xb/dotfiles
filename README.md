@@ -117,4 +117,4 @@ install.sh                安装 / 卸载 / 回档 / 存档 / TUI
 
 ## 许可证
 
-MIT
+本项目采用 [GPL-3.0](LICENSE) 许可证。
