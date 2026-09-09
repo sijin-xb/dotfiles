@@ -378,6 +378,151 @@ ContentPage {
                     }
                 }
             }
+
+            ContentSubsection {
+                title: Translation.tr("Wallpaper parallax")
+                Layout.fillWidth: true
+
+                GroupedList {
+                    ConfigSwitch {
+                        Layout.fillWidth: true
+                        buttonIcon: "motion_photos_on"
+                        text: Translation.tr("Enable")
+                        checked: Config.options.background.parallax.enable
+                        onCheckedChanged: {
+                            Config.options.background.parallax.enable = checked;
+                        }
+                    }
+                }
+
+                GroupedList {
+                    visible: Config.options.background.parallax.enable
+                    Layout.topMargin: 0
+
+                    ConfigSwitch {
+                        Layout.fillWidth: true
+                        buttonIcon: "swap_horiz"
+                        text: Translation.tr("Vertical")
+                        checked: Config.options.background.parallax.vertical
+                        onCheckedChanged: {
+                            Config.options.background.parallax.vertical = checked;
+                        }
+                    }
+                    ConfigSwitch {
+                        Layout.fillWidth: true
+                        buttonIcon: "auto_awesome"
+                        text: Translation.tr("Auto vertical")
+                        checked: Config.options.background.parallax.autoVertical
+                        onCheckedChanged: {
+                            Config.options.background.parallax.autoVertical = checked;
+                        }
+                    }
+                }
+
+                GroupedList {
+                    visible: Config.options.background.parallax.enable
+                    ConfigSwitch {
+                        Layout.fillWidth: true
+                        buttonIcon: "drag_pan"
+                        text: Translation.tr("Move on workspace switch")
+                        checked: Config.options.background.parallax.enableWorkspace
+                        onCheckedChanged: {
+                            Config.options.background.parallax.enableWorkspace = checked;
+                        }
+                    }
+                    ConfigSlider {
+                        text: Translation.tr("Workspace zoom")
+                        value: Config.options.background.parallax.workspaceZoom
+                        usePercentTooltip: false
+                        buttonIcon: "zoom_in"
+                        from: 1.02
+                        to: 1.5
+                        stopIndicatorValues: [1.07]
+                        onValueChanged: {
+                            Config.options.background.parallax.workspaceZoom = Math.round(value * 100) / 100;
+                        }
+                    }
+                }
+
+                GroupedList {
+                    visible: Config.options.background.parallax.enable
+                    ConfigSwitch {
+                        Layout.fillWidth: true
+                        buttonIcon: "side_navigation"
+                        text: Translation.tr("Move on sidebar toggle")
+                        checked: Config.options.background.parallax.enableSidebar
+                        onCheckedChanged: {
+                            Config.options.background.parallax.enableSidebar = checked;
+                        }
+                    }
+                    ConfigSlider {
+                        visible: Config.options.background.parallax.enableSidebar
+                        text: Translation.tr("Sidebar shift")
+                        value: Config.options.background.parallax.sidebarShift
+                        usePercentTooltip: false
+                        buttonIcon: "arrow_right"
+                        from: 20
+                        to: 200
+                        stopIndicatorValues: [80]
+                        onValueChanged: {
+                            Config.options.background.parallax.sidebarShift = Math.round(value);
+                        }
+                    }
+                }
+
+                GroupedList {
+                    visible: Config.options.background.parallax.enable
+                    ConfigSwitch {
+                        Layout.fillWidth: true
+                        buttonIcon: "mouse"
+                        text: Translation.tr("Cursor follow")
+                        checked: Config.options.background.parallax.enableCursor
+                        onCheckedChanged: {
+                            Config.options.background.parallax.enableCursor = checked;
+                        }
+                    }
+                    ConfigSlider {
+                        visible: Config.options.background.parallax.enableCursor
+                        text: Translation.tr("Cursor sensitivity")
+                        value: Config.options.background.parallax.cursorSensitivity
+                        usePercentTooltip: true
+                        buttonIcon: "sensors"
+                        from: 0.0
+                        to: 1.0
+                        stopIndicatorValues: [0.3]
+                        onValueChanged: {
+                            Config.options.background.parallax.cursorSensitivity = Math.round(value * 100) / 100;
+                        }
+                    }
+                }
+
+                GroupedList {
+                    visible: Config.options.background.parallax.enable
+                    ConfigSlider {
+                        text: Translation.tr("Widgets depth")
+                        value: Config.options.background.parallax.widgetsFactor
+                        usePercentTooltip: true
+                        buttonIcon: "layers"
+                        from: 1.0
+                        to: 2.0
+                        stopIndicatorValues: [1.2]
+                        onValueChanged: {
+                            Config.options.background.parallax.widgetsFactor = Math.round(value * 100) / 100;
+                        }
+                    }
+                }
+
+                StyledText {
+                    visible: Config.options.background.parallax.enable
+                    Layout.fillWidth: true
+                    Layout.topMargin: 4
+                    text: Translation.tr("Parallax is disabled for video wallpapers and centered wallpaper mode.")
+                    font.pixelSize: Appearance.font.pixelSize.small
+                    color: Appearance.colors.colSubtext
+                    opacity: 0.7
+                    wrapMode: Text.WordWrap
+                }
+            }
         }
 
         ContentSection {
@@ -1159,6 +1304,149 @@ ContentPage {
                         onCheckedChanged: {
                             Config.options.background.showSnapLines = checked;
                         }
+                    }
+                }
+            }
+
+            ContentSubsection {
+                title: Translation.tr("Visualizer")
+                Layout.bottomMargin: 10
+
+                VisualizerStyleSubmenu {
+                    Layout.fillWidth: true
+                }
+
+                GroupedList {
+                    visible: Config.options.background.widgets.visualizer.enable
+                    Layout.topMargin: 0
+
+                    ConfigSlider {
+                        text: Translation.tr("Sensitivity")
+                        value: Config.options.background.widgets.visualizer.sensitivity ?? 1.0
+                        usePercentTooltip: false
+                        buttonIcon: "graphic_eq"
+                        from: 0.3
+                        to: 3.0
+                        stopIndicatorValues: [1.0]
+                        onValueChanged: {
+                            Config.options.background.widgets.visualizer.sensitivity = Math.round(value * 20) / 20;
+                        }
+                    }
+
+                    ConfigSlider {
+                        text: Translation.tr("Smoothing")
+                        value: Config.options.background.widgets.visualizer.smoothing ?? 2
+                        usePercentTooltip: false
+                        buttonIcon: "auto_fix_high"
+                        from: 1
+                        to: 10
+                        stopIndicatorValues: [2]
+                        onValueChanged: {
+                            Config.options.background.widgets.visualizer.smoothing = Math.round(value);
+                        }
+                    }
+                }
+            }
+
+            ContentSubsection {
+                title: Translation.tr("Spectrum Ball")
+                Layout.bottomMargin: 10
+
+                GroupedList {
+                    ConfigSwitch {
+                        Layout.fillWidth: true
+                        buttonIcon: "check"
+                        text: Translation.tr("Enable")
+                        checked: Config.options.background.widgets.spectrumBall.enable
+                        onCheckedChanged: {
+                            Config.options.background.widgets.spectrumBall.enable = checked;
+                        }
+                    }
+
+                    ConfigSelectionArray {
+                        text: Translation.tr("Placement strategy")
+                        icon: "move"
+                        currentValue: Config.options.background.widgets.spectrumBall.placementStrategy
+                        onSelected: newValue => {
+                            Config.options.background.widgets.spectrumBall.placementStrategy = newValue;
+                        }
+                        options: [
+                            { displayName: Translation.tr("Draggable"), icon: "drag_pan", value: "free" },
+                            { displayName: Translation.tr("Least busy"), icon: "category", value: "leastBusy" },
+                            { displayName: Translation.tr("Most busy"), icon: "shapes", value: "mostBusy" },
+                        ]
+                    }
+                }
+
+                GroupedList {
+                    visible: Config.options.background.widgets.spectrumBall.placementStrategy === "free"
+                    Layout.topMargin: 0
+
+                    ConfigSpinBox {
+                        icon: "pin_invoke"
+                        text: Translation.tr("X position")
+                        value: Config.options.background.widgets.spectrumBall.x
+                        from: 0
+                        to: 10000
+                        stepSize: 10
+                        onValueChanged: {
+                            Config.options.background.widgets.spectrumBall.x = value;
+                        }
+                    }
+
+                    ConfigSpinBox {
+                        icon: "pin_invoke"
+                        text: Translation.tr("Y position")
+                        value: Config.options.background.widgets.spectrumBall.y
+                        from: 0
+                        to: 10000
+                        stepSize: 10
+                        onValueChanged: {
+                            Config.options.background.widgets.spectrumBall.y = value;
+                        }
+                    }
+                }
+
+                GroupedList {
+                    Layout.topMargin: 0
+
+                    ConfigSlider {
+                        text: Translation.tr("Size")
+                        value: Config.options.background.widgets.spectrumBall.size
+                        usePercentTooltip: false
+                        buttonIcon: "aspect_ratio"
+                        from: 80
+                        to: 320
+                        stopIndicatorValues: [180]
+                        onValueChanged: {
+                            Config.options.background.widgets.spectrumBall.size = Math.round(value);
+                        }
+                    }
+
+                    ConfigSpinBox {
+                        icon: "public"
+                        text: Translation.tr("Satellites")
+                        value: Config.options.background.widgets.spectrumBall.satellites
+                        from: 0
+                        to: 6
+                        stepSize: 1
+                        onValueChanged: {
+                            Config.options.background.widgets.spectrumBall.satellites = value;
+                        }
+                    }
+
+                    ConfigSelectionArray {
+                        text: Translation.tr("Color mode")
+                        icon: "palette"
+                        currentValue: Config.options.background.widgets.spectrumBall.colorMode
+                        onSelected: newValue => {
+                            Config.options.background.widgets.spectrumBall.colorMode = newValue;
+                        }
+                        options: [
+                            { displayName: Translation.tr("Primary"), icon: "format_color_fill", value: "primary" },
+                            { displayName: Translation.tr("Accent"), icon: "colorize", value: "accent" },
+                            { displayName: Translation.tr("Gradient"), icon: "gradient", value: "gradient" },
+                        ]
                     }
                 }
             }

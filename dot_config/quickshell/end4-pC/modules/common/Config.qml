@@ -338,8 +338,26 @@ Singleton {
                         property string placementStrategy: "free"
                         property real x: 0
                         property real y: 0
-                        // 音频可视化样式: bars / mirror / line / wave / dots / area
+                        // 音频可视化样式: bars / mirror / line / wave / dots / area / circular / particles / spectrum / waveSpectrum
                         property string style: "bars"
+                        // 灵敏度: 越大频谱越活跃（0.3 ~ 3.0）
+                        property real sensitivity: 1.0
+                        // 平滑度: 移动平均窗口（1 ~ 10，越大越平滑）
+                        property int smoothing: 2
+                        // 动画时长 (ms)，频点变化的缓动时间
+                        property int smoothingDuration: 150
+                    }
+
+                    property JsonObject spectrumBall: JsonObject {
+                        property bool enable: false
+                        property string placementStrategy: "free"
+                        property real x: 200
+                        property real y: 200
+                        property real size: 180
+                        // 主球颜色叠加 (low/mid/high 频段分别取色)
+                        property string colorMode: "primary" // primary | accent | gradient
+                        // 卫星球数量
+                        property int satellites: 3
                     }
 
                     property JsonObject customImage: JsonObject {
@@ -392,12 +410,17 @@ Singleton {
                 property string thumbnailPath: ""
                 property bool hideWhenFullscreen: true
                 property JsonObject parallax: JsonObject {
-                    property bool vertical: false
-                    property bool autoVertical: false
-                    property bool enableWorkspace: true
-                    property real workspaceZoom: 1.0 // Relative to wallpaper size
-                    property bool enableSidebar: true
-                    property real widgetsFactor: 1.2
+                    property bool enable: false             // 壁纸视差总开关
+                    property bool vertical: false           // 垂直方向视差（默认横向）
+                    property bool autoVertical: false       // 自动判定方向
+                    property bool enableWorkspace: true     // 工作区切换时壁纸平移
+                    property real workspaceZoom: 1.07       // 壁纸缩放倍率（>1 留出可移动余量）
+                    property bool enableSidebar: true       // 侧栏开合时壁纸平移
+                    property real sidebarShift: 80          // 侧栏偏移像素量
+                    property real widgetsFactor: 1.2        // 部件视差倍率（1.2=比壁纸多动20%）
+                    property bool enableCursor: false       // 光标跟随视差
+                    property real cursorSensitivity: 0.3    // 光标偏移权重（0~1）
+                    property int cursorPollInterval: 50     // 光标轮询间隔 ms
                 }
             }
 
