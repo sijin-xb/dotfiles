@@ -85,13 +85,18 @@ PanelWindow {
     readonly property real playerOffset: {
         if (!activePlayer) return 0.0;
         const id = ((activePlayer.identity ?? "") + " " + (activePlayer.dbusName ?? "")).toLowerCase();
-        // Spotify on Linux has known audio output buffer latency (~400-500ms)
-        if (id.includes("spotify")) return 0.45;
+        // Spotify (native Linux client). Empirical calibration: MPRIS position is
+        // accurate (rate 1.000), and the old +450ms guess over-advanced lyrics.
+        // Tuned to a small negative lead; re-tune per-player via IPC if needed.
+        if (id.includes("spotify")) return -0.05;
         // MoeKoeMusic (Electron/Kugou client): must be matched BEFORE the generic
         // Chromium rule — its MPRIS bus name contains "chromium" (Electron).
         // Its built-in lyrics view renders the KRC timeline natively, so the
         // desktop overlay should follow the raw timeline (+0) to stay in sync.
         if (id.includes("moekoe")) return 0.0;
+        // go-musicfox (Netease TUI client, Go + beep engine). Empirical value:
+        // 150ms over-advanced, 50ms lands on the beat.
+        if (id.includes("musicfox")) return 0.05;
         // Web browsers (Firefox, Chrome/Chromium) audio pipeline delay (~300ms)
         if (id.includes("firefox") || id.includes("chromium") || id.includes("chrome")) return 0.30;
         // KA Music (KugouAvaloniaPlayer) BASS audio engine buffer (~150ms)
@@ -99,8 +104,78 @@ PanelWindow {
         return 0.15; // General IPC/compositor latency compensation
     }
 
-    // Runtime manual adjustment via IPC (in seconds)
-    property real manualOffset: 0.0
+    // ---- Per-player manual offset (persisted) ----------------------------
+    // Keyed by a normalized player identity, so a correction tuned for one
+    // player neither leaks into another nor is lost on reload/restart.
+    property var perPlayerOffsets: ({})
+
+    // Stable key for a player. Prefer the human-readable identity; fall back to
+    // the bus name with its volatile ".instanceNNNN" suffix (Electron/Chromium
+    // apps embed the PID there) stripped, so a player restart keeps its offset.
+    function playerKey(p) {
+        if (!p) return "";
+        const idPart = ((p.identity ?? "") + "").trim().toLowerCase();
+        const dbusPart = ((p.dbusName ?? "") + "").trim().toLowerCase().replace(/\.instance\d+$/, "");
+        if (idPart.length > 0) return idPart;
+        return dbusPart;
+    }
+
+    readonly property string currentPlayerKey: playerKey(activePlayer)
+
+    readonly property real manualOffset: {
+        const k = currentPlayerKey;
+        if (!k) return 0.0;
+        const v = perPlayerOffsets[k];
+        return (typeof v === "number" && isFinite(v)) ? v : 0.0;
+    }
+
+    function loadOffsets(txt) {
+        try {
+            const parsed = JSON.parse(txt);
+            perPlayerOffsets = (parsed && typeof parsed === "object") ? parsed : ({});
+        } catch (e) {
+            perPlayerOffsets = ({});
+        }
+    }
+
+    function saveOffsets() {
+        offsetsFile.setText(JSON.stringify(perPlayerOffsets, null, 2));
+    }
+
+    function adjustManualOffset(delta) {
+        const k = currentPlayerKey;
+        if (!k) return 0.0;
+        const next = Math.round((manualOffset + delta) * 1000) / 1000;
+        const copy = Object.assign({}, perPlayerOffsets);
+        copy[k] = next;
+        perPlayerOffsets = copy;
+        saveOffsets();
+        updateCurrentLine();
+        return next;
+    }
+
+    function setManualOffsetForCurrent(seconds) {
+        const k = currentPlayerKey;
+        if (!k) return 0.0;
+        const copy = Object.assign({}, perPlayerOffsets);
+        copy[k] = seconds;
+        perPlayerOffsets = copy;
+        saveOffsets();
+        updateCurrentLine();
+        return seconds;
+    }
+
+    FileView {
+        id: offsetsFile
+        path: `${Directories.state}/user/lyrics_offsets.json`
+        watchChanges: false
+        onLoaded: root.loadOffsets(text())
+        onLoadFailed: error => {
+            root.perPlayerOffsets = ({});
+            if (error === FileViewError.FileNotFound)
+                offsetsFile.setText("{}");
+        }
+    }
 
     // Effective total offset (positive = lyrics show earlier, negative = lyrics show later)
     readonly property real effectiveOffset: rawLyricOffset + playerOffset + (Config.options.desktopLyricsOffset ?? 0.0) + manualOffset
@@ -557,30 +632,27 @@ PanelWindow {
             return "正在重新获取歌词（跳过缓存，仅缓存校验匹配的结果）…";
         }
 
-        // 偏移微调命令：正数提前（快），负数延后（慢）
+        // 偏移微调命令：正数提前（快），负数延后（慢）。
+        // 改动只作用于「当前播放器」，并立即持久化，互不干扰。
         function offset_faster(): string {
-            root.manualOffset += 0.1;
-            root.updateCurrentLine();
+            const v = root.adjustManualOffset(0.1);
             const totalMs = (root.effectiveOffset * 1000).toFixed(0);
-            return `歌词已提前 +100ms | 当前播放器: ${root.activePlayer?.identity ?? "未知"} | 总时间补偿: ${totalMs}ms`;
+            return `歌词已提前 +100ms（仅当前播放器）| 播放器: ${root.activePlayer?.identity ?? "未知"} | 本播放器偏移: ${(v * 1000).toFixed(0)}ms | 总时间补偿: ${totalMs}ms`;
         }
         function offset_slower(): string {
-            root.manualOffset -= 0.1;
-            root.updateCurrentLine();
+            const v = root.adjustManualOffset(-0.1);
             const totalMs = (root.effectiveOffset * 1000).toFixed(0);
-            return `歌词已延后 -100ms | 当前播放器: ${root.activePlayer?.identity ?? "未知"} | 总时间补偿: ${totalMs}ms`;
+            return `歌词已延后 -100ms（仅当前播放器）| 播放器: ${root.activePlayer?.identity ?? "未知"} | 本播放器偏移: ${(v * 1000).toFixed(0)}ms | 总时间补偿: ${totalMs}ms`;
         }
         function set_offset(seconds: real): string {
-            root.manualOffset = seconds;
-            root.updateCurrentLine();
+            const v = root.setManualOffsetForCurrent(seconds);
             const totalMs = (root.effectiveOffset * 1000).toFixed(0);
-            return `手动偏移已设为: ${seconds}s | 总时间补偿: ${totalMs}ms`;
+            return `当前播放器偏移已设为: ${v}s | 播放器: ${root.activePlayer?.identity ?? "未知"} | 总时间补偿: ${totalMs}ms`;
         }
         function offset_reset(): string {
-            root.manualOffset = 0.0;
-            root.updateCurrentLine();
+            root.setManualOffsetForCurrent(0.0);
             const totalMs = (root.effectiveOffset * 1000).toFixed(0);
-            return `手动偏移已重置为 0s | 自动播放器补偿: ${totalMs}ms`;
+            return `当前播放器偏移已重置为 0s | 播放器: ${root.activePlayer?.identity ?? "未知"} | 自动补偿: ${(root.playerOffset * 1000).toFixed(0)}ms | 总时间补偿: ${totalMs}ms`;
         }
         function get_offset(): string {
             const pName = root.activePlayer?.identity ?? (root.activePlayer?.dbusName ?? "无播放器");
@@ -589,7 +661,13 @@ PanelWindow {
             const gComp = ((Config.options.desktopLyricsOffset ?? 0.0) * 1000).toFixed(0);
             const tagComp = (root.rawLyricOffset * 1000).toFixed(0);
             const totalMs = (root.effectiveOffset * 1000).toFixed(0);
-            return `[歌词时间信息] 播放器: ${pName} | 自动补偿: ${pComp}ms | 手动偏移: ${mComp}ms | 全局设置: ${gComp}ms | 歌曲标签偏移: ${tagComp}ms | 总提前量: ${totalMs}ms`;
+            return `[歌词时间信息] 播放器: ${pName} | 自动补偿: ${pComp}ms | 本播放器手动偏移: ${mComp}ms | 全局设置: ${gComp}ms | 歌曲标签偏移: ${tagComp}ms | 总提前量: ${totalMs}ms`;
+        }
+        function list_offsets(): string {
+            const keys = Object.keys(root.perPlayerOffsets);
+            if (keys.length === 0)
+                return "尚无按播放器保存的偏移。";
+            return "按播放器保存的偏移:\n" + keys.map(k => `  ${k}: ${(root.perPlayerOffsets[k] * 1000).toFixed(0)}ms`).join("\n");
         }
     }
 
