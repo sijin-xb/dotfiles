@@ -7,6 +7,7 @@
 import "modules/common"
 import "modules/ii/desktopLyrics"
 import "modules/ii/pet"
+import "modules/ii/recordIndicator"
 import "services"
 import "panelFamilies"
 import QtQuick
@@ -64,6 +65,9 @@ ShellRoot {
     PetWindow {
         lyricsProvider: desktopLyrics
     }
+
+    // 录屏灵动岛：录制期间在顶部中央显示状态与停止按钮
+    RecordIndicator {}
 
     component PanelFamilyLoader: LazyLoader {
         required property string identifier

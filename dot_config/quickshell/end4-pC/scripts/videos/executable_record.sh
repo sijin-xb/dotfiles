@@ -75,12 +75,11 @@ for ((i=0;i<${#ARGS[@]};i++)); do
 done
 
 if pgrep wf-recorder > /dev/null; then
-    notify-send "Recording Stopped" "Stopped" -a 'Recorder' &
     pkill wf-recorder &
     set_recording_state false
 else
     if [[ $FULLSCREEN_FLAG -eq 1 ]]; then
-        notify-send "Starting recording" 'recording_'"$(getdate)"'.mp4' -a 'Recorder' & disown
+        # 开始反馈改由 quickshell 灵动岛（RecordIndicator）承担
         set_recording_state true
         if [[ $SOUND_FLAG -eq 1 ]]; then
             wf-recorder -o "$(getactivemonitor)" --pixel-format yuv420p -f './recording_'"$(getdate)"'.mp4' -t --audio="$(getaudiooutput)"
@@ -96,7 +95,7 @@ else
                 exit 1
             fi
         fi
-        notify-send "Starting recording" 'recording_'"$(getdate)"'.mp4' -a 'Recorder' & disown
+        # 开始反馈改由 quickshell 灵动岛（RecordIndicator）承担
         set_recording_state true
         if [[ $SOUND_FLAG -eq 1 ]]; then
             wf-recorder --pixel-format yuv420p -f './recording_'"$(getdate)"'.mp4' -t --geometry "$region" --audio="$(getaudiooutput)"
