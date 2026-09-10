@@ -115,6 +115,31 @@ install.sh                安装 / 卸载 / 回档 / 存档 / TUI
   `qs -c end4-pC ipc call desktoplyrics offset_faster / offset_slower`
 - 备份根目录：`~/.local/state/dotfiles-backup/`（`snapshots/`、`state/`）
 
+## 致谢与上游
+
+本项目的 Quickshell 桌面外壳并非从零编写，而是基于以下上游项目构建，特此声明并致谢。
+
+### 直接上游
+
+- **[pctrade/end4-pC](https://github.com/pctrade/end4-pC)** by [@pctrade](https://github.com/pctrade)
+  - 本仓库的 Quickshell 差异层（`dot_config/quickshell/end4-pC/`）基于此项目修改而来。
+  - 安装脚本在首次运行时克隆该仓库作为 Quickshell 底盘，本仓库仅维护差异层，不重复分发上游代码。
+
+### 上游的上游
+
+- **[end-4/dots-hyprland](https://github.com/end-4/dots-hyprland)** by [@end-4](https://github.com/end-4)
+  - `end4-pC` 是该项目中 illogical-impulse shell 的个人 fork。
+  - illogical-impulse 是这套 Quickshell 桌面外壳的原始实现。
+
+### 其他致谢
+
+- 天气组件所用的天气 API 集成来自 [@gh0stzk](https://github.com/gh0stzk)
+- 部分 shader 过渡效果来自 [@simeulinuxkaliaiwr](https://github.com/simeulinuxkaliaiwr)
+
+### 许可证继承
+
+本项目采用 [GPL-3.0](LICENSE) 许可证，与上游项目一致。作为衍生作品，本仓库保留了上游的版权与致谢信息，并对个人修改部分负责。
+
 ## 许可证
 
 本项目采用 [GPL-3.0](LICENSE) 许可证。
