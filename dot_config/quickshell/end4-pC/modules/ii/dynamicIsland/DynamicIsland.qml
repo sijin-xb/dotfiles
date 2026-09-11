@@ -282,11 +282,7 @@ Item {
             cursorShape: rightDragging ? Qt.SizeAllCursor : Qt.PointingHandCursor
 
             property real pressX: 0
-            property real pressY: 0
             property bool swiped: false
-            // 垂直手势（收起态调音量）一旦触发，抬手就不算点击
-            property bool verticalSwiped: false
-            property real volumeAtPress: 0
 
             // 右键拖动：窗口固定不动、只移动窗口内的岛，事件坐标始终在稳定
             // 坐标系里。「本次 - 上次」即纯鼠标位移，交给 Host 累加即可。
@@ -302,17 +298,14 @@ Item {
                     lastRightY = rp.y
                     return
                 }
-                // 映射到 root 而非直接用 e.x/e.y（相对 MouseArea）：调音量会让
-                // 灵动岛切到音量活动、宽度随之变化，MouseArea 原点也会平移，
-                // 用局部坐标会把「布局变化」误算成「手指移动」。root 锚在窗口
-                // 中心，尺寸固定，映射后坐标稳定。
+                // 映射到 root 而非直接用 e.x/e.y（相对 MouseArea）：展开态切页
+                // 会让灵动岛宽度变化，MouseArea 原点也会平移，用局部坐标会把
+                // 「布局变化」误算成「手指移动」。root 锚在窗口中心，尺寸固定，
+                // 映射后坐标稳定。
                 const p0 = pillMouse.mapToItem(root, e.x, e.y)
                 pressX = p0.x
-                pressY = p0.y
                 swiped = false
-                verticalSwiped = false
                 root.dragShift = 0
-                volumeAtPress = Audio.value
             }
 
             onPositionChanged: (e) => {
@@ -332,23 +325,12 @@ Item {
                     return
                 }
 
+                // 收起态没有拖动手势（音量改由滚轮调节），直接忽略
+                if (!root.expanded)
+                    return
+
                 const p = pillMouse.mapToItem(root, e.x, e.y)
                 const dx = p.x - pressX
-                const dy = p.y - pressY
-
-                if (!root.expanded) {
-                    // 收起态：上下滑调音量。阈值 12px 且要求纵向位移明显大于横向，
-                    // 避免手指微抖就误改音量。向上滑 = 音量增大。
-                    if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx) * 1.5) {
-                        verticalSwiped = true
-                        // 约 220px 走完 0→100%，手感接近系统音量条
-                        const delta = -dy / 220.0
-                        const nv = Math.max(0, Math.min(1, volumeAtPress + delta))
-                        if (Audio.sink?.audio)
-                            Audio.sink.audio.volume = nv
-                    }
-                    return
-                }
 
                 // 展开态：水平滑动切页
                 if (root.pageCount > 1 && Math.abs(dx) > 8) {
@@ -361,10 +343,6 @@ Item {
             onReleased: (e) => {
                 if (rightDragging) {
                     rightDragging = false
-                    return
-                }
-                if (verticalSwiped) {
-                    root.dragShift = 0
                     return
                 }
                 if (swiped) {
@@ -386,6 +364,17 @@ Item {
                     root.activated()
                 }
                 root.dragShift = 0
+            }
+
+            // 滚轮调音量：向上滚增大、向下滚减小。
+            // 鼠标一格 angleDelta.y 为 ±120；触控板是连续小值，同样按比例缩放。
+            onWheel: (e) => {
+                if (!Audio.sink?.audio)
+                    return
+                const step = e.angleDelta.y / 120.0 * 0.05
+                if (step === 0)
+                    return
+                Audio.sink.audio.volume = Math.max(0, Math.min(1, Audio.sink.audio.volume + step))
             }
         }
 
