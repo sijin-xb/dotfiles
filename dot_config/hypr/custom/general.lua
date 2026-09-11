@@ -76,15 +76,4 @@ hl.config({
         -- 全屏保持完全不透明（面板里调不到）
         fullscreen_opacity = 1.0,
     },
-
-    -- ============================================================
-    -- 边框颜色交给 matugen 管理
-    -- ------------------------------------------------------------
-    -- 不要在这里硬编码 active_border / inactive_border，
-    -- 否则会覆盖 matugen 生成的 hyprland/colors.lua。
-    -- 边框颜色现在来自 matugen 模板：
-    --   ~/.config/matugen/templates/hyprland/colors.lua
-    --     → ~/.config/hypr/hyprland/colors.lua
-    -- 边框大小（border_size）仍由 quickshell 设置面板控制。
-    -- ============================================================
 })
