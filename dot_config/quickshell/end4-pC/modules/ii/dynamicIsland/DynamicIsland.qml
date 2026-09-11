@@ -25,6 +25,8 @@ Item {
     // 点击左侧录屏伴随指示器：请求停止录屏。
     // 录屏与音乐并存时主岛归音乐，停止录屏只能从这里触发。
     signal recordingStopRequested()
+    // 点击歌词页某一行：请求跳转到该行时间点
+    signal seekRequested(real seconds)
 
     property alias pillItem: pill
     property alias contentMaskItem: contentRow
@@ -46,6 +48,14 @@ Item {
         && activityType !== "package" && !expanded
     readonly property var packagePayload: packageActive
         ? ActivityManager.entries["package"].payload : ({})
+
+    // 右侧伴随指示器：通知（来消息时轻轻顶一下，几秒后自动消失）。
+    readonly property bool notificationActive: ActivityManager.entries !== undefined
+        && ActivityManager.entries["notification"] !== undefined
+    readonly property bool showNotifCompanion: notificationActive
+        && activityType !== "notification" && !expanded
+    readonly property var notificationPayload: notificationActive
+        ? ActivityManager.entries["notification"].payload : ({})
 
     function fmtCompanion(sec) {
         const m = Math.floor(sec / 60)
@@ -93,14 +103,16 @@ Item {
 
     Component.onCompleted: syncSize()
 
+    // 果冻感：弹簧动画带轻微回弹，比 OutQuint 更"活"。
+    // damping 越低回弹越明显；0.45 是"看得出弹性但不晃"的平衡点。
     Behavior on animatedWidth {
-        NumberAnimation { duration: IslandTheme.durationExpand; easing.type: Easing.OutQuint }
+        SpringAnimation { spring: 3.2; damping: 0.45; epsilon: 0.5 }
     }
     Behavior on animatedHeight {
-        NumberAnimation { duration: IslandTheme.durationExpand; easing.type: Easing.OutQuint }
+        SpringAnimation { spring: 3.2; damping: 0.45; epsilon: 0.5 }
     }
     Behavior on animatedRadius {
-        NumberAnimation { duration: IslandTheme.durationExpand; easing.type: Easing.OutQuint }
+        SpringAnimation { spring: 3.2; damping: 0.45; epsilon: 0.5 }
     }
 
     // 整体（伴随指示器 + 主岛）水平居中；无伴随指示器时与原来等价。
@@ -110,8 +122,8 @@ Item {
         anchors.top: parent.top
         width: (companion.visible ? companion.width + 8 : 0)
              + pill.width
-             + (pkgCompanion.visible ? 8 + pkgCompanion.width : 0)
-        height: Math.max(companion.height, pill.height)
+             + (rightCompanions.visible ? 8 + rightCompanions.width : 0)
+        height: Math.max(companion.height, Math.max(pill.height, rightCompanions.height))
 
         // 左：录屏伴随指示器（脉冲红点 + 计时 + 点击停止）
         // 尺寸与主岛 compact 对齐：同高 37、同圆角 19、同字号 fontBody。
@@ -219,6 +231,16 @@ Item {
                     if (dx < -40 && root.page < root.pageCount - 1) root.page += 1
                     else if (dx > 40 && root.page > 0) root.page -= 1
                 } else {
+                    // 歌词页：先尝试把点击命中到某一行并 seek；
+                    // 命中则不再触发展开/收起。
+                    if (root.expanded && root.page === 1 && activityLoader.item
+                            && typeof activityLoader.item.seekAtY === "function") {
+                        const p = pillMouse.mapToItem(activityLoader.item, e.x, e.y)
+                        if (activityLoader.item.seekAtY(p.y)) {
+                            root.dragShift = 0
+                            return
+                        }
+                    }
                     root.activated()
                 }
                 root.dragShift = 0
@@ -259,6 +281,9 @@ Item {
                         item.playPauseRequested.connect(root.musicPlayPause)
                         item.nextRequested.connect(root.musicNext)
                     }
+                    // 歌词行点击跳转
+                    if (item.seekRequested !== undefined)
+                        item.seekRequested.connect(root.seekRequested)
                 }
             }
         }
@@ -285,15 +310,27 @@ Item {
         }
         }
 
-        // 右：包管理伴随指示器（图标 + 迷你进度条 + 百分比）
+        // 右：伴随指示器组（包管理 + 通知）
         // 与左侧录屏副岛对称：同高 37、同圆角 19、同字号 fontBody。
-        Rectangle {
-            id: pkgCompanion
-            visible: root.showPackageCompanion
+        Row {
+            id: rightCompanions
             anchors.left: pill.right
             anchors.leftMargin: 8
             anchors.verticalCenter: parent.verticalCenter
-            width: visible ? (pkgRow.implicitWidth + 26) : 0
+            spacing: 6
+            visible: root.showPackageCompanion || root.showNotifCompanion
+            // Row 的 width/height 默认是 0（不是 implicit 值）。
+            // 这里直接用「是否显示」来决定尺寸，避免 visible 与 width 互相依赖。
+            width: (root.showPackageCompanion ? (pkgRow.implicitWidth + 26) : 0)
+                 + (root.showPackageCompanion && root.showNotifCompanion ? spacing : 0)
+                 + (root.showNotifCompanion ? (notifRow.implicitWidth + 26) : 0)
+            height: IslandTheme.compactSizes.idle.h
+
+        // 包管理（下载 / AUR 构建）：图标 + 迷你进度条 + 百分比
+        Rectangle {
+            id: pkgCompanion
+            visible: root.showPackageCompanion
+            width: pkgRow.implicitWidth + 26
             height: IslandTheme.compactSizes.idle.h
             radius: IslandTheme.compactSizes.idle.r
             color: IslandTheme.surface
@@ -384,6 +421,46 @@ Item {
                 }
             }
         }
+
+        // 通知：铃铛 + 摘要（超长省略），几秒后自动消失
+        Rectangle {
+            id: notifCompanion
+            visible: root.showNotifCompanion
+            width: notifRow.implicitWidth + 26
+            height: IslandTheme.compactSizes.idle.h
+            radius: IslandTheme.compactSizes.idle.r
+            color: IslandTheme.surface
+            clip: true
+
+            Row {
+                id: notifRow
+                anchors.centerIn: parent
+                spacing: 7
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "notifications"
+                    font.family: IslandTheme.iconFontFamily
+                    font.pixelSize: 16
+                    color: IslandTheme.text
+                }
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: Math.min(implicitWidth, 130)
+                    text: (root.notificationPayload.summary ?? "").length > 0
+                        ? root.notificationPayload.summary
+                        : ((root.notificationPayload.appName ?? "").length > 0
+                            ? root.notificationPayload.appName : "新通知")
+                    color: IslandTheme.text
+                    font.family: IslandTheme.fontFamily
+                    font.pixelSize: IslandTheme.fontBody
+                    font.weight: Font.Medium
+                    elide: Text.ElideRight
+                }
+            }
+        }
+        }
     }
 
     function componentFor(type) {
@@ -392,6 +469,7 @@ Item {
         case "volume":    return volumeComp
         case "recording": return recordingComp
         case "package":   return packageComp
+        case "notification": return notificationComp
         default:          return idleComp
         }
     }
@@ -400,5 +478,6 @@ Item {
     Component { id: volumeComp;    VolumeActivity {} }
     Component { id: recordingComp; RecordingActivity {} }
     Component { id: packageComp;   PackageActivity {} }
+    Component { id: notificationComp; NotificationActivity {} }
     Component { id: idleComp;      IdleActivity {} }
 }

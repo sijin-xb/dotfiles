@@ -16,6 +16,7 @@ Item {
     VolumeSource { id: volumeSource }
     RecordSource { id: recordSource }
     PackageSource { id: packageSource }
+    NotificationSource { id: notificationSource }
 
     // cava 可视化数据：仅音乐活动且播放中时运行
     CavaSource {
@@ -65,6 +66,8 @@ Item {
             onRecordingStopRequested: {
                 Quickshell.execDetached([Quickshell.env("HOME") + "/.config/quickshell/end4-pC/scripts/videos/record.sh"])
             }
+            // 点击歌词页某一行：跳到该行时间点（绝对定位）
+            onSeekRequested: (seconds) => mprisSource.seekTo(seconds)
         }
     }
 

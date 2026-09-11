@@ -52,6 +52,13 @@ Item {
     function previous() {
         if (player && player.canGoPrevious) player.previous()
     }
+    // 绝对定位到某秒（Quickshell 的 position 属性可写，内部走 SetPosition）
+    function seekTo(seconds) {
+        const p = player
+        if (!p || !p.canSeek || !p.positionSupported) return
+        p.position = Math.max(0, Math.min(seconds, (p.length ?? 0) > 0 ? p.length - 1 : seconds))
+        publish()
+    }
 
     onHasTrackChanged: publish()
     onPlayerChanged: publish()

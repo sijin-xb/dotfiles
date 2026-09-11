@@ -17,6 +17,25 @@ Item {
     readonly property int curIdx: lyricsProvider ? (lyricsProvider.currentLineIndex ?? -1) : -1
     readonly property real lyricTime: lyricsProvider ? (lyricsProvider.adjustedTime ?? 0) : 0
 
+    // 歌词页点击命中：把相对 root 的 y 映射到某一行，命中即请求 seek。
+    // 由 DynamicIsland 的 pillMouse 在「未滑动」的点击里调用，
+    // 这样既不破坏滑动翻页手势，也不需要在 Column 里放锚点非法的 MouseArea。
+    function seekAtY(y) {
+        if (!lyricRepeater || lyricRepeater.count === 0)
+            return false
+        for (let i = 0; i < lyricRepeater.count; i++) {
+            const it = lyricRepeater.itemAt(i)
+            if (!it)
+                continue
+            const topLeft = it.mapToItem(root, 0, 0)
+            if (y >= topLeft.y && y <= topLeft.y + it.height) {
+                root.seekRequested(root.lyricWindow[i].start ?? 0)
+                return true
+            }
+        }
+        return false
+    }
+
     function escapeHtml(s) {
         return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     }
@@ -31,6 +50,8 @@ Item {
                 text: lyricLines[i].text ?? "",
                 trans: lyricLines[i].trans ?? "",
                 words: lyricLines[i].words ?? null,
+                // 行起始时间：点击该行时据此 seek
+                start: lyricLines[i].start ?? 0,
                 active: i === curIdx
             })
         }
@@ -317,6 +338,7 @@ Item {
                 visible: root.lyricWindow.length > 0
 
                 Repeater {
+                    id: lyricRepeater
                     model: root.lyricWindow
                     delegate: Column {
                         required property var modelData
@@ -325,6 +347,7 @@ Item {
 
                         // 当前行：逐字高亮（分字渲染，避免 RichText 每帧重解析导致的卡顿）
                         Item {
+                            id: activeHit
                             // delegate 根是普通 Column，Layout.* 不会生效；必须显式给宽高。
                             // 旧版只写了 Layout.fillWidth/fillHeight，Item 实际宽高都是 0，
                             // 而子项用 anchors.centerIn + clip:true，于是当前行主文本被整条裁掉，
@@ -350,23 +373,56 @@ Item {
                                 elide: Text.ElideRight
                             }
 
-                            // 逐字渲染：每个字一个 Text，仅颜色变化，引擎无需重解析
+                            // 逐字渲染：每个字两层，暗色底 + 亮色层按字内进度裁剪，
+                            // 形成卡拉OK式"从左往右抹过去"的填充，而不是整字硬切。
                             Row {
                                 id: wordsRow
                                 anchors.centerIn: parent
                                 visible: modelData.words && modelData.words.length > 0
                                 Repeater {
                                     model: modelData.words ?? []
-                                    delegate: Text {
+                                    delegate: Item {
                                         required property var modelData
-                                        readonly property bool lit: root.lyricTime >= modelData.start
-                                        text: modelData.text
-                                        // 已唱：纯白高亮；未唱：更暗（0.22），拉开对比
-                                        color: lit ? "#FFFFFF" : Qt.rgba(1, 1, 1, 0.22)
-                                        font.family: IslandTheme.fontFamily
-                                        font.pixelSize: IslandTheme.fontBody + 1
-                                        font.weight: Font.Bold
-                                        Behavior on color { ColorAnimation { duration: 90 } }
+                                        // 字内进度 0→1；dur 缺失时按整字已唱/未唱处理
+                                        readonly property real fill: {
+                                            const d = (modelData.dur ?? 0)
+                                            if (d <= 0.001)
+                                                return root.lyricTime >= modelData.start ? 1 : 0
+                                            return Math.max(0, Math.min(1,
+                                                (root.lyricTime - modelData.start) / d))
+                                        }
+                                        implicitWidth: Math.max(1, dimText.implicitWidth)
+                                        implicitHeight: dimText.implicitHeight
+
+                                        // 底层：未唱状态
+                                        Text {
+                                            id: dimText
+                                            anchors.left: parent.left
+                                            text: modelData.text
+                                            color: Qt.rgba(1, 1, 1, 0.22)
+                                            font.family: IslandTheme.fontFamily
+                                            font.pixelSize: IslandTheme.fontBody + 1
+                                            font.weight: Font.Bold
+                                        }
+
+                                        // 上层：按 fill 从左往右裁出的已唱部分
+                                        Item {
+                                            anchors.left: parent.left
+                                            anchors.top: parent.top
+                                            width: parent.width * parent.fill
+                                            height: parent.height
+                                            clip: true
+                                            visible: parent.fill > 0
+
+                                            Text {
+                                                anchors.left: parent.left
+                                                text: modelData.text
+                                                color: "#FFFFFF"
+                                                font.family: IslandTheme.fontFamily
+                                                font.pixelSize: IslandTheme.fontBody + 1
+                                                font.weight: Font.Bold
+                                            }
+                                        }
                                     }
                                 }
                             }
