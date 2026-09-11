@@ -1,0 +1,13 @@
+singleton IslandTheme 1.0 IslandTheme.qml
+singleton ActivityManager 1.0 ActivityManager.qml
+DynamicIsland 1.0 DynamicIsland.qml
+DynamicIslandHost 1.0 DynamicIslandHost.qml
+IslandVisualizer 1.0 IslandVisualizer.qml
+CavaSource 1.0 CavaSource.qml
+MusicActivity 1.0 MusicActivity.qml
+VolumeActivity 1.0 VolumeActivity.qml
+RecordingActivity 1.0 RecordingActivity.qml
+IdleActivity 1.0 IdleActivity.qml
+MprisSource 1.0 MprisSource.qml
+VolumeSource 1.0 VolumeSource.qml
+RecordSource 1.0 RecordSource.qml

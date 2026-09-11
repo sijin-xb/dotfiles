@@ -7,7 +7,7 @@
 import "modules/common"
 import "modules/ii/desktopLyrics"
 import "modules/ii/pet"
-import "modules/ii/recordIndicator"
+import "modules/ii/dynamicIsland"
 import "services"
 import "panelFamilies"
 import QtQuick
@@ -66,8 +66,11 @@ ShellRoot {
         lyricsProvider: desktopLyrics
     }
 
-    // 录屏灵动岛：录制期间在顶部中央显示状态与停止按钮
-    RecordIndicator {}
+    // 灵动岛：统一承载音乐 / 音量 / 录屏等活动
+    // 歌词页复用桌面歌词的数据源（酷狗 KRC）
+    DynamicIslandHost {
+        lyricsProvider: desktopLyrics
+    }
 
     component PanelFamilyLoader: LazyLoader {
         required property string identifier

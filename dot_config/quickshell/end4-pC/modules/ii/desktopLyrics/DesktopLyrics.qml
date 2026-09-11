@@ -459,14 +459,18 @@ PanelWindow {
         return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
+    // 供外部（灵动岛）复用逐字进度
+    readonly property real adjustedTime: currentTime + effectiveOffset
+
     function buildLineHtml(line) {
         if (!line.words)
             return escapeHtml(line.text);
-        const t = currentTime + effectiveOffset;
+        const t = adjustedTime;
         let html = "";
         for (const w of line.words) {
-            const sung = t >= w.start + w.dur - 0.02;
-            const color = sung ? Appearance.colors.colPrimary : Appearance.colors.colSecondary;
+            // 开始唱（含正在唱）即高亮 —— 唱完才亮会滞后整整一个字长
+            const started = t >= w.start;
+            const color = started ? Appearance.colors.colPrimary : Appearance.colors.colSecondary;
             html += `<font color="${color}">${escapeHtml(w.text)}</font>`;
         }
         return html;
