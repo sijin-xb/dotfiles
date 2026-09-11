@@ -15,6 +15,7 @@ Item {
     MprisSource { id: mprisSource }
     VolumeSource { id: volumeSource }
     RecordSource { id: recordSource }
+    PackageSource { id: packageSource }
 
     // cava 可视化数据：仅音乐活动且播放中时运行
     CavaSource {
@@ -36,8 +37,8 @@ Item {
         anchors { top: true }
         margins { top: 62 }
 
-        // 加宽以容纳主岛左侧的录屏伴随指示器
-        implicitWidth: 480
+        // 加宽以容纳主岛两侧的伴随指示器（左：录屏；右：包管理）
+        implicitWidth: 640
         implicitHeight: 180
 
         mask: Region { item: island.contentMaskItem }
@@ -75,11 +76,28 @@ Item {
         }
     }
 
-    // ---- IPC：调试 ----
+    // ---- IPC：调试 + 包管理进度上报 ----
     IpcHandler {
         target: "island"
         function status(): string {
             return "当前: " + ActivityManager.currentType + " | 队列: " + ActivityManager.debugList()
+        }
+
+        // 下载 / AUR 构建脚本可调用以下接口在灵动岛右侧显示进度：
+        //   qs -c end4-pC ipc call island pkg_begin "安装 foo"
+        //   qs -c end4-pC ipc call island pkg_progress 45
+        //   qs -c end4-pC ipc call island pkg_end
+        function pkg_begin(label: string): string {
+            packageSource.begin(label)
+            return "包任务已开始: " + label
+        }
+        function pkg_progress(percent: int): string {
+            packageSource.progress(percent)
+            return "包任务进度: " + percent + "%"
+        }
+        function pkg_end(): string {
+            packageSource.finish()
+            return "包任务已结束"
         }
     }
 }

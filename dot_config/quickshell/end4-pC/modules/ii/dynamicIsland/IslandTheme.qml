@@ -44,7 +44,8 @@ QtObject {
         music:        { w: 200, h: 37, r: 19, maxW: 340 },
         volume:       { w: 180, h: 37, r: 19 },
         notification: { w: 220, h: 37, r: 19 },
-        recording:    { w: 148, h: 37, r: 19 }
+        recording:    { w: 148, h: 37, r: 19 },
+        package:      { w: 160, h: 37, r: 19 }
     })
 
     // ===== 尺寸映射（Expanded）=====
@@ -53,7 +54,8 @@ QtObject {
         music:        { w: 320, h: 168, r: 28 },
         volume:       { w: 300, h: 140, r: 28 },
         notification: { w: 320, h: 120, r: 28 },
-        recording:    { w: 200, h: 37,  r: 19 }
+        recording:    { w: 200, h: 37,  r: 19 },
+        package:      { w: 320, h: 140, r: 28 }
     })
 
     function sizeFor(type, expanded) {

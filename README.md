@@ -119,6 +119,7 @@ install.sh                安装 / 卸载 / 回档 / 存档 / TUI
 |---|---|---|---|
 | `volume` | 30 | 音量 / 静音变化（2 秒后自动消失） | 音量条 |
 | `music` | 10 | 任意 MPRIS 播放器有曲目 | 封面、频谱、标题 |
+| `package` | 8 | 检测到 pacman / yay / paru / makepkg，或脚本主动上报 | 图标、进度条、百分比 |
 | `recording` | 5 | `states.json` 中 `record.enable` 为 true | 脉冲红点、计时 |
 
 ### 音乐
@@ -139,16 +140,54 @@ RichText 每帧重新解析造成的卡顿。
 中英对照来自 KRC 的 `[language:]` 块（Base64 内嵌 JSON）：取第一个非罗马音
 语义块作为翻译，按行号对齐；日语歌曲的罗马音转写块会被自动跳过。
 
-### 录屏伴随指示器
+### 伴随指示器（副岛）
 
-录屏优先级低于音乐。两者并存时录屏不抢占主岛，而是以一个小胶囊贴在主岛
-**左侧**：脉冲红点 + 计时，**点击它即可停止录屏**。
+主岛两侧可各挂一个小胶囊，让低优先级活动在音乐播放期间依然可见。两者与
+主岛收起态等高（37px）、同圆角（19px）、同字号，视觉上连为一体。
 
-这样设计是为了演示 / 录屏场景：主岛可以继续展示音乐，录屏状态又始终可见且
-可操作。录屏单独存在（无音乐）时，它仍正常占用主岛。伴随胶囊与主岛收起态
-等高（37px）、同圆角（19px）、同字号，视觉上连为一体。
+**左侧 · 录屏**：脉冲红点 + 计时，**点击即可停止录屏**。
+
+设计初衷是演示 / 录屏场景：主岛可以继续展示音乐，录屏状态又始终可见且可
+操作。录屏单独存在（无音乐）时，它仍正常占用主岛。
+
+**右侧 · 包管理**：下载图标 + 迷你进度条 + 百分比。
+
+两种数据来源：
+
+1. **自动探测** — 每 2 秒检查是否存在 `pacman` / `yay` / `paru` / `pikaur` /
+   `makepkg` 进程，命中即显示（此时无精确进度，走不确定态动画）。
+2. **主动上报** — 脚本通过 IPC 推送真实百分比：
+   `qs -c end4-pC ipc call island pkg_begin "安装 foo"`，
+   `pkg_progress 45`，`pkg_end`。
+
+在 PKGBUILD 的 `prepare()` / `build()` / `package()` 里插一行 `pkg_progress`，
+就能让 AUR 构建进度实时反映到灵动岛。
+
+录屏指示器已统一到灵动岛：栏上原有的浮动录屏胶囊（`BarContent.qml` 的
+`recordingPillLoader`）默认关闭，避免重复显示；把它的 `active` 改回
+`Persistent.states.record.enable` 即可恢复。
 
 ## 更新日志
+
+### 2026-09-11（第二次）
+
+**新增**
+
+- 包管理副岛：主岛右侧显示下载 / AUR 构建进度，支持进程自动探测与 IPC 主动上报
+- `IslandTheme` 补充 `package` 尺寸项
+
+**修复**
+
+- 栏上反复报 `Cannot assign to read-only property "mirrored"`。守卫用的
+  `item.hasOwnProperty("mirrored")` 会命中原生只读属性 `QQuickItem.mirrored`，
+  于是对非 visualizer 组件也尝试赋值。改为判断 `modelData === "visualizer"`。
+- `MprisSource` 偶发 `Cannot read property 'trackTitle' of null`。改为先缓存
+  `player` 到局部变量再判空，避免两次求值之间播放器退出。
+
+**调整**
+
+- 栏上的旧录屏胶囊默认关闭（录屏指示统一到灵动岛）
+- 灵动岛窗口宽度 480 → 640，容纳左右两侧副岛
 
 ### 2026-09-11
 

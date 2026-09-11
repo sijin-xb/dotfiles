@@ -30,13 +30,22 @@ Item {
     property alias contentMaskItem: contentRow
     property alias companionItem: companion
 
-    // 伴随指示器：录屏与其它活动并存时贴在主岛左侧（便于演示/录屏）；
-    // 主岛本身显示录屏时不再重复显示。
+    // 左侧伴随指示器：录屏与其它活动并存时贴在主岛左侧（便于演示/录屏）；
+    // 主岛本身显示录屏、或岛已展开时不再重复显示。
     readonly property bool recordingActive: ActivityManager.entries !== undefined
         && ActivityManager.entries["recording"] !== undefined
-    readonly property bool showCompanion: recordingActive && activityType !== "recording"
+    readonly property bool showCompanion: recordingActive
+        && activityType !== "recording" && !expanded
     readonly property var recordingPayload: recordingActive
         ? ActivityManager.entries["recording"].payload : ({})
+
+    // 右侧伴随指示器：包管理（下载 / AUR 构建）进度，与左侧录屏副岛对称。
+    readonly property bool packageActive: ActivityManager.entries !== undefined
+        && ActivityManager.entries["package"] !== undefined
+    readonly property bool showPackageCompanion: packageActive
+        && activityType !== "package" && !expanded
+    readonly property var packagePayload: packageActive
+        ? ActivityManager.entries["package"].payload : ({})
 
     function fmtCompanion(sec) {
         const m = Math.floor(sec / 60)
@@ -99,7 +108,9 @@ Item {
         id: contentRow
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
-        width: companion.visible ? companion.width + 8 + pill.width : pill.width
+        width: (companion.visible ? companion.width + 8 : 0)
+             + pill.width
+             + (pkgCompanion.visible ? 8 + pkgCompanion.width : 0)
         height: Math.max(companion.height, pill.height)
 
         // 左：录屏伴随指示器（脉冲红点 + 计时 + 点击停止）
@@ -273,6 +284,70 @@ Item {
             }
         }
         }
+
+        // 右：包管理伴随指示器（图标 + 迷你进度条 + 百分比）
+        // 与左侧录屏副岛对称：同高 37、同圆角 19、同字号 fontBody。
+        Rectangle {
+            id: pkgCompanion
+            visible: root.showPackageCompanion
+            anchors.left: pill.right
+            anchors.leftMargin: 8
+            anchors.verticalCenter: parent.verticalCenter
+            width: visible ? (pkgRow.implicitWidth + 26) : 0
+            height: IslandTheme.compactSizes.idle.h
+            radius: IslandTheme.compactSizes.idle.r
+            color: IslandTheme.surface
+            clip: true
+
+            Row {
+                id: pkgRow
+                anchors.centerIn: parent
+                spacing: 7
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "download"
+                    font.family: IslandTheme.iconFontFamily
+                    font.pixelSize: 16
+                    color: IslandTheme.text
+                }
+
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 40
+                    height: 4
+                    radius: 2
+                    color: IslandTheme.track
+
+                    Rectangle {
+                        height: parent.height
+                        radius: parent.radius
+                        width: (root.packagePayload.indeterminate ?? true)
+                            ? parent.width * 0.35
+                            : parent.width * Math.max(0, Math.min(100, root.packagePayload.percent ?? 0)) / 100
+                        gradient: Gradient {
+                            GradientStop { position: 0.0; color: "#60A5FA" }
+                            GradientStop { position: 1.0; color: "#6366F1" }
+                        }
+                        Behavior on width {
+                            NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+                        }
+                    }
+                }
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: (root.packagePayload.indeterminate ?? true)
+                        ? "…"
+                        : (root.packagePayload.percent ?? 0) + "%"
+                    color: IslandTheme.text
+                    font.family: IslandTheme.fontFamily
+                    font.pixelSize: IslandTheme.fontBody
+                    font.weight: Font.Medium
+                    font.features: { "tnum": 1 }
+                }
+            }
+        }
     }
 
     function componentFor(type) {
@@ -280,6 +355,7 @@ Item {
         case "music":     return musicComp
         case "volume":    return volumeComp
         case "recording": return recordingComp
+        case "package":   return packageComp
         default:          return idleComp
         }
     }
@@ -287,5 +363,6 @@ Item {
     Component { id: musicComp;     MusicActivity {} }
     Component { id: volumeComp;    VolumeActivity {} }
     Component { id: recordingComp; RecordingActivity {} }
+    Component { id: packageComp;   PackageActivity {} }
     Component { id: idleComp;      IdleActivity {} }
 }

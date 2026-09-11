@@ -25,17 +25,20 @@ Item {
         && (player.trackTitle ?? "").length > 0
 
     function publish() {
-        if (!hasTrack) {
+        // 缓存到局部变量并显式判空：player 可能在 hasTrack 求值与本次调用之间
+        // 变为 null（播放器退出），直接读属性会抛 "trackTitle of null"。
+        const p = player
+        if (p === null || (p.trackTitle ?? "").length === 0) {
             ActivityManager.clear("music")
             return
         }
         ActivityManager.set("music", {
-            title: player.trackTitle ?? "",
-            artist: player.trackArtist ?? "",
-            artUrl: player.trackArtUrl ?? "",
-            isPlaying: player.isPlaying ?? false,
-            progress: player.position ?? 0,
-            durationSec: player.length ?? 0
+            title: p.trackTitle ?? "",
+            artist: p.trackArtist ?? "",
+            artUrl: p.trackArtUrl ?? "",
+            isPlaying: p.isPlaying ?? false,
+            progress: p.position ?? 0,
+            durationSec: p.length ?? 0
         }, 10)
     }
 
