@@ -318,13 +318,14 @@ Item {
                     height: 4
                     radius: 2
                     color: IslandTheme.track
+                    clip: true
 
+                    // 已知进度：按百分比填充
                     Rectangle {
+                        visible: !(root.packagePayload.indeterminate ?? true)
                         height: parent.height
                         radius: parent.radius
-                        width: (root.packagePayload.indeterminate ?? true)
-                            ? parent.width * 0.35
-                            : parent.width * Math.max(0, Math.min(100, root.packagePayload.percent ?? 0)) / 100
+                        width: parent.width * Math.max(0, Math.min(100, root.packagePayload.percent ?? 0)) / 100
                         gradient: Gradient {
                             GradientStop { position: 0.0; color: "#60A5FA" }
                             GradientStop { position: 1.0; color: "#6366F1" }
@@ -333,13 +334,48 @@ Item {
                             NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
                         }
                     }
+
+                    // 进度未知：一小块来回滑动，明确表示“正在跑”
+                    Rectangle {
+                        id: pkgIndetBlock
+                        visible: root.packagePayload.indeterminate ?? true
+                        width: 16
+                        height: parent.height
+                        radius: parent.radius
+                        gradient: Gradient {
+                            GradientStop { position: 0.0; color: "#60A5FA" }
+                            GradientStop { position: 1.0; color: "#6366F1" }
+                        }
+                        SequentialAnimation on x {
+                            running: pkgIndetBlock.visible
+                            loops: Animation.Infinite
+                            NumberAnimation { from: -16; to: 40; duration: 850; easing.type: Easing.InOutSine }
+                            NumberAnimation { from: 40; to: -16; duration: 850; easing.type: Easing.InOutSine }
+                        }
+                    }
+                }
+
+                // 进度未知时用旋转图标代替省略号
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: root.packagePayload.indeterminate ?? true
+                    text: "progress_activity"
+                    font.family: IslandTheme.iconFontFamily
+                    font.pixelSize: 14
+                    color: IslandTheme.text
+                    transformOrigin: Item.Center
+                    RotationAnimation on rotation {
+                        running: parent.visible
+                        from: 0; to: 360
+                        duration: 1000
+                        loops: Animation.Infinite
+                    }
                 }
 
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: (root.packagePayload.indeterminate ?? true)
-                        ? "…"
-                        : (root.packagePayload.percent ?? 0) + "%"
+                    visible: !(root.packagePayload.indeterminate ?? true)
+                    text: (root.packagePayload.percent ?? 0) + "%"
                     color: IslandTheme.text
                     font.family: IslandTheme.fontFamily
                     font.pixelSize: IslandTheme.fontBody

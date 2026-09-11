@@ -41,13 +41,13 @@ Item {
             implicitHeight: 4
             radius: 2
             color: IslandTheme.track
+            clip: true
 
             Rectangle {
+                visible: !root.indeterminate
                 height: parent.height
                 radius: parent.radius
-                width: root.indeterminate
-                    ? parent.width * 0.35
-                    : parent.width * Math.max(0, Math.min(100, root.percent)) / 100
+                width: parent.width * Math.max(0, Math.min(100, root.percent)) / 100
                 gradient: Gradient {
                     GradientStop { position: 0.0; color: "#60A5FA" }
                     GradientStop { position: 1.0; color: "#6366F1" }
@@ -56,11 +56,46 @@ Item {
                     NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
                 }
             }
+
+            Rectangle {
+                id: compactIndetBlock
+                visible: root.indeterminate
+                width: 16
+                height: parent.height
+                radius: parent.radius
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: "#60A5FA" }
+                    GradientStop { position: 1.0; color: "#6366F1" }
+                }
+                SequentialAnimation on x {
+                    running: compactIndetBlock.visible
+                    loops: Animation.Infinite
+                    NumberAnimation { from: -16; to: 40; duration: 850; easing.type: Easing.InOutSine }
+                    NumberAnimation { from: 40; to: -16; duration: 850; easing.type: Easing.InOutSine }
+                }
+            }
         }
 
         Text {
             Layout.alignment: Qt.AlignVCenter
-            text: root.indeterminate ? "…" : root.percent + "%"
+            visible: root.indeterminate
+            text: "progress_activity"
+            font.family: IslandTheme.iconFontFamily
+            font.pixelSize: 14
+            color: IslandTheme.text
+            transformOrigin: Item.Center
+            RotationAnimation on rotation {
+                running: parent.visible
+                from: 0; to: 360
+                duration: 1000
+                loops: Animation.Infinite
+            }
+        }
+
+        Text {
+            Layout.alignment: Qt.AlignVCenter
+            visible: !root.indeterminate
+            text: root.percent + "%"
             color: IslandTheme.text
             font.family: IslandTheme.fontFamily
             font.pixelSize: IslandTheme.fontBody
@@ -101,12 +136,29 @@ Item {
 
             Text {
                 Layout.alignment: Qt.AlignVCenter
-                text: root.indeterminate ? "进行中" : root.percent + "%"
+                visible: !root.indeterminate
+                text: root.percent + "%"
                 color: IslandTheme.text
                 font.family: IslandTheme.fontFamily
                 font.pixelSize: IslandTheme.fontBody
                 font.weight: Font.Bold
                 font.features: { "tnum": 1 }
+            }
+
+            Text {
+                Layout.alignment: Qt.AlignVCenter
+                visible: root.indeterminate
+                text: "progress_activity"
+                font.family: IslandTheme.iconFontFamily
+                font.pixelSize: 18
+                color: IslandTheme.text
+                transformOrigin: Item.Center
+                RotationAnimation on rotation {
+                    running: parent.visible
+                    from: 0; to: 360
+                    duration: 1000
+                    loops: Animation.Infinite
+                }
             }
         }
 
@@ -115,19 +167,47 @@ Item {
             implicitHeight: 10
             radius: 5
             color: IslandTheme.track
+            clip: true
 
             Rectangle {
+                visible: !root.indeterminate
                 height: parent.height
                 radius: parent.radius
-                width: root.indeterminate
-                    ? parent.width * 0.35
-                    : parent.width * Math.max(0, Math.min(100, root.percent)) / 100
+                width: parent.width * Math.max(0, Math.min(100, root.percent)) / 100
                 gradient: Gradient {
                     GradientStop { position: 0.0; color: "#60A5FA" }
                     GradientStop { position: 1.0; color: "#6366F1" }
                 }
                 Behavior on width {
                     NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+                }
+            }
+
+            Rectangle {
+                id: expandedIndetBlock
+                visible: root.indeterminate
+                width: parent.width * 0.3
+                height: parent.height
+                radius: parent.radius
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: "#60A5FA" }
+                    GradientStop { position: 1.0; color: "#6366F1" }
+                }
+                SequentialAnimation on x {
+                    running: expandedIndetBlock.visible
+                    loops: Animation.Infinite
+                    NumberAnimation {
+                        from: -expandedIndetBlock.width
+                        to: expandedIndetBlock.parent.width
+                        duration: 1100
+                        easing.type: Easing.InOutSine
+                    }
+                    NumberAnimation {
+                        from: expandedIndetBlock.parent.width
+                        to: -expandedIndetBlock.width
+                        duration: 1100
+                        easing.type: Easing.InOutSine
+                    }
                 }
             }
         }
