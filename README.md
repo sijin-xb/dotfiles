@@ -209,6 +209,25 @@ install.sh                安装 / 卸载 / 回档 / 存档 / TUI
 
 ## 更新日志
 
+### 2026-09-11（第七次）
+
+**修复**
+
+- 灵动岛歌词页点击某一行无反应。`MusicActivity.qml` 里 `seekAtY()` 调用了
+  `root.seekRequested(...)`，但这个信号从未声明，运行时报
+  `TypeError: Property 'seekRequested' is not a function`；同时 `DynamicIsland.qml`
+  的 `if (item.seekRequested !== undefined)` 因此恒为 false，连接根本没建立。
+  补上信号声明后，点击歌词行即可跳转。
+
+**调整**
+
+- 歌词逐字高亮取色提亮。封面主色经量化后常常偏暗（深色封面尤其明显），而灵动岛
+  底色是纯黑，直接使用会导致高亮几乎读不出来。现对高亮色设亮度下限
+  `0.62` 并轻微提饱和（×1.15），保留封面色相的同时保证对比度。
+- 点击歌词行跳转时补偿歌词偏移。行时间是歌词坐标系的时间，而当前行判定用的是
+  `currentTime + effectiveOffset`，跳转前扣掉该偏移，手动调过歌词偏移后点击
+  才能精确落到目标行。
+
 ### 2026-09-11（第六次）
 
 **调整**

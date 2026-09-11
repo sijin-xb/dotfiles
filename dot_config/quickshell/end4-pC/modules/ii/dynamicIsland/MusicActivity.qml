@@ -12,7 +12,22 @@ Item {
     // 封面主色（由 Host 注入）。为空则用主题色，保证无封面时观感不变。
     property color accentColor: "transparent"
     readonly property bool hasAccent: accentColor.a > 0.01
-    readonly property color effectiveAccent: hasAccent ? accentColor : IslandTheme.text
+
+    // 封面主色常常偏暗（深色封面量化后尤其明显），而灵动岛底色是纯黑，
+    // 直接用原始主色会导致逐字高亮读不出来。这里给高亮色设一个亮度下限，
+    // 并轻微提饱和，保留色相的同时保证任何封面都有足够对比度。
+    readonly property real accentMinLightness: 0.62
+    readonly property color effectiveAccent: {
+        if (!hasAccent)
+            return IslandTheme.text
+        const c = Qt.color(accentColor)
+        if (c.hslLightness >= accentMinLightness)
+            return c
+        return Qt.hsla(c.hslHue,
+                       Math.min(1.0, c.hslSaturation * 1.15),
+                       accentMinLightness,
+                       1.0)
+    }
     property int page: 0
     readonly property int pageCount: 2
 
@@ -33,7 +48,13 @@ Item {
                 continue
             const topLeft = it.mapToItem(root, 0, 0)
             if (y >= topLeft.y && y <= topLeft.y + it.height) {
-                root.seekRequested(root.lyricWindow[i].start ?? 0)
+                // 行时间是「歌词坐标系」的时间，而当前行判定用的是
+                // currentTime + effectiveOffset。要让它跳过去之后正好成为当前行，
+                // 得把这个偏移扣掉，否则手动调过歌词偏移时会差一截。
+                const lineStart = root.lyricWindow[i].start ?? 0
+                const off = root.lyricsProvider
+                    ? (root.lyricsProvider.effectiveOffset ?? 0) : 0
+                root.seekRequested(Math.max(0, lineStart - off))
                 return true
             }
         }
@@ -65,6 +86,10 @@ Item {
     signal prevRequested()
     signal playPauseRequested()
     signal nextRequested()
+    // 歌词行点击：请求跳转到该行起始时间。
+    // 必须显式声明，否则 DynamicIsland 里的 `item.seekRequested !== undefined`
+    // 恒为 false（连接不会建立），seekAtY 里调用它还会抛 TypeError。
+    signal seekRequested(real seconds)
 
     readonly property real preferredCompactWidth: compactRow.implicitWidth + 10 + 14
 
@@ -427,7 +452,7 @@ Item {
                                                 anchors.left: parent.left
                                                 text: modelData.text
                                                 // 有封面主色时用它，否则纯白
-                                                color: root.hasAccent ? root.effectiveAccent : "#FFFFFF"
+                                                color: root.effectiveAccent
                                                 font.family: IslandTheme.fontFamily
                                                 font.pixelSize: IslandTheme.fontBody + 1
                                                 font.weight: Font.Bold
