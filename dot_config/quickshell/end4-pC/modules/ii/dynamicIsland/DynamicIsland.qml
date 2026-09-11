@@ -9,6 +9,14 @@ Item {
     property string activityType: "idle"
     property bool expanded: false
     property var payload: ({})
+
+    // 聚焦的活动：点副岛胶囊时设置，主岛临时改为显示它并展开。
+    // 收起时清空，回到正常的「优先级最高的活动」。
+    property string focusType: ""
+    readonly property string renderType: focusType.length > 0 ? focusType : activityType
+    readonly property var renderPayload: focusType.length > 0
+        ? (((ActivityManager.entries ?? {})[focusType] ?? {}).payload ?? {})
+        : payload
     property var visualizerPoints: []
     property var lyricsProvider: null
     // 封面主色：注入到活动组件，用于频谱/歌词高亮着色
@@ -30,6 +38,8 @@ Item {
     signal recordingStopRequested()
     // 点击歌词页某一行：请求跳转到该行时间点
     signal seekRequested(real seconds)
+    // 点副岛胶囊：请求展开主岛（Host 负责把 expanded 置 true）
+    signal expandRequested()
 
     property alias pillItem: pill
     property alias contentMaskItem: contentRow
@@ -81,14 +91,31 @@ Item {
         return (e && e[type] && e[type].payload) ? e[type].payload : ({})
     }
 
+    // 点副岛胶囊：把主岛切到该活动并展开
+    function focusOn(type) {
+        if (!ActivityManager.entries || !ActivityManager.entries[type])
+            return
+        focusType = type
+        expandRequested()
+    }
+
+    // 聚焦的活动消失了就取消聚焦，避免主岛卡在空内容
+    Connections {
+        target: ActivityManager
+        function onRevisionChanged() {
+            if (root.focusType.length > 0 && !ActivityManager.entries[root.focusType])
+                root.focusType = ""
+        }
+    }
+
     function fmtCompanion(sec) {
         const m = Math.floor(sec / 60)
         const s = sec % 60
         return m + ":" + (s < 10 ? "0" + s : s)
     }
 
-    readonly property bool hasContent: activityType !== "idle"
-    readonly property var targetSize: IslandTheme.sizeFor(activityType, expanded)
+    readonly property bool hasContent: renderType !== "idle"
+    readonly property var targetSize: IslandTheme.sizeFor(renderType, expanded)
 
     property real animatedWidth: 0
     property real animatedHeight: 0
@@ -122,7 +149,12 @@ Item {
     onItemPreferredWidthChanged: syncSize()
 
     // 收起时回到第一页；切换活动时也重置
-    onExpandedChanged: { if (!expanded) page = 0 }
+    onExpandedChanged: {
+        if (!expanded) {
+            page = 0
+            focusType = ""   // 收起后回到正常的主岛归属
+        }
+    }
     onActivityTypeChanged: page = 0
 
     Component.onCompleted: syncSize()
@@ -314,7 +346,7 @@ Item {
         Loader {
             id: activityLoader
             anchors.fill: parent
-            sourceComponent: root.componentFor(root.activityType)
+            sourceComponent: root.componentFor(root.renderType)
             opacity: 0
 
             NumberAnimation {
@@ -332,7 +364,7 @@ Item {
             onItemChanged: {
                 if (item) {
                     item.expanded = Qt.binding(function() { return root.expanded })
-                    item.payload = Qt.binding(function() { return root.payload })
+                    item.payload = Qt.binding(function() { return root.renderPayload })
                     if (item.visualizerPoints !== undefined)
                         item.visualizerPoints = Qt.binding(function() { return root.visualizerPoints })
                     if (item.page !== undefined)
@@ -494,6 +526,13 @@ Item {
                         font.features: { "tnum": 1 }
                     }
                 }
+
+                // 点胶囊：主岛切到该任务并展开看细节
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.focusOn(taskPill.modelData)
+                }
             }
         }
 
@@ -533,6 +572,13 @@ Item {
                     font.weight: Font.Medium
                     elide: Text.ElideRight
                 }
+            }
+
+            // 点胶囊：展开看通知全文
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.focusOn("notification")
             }
         }
         }

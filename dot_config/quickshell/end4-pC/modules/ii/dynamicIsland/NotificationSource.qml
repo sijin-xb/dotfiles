@@ -17,6 +17,16 @@ Item {
     property string appName: ""
     property string body: ""
 
+    // 展开通知时置 true：暂停自动清除，否则正文还没读完就消失了。
+    property bool holdOpen: false
+
+    onHoldOpenChanged: {
+        if (holdOpen)
+            hideTimer.stop()
+        else if (ActivityManager.entries["notification"] !== undefined)
+            hideTimer.restart()
+    }
+
     function show(notif) {
         summary = notif?.summary ?? ""
         appName = notif?.appName ?? ""
@@ -47,6 +57,9 @@ Item {
         id: hideTimer
         interval: 4000
         repeat: false
-        onTriggered: ActivityManager.clear("notification")
+        onTriggered: {
+            if (!root.holdOpen)
+                ActivityManager.clear("notification")
+        }
     }
 }

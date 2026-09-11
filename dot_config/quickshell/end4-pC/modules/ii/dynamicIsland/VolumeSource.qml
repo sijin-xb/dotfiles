@@ -13,12 +13,23 @@ Item {
     property real lastLevel: -1
     property bool lastMuted: false
 
+    // 展开音量活动时置 true：暂停自动隐藏，否则用户还没看清就消失了。
+    property bool holdOpen: false
+
     function showVolume() {
         ActivityManager.set("volume", {
             level: Math.round((Audio.value ?? 0) * 100),
             isMuted: Audio.sink?.audio?.muted ?? false
         }, 30)
         hideTimer.restart()
+    }
+
+    // 展开期间不隐藏；收起时重新起计时。
+    onHoldOpenChanged: {
+        if (holdOpen)
+            hideTimer.stop()
+        else if (ActivityManager.entries["volume"] !== undefined)
+            hideTimer.restart()
     }
 
     Connections {
@@ -56,6 +67,9 @@ Item {
     Timer {
         id: hideTimer
         interval: 2000
-        onTriggered: ActivityManager.clear("volume")
+        onTriggered: {
+            if (!root.holdOpen)
+                ActivityManager.clear("volume")
+        }
     }
 }

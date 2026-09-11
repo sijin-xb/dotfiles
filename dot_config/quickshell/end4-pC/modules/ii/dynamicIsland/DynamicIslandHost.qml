@@ -11,6 +11,13 @@ Item {
     property bool expanded: false
     property var lyricsProvider: null
 
+    // 任务 id → 数据源的映射。放在 root 层而不是 IpcHandler 内部：
+    // IpcHandler 会检查自身所有成员，var/QVariant 无法跨 IPC 会报解析错误。
+    readonly property var taskSources: ({
+        "package":  packageSource,
+        "download": downloadSource
+    })
+
     // ---- 数据源 ----
     MprisSource { id: mprisSource }
     VolumeSource { id: volumeSource }
@@ -24,6 +31,20 @@ Item {
         id: artColor
         artUrl: (ActivityManager.currentType === "music")
             ? (ActivityManager.currentPayload.artUrl ?? "") : ""
+    }
+
+    // 音量 / 通知活动展开时暂停它们的自动隐藏，否则展开态还没看清就消失了。
+    // 用 renderType 而不是 currentType：点副岛胶囊会聚焦到该活动，但
+    // currentType 仍是优先级最高的那个（比如音乐），两者并不相同。
+    Binding {
+        target: volumeSource
+        property: "holdOpen"
+        value: (island.renderType === "volume" && root.expanded)
+    }
+    Binding {
+        target: notificationSource
+        property: "holdOpen"
+        value: (island.renderType === "notification" && root.expanded)
     }
 
     // cava 可视化数据：仅音乐活动且播放中时运行
@@ -77,6 +98,8 @@ Item {
             }
             // 点击歌词页某一行：跳到该行时间点（绝对定位）
             onSeekRequested: (seconds) => mprisSource.seekTo(seconds)
+            // 点击副岛胶囊：展开主岛，让该活动的展开态可见
+            onExpandRequested: root.expanded = true
         }
     }
 
@@ -99,28 +122,20 @@ Item {
         //   qs -c end4-pC ipc call island task_begin "下载 foo.iso" download
         //   qs -c end4-pC ipc call island task_progress 42 download
         //   qs -c end4-pC ipc call island task_end download
-        function taskSourceFor(id) {
-            switch (id) {
-            case "package":  return packageSource
-            case "download": return downloadSource
-            default:         return null
-            }
-        }
-
         function task_begin(label: string, taskId: string): string {
-            const s = taskSourceFor(taskId)
+            const s = root.taskSources[taskId] ?? null
             if (!s) return "未知任务类型: " + taskId
             s.begin(label)
             return taskId + " 任务已开始: " + label
         }
         function task_progress(percent: int, taskId: string): string {
-            const s = taskSourceFor(taskId)
+            const s = root.taskSources[taskId] ?? null
             if (!s) return "未知任务类型: " + taskId
             s.progress(percent)
             return taskId + " 任务进度: " + percent + "%"
         }
         function task_end(taskId: string): string {
-            const s = taskSourceFor(taskId)
+            const s = root.taskSources[taskId] ?? null
             if (!s) return "未知任务类型: " + taskId
             s.finish()
             return taskId + " 任务已结束"
