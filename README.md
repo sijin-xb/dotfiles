@@ -120,6 +120,7 @@ install.sh                安装 / 卸载 / 回档 / 存档 / TUI
 | `volume` | 30 | 音量 / 静音变化（2 秒后自动消失） | 音量条 |
 | `music` | 10 | 任意 MPRIS 播放器有曲目 | 封面、频谱、标题 |
 | `package` | 8 | 检测到 pacman / yay / paru / makepkg，或脚本主动上报 | 图标、进度条、百分比 |
+| `download` | 7 | 检测到 curl / wget / aria2c，或脚本主动上报 | 图标、进度条、百分比 |
 | `notification` | 6 | 收到桌面通知（4 秒后自动消失） | 铃铛、通知摘要 |
 | `recording` | 5 | `states.json` 中 `record.enable` 为 true | 脉冲红点、计时 |
 
@@ -146,6 +147,24 @@ install.sh                安装 / 卸载 / 回档 / 存档 / TUI
 中英对照来自 KRC 的 `[language:]` 块（Base64 内嵌 JSON）：取第一个非罗马音
 语义块作为翻译，按行号对齐；日语歌曲的罗马音转写块会被自动跳过。
 
+### 封面取色
+
+`ArtColorSource` 会把当前封面量化成一个主色（必要时先下载并按 URL 哈希缓存），
+歌词的卡拉OK高亮在有封面时用这个颜色，没有封面时退回纯白。切歌时颜色带 600ms
+过渡，不会硬跳。
+
+### 手势
+
+| 位置 | 手势 | 作用 |
+|---|---|---|
+| 收起态 | 上下滑 | 调音量（上滑增大，约 220px 走完满量程） |
+| 展开态 | 左右滑 | 控制页 ↔ 歌词页 |
+| 歌词页 | 点某行 | 跳到该句 |
+
+上下滑要求纵向位移明显大于横向（1.5 倍）且超过 12px，避免手抖误触。手势坐标
+映射到固定尺寸的容器而非 MouseArea 局部坐标——调音量会让岛切到音量活动、宽度
+变化，用局部坐标会把布局变化误算成手指移动。
+
 ### 伴随指示器（副岛）
 
 主岛两侧可各挂一个小胶囊，让低优先级活动在音乐播放期间依然可见。两者与
@@ -156,18 +175,28 @@ install.sh                安装 / 卸载 / 回档 / 存档 / TUI
 设计初衷是演示 / 录屏场景：主岛可以继续展示音乐，录屏状态又始终可见且可
 操作。录屏单独存在（无音乐）时，它仍正常占用主岛。
 
-**右侧 · 包管理**：下载图标 + 迷你进度条 + 百分比。
+**右侧 · 任务**：图标 + 迷你进度条 + 百分比，可同时挂多个。
+
+目前有两类任务，都由通用骨架 `TaskSource` 驱动：
+
+| 类型 | 自动探测的进程 | 优先级 |
+|---|---|---|
+| `package` | pacman / yay / paru / pikaur / makepkg | 8 |
+| `download` | curl / wget / aria2c | 7 |
 
 两种数据来源：
 
-1. **自动探测** — 每 2 秒检查是否存在 `pacman` / `yay` / `paru` / `pikaur` /
-   `makepkg` 进程，命中即显示（此时无精确进度，走不确定态动画）。
-2. **主动上报** — 脚本通过 IPC 推送真实百分比：
-   `qs -c end4-pC ipc call island pkg_begin "安装 foo"`，
-   `pkg_progress 45`，`pkg_end`。
+1. **自动探测** — 每 2 秒扫一次进程名，命中即显示（无精确进度时走不确定态动画）。
+2. **主动上报** — 脚本用 IPC 推真实百分比：
+   `qs -c end4-pC ipc call island task_begin "下载 foo.iso" download`，
+   `task_progress 42 download`，`task_end download`。
+   包管理另有 `pkg_*` 兼容别名。
 
-在 PKGBUILD 的 `prepare()` / `build()` / `package()` 里插一行 `pkg_progress`，
+在 PKGBUILD 的 `prepare()` / `build()` / `package()` 里插一行 `task_progress`，
 就能让 AUR 构建进度实时反映到灵动岛。
+
+想加新任务类型，写一个 `TaskSource` 配置实例即可（声明 `taskId`、`processNames`、
+`priority`、`icon`），右侧副岛会自动多一个胶囊，不用改布局。
 
 **右侧 · 通知**：铃铛 + 通知摘要，4 秒后自动消失。
 
@@ -179,6 +208,21 @@ install.sh                安装 / 卸载 / 回档 / 存档 / TUI
 `Persistent.states.record.enable` 即可恢复。
 
 ## 更新日志
+
+### 2026-09-11（第四次）
+
+**新增**
+
+- 封面取色：量化当前封面主色，歌词高亮随之着色（`ArtColorSource`）
+- 灵动岛手势：收起态上下滑调音量
+- `TaskSource` 通用骨架：把「进程探测 + IPC 上报」抽出来复用，新增 `download` 任务源
+- 右侧副岛改为列表驱动 + Repeater 渲染，加任务类型不用改布局
+- IPC 泛化为 `task_begin` / `task_progress` / `task_end`（`pkg_*` 保留为别名）
+
+**调整**
+
+- 锁屏背景固定为桌面壁纸，移除了播放时淡入的模糊专辑封面背景
+- `PackageActivity` 的图标改为读 `payload.icon`，可复用于下载等任务
 
 ### 2026-09-11（第三次）
 
