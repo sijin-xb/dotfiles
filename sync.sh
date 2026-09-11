@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
-# sync.sh — 把 $HOME 下的活文件改动同步回 dotfiles 源仓库
+# sync.sh — 把 $HOME 活文件改动同步回 dotfiles 源仓库
 #
-# 用途：你平时改的是 ~/.config/... 里的活文件，改完后运行这个脚本，
-# 把改动抄回源目录（本脚本所在目录），然后 git push。
-# 映射规则与 install.sh 一致（dot_ 前缀 / executable_ 前缀）。
+#   ./sync.sh <file>...      同步（自动匹配 dot_/executable_ 前缀）
+#   ./sync.sh -n <file>...   只看差异
 #
-# 用法:
+# 示例:
 #   ./sync.sh ~/.config/hypr/custom/general.lua
-#   ./sync.sh -n ~/.config/hypr/custom/general.lua          # 只看差异
 #   ./sync.sh ~/.config/fish/config.fish ~/.config/fuzzel/fuzzel.ini
 
 set -euo pipefail
@@ -22,7 +20,7 @@ if [[ "${1:-}" == "-n" || "${1:-}" == "--dry-run" ]]; then
 fi
 
 if [[ $# -eq 0 ]]; then
-    sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'
+    awk 'NR>1 { if (/^#/) { sub(/^# ?/, ""); print } else exit }' "$0"
     exit 1
 fi
 
