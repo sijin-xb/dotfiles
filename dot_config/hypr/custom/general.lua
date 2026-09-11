@@ -78,18 +78,13 @@ hl.config({
     },
 
     -- ============================================================
-    -- 边框：极淡化 / 透明化，让阴影独自承担"描边"角色
+    -- 边框颜色交给 matugen 管理
     -- ------------------------------------------------------------
-    -- 注意：边框大小（border_size）请去 quickshell 设置面板
-    -- → "边框大小" 调成 0 或 1，完全让位于阴影
-    -- 这里只把颜色改成几乎完全透明，防止残留硬边
+    -- 不要在这里硬编码 active_border / inactive_border，
+    -- 否则会覆盖 matugen 生成的 hyprland/colors.lua。
+    -- 边框颜色现在来自 matugen 模板：
+    --   ~/.config/matugen/templates/hyprland/colors.lua
+    --     → ~/.config/hypr/hyprland/colors.lua
+    -- 边框大小（border_size）仍由 quickshell 设置面板控制。
     -- ============================================================
-    general = {
-        col = {
-            -- 活跃边框：完全透明 → 把可见"边框感"全交给阴影
-            active_border   = "rgba(89B4FA00)",
-            -- 非活跃边框：也完全透明
-            inactive_border = "rgba(45475A00)",
-        },
-    },
 })
