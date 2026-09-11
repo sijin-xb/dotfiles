@@ -67,9 +67,10 @@ Item {
         anchors { top: true }
         margins { top: 62 }
 
-        // 加宽以容纳主岛两侧的伴随指示器（左：录屏；右：包管理）
+        // 尺寸需同时容纳两侧伴随指示器和最高的展开态。
+        // 高度若小于展开态（音乐 190），岛会被窗口裁掉，按钮行贴到边缘。
         implicitWidth: 640
-        implicitHeight: 180
+        implicitHeight: 220
 
         mask: Region { item: island.contentMaskItem }
 

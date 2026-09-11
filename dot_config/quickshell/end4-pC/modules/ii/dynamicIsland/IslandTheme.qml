@@ -52,7 +52,10 @@ QtObject {
     // ===== 尺寸映射（Expanded）=====
     readonly property var expandedSizes: ({
         idle:         { w: 126, h: 37,  r: 19 },
-        music:        { w: 320, h: 168, r: 28 },
+        // 高度需容纳：封面行 48 + 进度组 26 + 按钮行 40 + 间距 + 上下留白。
+        // 底部还要额外让出分页点的位置（贴在岛底 8px 处），否则按钮会
+        // 和分页点挤在一起，视觉上像贴着边缘。
+        music:        { w: 320, h: 190, r: 28 },
         volume:       { w: 300, h: 140, r: 28 },
         notification: { w: 320, h: 120, r: 28 },
         recording:    { w: 200, h: 37,  r: 19 },

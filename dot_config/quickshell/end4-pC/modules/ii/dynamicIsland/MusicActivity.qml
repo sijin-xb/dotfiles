@@ -164,7 +164,12 @@ Item {
     // ===================== Expanded =====================
     Item {
         anchors.fill: parent
-        anchors.margins: 16
+        // 底部多留 10px：分页点贴在岛底 8px 处，若底部同为 16 会
+        // 让按钮行和分页点几乎贴在一起，看起来像顶到了边缘。
+        anchors.leftMargin: 16
+        anchors.rightMargin: 16
+        anchors.topMargin: 16
+        anchors.bottomMargin: 26
         visible: root.expanded
 
         // ---- 第 0 页：播放控制 ----
