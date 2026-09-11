@@ -42,7 +42,6 @@ sync_one() {
     local src_rel="dot_${first#.}/$rest"
     local dst="$SRC/$src_rel"
 
-    # 源里可能带 executable_ 前缀（install.sh 会把前缀剥掉并加执行位）
     if [[ ! -e "$dst" ]]; then
         local cand
         cand="$(dirname "$src_rel")/executable_$(basename "$src_rel")"
