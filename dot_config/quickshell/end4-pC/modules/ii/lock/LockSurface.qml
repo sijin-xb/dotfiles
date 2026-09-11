@@ -110,42 +110,9 @@ MouseArea {
     //     }
     // }
 
-    // Ambient album art background: whenever a player has a current track
-    // with artwork, the lock background fades to the cover blurred
-    // full-screen (Android ambient style) with a light scrim so the
-    // password box stays readable. Falls back to the wallpaper otherwise.
-    Item {
-        id: ambientArtBg
-        anchors.fill: parent
-        readonly property bool active: root.artUrl !== "" && root.activePlayer !== null
-        visible: opacity > 0.001
-        opacity: active ? 1 : 0
-        Behavior on opacity {
-            NumberAnimation {
-                duration: 600
-                easing.type: Easing.InOutQuad
-            }
-        }
-
-        Image {
-            id: ambientArtSource
-            anchors.fill: parent
-            source: root.artUrl
-            fillMode: Image.PreserveAspectCrop
-            asynchronous: true
-            cache: false
-            visible: false
-        }
-        FastBlur {
-            anchors.fill: parent
-            source: ambientArtSource
-            radius: 48
-        }
-        Rectangle {
-            anchors.fill: parent
-            color: Qt.rgba(0, 0, 0, 0.25)
-        }
-    }
+    // 锁屏背景固定使用桌面壁纸（下方 wallpaperBg）。
+    // 之前的「播放时淡入模糊专辑封面」已移除——那是 ambient 风格的封面背景，
+    // 但更习惯锁屏始终是同一张桌面壁纸，不随播放状态变化。
 
     // ── Desktop wallpaper backdrop (all compositors) ────────────
     // Mirrors Background.qml's source chain 1:1 so the lock backdrop is

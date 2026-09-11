@@ -15,7 +15,9 @@ Item {
         ? payload.indeterminate : (percent < 0)
     readonly property string label: payload.label !== undefined ? payload.label : ""
 
-    readonly property string iconName: "download"
+    // 任务图标由数据源指定（payload.icon），未指定时回退到下载图标。
+    // 这样 PackageActivity 能直接复用给 download 等其它任务类型。
+    readonly property string iconName: payload.icon !== undefined ? payload.icon : "download"
 
     // ===================== Compact =====================
     RowLayout {

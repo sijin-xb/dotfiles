@@ -9,6 +9,10 @@ Item {
     property var payload: ({})
     property var visualizerPoints: []
     property var lyricsProvider: null
+    // 封面主色（由 Host 注入）。为空则用主题色，保证无封面时观感不变。
+    property color accentColor: "transparent"
+    readonly property bool hasAccent: accentColor.a > 0.01
+    readonly property color effectiveAccent: hasAccent ? accentColor : IslandTheme.text
     property int page: 0
     readonly property int pageCount: 2
 
@@ -417,7 +421,8 @@ Item {
                                             Text {
                                                 anchors.left: parent.left
                                                 text: modelData.text
-                                                color: "#FFFFFF"
+                                                // 有封面主色时用它，否则纯白
+                                                color: root.hasAccent ? root.effectiveAccent : "#FFFFFF"
                                                 font.family: IslandTheme.fontFamily
                                                 font.pixelSize: IslandTheme.fontBody + 1
                                                 font.weight: Font.Bold

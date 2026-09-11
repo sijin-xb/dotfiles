@@ -1,4 +1,5 @@
 import QtQuick
+import qs.services
 
 // 灵动岛主容器。
 // 窗口尺寸恒定，动画只发生在内部 pill 上；无活动时 pill 收缩到 0。
@@ -10,6 +11,8 @@ Item {
     property var payload: ({})
     property var visualizerPoints: []
     property var lyricsProvider: null
+    // 封面主色：注入到活动组件，用于频谱/歌词高亮着色
+    property color accentColor: "transparent"
 
     // 展开态的页面（多页活动用，如音乐的控制页/歌词页）
     property int page: 0
@@ -56,6 +59,27 @@ Item {
         && activityType !== "notification" && !expanded
     readonly property var notificationPayload: notificationActive
         ? ActivityManager.entries["notification"].payload : ({})
+
+    // 任务类副岛（package / download …）：只要该活动在跑且没占着主岛，就挂右侧。
+    // 用列表驱动，新增任务类型不用再改这里的布局。
+    readonly property var taskCompanionTypes: {
+        const out = []
+        const e = ActivityManager.entries
+        if (!e) return out
+        const order = ["package", "download"]
+        for (let i = 0; i < order.length; i++) {
+            const t = order[i]
+            if (e[t] !== undefined && activityType !== t && !expanded)
+                out.push(t)
+        }
+        return out
+    }
+    readonly property bool hasAnyTaskCompanion: taskCompanionTypes.length > 0
+
+    function companionPayload(type) {
+        const e = ActivityManager.entries
+        return (e && e[type] && e[type].payload) ? e[type].payload : ({})
+    }
 
     function fmtCompanion(sec) {
         const m = Math.floor(sec / 60)
@@ -122,7 +146,7 @@ Item {
         anchors.top: parent.top
         width: (companion.visible ? companion.width + 8 : 0)
              + pill.width
-             + (rightCompanions.visible ? 8 + rightCompanions.width : 0)
+             + ((rightCompanions.visible && rightCompanions.width > 0) ? 8 + rightCompanions.width : 0)
         height: Math.max(companion.height, Math.max(pill.height, rightCompanions.height))
 
         // 左：录屏伴随指示器（脉冲红点 + 计时 + 点击停止）
@@ -213,21 +237,61 @@ Item {
             cursorShape: Qt.PointingHandCursor
 
             property real pressX: 0
+            property real pressY: 0
             property bool swiped: false
+            // 垂直手势（收起态调音量）一旦触发，抬手就不算点击
+            property bool verticalSwiped: false
+            property real volumeAtPress: 0
 
-            onPressed: (e) => { pressX = e.x; swiped = false; root.dragShift = 0 }
+            onPressed: (e) => {
+                // 映射到 root 而非直接用 e.x/e.y（相对 MouseArea）：调音量会让
+                // 灵动岛切到音量活动、宽度随之变化，MouseArea 原点也会平移，
+                // 用局部坐标会把「布局变化」误算成「手指移动」。root 锚在窗口
+                // 中心，尺寸固定，映射后坐标稳定。
+                const p0 = pillMouse.mapToItem(root, e.x, e.y)
+                pressX = p0.x
+                pressY = p0.y
+                swiped = false
+                verticalSwiped = false
+                root.dragShift = 0
+                volumeAtPress = Audio.value
+            }
+
             onPositionChanged: (e) => {
-                if (root.expanded && root.pageCount > 1) {
-                    const dx = e.x - pressX
-                    if (Math.abs(dx) > 8) swiped = true
-                    // 跟手位移（限制在相邻页范围内）
+                const p = pillMouse.mapToItem(root, e.x, e.y)
+                const dx = p.x - pressX
+                const dy = p.y - pressY
+
+                if (!root.expanded) {
+                    // 收起态：上下滑调音量。阈值 12px 且要求纵向位移明显大于横向，
+                    // 避免手指微抖就误改音量。向上滑 = 音量增大。
+                    if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx) * 1.5) {
+                        verticalSwiped = true
+                        // 约 220px 走完 0→100%，手感接近系统音量条
+                        const delta = -dy / 220.0
+                        const nv = Math.max(0, Math.min(1, volumeAtPress + delta))
+                        if (Audio.sink?.audio)
+                            Audio.sink.audio.volume = nv
+                    }
+                    return
+                }
+
+                // 展开态：水平滑动切页
+                if (root.pageCount > 1 && Math.abs(dx) > 8) {
+                    swiped = true
                     if (swiped)
                         root.dragShift = Math.max(-root.animatedWidth, Math.min(root.animatedWidth, dx * 0.5))
                 }
             }
+
             onReleased: (e) => {
+                if (verticalSwiped) {
+                    root.dragShift = 0
+                    return
+                }
                 if (swiped) {
-                    const dx = e.x - pressX
+                    const pRel = pillMouse.mapToItem(root, e.x, e.y)
+                    const dx = pRel.x - pressX
                     if (dx < -40 && root.page < root.pageCount - 1) root.page += 1
                     else if (dx > 40 && root.page > 0) root.page -= 1
                 } else {
@@ -275,6 +339,8 @@ Item {
                         item.page = Qt.binding(function() { return root.page })
                     if (item.lyricsProvider !== undefined)
                         item.lyricsProvider = Qt.binding(function() { return root.lyricsProvider })
+                    if (item.accentColor !== undefined)
+                        item.accentColor = Qt.binding(function() { return root.accentColor })
                     // 转发音乐控制信号（仅 MusicActivity 有这些信号）
                     if (item.prevRequested !== undefined) {
                         item.prevRequested.connect(root.musicPrev)
@@ -310,114 +376,123 @@ Item {
         }
         }
 
-        // 右：伴随指示器组（包管理 + 通知）
+        // 右：伴随指示器组（任务 + 通知）
         // 与左侧录屏副岛对称：同高 37、同圆角 19、同字号 fontBody。
         Row {
             id: rightCompanions
             anchors.left: pill.right
-            anchors.leftMargin: 8
+            anchors.leftMargin: visible ? 8 : 0
             anchors.verticalCenter: parent.verticalCenter
             spacing: 6
-            visible: root.showPackageCompanion || root.showNotifCompanion
-            // Row 的 width/height 默认是 0（不是 implicit 值）。
-            // 这里直接用「是否显示」来决定尺寸，避免 visible 与 width 互相依赖。
-            width: (root.showPackageCompanion ? (pkgRow.implicitWidth + 26) : 0)
-                 + (root.showPackageCompanion && root.showNotifCompanion ? spacing : 0)
-                 + (root.showNotifCompanion ? (notifRow.implicitWidth + 26) : 0)
+            visible: root.hasAnyTaskCompanion || root.showNotifCompanion
+            // Row 的 width/height 默认是 0（不是 implicit 值），用 childrenRect 取实际内容宽。
+            width: childrenRect.width
             height: IslandTheme.compactSizes.idle.h
 
-        // 包管理（下载 / AUR 构建）：图标 + 迷你进度条 + 百分比
-        Rectangle {
-            id: pkgCompanion
-            visible: root.showPackageCompanion
-            width: pkgRow.implicitWidth + 26
-            height: IslandTheme.compactSizes.idle.h
-            radius: IslandTheme.compactSizes.idle.r
-            color: IslandTheme.surface
-            clip: true
+        // 任务类副岛：图标 + 迷你进度条 + 百分比
+        // 由 taskCompanionTypes 驱动，新增任务类型无需改布局。
+        Repeater {
+            id: taskCompanions
+            model: root.taskCompanionTypes
 
-            Row {
-                id: pkgRow
-                anchors.centerIn: parent
-                spacing: 7
+            delegate: Rectangle {
+                id: taskPill
+                required property string modelData
+                readonly property var payload: root.companionPayload(modelData)
+                readonly property bool indet: payload.indeterminate ?? true
+                // 暴露给子项：Repeater delegate 里的 parent.parent 链在
+                // 组件边界处不可靠，用显式 id 引用。
+                readonly property string iconName: payload.icon ?? "download"
 
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: "download"
-                    font.family: IslandTheme.iconFontFamily
-                    font.pixelSize: 16
-                    color: IslandTheme.text
-                }
+                width: taskRow.implicitWidth + 26
+                height: IslandTheme.compactSizes.idle.h
+                radius: IslandTheme.compactSizes.idle.r
+                color: IslandTheme.surface
+                clip: true
 
-                Rectangle {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 40
-                    height: 4
-                    radius: 2
-                    color: IslandTheme.track
-                    clip: true
+                Row {
+                    id: taskRow
+                    anchors.centerIn: parent
+                    spacing: 7
 
-                    // 已知进度：按百分比填充
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: taskPill.iconName
+                        font.family: IslandTheme.iconFontFamily
+                        font.pixelSize: 16
+                        color: IslandTheme.text
+                    }
+
                     Rectangle {
-                        visible: !(root.packagePayload.indeterminate ?? true)
-                        height: parent.height
-                        radius: parent.radius
-                        width: parent.width * Math.max(0, Math.min(100, root.packagePayload.percent ?? 0)) / 100
-                        gradient: Gradient {
-                            GradientStop { position: 0.0; color: "#60A5FA" }
-                            GradientStop { position: 1.0; color: "#6366F1" }
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 40
+                        height: 4
+                        radius: 2
+                        color: IslandTheme.track
+                        clip: true
+
+                        // 已知进度：按百分比填充
+                        Rectangle {
+                            visible: !taskPill.indet
+                            height: parent.height
+                            radius: parent.radius
+                            width: parent.width * Math.max(0, Math.min(100, taskPill.payload.percent ?? 0)) / 100
+                            gradient: Gradient {
+                                GradientStop { position: 0.0; color: "#60A5FA" }
+                                GradientStop { position: 1.0; color: "#6366F1" }
+                            }
+                            Behavior on width {
+                                NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+                            }
                         }
-                        Behavior on width {
-                            NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+
+                        // 进度未知：一小块来回滑动，明确表示“正在跑”
+                        Rectangle {
+                            id: taskIndetBlock
+                            visible: taskPill.indet
+                            width: 16
+                            height: parent.height
+                            radius: parent.radius
+                            gradient: Gradient {
+                                GradientStop { position: 0.0; color: "#60A5FA" }
+                                GradientStop { position: 1.0; color: "#6366F1" }
+                            }
+                            SequentialAnimation on x {
+                                running: taskIndetBlock.visible
+                                loops: Animation.Infinite
+                                NumberAnimation { from: -16; to: 40; duration: 850; easing.type: Easing.InOutSine }
+                                NumberAnimation { from: 40; to: -16; duration: 850; easing.type: Easing.InOutSine }
+                            }
                         }
                     }
 
-                    // 进度未知：一小块来回滑动，明确表示“正在跑”
-                    Rectangle {
-                        id: pkgIndetBlock
-                        visible: root.packagePayload.indeterminate ?? true
-                        width: 16
-                        height: parent.height
-                        radius: parent.radius
-                        gradient: Gradient {
-                            GradientStop { position: 0.0; color: "#60A5FA" }
-                            GradientStop { position: 1.0; color: "#6366F1" }
-                        }
-                        SequentialAnimation on x {
-                            running: pkgIndetBlock.visible
+                    // 进度未知时用旋转图标代替省略号
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: taskPill.indet
+                        text: "progress_activity"
+                        font.family: IslandTheme.iconFontFamily
+                        font.pixelSize: 14
+                        color: IslandTheme.text
+                        transformOrigin: Item.Center
+                        RotationAnimation on rotation {
+                            running: parent.visible
+                            from: 0; to: 360
+                            duration: 1000
                             loops: Animation.Infinite
-                            NumberAnimation { from: -16; to: 40; duration: 850; easing.type: Easing.InOutSine }
-                            NumberAnimation { from: 40; to: -16; duration: 850; easing.type: Easing.InOutSine }
                         }
                     }
-                }
 
-                // 进度未知时用旋转图标代替省略号
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: root.packagePayload.indeterminate ?? true
-                    text: "progress_activity"
-                    font.family: IslandTheme.iconFontFamily
-                    font.pixelSize: 14
-                    color: IslandTheme.text
-                    transformOrigin: Item.Center
-                    RotationAnimation on rotation {
-                        running: parent.visible
-                        from: 0; to: 360
-                        duration: 1000
-                        loops: Animation.Infinite
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: !taskPill.indet
+                        text: (taskPill.payload.percent ?? 0) + "%"
+                        color: IslandTheme.text
+                        font.family: IslandTheme.fontFamily
+                        font.pixelSize: IslandTheme.fontBody
+                        font.weight: Font.Medium
+                        font.features: { "tnum": 1 }
                     }
-                }
-
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: !(root.packagePayload.indeterminate ?? true)
-                    text: (root.packagePayload.percent ?? 0) + "%"
-                    color: IslandTheme.text
-                    font.family: IslandTheme.fontFamily
-                    font.pixelSize: IslandTheme.fontBody
-                    font.weight: Font.Medium
-                    font.features: { "tnum": 1 }
                 }
             }
         }
@@ -469,6 +544,7 @@ Item {
         case "volume":    return volumeComp
         case "recording": return recordingComp
         case "package":   return packageComp
+        case "download":  return packageComp
         case "notification": return notificationComp
         default:          return idleComp
         }

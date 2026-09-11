@@ -13,5 +13,8 @@ IdleActivity 1.0 IdleActivity.qml
 MprisSource 1.0 MprisSource.qml
 VolumeSource 1.0 VolumeSource.qml
 RecordSource 1.0 RecordSource.qml
+TaskSource 1.0 TaskSource.qml
 PackageSource 1.0 PackageSource.qml
+DownloadSource 1.0 DownloadSource.qml
 NotificationSource 1.0 NotificationSource.qml
+ArtColorSource 1.0 ArtColorSource.qml

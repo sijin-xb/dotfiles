@@ -16,7 +16,15 @@ Item {
     VolumeSource { id: volumeSource }
     RecordSource { id: recordSource }
     PackageSource { id: packageSource }
+    DownloadSource { id: downloadSource }
     NotificationSource { id: notificationSource }
+
+    // 封面取色：量化当前歌曲封面，得到主色供灵动岛着色。
+    ArtColorSource {
+        id: artColor
+        artUrl: (ActivityManager.currentType === "music")
+            ? (ActivityManager.currentPayload.artUrl ?? "") : ""
+    }
 
     // cava 可视化数据：仅音乐活动且播放中时运行
     CavaSource {
@@ -52,6 +60,7 @@ Item {
             payload: ActivityManager.currentPayload
             visualizerPoints: cavaSource.points
             lyricsProvider: root.lyricsProvider
+            accentColor: artColor.dominantColor
             onActivated: {
                 if (ActivityManager.currentType === "recording") {
                     Quickshell.execDetached([Quickshell.env("HOME") + "/.config/quickshell/end4-pC/scripts/videos/record.sh"])
@@ -86,21 +95,40 @@ Item {
             return "当前: " + ActivityManager.currentType + " | 队列: " + ActivityManager.debugList()
         }
 
-        // 下载 / AUR 构建脚本可调用以下接口在灵动岛右侧显示进度：
-        //   qs -c end4-pC ipc call island pkg_begin "安装 foo"
-        //   qs -c end4-pC ipc call island pkg_progress 45
-        //   qs -c end4-pC ipc call island pkg_end
-        function pkg_begin(label: string): string {
-            packageSource.begin(label)
-            return "包任务已开始: " + label
+        // 通用任务进度上报。taskId 取数据源 id（"package" / "download"）：
+        //   qs -c end4-pC ipc call island task_begin "下载 foo.iso" download
+        //   qs -c end4-pC ipc call island task_progress 42 download
+        //   qs -c end4-pC ipc call island task_end download
+        function taskSourceFor(id) {
+            switch (id) {
+            case "package":  return packageSource
+            case "download": return downloadSource
+            default:         return null
+            }
         }
-        function pkg_progress(percent: int): string {
-            packageSource.progress(percent)
-            return "包任务进度: " + percent + "%"
+
+        function task_begin(label: string, taskId: string): string {
+            const s = taskSourceFor(taskId)
+            if (!s) return "未知任务类型: " + taskId
+            s.begin(label)
+            return taskId + " 任务已开始: " + label
         }
-        function pkg_end(): string {
-            packageSource.finish()
-            return "包任务已结束"
+        function task_progress(percent: int, taskId: string): string {
+            const s = taskSourceFor(taskId)
+            if (!s) return "未知任务类型: " + taskId
+            s.progress(percent)
+            return taskId + " 任务进度: " + percent + "%"
         }
+        function task_end(taskId: string): string {
+            const s = taskSourceFor(taskId)
+            if (!s) return "未知任务类型: " + taskId
+            s.finish()
+            return taskId + " 任务已结束"
+        }
+
+        // 包管理旧接口（保留兼容）
+        function pkg_begin(label: string): string { return task_begin(label, "package") }
+        function pkg_progress(percent: int): string { return task_progress(percent, "package") }
+        function pkg_end(): string { return task_end("package") }
     }
 }
