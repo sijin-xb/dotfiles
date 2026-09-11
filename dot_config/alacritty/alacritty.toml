@@ -1,6 +1,7 @@
+# iNiR wallpaper theming - import must be at top to override colors
 [general]
+import = ["~/.config/alacritty/colors.toml"]
 working_directory = "None"
-live_config_reload = true
 
 [env]
 TERM = "xterm-256color"
