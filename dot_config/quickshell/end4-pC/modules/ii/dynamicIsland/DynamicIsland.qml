@@ -22,6 +22,12 @@ Item {
     // 封面主色：注入到活动组件，用于频谱/歌词高亮着色
     property color accentColor: "transparent"
 
+    // 位置偏移：由 Host 设置并持久化（Persistent.states.island），右键拖动改变。
+    property real offsetX: 0
+    property real offsetY: 0
+    // 无偏移时岛距屏幕顶部的距离。
+    property real baseTop: 62
+
     // 展开态的页面（多页活动用，如音乐的控制页/歌词页）
     property int page: 0
     readonly property int pageCount: activityLoader.item ? (activityLoader.item.pageCount ?? 1) : 1
@@ -40,6 +46,8 @@ Item {
     signal seekRequested(real seconds)
     // 点副岛胶囊：请求展开主岛（Host 负责把 expanded 置 true）
     signal expandRequested()
+    // 右键拖动灵动岛：增量位移（root 坐标系）交给 Host 累加应用
+    signal dragMoveRequested(real dx, real dy)
 
     property alias pillItem: pill
     property alias contentMaskItem: contentRow
@@ -172,10 +180,13 @@ Item {
     }
 
     // 整体（伴随指示器 + 主岛）水平居中；无伴随指示器时与原来等价。
+    // 偏移通过 anchor offset 应用：窗口全屏固定，动的只有岛本身。
     Item {
         id: contentRow
         anchors.horizontalCenter: parent.horizontalCenter
+        anchors.horizontalCenterOffset: root.offsetX
         anchors.top: parent.top
+        anchors.topMargin: root.baseTop + root.offsetY
         width: (companion.visible ? companion.width + 8 : 0)
              + pill.width
              + ((rightCompanions.visible && rightCompanions.width > 0) ? 8 + rightCompanions.width : 0)
@@ -266,7 +277,9 @@ Item {
         MouseArea {
             id: pillMouse
             anchors.fill: parent
-            cursorShape: Qt.PointingHandCursor
+            // 默认只接受左键，必须显式加右键，否则右键拖动收不到事件
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            cursorShape: rightDragging ? Qt.SizeAllCursor : Qt.PointingHandCursor
 
             property real pressX: 0
             property real pressY: 0
@@ -275,7 +288,20 @@ Item {
             property bool verticalSwiped: false
             property real volumeAtPress: 0
 
+            // 右键拖动：窗口固定不动、只移动窗口内的岛，事件坐标始终在稳定
+            // 坐标系里。「本次 - 上次」即纯鼠标位移，交给 Host 累加即可。
+            property bool rightDragging: false
+            property real lastRightX: 0
+            property real lastRightY: 0
+
             onPressed: (e) => {
+                if (e.button === Qt.RightButton) {
+                    rightDragging = true
+                    const rp = pillMouse.mapToItem(root, e.x, e.y)
+                    lastRightX = rp.x
+                    lastRightY = rp.y
+                    return
+                }
                 // 映射到 root 而非直接用 e.x/e.y（相对 MouseArea）：调音量会让
                 // 灵动岛切到音量活动、宽度随之变化，MouseArea 原点也会平移，
                 // 用局部坐标会把「布局变化」误算成「手指移动」。root 锚在窗口
@@ -290,6 +316,22 @@ Item {
             }
 
             onPositionChanged: (e) => {
+                if (rightDragging) {
+                    // 右键已松开（事件可能先于 released 到达）就结束拖动
+                    if (!(e.buttons & Qt.RightButton)) {
+                        rightDragging = false
+                        return
+                    }
+                    const rp = pillMouse.mapToItem(root, e.x, e.y)
+                    const rdx = rp.x - lastRightX
+                    const rdy = rp.y - lastRightY
+                    lastRightX = rp.x
+                    lastRightY = rp.y
+                    if (rdx !== 0 || rdy !== 0)
+                        root.dragMoveRequested(rdx, rdy)
+                    return
+                }
+
                 const p = pillMouse.mapToItem(root, e.x, e.y)
                 const dx = p.x - pressX
                 const dy = p.y - pressY
@@ -317,6 +359,10 @@ Item {
             }
 
             onReleased: (e) => {
+                if (rightDragging) {
+                    rightDragging = false
+                    return
+                }
                 if (verticalSwiped) {
                     root.dragShift = 0
                     return

@@ -2,6 +2,9 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
+// Persistent 单例在 modules/common 下，不导入的话持久化会静默抛
+// ReferenceError（ActivityManager 等同目录文件靠 QML 隐式目录导入才可用）
+import qs.modules.common
 
 // 灵动岛宿主：负责窗口、数据源与信号连接。
 // shell.qml 只需一行 `DynamicIslandHost {}`。
@@ -59,24 +62,52 @@ Item {
         screen: Quickshell.screens[0] ?? null
         color: "transparent"
 
+        // 右键拖动偏移：持久化保存，重启后保持位置。
+        // 窗口不直接绑定 Persistent（拖动时要写它），改为就绪后一次性恢复。
+        property real xOffset: 0
+        property real yOffset: 0
+
+        readonly property real screenW: screen ? screen.width : 1920
+        readonly property real screenH: screen ? screen.height : 1080
+
+        // 拖动范围按岛（含副岛）的当前实际尺寸动态限制，避免拖出屏幕后找不回来。
+        readonly property real contentW: island.contentMaskItem ? island.contentMaskItem.width : 0
+        readonly property real contentH: island.contentMaskItem ? island.contentMaskItem.height : 0
+        readonly property real maxXOffset: Math.max(0, (screenW - contentW) / 2)
+        readonly property real maxYOffset: Math.max(0, screenH - contentH - island.baseTop)
+        readonly property real clampedX: Math.max(-maxXOffset, Math.min(maxXOffset, xOffset))
+        readonly property real clampedY: Math.max(-island.baseTop, Math.min(maxYOffset, yOffset))
+
+        function restoreOffset() {
+            window.xOffset = Persistent.states.island.xOffset ?? 0
+            window.yOffset = Persistent.states.island.yOffset ?? 0
+        }
+
+        Component.onCompleted: if (Persistent.ready) restoreOffset()
+        Connections {
+            target: Persistent
+            function onReadyChanged() {
+                if (Persistent.ready) window.restoreOffset()
+            }
+        }
+
         WlrLayershell.namespace: "quickshell:dynamicIsland"
         WlrLayershell.layer: WlrLayer.Overlay
         exclusionMode: ExclusionMode.Ignore
         exclusiveZone: 0
 
-        anchors { top: true }
-        margins { top: 62 }
-
-        // 尺寸需同时容纳两侧伴随指示器和最高的展开态。
-        // 高度若小于展开态（音乐 190），岛会被窗口裁掉，按钮行贴到边缘。
-        implicitWidth: 640
-        implicitHeight: 220
+        // 全屏透明窗口，输入只留给岛本身（mask）。拖动只移动窗口内的岛，
+        // 不动 layer-shell 窗口本身：改 margins 会让 Hyprland 反复重配 surface，
+        // 指针事件坐标系跟着窗口跳变，拖动会抖甚至乱飞（桌宠同款方案）。
+        anchors { top: true; left: true; right: true; bottom: true }
 
         mask: Region { item: island.contentMaskItem }
 
         DynamicIsland {
             id: island
             anchors.fill: parent
+            offsetX: window.clampedX
+            offsetY: window.clampedY
             activityType: ActivityManager.currentType
             expanded: root.expanded
             payload: ActivityManager.currentPayload
@@ -101,6 +132,14 @@ Item {
             onSeekRequested: (seconds) => mprisSource.seekTo(seconds)
             // 点击副岛胶囊：展开主岛，让该活动的展开态可见
             onExpandRequested: root.expanded = true
+            // 右键拖动：增量位移累加到当前偏移（贴屏幕边缘拖动时以 clamped
+            // 值为基准，避免把 offset 累加到边界之外），并写回持久化。
+            onDragMoveRequested: (dx, dy) => {
+                window.xOffset = window.clampedX + dx
+                window.yOffset = window.clampedY + dy
+                Persistent.states.island.xOffset = window.xOffset
+                Persistent.states.island.yOffset = window.yOffset
+            }
         }
     }
 
@@ -140,6 +179,20 @@ Item {
             if (!s) return "未知任务类型: " + taskId
             s.finish()
             return taskId + " 任务已结束"
+        }
+
+        // 重置灵动岛位置（拖出屏幕后可用）：
+        //   qs -c end4-pC ipc call island reset_position
+        function reset_position(): string {
+            try {
+                window.xOffset = 0
+                window.yOffset = 0
+                Persistent.states.island.xOffset = 0
+                Persistent.states.island.yOffset = 0
+                return "灵动岛位置已重置"
+            } catch (e) {
+                return "重置失败: " + e
+            }
         }
 
         // 包管理旧接口（保留兼容）
