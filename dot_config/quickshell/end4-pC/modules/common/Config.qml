@@ -830,6 +830,7 @@ Singleton {
             }
             
             property JsonObject wallpaperSelector: JsonObject {
+                property string viewMode: "grid" // "grid" | "carousel"
                 property bool useSystemFileDialog: false
                 property bool showBlurBackground: false
                 property bool showHomePath: true

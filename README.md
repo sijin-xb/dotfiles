@@ -209,6 +209,21 @@ install.sh                安装 / 卸载 / 回档 / 存档 / TUI
 
 ## 更新日志
 
+### 2026-09-11（第五次）
+
+**新增**
+
+- 壁纸选择器斜切轮播视图：水平轮播，选中项居中放大，相邻项按距离缩放 / 倾斜，
+  动态圆角，支持滚轮与方向键；灵感来自 [Serpantinum](https://github.com/ilyamiro/serpantinum)
+- 浮动筛选胶囊：全部 / 历史 / 视频 + 颜色圆点（只显示当前目录实际存在的色桶）+ 内联搜索框
+- 颜色索引脚本 `scripts/wallpapers/index_colors.py`：多线程算主色并分桶，
+  按 `(文件名, mtime, size)` 增量缓存到 `~/.cache/quickshell/wallpapers/`
+- `wallpaperSelector.viewMode` 配置项（`grid` 默认，`carousel` 可选），工具栏可一键切换
+
+**说明**
+
+- 网格仍是默认视图，轮播为可选；既有渲染、mpvpaper 视频播放与 matugen 取色均未改动
+
 ### 2026-09-11（第四次）
 
 **新增**
@@ -308,6 +323,8 @@ install.sh                安装 / 卸载 / 回档 / 存档 / TUI
 
 - 天气组件所用的天气 API 集成来自 [@gh0stzk](https://github.com/gh0stzk)
 - 部分 shader 过渡效果来自 [@simeulinuxkaliaiwr](https://github.com/simeulinuxkaliaiwr)
+- 壁纸选择器的斜切轮播视图 UI 灵感来自 [ilyamiro/serpantinum](https://github.com/ilyamiro/serpantinum)
+  by [@ilyamiro](https://github.com/ilyamiro)，按本项目设计令牌重写，未引入其运行时依赖
 
 ### 许可证继承
 
