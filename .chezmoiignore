@@ -1,0 +1,35 @@
+# ============================================================
+# chezmoi ignore 清单
+# ------------------------------------------------------------
+# 本仓库同时用 install.sh 部署：install.sh 直接遍历源目录复制
+# `dot_*` 文件（只识别 executable_ 前缀），不读取本文件。
+# 这里只屏蔽 chezmoi 会误处理的路径，源文件仍保留在 git 中。
+# ============================================================
+
+# ---- matugen 运行时生成物 ----
+.config/hypr/hyprland/colors.lua
+.config/hypr/hyprlock/colors.conf
+.config/alacritty/matugen-theme.toml
+.config/fuzzel/fuzzel_theme.ini
+.config/fastfetch/config.jsonc
+.config/mako/colors.conf
+
+# ---- quickshell 运行时生成物 ----
+.config/hypr/hyprland/shellOverrides/main.lua
+.config/hypr/hyprland/shellOverrides/animations.lua
+.config/illogical-impulse/config.json
+
+# ---- 应用程序运行时写回 ----
+.config/btop/btop.conf
+.config/mimeapps.list
+
+# ---- create_ 前缀命名冲突 ----
+# 源文件名 create_custom_config.lua 是字面文件名，被 init.lua require。
+# chezmoi 会把 create_ 当属性，误生成 custom_config.lua，故屏蔽该目标路径。
+.config/hypr/hyprland/services/custom_config.lua
+
+# ---- 仓库根目录文件（非 dotfiles，install.sh 自行跳过/使用）----
+README.md
+LICENSE
+install.sh
+Pictures/
