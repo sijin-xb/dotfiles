@@ -14,8 +14,8 @@ bash 脚本完成，不需要 chezmoi 二进制。
 - Hyprland 配置（Lua）。`hyprland/` 为模板层，`custom/` 为个人覆盖层
   （同名文件在模板之后加载并覆盖模板）
 - Quickshell（end4-pC fork）差异层：栏、侧边栏、启动器、总览、设置面板
-- 锁屏：Quickshell LockSurface（时钟、媒体卡片：专辑封面 / 可拖拽进度条 /
-  播放控制、密码输入、电源按钮）；quickshell 未运行时回退 hyprlock
+- 锁屏：Serpantinum 风格三栏布局（居中大时钟 → 点击展开系统监控 / 认证 /
+  通知+媒体 三栏翼面板）；quickshell 未运行时回退 hyprlock
 - 桌面歌词：逐字计时（酷狗 KRC），适配任意 MPRIS 播放器
 - 灵动岛：音乐 / 音量 / 录屏活动的顶部动态胶囊，详见下文「灵动岛」章节
 - matugen 壁纸取色：kitty / alacritty / foot / fastfetch / fcitx5 / mako /
@@ -97,17 +97,31 @@ dot_config/
     hyprlock.conf         回退锁屏配置
     hyprlock/             配色与辅助脚本
   quickshell/end4-pC/     shell 差异层（modules、services、scripts）
+    modules/ii/lock/      锁屏：Lock.qml 入口 + SerpantinumLockSurface.qml 视图
   fish/  kitty/  foot/  alacritty/  nvim/  btop/  fastfetch/  fuzzel/  mako/  matugen/
 install.sh                安装 / 卸载 / 回档 / 存档 / TUI
 ```
 
 ## 锁屏
 
-`Super+L` 触发 `quickshell:lock`。锁屏界面显示模糊后的桌面壁纸（与桌面
-背景同一源链，含 `lockWall` 覆盖与视频缩略图分支）、时钟与日期、媒体卡片
-（专辑封面、歌名 / 艺术家、可拖拽进度条、上一首 / 播放暂停 / 下一首）、
-密码输入框与电源按钮。hypridle 超时锁屏走同一入口；quickshell 未运行时
-使用 hyprlock。
+`Super+L` 触发 `quickshell:lock`。锁屏采用 Serpantinum 风格三栏布局：初始
+只有居中大时钟（时:分、日期、分时段问候），点击任意处或按任意键展开，大
+时钟缩小上移，三栏翼面板从下方浮现。
+
+| 栏位 | 内容 |
+|---|---|
+| 左翼 | 系统监控四宫格：CPU / 内存 / 温度 / 磁盘，环形进度 + 居中数值 |
+| 中翼 | 头像、用户名与状态、密码框、键盘布局与电池胶囊、电源按钮（休眠 / 重启 / 关机） |
+| 右翼 | 歌词卡（当前行前后共 7 行）、通知列表、媒体卡（封面、曲名、进度、播放控制） |
+
+`Esc` 收起并清空密码。头像加载链与桌面 `UserCardWidget` 一致：
+`Config.options.profile.avatarPath` 优先，否则读 `~/.face`，失败回退 person
+图标。歌词直接复用 `LyricsService`，与桌面歌词同一数据源。
+
+认证复用 `LockContext`（PAM + 指纹 + keyring），配色、圆角、字体、动画
+曲线全部取自 `Appearance`。背景是模糊后的桌面壁纸（与桌面同一源链，含
+`lockWall` 覆盖与视频缩略图分支）。hypridle 超时锁屏走同一入口；
+quickshell 未运行时使用 hyprlock。
 
 ## 灵动岛
 
@@ -217,6 +231,31 @@ install.sh                安装 / 卸载 / 回档 / 存档 / TUI
 `Persistent.states.record.enable` 即可恢复。
 
 ## 更新日志
+
+### 2026-09-12（第九次）
+
+**新增**
+
+- 锁屏改为 Serpantinum 风格三栏布局：居中大时钟 + 左翼系统监控 / 中翼认证 /
+  右翼歌词、通知、媒体。交互结构参考
+  [Serpantinum](https://github.com/ilyamiro/serpantinum)，但配色、组件、字体、
+  动画曲线全部改用本项目已有的设计令牌，未引入其运行时依赖。
+- 锁屏头像改用与桌面 `UserCardWidget` 相同的加载链（`avatarPath` → `~/.face`
+  → 图标回退），此前是写死的占位图标。
+- 锁屏右翼加入歌词卡，复用 `LyricsService`（与桌面歌词同一数据源，无额外拉取）。
+- Hyprland 窗口阴影对齐 Caelestia：`range` 48 → 15、`render_power` 17 → 4、
+  偏移归零、颜色由纯黑改为随主题变化的 `inverse_primary`。阴影改由 matugen
+  模板生成，换壁纸自动跟随。
+
+**修复**
+
+- 字体配置指向不存在的 `Google Sans Flex`，`fc-match` 静默回退到 Noto Sans CJK，
+  全局实际一直在用思源黑体。改为 `Google Sans`。
+
+**说明**
+
+- 锁屏 QML 基于 Qt6：`Button.contentItem` 是 FINAL 属性不可覆盖，圆形图标
+  按钮改为自绘；`clip: true` 只裁矩形，圆形头像用 `OpacityMask`。
 
 ### 2026-09-12（第八次）
 
@@ -354,6 +393,7 @@ install.sh                安装 / 卸载 / 回档 / 存档 / TUI
 ## 说明
 
 - 更换壁纸会触发重新取色；模板位于 `dot_config/matugen/templates/`
+  （Hyprland 窗口阴影颜色也由此生成，见 `templates/hyprland/colors.lua`）
 - 桌面歌词偏移微调：
   `qs -c end4-pC ipc call desktoplyrics offset_faster / offset_slower`
 - 备份根目录：`~/.local/state/dotfiles-backup/`（`snapshots/`、`state/`）
@@ -380,6 +420,10 @@ install.sh                安装 / 卸载 / 回档 / 存档 / TUI
 - 部分 shader 过渡效果来自 [@simeulinuxkaliaiwr](https://github.com/simeulinuxkaliaiwr)
 - 壁纸选择器的斜切轮播视图 UI 灵感来自 [ilyamiro/serpantinum](https://github.com/ilyamiro/serpantinum)
   by [@ilyamiro](https://github.com/ilyamiro)，按本项目设计令牌重写，未引入其运行时依赖
+- 锁屏的三栏布局交互与 Hyprland 窗口阴影参数参考
+  [caelestia-dots/caelestia](https://github.com/caelestia-dots/caelestia)
+  by [@caelestia-dots](https://github.com/caelestia-dots)，按本项目设计令牌重写，
+  未引入其 C++ 插件与运行时依赖
 
 ### 许可证继承
 
