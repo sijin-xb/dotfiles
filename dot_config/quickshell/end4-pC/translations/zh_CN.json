@@ -1125,5 +1125,15 @@
     "Line spectrum": "折线频谱",
     "Wave curve": "波形曲线",
     "Dot matrix": "点阵频谱",
-    "Filled wave": "填充波形"
+    "Filled wave": "填充波形",
+    "Wallpaper parallax": "壁纸视差",
+    "Cursor follow": "光标跟随",
+    "Cursor sensitivity": "光标灵敏度",
+    "Sidebar shift": "侧栏偏移量",
+    "Move on workspace switch": "工作区切换时移动",
+    "Move on sidebar toggle": "侧栏开合时移动",
+    "Workspace zoom": "工作区缩放",
+    "Widgets depth": "部件景深",
+    "Auto vertical": "自动纵向",
+    "Parallax is disabled for video wallpapers and centered wallpaper mode.": "视频壁纸和居中壁纸模式下视差自动禁用。"
 }
