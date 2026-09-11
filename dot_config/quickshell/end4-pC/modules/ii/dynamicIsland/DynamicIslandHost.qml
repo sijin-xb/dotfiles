@@ -36,10 +36,11 @@ Item {
         anchors { top: true }
         margins { top: 62 }
 
-        implicitWidth: 360
+        // 加宽以容纳主岛左侧的录屏伴随指示器
+        implicitWidth: 480
         implicitHeight: 180
 
-        mask: Region { item: island.pillItem }
+        mask: Region { item: island.contentMaskItem }
 
         DynamicIsland {
             id: island
@@ -59,6 +60,10 @@ Item {
             onMusicPrev: mprisSource.previous()
             onMusicPlayPause: mprisSource.togglePlay()
             onMusicNext: mprisSource.next()
+            // 点击左侧录屏伴随指示器：再跑一次 record.sh（其内部 pgrep 到 wf-recorder 就会停止并写回状态）
+            onRecordingStopRequested: {
+                Quickshell.execDetached([Quickshell.env("HOME") + "/.config/quickshell/end4-pC/scripts/videos/record.sh"])
+            }
         }
     }
 

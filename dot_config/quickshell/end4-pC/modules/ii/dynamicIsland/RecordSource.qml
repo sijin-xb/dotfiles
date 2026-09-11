@@ -14,9 +14,12 @@ Item {
     property bool recording: false
     property int elapsed: 0
 
+    // 优先级低于 music(10)：录屏与音乐并存时主岛留给音乐，
+    // 录屏改由 DynamicIsland 的左侧伴随指示器呈现（便于演示/录屏）。
+    // 单独录屏时仍是最高优先活动，主岛正常显示录屏计时。
     function publish() {
         if (recording) {
-            ActivityManager.set("recording", { elapsed: elapsed }, 20)
+            ActivityManager.set("recording", { elapsed: elapsed }, 5)
         } else {
             ActivityManager.clear("recording")
         }

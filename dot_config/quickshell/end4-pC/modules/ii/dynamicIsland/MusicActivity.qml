@@ -325,26 +325,34 @@ Item {
 
                         // 当前行：逐字高亮（分字渲染，避免 RichText 每帧重解析导致的卡顿）
                         Item {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
+                            // delegate 根是普通 Column，Layout.* 不会生效；必须显式给宽高。
+                            // 旧版只写了 Layout.fillWidth/fillHeight，Item 实际宽高都是 0，
+                            // 而子项用 anchors.centerIn + clip:true，于是当前行主文本被整条裁掉，
+                            // 只剩下面的翻译行可见。
+                            width: parent.width
+                            height: !modelData.active ? 0 : ((modelData.words && modelData.words.length > 0)
+                                ? wordsRow.implicitHeight
+                                : plainText.implicitHeight)
                             visible: modelData.active
                             clip: true
 
                             // 无逐字数据时，整行普通渲染
                             Text {
+                                id: plainText
                                 anchors.centerIn: parent
                                 visible: !(modelData.words && modelData.words.length > 0)
                                 text: modelData.text
                                 color: IslandTheme.text
                                 font.family: IslandTheme.fontFamily
                                 font.pixelSize: IslandTheme.fontBody + 1
-                                font.weight: Font.DemiBold
+                                font.weight: Font.Bold
                                 horizontalAlignment: Text.AlignHCenter
                                 elide: Text.ElideRight
                             }
 
                             // 逐字渲染：每个字一个 Text，仅颜色变化，引擎无需重解析
                             Row {
+                                id: wordsRow
                                 anchors.centerIn: parent
                                 visible: modelData.words && modelData.words.length > 0
                                 Repeater {
@@ -353,11 +361,12 @@ Item {
                                         required property var modelData
                                         readonly property bool lit: root.lyricTime >= modelData.start
                                         text: modelData.text
-                                        color: lit ? IslandTheme.text : Qt.rgba(1, 1, 1, 0.35)
+                                        // 已唱：纯白高亮；未唱：更暗（0.22），拉开对比
+                                        color: lit ? "#FFFFFF" : Qt.rgba(1, 1, 1, 0.22)
                                         font.family: IslandTheme.fontFamily
                                         font.pixelSize: IslandTheme.fontBody + 1
-                                        font.weight: Font.DemiBold
-                                        Behavior on color { ColorAnimation { duration: 100 } }
+                                        font.weight: Font.Bold
+                                        Behavior on color { ColorAnimation { duration: 90 } }
                                     }
                                 }
                             }
@@ -380,14 +389,17 @@ Item {
                             }
                         }
 
+                        // 翻译/英文行：随当前行一同高亮（原来恒暗，导致“英文不高亮”）
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter
                             width: parent.width
                             visible: modelData.active && modelData.trans.length > 0
                             text: modelData.trans
-                            color: IslandTheme.textSecondary
+                            color: IslandTheme.text
+                            opacity: 0.85
                             font.family: IslandTheme.fontFamily
-                            font.pixelSize: IslandTheme.fontTiny
+                            font.pixelSize: IslandTheme.fontTiny + 1
+                            font.weight: Font.Medium
                             horizontalAlignment: Text.AlignHCenter
                             elide: Text.ElideRight
                         }

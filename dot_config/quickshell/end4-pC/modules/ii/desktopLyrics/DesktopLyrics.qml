@@ -334,8 +334,11 @@ PanelWindow {
                 while ((word = wordRe.exec(body)) !== null) {
                     if (word[3].length === 0)
                         continue;
+                    // KRC 词偏移相对行首（首个字为 0），直接累加。
+                    // 旧的 rawStart>=krc[1] 三目判断会把行内偏移较大的字误当绝对时间，
+                    // 造成同一行时间戳非单调、高亮忽前忽后。
                     const rawStart = Number(word[1]);
-                    const wordStart = rawStart >= krc[1] ? rawStart / 1000 : start + rawStart / 1000;
+                    const wordStart = start + rawStart / 1000;
                     words.push({
                         text: word[3],
                         start: wordStart,

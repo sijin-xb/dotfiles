@@ -22,8 +22,27 @@ Item {
     signal musicPrev()
     signal musicPlayPause()
     signal musicNext()
+    // 点击左侧录屏伴随指示器：请求停止录屏。
+    // 录屏与音乐并存时主岛归音乐，停止录屏只能从这里触发。
+    signal recordingStopRequested()
 
     property alias pillItem: pill
+    property alias contentMaskItem: contentRow
+    property alias companionItem: companion
+
+    // 伴随指示器：录屏与其它活动并存时贴在主岛左侧（便于演示/录屏）；
+    // 主岛本身显示录屏时不再重复显示。
+    readonly property bool recordingActive: ActivityManager.entries !== undefined
+        && ActivityManager.entries["recording"] !== undefined
+    readonly property bool showCompanion: recordingActive && activityType !== "recording"
+    readonly property var recordingPayload: recordingActive
+        ? ActivityManager.entries["recording"].payload : ({})
+
+    function fmtCompanion(sec) {
+        const m = Math.floor(sec / 60)
+        const s = sec % 60
+        return m + ":" + (s < 10 ? "0" + s : s)
+    }
 
     readonly property bool hasContent: activityType !== "idle"
     readonly property var targetSize: IslandTheme.sizeFor(activityType, expanded)
@@ -75,12 +94,91 @@ Item {
         NumberAnimation { duration: IslandTheme.durationExpand; easing.type: Easing.OutQuint }
     }
 
-    Rectangle {
-        id: pill
+    // 整体（伴随指示器 + 主岛）水平居中；无伴随指示器时与原来等价。
+    Item {
+        id: contentRow
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
-        width: root.animatedWidth
-        height: root.animatedHeight
+        width: companion.visible ? companion.width + 8 + pill.width : pill.width
+        height: Math.max(companion.height, pill.height)
+
+        // 左：录屏伴随指示器（脉冲红点 + 计时 + 点击停止）
+        // 尺寸与主岛 compact 对齐：同高 37、同圆角 19、同字号 fontBody。
+        Rectangle {
+            id: companion
+            visible: root.showCompanion
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            width: visible ? (compRow.implicitWidth + 26) : 0
+            height: IslandTheme.compactSizes.idle.h
+            radius: IslandTheme.compactSizes.idle.r
+            color: IslandTheme.surface
+            clip: true
+
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.recordingStopRequested()
+            }
+
+            Row {
+                id: compRow
+                anchors.centerIn: parent
+                spacing: 7
+
+                Item {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 9
+                    height: 9
+
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: parent.width
+                        height: parent.height
+                        radius: width / 2
+                        color: IslandTheme.danger
+                        opacity: 0.0
+                        SequentialAnimation on scale {
+                            running: companion.visible
+                            loops: Animation.Infinite
+                            NumberAnimation { from: 1.0; to: 2.2; duration: 1100; easing.type: Easing.OutCubic }
+                            NumberAnimation { to: 1.0; duration: 0 }
+                        }
+                        SequentialAnimation on opacity {
+                            running: companion.visible
+                            loops: Animation.Infinite
+                            NumberAnimation { from: 0.4; to: 0.0; duration: 1100; easing.type: Easing.OutCubic }
+                            NumberAnimation { to: 0.4; duration: 0 }
+                        }
+                    }
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: parent.width
+                        height: parent.height
+                        radius: width / 2
+                        color: IslandTheme.danger
+                    }
+                }
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: root.fmtCompanion(root.recordingPayload.elapsed ?? 0)
+                    color: IslandTheme.text
+                    font.family: IslandTheme.fontFamily
+                    font.pixelSize: IslandTheme.fontBody
+                    font.weight: Font.Medium
+                    font.features: { "tnum": 1 }
+                }
+            }
+        }
+
+        Rectangle {
+            id: pill
+            anchors.left: companion.visible ? companion.right : parent.left
+            anchors.leftMargin: companion.visible ? 8 : 0
+            anchors.top: parent.top
+            width: root.animatedWidth
+            height: root.animatedHeight
         radius: root.animatedRadius
         color: IslandTheme.surface
         clip: true
@@ -173,6 +271,7 @@ Item {
                     Behavior on color { ColorAnimation { duration: 150 } }
                 }
             }
+        }
         }
     }
 
