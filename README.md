@@ -244,6 +244,23 @@ quickshell 未运行时使用 hyprlock。
 
 ## 更新日志
 
+### 2026-09-12（第十一次）
+
+**新增：GTK Material You 主题整合**
+
+- GTK3 和 GTK4 的 Matugen 模板现在纳入 chezmoi，包含统一的 Material You 配色、圆角控件、侧边栏、开关、进度条、弹出菜单和提示框样式。
+- GTK 默认字体统一为 `Google Sans 11`，图标继续使用稳定的 `WhiteSur-dark`。
+- 光标主题与 Hyprland 和壁纸取色流程同步，当前壁纸会自动选择匹配的 Catppuccin 光标颜色。
+- Qt5/Qt6 的备用配置改为有效的 `MaterialYouDark.colors`，不再引用不存在的 `Darkly.colors`。
+
+**开发者说明**
+
+- GTK3 模板：`dot_config/matugen/templates/gtk-3.0/gtk.css`。
+- GTK4 模板：`dot_config/matugen/templates/gtk-4.0/gtk.css`。
+- GTK 运行时设置：`dot_config/gtk-3.0/settings.ini` 和 `dot_config/gtk-4.0/settings.ini`。
+- 更换壁纸后，`matugen-update.sh` 会重新生成 GTK CSS，并同步 GTK 与 Hyprland 的动态光标。
+- GTK3/GTK4 CSS 已用系统 GTK CSS parser 验证通过。
+
 ### 2026-09-12（第十次）
 
 **新增：桌面小部件布局编辑器**
