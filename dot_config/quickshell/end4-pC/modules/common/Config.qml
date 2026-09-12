@@ -337,7 +337,7 @@ Singleton {
                         property bool enable: false
                         property string placementStrategy: "free"
                         property real x: 0
-                        property real y: 0
+                        property real y: -1 // 首次显示时贴近屏幕底部，拖动后保存实际位置
                         // 音频可视化样式: bars / mirror / line / wave / dots / area / circular / particles / spectrum / waveSpectrum
                         property string style: "bars"
                         // 灵敏度: 越大频谱越活跃（0.3 ~ 3.0）

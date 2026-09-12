@@ -174,6 +174,56 @@ Scope {
                         itemVerticalPadding: 16
                         bgcolor: Appearance.colors.colLayer0
 
+                        // Layout editor
+                        RippleButton {
+                            implicitHeight: 40
+                            toggled: !Config.options.background.widgetsLocked
+                            colBackground: "transparent"
+                            colBackgroundHover: Appearance.colors.colLayer2
+                            colBackgroundToggled: Appearance.colors.colPrimaryContainer
+                            colBackgroundToggledHover: Appearance.colors.colPrimary
+                            contentItem: RowLayout {
+                                anchors { fill: parent; leftMargin: 12; rightMargin: 12 }
+                                spacing: 12
+                                MaterialSymbol {
+                                    text: Config.options.background.widgetsLocked ? "lock" : "lock_open"
+                                    iconSize: Appearance.font.pixelSize.larger
+                                    color: Config.options.background.widgetsLocked
+                                        ? Appearance.colors.colOnLayer1
+                                        : Appearance.colors.colOnPrimaryContainer
+                                }
+                                StyledText {
+                                    Layout.fillWidth: true
+                                    text: Translation.tr(Config.options.background.widgetsLocked ? "Edit layout" : "Lock layout")
+                                    font.pixelSize: Appearance.font.pixelSize.normal
+                                    color: Config.options.background.widgetsLocked
+                                        ? Appearance.colors.colOnLayer1
+                                        : Appearance.colors.colOnPrimaryContainer
+                                }
+                                MaterialSymbol {
+                                    text: "chevron_right"
+                                    iconSize: Appearance.font.pixelSize.normal
+                                    color: Config.options.background.widgetsLocked
+                                        ? Appearance.colors.colOnLayer1
+                                        : Appearance.colors.colOnPrimaryContainer
+                                    opacity: 0.4
+                                }
+                            }
+                            onClicked: {
+                                Config.options.background.widgetsLocked = !Config.options.background.widgetsLocked
+                                GlobalStates.desktopMenuOpen = false
+                            }
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.topMargin: 4
+                            Layout.bottomMargin: 4
+                            implicitHeight: 1
+                            color: Appearance.colors.colOutlineVariant
+                            opacity: 0.4
+                        }
+
                         // Wallpapers
                         RippleButton {
                             id: wallpaperRow

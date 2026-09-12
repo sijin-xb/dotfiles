@@ -42,10 +42,6 @@ AbstractBackgroundWidget {
     implicitWidth: screenWidth
     implicitHeight: maxBarHeight + 80  // 给 spectrum/circular 等居中样式留高度
 
-    x: 0
-    y: screenHeight - implicitHeight
-    draggable: false
-
     // ── 颜色混合工具：从 baseColor(t) 线性插值到 peakColor(0) ──
     readonly property color baseColor: Appearance.colors.colPrimary
     readonly property color peakColor: Appearance.colors.colPrimaryContainer
