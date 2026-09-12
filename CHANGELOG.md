@@ -15,6 +15,9 @@
 - 浏览器识别用词边界正则而非子串匹配，避免 `edge` 误命中 `knowledge` 这类词而
   静默过滤掉真正的音乐播放器。
 - 新增设置项：设置 → 栏 → 媒体 → 「忽略浏览器媒体」。
+- 修正上游 `isRealPlayer` 的浏览器去重：它按 `dbusName` 前缀判断，而所有
+  Electron 应用的 bus 名都是 `org.mpris.MediaPlayer2.chromium.instanceN`，
+  于是 MoeKoeMusic / Vesktop 这类真正的播放器被一并过滤。改用身份判定。
 
 ### 2026-09-12（第十八次）
 

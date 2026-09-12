@@ -56,8 +56,11 @@ Singleton {
 	function isBrowserPlayer(player) {
 		if (!player)
 			return false;
+		// 只看 identity 和 desktopEntry，不能看 dbusName：
+		// 所有 Electron 应用的 bus 名都是
+		// org.mpris.MediaPlayer2.chromium.instanceN（MoeKoeMusic、Vesktop、
+		// Element 等），拿 bus 名判定会把它们全当成浏览器过滤掉。
 		const haystack = [
-			player.dbusName ?? "",
 			player.desktopEntry ?? "",
 			player.identity ?? ""
 		].join(" ");
@@ -79,9 +82,12 @@ Singleton {
         if (!Config.options.media.filterDuplicatePlayers) {
             return true;
         }
+        // 浏览器原生 bus 的去重必须用 isBrowserPlayer 判定，
+        // 不能裸看 dbusName 前缀：所有 Electron 应用的 bus 名都是
+        // org.mpris.MediaPlayer2.chromium.instanceN，按前缀判断会把
+        // MoeKoeMusic / Vesktop 这类真正的播放器一起干掉。
         return (
-            // Remove native browser buses only if plasma-browser-integration is actually active on D-Bus
-            !(hasActivePlasmaIntegration && player.dbusName.startsWith('org.mpris.MediaPlayer2.firefox')) && !(hasActivePlasmaIntegration && player.dbusName.startsWith('org.mpris.MediaPlayer2.chromium')) &&
+            !(hasActivePlasmaIntegration && isBrowserPlayer(player)) &&
             // playerctld just copies other buses and we don't need duplicates
             !player.dbusName?.startsWith('org.mpris.MediaPlayer2.playerctld') &&
             // Non-instance mpd bus
