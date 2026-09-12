@@ -619,6 +619,10 @@ Singleton {
             property JsonObject media: JsonObject {
                 // Attempt to remove dupes (the aggregator playerctl one and browsers' native ones when there's plasma browser integration)
                 property bool filterDuplicatePlayers: true
+                // 浏览器 MPRIS bus 把音乐和视频走同一个接口暴露出来，灵动岛
+                // 无法区分 B 站视频和音乐服务，所以默认跳过它们，看视频时
+                // 不会弹音乐岛。用浏览器听歌（YouTube Music 等）可关掉。
+                property bool ignoreBrowserPlayers: true
             }
 
             property JsonObject networking: JsonObject {

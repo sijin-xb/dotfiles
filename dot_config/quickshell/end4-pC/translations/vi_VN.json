@@ -381,5 +381,6 @@
   "Wi-Fi": "Wi-Fi",
   "Charger connected": "Charger connected",
   "Charger disconnected": "Charger disconnected",
-  "Battery full": "Battery full"
+  "Battery full": "Battery full",
+  "Ignore browser media": "Ignore browser media"
 }

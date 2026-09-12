@@ -766,5 +766,6 @@
   "Camera in use": "Camera in use",
   "Mic & camera in use": "Mic & camera in use",
   "Charger connected": "Charger connected",
-  "Charger disconnected": "Charger disconnected"
+  "Charger disconnected": "Charger disconnected",
+  "Ignore browser media": "Ignore browser media"
 }

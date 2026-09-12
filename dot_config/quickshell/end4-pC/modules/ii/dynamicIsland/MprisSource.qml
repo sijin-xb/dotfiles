@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Services.Mpris
+import qs.services
 
 // MPRIS 数据源：有曲目的播放器即注册为 music 活动。
 Item {
@@ -9,9 +10,15 @@ Item {
     width: 0
     height: 0
 
+    // 走 MprisController 而不是裸 Mpris.players：
+    // 前者已处理 playerctld 聚合 bus、浏览器双 bus
+    //（chromium + plasma-browser-integration）的去重，以及可配置的浏览器过滤。
+    // 用裸列表会让同一个视频从两个 bus 各报一次，还会把网页视频当音乐。
     // 优先选正在播放的；否则选第一个有曲目的
     readonly property var player: {
-        const ps = Mpris.players.values
+        const ps = []
+        for (const p of MprisController.players)
+            ps.push(p)
         for (let i = 0; i < ps.length; i++)
             if (ps[i].isPlaying) return ps[i]
         for (let i = 0; i < ps.length; i++)

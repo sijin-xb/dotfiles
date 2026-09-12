@@ -16,9 +16,17 @@ import qs.modules.common
  */
 Singleton {
 	id: root;
-	property list<MprisPlayer> players: Mpris.players.values.filter(player => isRealPlayer(player));
+	property list<MprisPlayer> players: Mpris.players.values.filter(player => isAcceptedPlayer(player));
 	property MprisPlayer trackedPlayer: null;
-	property MprisPlayer activePlayer: trackedPlayer ?? Mpris.players.values[0] ?? null;
+	// 只在 trackedPlayer 仍被接受时才回退到它；否则一个已被过滤掉的
+	// 浏览器 bus 会继续驱动栏与侧栏的媒体显示。
+	property MprisPlayer activePlayer: {
+		if (trackedPlayer && isAcceptedPlayer(trackedPlayer))
+			return trackedPlayer;
+		for (const p of players)
+			return p;
+		return null;
+	}
 	signal trackChanged(reverse: bool);
 
 	property bool __reverse: false;
@@ -28,6 +36,45 @@ Singleton {
 	readonly property bool hasActivePlasmaIntegration: Mpris.players.values.some(
 		p => p.dbusName?.startsWith('org.mpris.MediaPlayer2.plasma-browser-integration')
 	)
+	// 浏览器 MPRIS bus 的名字 / 身份特征。
+	// plasma-browser-integration 是 Chrome / Firefox 的浏览器扩展桥，
+	// 它的 identity 就是 "Google Chrome"，一并归入浏览器。
+	readonly property var browserNamePatterns: [
+		"chrome", "chromium", "firefox", "brave", "edge", "opera", "vivaldi",
+		"plasma-browser-integration"
+	]
+
+	// 用词边界而不是裸 includes："edge" 会命中 "knowledge" 这类词，
+	// 把真正的音乐播放器静默过滤掉——那种失败没有任何提示，极难排查。
+	// 正则只构造一次，避免每次判定都重新编译。
+	readonly property var browserPatternRegex: {
+		const escaped = browserNamePatterns.map(p =>
+			p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+		return new RegExp("\\b(" + escaped.join("|") + ")\\b", "i");
+	}
+
+	function isBrowserPlayer(player) {
+		if (!player)
+			return false;
+		const haystack = [
+			player.dbusName ?? "",
+			player.desktopEntry ?? "",
+			player.identity ?? ""
+		].join(" ");
+		return browserPatternRegex.test(haystack);
+	}
+
+	// 最终准入判定：先做去重，再按配置剔除浏览器。
+	function isAcceptedPlayer(player) {
+		if (!player)
+			return false;
+		if (!isRealPlayer(player))
+			return false;
+		if (Config.options.media.ignoreBrowserPlayers && isBrowserPlayer(player))
+			return false;
+		return true;
+	}
+
 	function isRealPlayer(player) {
         if (!Config.options.media.filterDuplicatePlayers) {
             return true;

@@ -2,6 +2,21 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+### 2026-09-12（第十九次）
+
+**修复：浏览器播放网页视频被识别为音乐**
+
+- 灵动岛的 `MprisSource` 原先直接遍历 `Mpris.players.values`，绕过了 `MprisController`
+  的去重逻辑。Chrome 视频会同时经原生 bus 与 `plasma-browser-integration` 上报两次，
+  而 MPRIS 协议本身不区分音频与视频，于是看视频时弹出音乐岛。
+- 改为走 `MprisController` 的已过滤列表，新增可配置的浏览器过滤（默认开启）。
+- `MprisController.activePlayer` 增加准入校验：被过滤掉的播放器不再作为回退值，
+  否则已剔除的浏览器 bus 仍会驱动栏与侧栏的媒体显示。
+- 浏览器识别用词边界正则而非子串匹配，避免 `edge` 误命中 `knowledge` 这类词而
+  静默过滤掉真正的音乐播放器。
+- 新增设置项：设置 → 栏 → 媒体 → 「忽略浏览器媒体」。
+- 修复了早先 `MprisController.filterDuplicatePlayers` 对数组类型的不当处理。
+
 ### 2026-09-12（第十八次）
 
 **优化：灵动岛歌词窗口改为差量更新**
