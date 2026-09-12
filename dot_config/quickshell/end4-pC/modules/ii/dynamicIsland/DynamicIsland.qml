@@ -201,14 +201,21 @@ Item {
         // 尺寸与主岛 compact 对齐：同高 37、同圆角 19、同字号 fontBody。
         Rectangle {
             id: companion
-            visible: root.showCompanion
+            // 显隐跟随宽度：宽度收到 0 才真正隐藏，让退场动画可见。
+            // 若直接用 showCompanion 控制 visible，退场会瞬间消失、看不到过渡。
+            property real animatedCompanionWidth: root.showCompanion ? (compRow.implicitWidth + 26) : 0
+            visible: animatedCompanionWidth > 0.5
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            width: visible ? (compRow.implicitWidth + 26) : 0
+            width: animatedCompanionWidth
             height: IslandTheme.compactSizes.idle.h
             radius: IslandTheme.compactSizes.idle.r
             color: IslandTheme.surface
             clip: true
+
+            Behavior on animatedCompanionWidth {
+                SpringAnimation { spring: 3.2; damping: 0.45; epsilon: 0.5 }
+            }
 
             MouseArea {
                 anchors.fill: parent
@@ -388,18 +395,32 @@ Item {
             anchors.fill: parent
             sourceComponent: root.componentFor(root.renderType)
             opacity: 0
+            // 切换内容时轻微缩放：单靠淡入会显得"平"，
+            // 0.96 → 1 的形变让新内容像是从岛里长出来。
+            scale: 0.96
+            transformOrigin: Item.Center
 
-            NumberAnimation {
-                id: fadeIn
-                target: activityLoader
-                property: "opacity"
-                to: 1
-                duration: IslandTheme.durationContentFade
-                easing.type: Easing.OutCubic
+            ParallelAnimation {
+                id: contentIn
+                NumberAnimation {
+                    target: activityLoader
+                    property: "opacity"
+                    to: 1
+                    duration: IslandTheme.durationContentFade
+                    easing.type: Easing.OutCubic
+                }
+                NumberAnimation {
+                    target: activityLoader
+                    property: "scale"
+                    to: 1
+                    duration: IslandTheme.durationExpand
+                    easing.type: Easing.OutCubic
+                }
             }
             onSourceComponentChanged: {
                 opacity = 0
-                fadeIn.restart()
+                scale = 0.96
+                contentIn.restart()
             }
             onItemChanged: {
                 if (item) {
@@ -438,11 +459,16 @@ Item {
                 model: root.pageCount
                 Rectangle {
                     required property int index
-                    width: 5
+                    readonly property bool current: index === root.page
+                    // 当前点拉长成胶囊，比单纯换色更容易一眼看出在哪页
+                    width: current ? 14 : 5
                     height: 5
                     radius: 2.5
-                    color: index === root.page ? IslandTheme.text : IslandTheme.trackStrong
+                    color: current ? IslandTheme.text : IslandTheme.trackStrong
                     Behavior on color { ColorAnimation { duration: 150 } }
+                    Behavior on width {
+                        NumberAnimation { duration: IslandTheme.durationQuick; easing.type: Easing.OutCubic }
+                    }
                 }
             }
         }
@@ -453,10 +479,15 @@ Item {
         Row {
             id: rightCompanions
             anchors.left: pill.right
-            anchors.leftMargin: visible ? 8 : 0
+            // 与左侧副岛对称：显隐时 margin 做弹簧过渡，避免硬切
+            property real animatedMargin: visible ? 8 : 0
+            anchors.leftMargin: animatedMargin
             anchors.verticalCenter: parent.verticalCenter
             spacing: 6
             visible: root.hasAnyTaskCompanion || root.showNotifCompanion
+            Behavior on animatedMargin {
+                SpringAnimation { spring: 3.2; damping: 0.45; epsilon: 0.5 }
+            }
             // Row 的 width/height 默认是 0（不是 implicit 值），用 childrenRect 取实际内容宽。
             width: childrenRect.width
             height: IslandTheme.compactSizes.idle.h
@@ -510,8 +541,8 @@ Item {
                             radius: parent.radius
                             width: parent.width * Math.max(0, Math.min(100, taskPill.payload.percent ?? 0)) / 100
                             gradient: Gradient {
-                                GradientStop { position: 0.0; color: "#60A5FA" }
-                                GradientStop { position: 1.0; color: "#6366F1" }
+                                GradientStop { position: 0.0; color: IslandPalette.progressStart }
+                                GradientStop { position: 1.0; color: IslandPalette.progressEnd }
                             }
                             Behavior on width {
                                 NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
@@ -526,8 +557,8 @@ Item {
                             height: parent.height
                             radius: parent.radius
                             gradient: Gradient {
-                                GradientStop { position: 0.0; color: "#60A5FA" }
-                                GradientStop { position: 1.0; color: "#6366F1" }
+                                GradientStop { position: 0.0; color: IslandPalette.progressStart }
+                                GradientStop { position: 1.0; color: IslandPalette.progressEnd }
                             }
                             SequentialAnimation on x {
                                 running: taskIndetBlock.visible

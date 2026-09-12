@@ -15,7 +15,7 @@ Item {
 
     // 由外部（Host）注入当前封面 URL
     property string artUrl: ""
-    // 未就绪时的回退色
+    // 未就绪时的回退色（与 IslandPalette.progressEnd 默认值一致）
     property color fallbackColor: "#6366F1"
 
     readonly property string cacheDir: `${Quickshell.env("HOME")}/.cache/quickshell/media/coverart`

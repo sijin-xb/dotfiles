@@ -2,6 +2,7 @@ singleton IslandTheme 1.0 IslandTheme.qml
 singleton ActivityManager 1.0 ActivityManager.qml
 singleton IslandContext 1.0 IslandContext.qml
 singleton IslandPalette 1.0 IslandPalette.qml
+singleton ProcessProbe 1.0 ProcessProbe.qml
 DynamicIsland 1.0 DynamicIsland.qml
 DynamicIslandHost 1.0 DynamicIslandHost.qml
 IslandVisualizer 1.0 IslandVisualizer.qml

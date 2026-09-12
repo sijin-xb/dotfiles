@@ -101,8 +101,8 @@ Item {
                     height: parent.height
                     radius: parent.radius
                     gradient: Gradient {
-                        GradientStop { position: 0.0; color: "#60A5FA" }
-                        GradientStop { position: 1.0; color: "#6366F1" }
+                        GradientStop { position: 0.0; color: IslandPalette.progressStart }
+                        GradientStop { position: 1.0; color: IslandPalette.progressEnd }
                     }
                     width: parent.width * root.level / 100
                     Behavior on width { NumberAnimation { duration: IslandTheme.durationQuick; easing.type: Easing.OutCubic } }

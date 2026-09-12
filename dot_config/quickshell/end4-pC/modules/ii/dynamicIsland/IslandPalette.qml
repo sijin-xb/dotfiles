@@ -31,4 +31,20 @@ Singleton {
     function accentOr(fallback) {
         return hasAccent ? effectiveAccent : fallback
     }
+
+    // 进度填充起始色：无封面主色时用默认蓝。
+    readonly property color progressStart: hasAccent ? effectiveAccent : "#60A5FA"
+
+    // 进度填充结束色：主色偏暗时与起始色几乎同色，形成柔和渐变；
+    // 无主色时保持原默认渐变，避免观感突变。
+    readonly property color progressEnd: {
+        if (!hasAccent)
+            return "#6366F1"
+        const c = Qt.color(effectiveAccent)
+        // 向蓝紫方向轻微偏移，保证两点之间仍有可见过渡
+        return Qt.hsla(c.hslHue,
+                       Math.min(1.0, c.hslSaturation * 1.1),
+                       Math.max(0.35, c.hslLightness * 0.78),
+                       1.0)
+    }
 }

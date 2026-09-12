@@ -37,6 +37,8 @@ QtObject {
     readonly property int durationExpand: 300
     readonly property int durationContentFade: 140
     readonly property int durationQuick: 220
+    // 收起时内容退场：比入场快，避免「拖泥带水」
+    readonly property int durationContentExit: 90
 
     // ===== 尺寸映射（Compact）=====
     readonly property var compactSizes: ({

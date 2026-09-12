@@ -51,8 +51,8 @@ Item {
                 radius: parent.radius
                 width: parent.width * Math.max(0, Math.min(100, root.percent)) / 100
                 gradient: Gradient {
-                    GradientStop { position: 0.0; color: "#60A5FA" }
-                    GradientStop { position: 1.0; color: "#6366F1" }
+                    GradientStop { position: 0.0; color: IslandPalette.progressStart }
+                    GradientStop { position: 1.0; color: IslandPalette.progressEnd }
                 }
                 Behavior on width {
                     NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
@@ -66,8 +66,8 @@ Item {
                 height: parent.height
                 radius: parent.radius
                 gradient: Gradient {
-                    GradientStop { position: 0.0; color: "#60A5FA" }
-                    GradientStop { position: 1.0; color: "#6366F1" }
+                    GradientStop { position: 0.0; color: IslandPalette.progressStart }
+                    GradientStop { position: 1.0; color: IslandPalette.progressEnd }
                 }
                 SequentialAnimation on x {
                     running: compactIndetBlock.visible
@@ -177,8 +177,8 @@ Item {
                 radius: parent.radius
                 width: parent.width * Math.max(0, Math.min(100, root.percent)) / 100
                 gradient: Gradient {
-                    GradientStop { position: 0.0; color: "#60A5FA" }
-                    GradientStop { position: 1.0; color: "#6366F1" }
+                    GradientStop { position: 0.0; color: IslandPalette.progressStart }
+                    GradientStop { position: 1.0; color: IslandPalette.progressEnd }
                 }
                 Behavior on width {
                     NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
@@ -192,8 +192,8 @@ Item {
                 height: parent.height
                 radius: parent.radius
                 gradient: Gradient {
-                    GradientStop { position: 0.0; color: "#60A5FA" }
-                    GradientStop { position: 1.0; color: "#6366F1" }
+                    GradientStop { position: 0.0; color: IslandPalette.progressStart }
+                    GradientStop { position: 1.0; color: IslandPalette.progressEnd }
                 }
                 SequentialAnimation on x {
                     running: expandedIndetBlock.visible

@@ -22,7 +22,6 @@ Item {
     property int priority: 8
     property string defaultLabel: "任务"
     property string icon: "download"
-    property int probeInterval: 2000
     property bool autoProbeEnabled: true
     // 任务分组：同组任务在副岛合并渲染（多个下载 → 一个胶囊）。
     // 留空则不参与合并。
@@ -83,38 +82,39 @@ Item {
     }
 
     // ---- 自动探测 ----
-    // ps 比 pgrep 更容易做「精确进程名」匹配；grep -m1 命中首个即返回。
-    readonly property string probeCommand: {
-        if (!autoProbeEnabled || processNames.length === 0)
-            return "true"
-        const pat = processNames.join("|")
-        return `ps -eo comm= 2>/dev/null | grep -m1 -E '^(${pat})$' || true`
+    // 进程表由共享的 ProcessProbe 维护（单次 ps 覆盖所有任务类型），
+    // 这里只负责把「本类型关心的进程名」映射成活动状态。
+    readonly property bool probeEnabled: autoProbeEnabled && processNames.length > 0
+
+    // 命中列表里第一个在跑的进程名；没命中返回空串。
+    readonly property string matchedProcess: {
+        if (!probeEnabled)
+            return ""
+        for (let i = 0; i < processNames.length; i++) {
+            const name = processNames[i]
+            if (ProcessProbe.isRunning(name))
+                return name
+        }
+        return ""
     }
 
-    Process {
-        id: probe
-        command: ["bash", "-c", root.probeCommand]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                const name = text.trim()
-                const on = name.length > 0
-                if (on === root.autoActive && (!on || name === root.autoLabel))
-                    return
-                root.autoActive = on
-                root.autoLabel = on ? name : ""
-                root.publish()
-            }
-        }
+    onMatchedProcessChanged: {
+        const name = matchedProcess
+        const on = name.length > 0
+        if (on === autoActive && (!on || name === autoLabel))
+            return
+        autoActive = on
+        autoLabel = name
+        publish()
     }
 
-    Timer {
-        interval: root.probeInterval
-        repeat: true
-        running: root.autoProbeEnabled && root.processNames.length > 0
-        triggeredOnStart: true
-        onTriggered: {
-            if (!probe.running)
-                probe.running = true
-        }
+    // 订阅共享探测器：组件存活期间保持订阅，销毁时退订。
+    Component.onCompleted: {
+        if (probeEnabled)
+            ProcessProbe.subscribe()
+    }
+    Component.onDestruction: {
+        if (probeEnabled)
+            ProcessProbe.unsubscribe()
     }
 }
