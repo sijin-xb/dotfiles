@@ -200,7 +200,7 @@ hl.layer_rule({ match = { namespace = "quickshell:verticalBar" }, animation = "s
 hl.layer_rule({ match = { namespace = "quickshell:osk" }, order = -1})                              -- 屏幕键盘层级下移
 
 -- Quickshell: waffles 主题（另一套/额外组件）
-hl.layer_rule({ match = { namespace = "quickshell:wallpaperSelector" }, animation = "slide top"})   -- 壁纸选择器：顶部滑入
+hl.layer_rule({ match = { namespace = "quickshell:wallpaperSelector" }, no_anim = true})          -- 壁纸选择器：动画完全由 QML 控制，合成器不要插手
 hl.layer_rule({ match = { namespace = "quickshell:wNotificationCenter" }, no_anim = true})
 hl.layer_rule({ match = { namespace = "quickshell:wOnScreenDisplay" }, no_anim = true})              -- OSD（音量/亮度提示）
 hl.layer_rule({ match = { namespace = "quickshell:wStartMenu" }, no_anim = true})                   -- 开始菜单

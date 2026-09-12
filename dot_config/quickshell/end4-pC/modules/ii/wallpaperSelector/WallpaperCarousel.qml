@@ -222,11 +222,6 @@ Item {
         }
     }
 
-    StyledText {
-        anchors.centerIn: parent
-        visible: !root.model || root.model.count === 0
-        text: Translation.tr("No wallpapers found")
-        color: Appearance.colors.colSubtext
-        font.pixelSize: Appearance.font.pixelSize.large
-    }
+    // 空状态由外层负责。本组件被 LocalWallpaperCarousel 嵌套，若这里也显示空状态，
+    // 会与父级的同名文案同时可见，叠成重影。
 }
