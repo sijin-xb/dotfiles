@@ -43,6 +43,8 @@ QtObject {
         idle:         { w: 126, h: 37, r: 19 },
         music:        { w: 200, h: 37, r: 19, maxW: 340 },
         volume:       { w: 180, h: 37, r: 19 },
+        brightness:   { w: 180, h: 37, r: 19 },
+        privacy:      { w: 200, h: 37, r: 19 },
         notification: { w: 220, h: 37, r: 19 },
         recording:    { w: 148, h: 37, r: 19 },
         package:      { w: 160, h: 37, r: 19 },
@@ -57,6 +59,8 @@ QtObject {
         // 和分页点挤在一起，视觉上像贴着边缘。
         music:        { w: 320, h: 190, r: 28 },
         volume:       { w: 300, h: 140, r: 28 },
+        brightness:   { w: 300, h: 140, r: 28 },
+        privacy:      { w: 200, h: 37,  r: 19 },
         notification: { w: 320, h: 120, r: 28 },
         recording:    { w: 200, h: 37,  r: 19 },
         package:      { w: 320, h: 140, r: 28 },

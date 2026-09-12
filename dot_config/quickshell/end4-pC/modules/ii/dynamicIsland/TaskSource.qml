@@ -24,6 +24,9 @@ Item {
     property string icon: "download"
     property int probeInterval: 2000
     property bool autoProbeEnabled: true
+    // 任务分组：同组任务在副岛合并渲染（多个下载 → 一个胶囊）。
+    // 留空则不参与合并。
+    property string group: "task"
 
     // ---- 手动上报状态 ----
     property bool manualActive: false
@@ -47,7 +50,7 @@ Item {
                 label: label,
                 icon: icon,
                 indeterminate: percent < 0
-            }, priority)
+            }, priority, { group: group })
         } else {
             ActivityManager.clear(taskId)
         }

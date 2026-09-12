@@ -2,7 +2,7 @@ import QtQuick
 import qs.services
 
 // 音量数据源：复用 end4-pC 的 Audio 服务（Pipewire）。
-// 监听音量/静音变化，短暂注册 volume 活动，2 秒后清除。
+// 监听音量/静音变化，短暂注册 volume 活动，2 秒后由 ActivityManager 统一清除。
 Item {
     id: root
     visible: false
@@ -13,23 +13,27 @@ Item {
     property real lastLevel: -1
     property bool lastMuted: false
 
+    readonly property int visibleDuration: 2000
+
     // 展开音量活动时置 true：暂停自动隐藏，否则用户还没看清就消失了。
     property bool holdOpen: false
 
     function showVolume() {
-        ActivityManager.set("volume", {
+        // 场景静默（录屏 / 专注模式）时不打扰
+        if (!IslandContext.allowTransient())
+            return
+        ActivityManager.pulse("volume", {
             level: Math.round((Audio.value ?? 0) * 100),
             isMuted: Audio.sink?.audio?.muted ?? false
-        }, 30)
-        hideTimer.restart()
+        }, 30, visibleDuration, { transient: true })
     }
 
     // 展开期间不隐藏；收起时重新起计时。
     onHoldOpenChanged: {
         if (holdOpen)
-            hideTimer.stop()
+            ActivityManager.hold("volume")
         else if (ActivityManager.entries["volume"] !== undefined)
-            hideTimer.restart()
+            ActivityManager.release("volume", visibleDuration)
     }
 
     Connections {
@@ -64,12 +68,4 @@ Item {
         onTriggered: root.primed = true
     }
 
-    Timer {
-        id: hideTimer
-        interval: 2000
-        onTriggered: {
-            if (!root.holdOpen)
-                ActivityManager.clear("volume")
-        }
-    }
 }

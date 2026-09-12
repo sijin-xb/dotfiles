@@ -68,7 +68,8 @@ Item {
                 height: Math.max(root.minBarHeight, norm * root.maxBarHeight)
                 radius: width / 2
                 anchors.verticalCenter: parent.verticalCenter
-                color: IslandTheme.text
+                // 有封面主色时跟随，否则纯白
+                color: IslandPalette.accentOr(IslandTheme.text)
                 opacity: root.active ? 0.9 : 0.35
                 Behavior on height {
                     NumberAnimation { duration: 80; easing.type: Easing.OutQuad }

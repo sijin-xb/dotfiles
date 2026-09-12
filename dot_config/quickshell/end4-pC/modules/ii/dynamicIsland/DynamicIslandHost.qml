@@ -24,16 +24,20 @@ Item {
     // ---- 数据源 ----
     MprisSource { id: mprisSource }
     VolumeSource { id: volumeSource }
+    BrightnessSource { id: brightnessSource }
     RecordSource { id: recordSource }
     PackageSource { id: packageSource }
     DownloadSource { id: downloadSource }
     NotificationSource { id: notificationSource }
+    PrivacySource { id: privacySource }
 
     // 封面取色：量化当前歌曲封面，得到主色供灵动岛着色。
+    // 结果同时写入 IslandPalette，使主色成为全局共享状态。
     ArtColorSource {
         id: artColor
         artUrl: (ActivityManager.currentType === "music")
             ? (ActivityManager.currentPayload.artUrl ?? "") : ""
+        onDominantColorChanged: IslandPalette.mediaAccent = dominantColor
     }
 
     // 音量 / 通知活动展开时暂停它们的自动隐藏，否则展开态还没看清就消失了。
@@ -43,6 +47,11 @@ Item {
         target: volumeSource
         property: "holdOpen"
         value: (island.renderType === "volume" && root.expanded)
+    }
+    Binding {
+        target: brightnessSource
+        property: "holdOpen"
+        value: (island.renderType === "brightness" && root.expanded)
     }
     Binding {
         target: notificationSource
@@ -155,7 +164,27 @@ Item {
     IpcHandler {
         target: "island"
         function status(): string {
-            return "当前: " + ActivityManager.currentType + " | 队列: " + ActivityManager.debugList()
+            return "当前: " + ActivityManager.currentType
+                + " | 场景: " + ActivityManager.scene
+                + " | 静默: " + (IslandContext.silentMode ? "开" : "关")
+                + " | 队列: " + ActivityManager.debugList()
+        }
+
+        // 专注模式：静默音量 / 亮度 / 通知等瞬态活动。
+        //   qs -c end4-pC ipc call island silent_on
+        //   qs -c end4-pC ipc call island silent_off
+        //   qs -c end4-pC ipc call island silent_toggle
+        function silent_on(): string {
+            IslandContext.setSilentMode(true)
+            return "专注模式已开启"
+        }
+        function silent_off(): string {
+            IslandContext.setSilentMode(false)
+            return "专注模式已关闭"
+        }
+        function silent_toggle(): string {
+            IslandContext.setSilentMode(!IslandContext.silentMode)
+            return "专注模式: " + (IslandContext.silentMode ? "开" : "关")
         }
 
         // 通用任务进度上报。taskId 取数据源 id（"package" / "download"）：

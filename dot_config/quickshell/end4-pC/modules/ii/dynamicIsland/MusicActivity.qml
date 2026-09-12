@@ -9,25 +9,10 @@ Item {
     property var payload: ({})
     property var visualizerPoints: []
     property var lyricsProvider: null
-    // 封面主色（由 Host 注入）。为空则用主题色，保证无封面时观感不变。
+    // 封面主色走全局 IslandPalette，其他活动也能读到同一份颜色。
+    // 保留 accentColor 属性仅供宿主兼容注入，实际渲染用 effectiveAccent。
     property color accentColor: "transparent"
-    readonly property bool hasAccent: accentColor.a > 0.01
-
-    // 封面主色常常偏暗（深色封面量化后尤其明显），而灵动岛底色是纯黑，
-    // 直接用原始主色会导致逐字高亮读不出来。这里给高亮色设一个亮度下限，
-    // 并轻微提饱和，保留色相的同时保证任何封面都有足够对比度。
-    readonly property real accentMinLightness: 0.62
-    readonly property color effectiveAccent: {
-        if (!hasAccent)
-            return IslandTheme.text
-        const c = Qt.color(accentColor)
-        if (c.hslLightness >= accentMinLightness)
-            return c
-        return Qt.hsla(c.hslHue,
-                       Math.min(1.0, c.hslSaturation * 1.15),
-                       accentMinLightness,
-                       1.0)
-    }
+    readonly property color effectiveAccent: IslandPalette.accentOr(IslandTheme.text)
     property int page: 0
     readonly property int pageCount: 2
 

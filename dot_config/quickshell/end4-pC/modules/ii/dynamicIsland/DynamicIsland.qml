@@ -78,18 +78,23 @@ Item {
     readonly property var notificationPayload: notificationActive
         ? ActivityManager.entries["notification"].payload : ({})
 
-    // 任务类副岛（package / download …）：只要该活动在跑且没占着主岛，就挂右侧。
-    // 用列表驱动，新增任务类型不用再改这里的布局。
+    // 任务类副岛：凡是在 ActivityManager 里声明了 group 的活动，
+    // 只要没占着主岛就挂到右侧。新增任务类型只需声明 group，无需改这里。
+    readonly property var companionOrder: ["package", "download"]
     readonly property var taskCompanionTypes: {
         const out = []
         const e = ActivityManager.entries
         if (!e) return out
-        const order = ["package", "download"]
-        for (let i = 0; i < order.length; i++) {
-            const t = order[i]
-            if (e[t] !== undefined && activityType !== t && !expanded)
+        for (const t in e) {
+            if (e[t].group && activityType !== t && !expanded)
                 out.push(t)
         }
+        // 稳定展示顺序：已知类型按 companionOrder，未知类型排后面
+        out.sort((a, b) => {
+            const ia = companionOrder.indexOf(a)
+            const ib = companionOrder.indexOf(b)
+            return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib)
+        })
         return out
     }
     readonly property bool hasAnyTaskCompanion: taskCompanionTypes.length > 0
@@ -621,18 +626,22 @@ Item {
 
     function componentFor(type) {
         switch (type) {
-        case "music":     return musicComp
-        case "volume":    return volumeComp
-        case "recording": return recordingComp
-        case "package":   return packageComp
-        case "download":  return packageComp
+        case "music":      return musicComp
+        case "volume":     return volumeComp
+        case "brightness": return brightnessComp
+        case "privacy":    return privacyComp
+        case "recording":  return recordingComp
+        case "package":    return packageComp
+        case "download":   return packageComp
         case "notification": return notificationComp
-        default:          return idleComp
+        default:           return idleComp
         }
     }
 
     Component { id: musicComp;     MusicActivity {} }
     Component { id: volumeComp;    VolumeActivity {} }
+    Component { id: brightnessComp; BrightnessActivity {} }
+    Component { id: privacyComp;   PrivacyActivity {} }
     Component { id: recordingComp; RecordingActivity {} }
     Component { id: packageComp;   PackageActivity {} }
     Component { id: notificationComp; NotificationActivity {} }

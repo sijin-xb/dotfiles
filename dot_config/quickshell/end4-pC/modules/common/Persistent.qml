@@ -152,6 +152,8 @@ Singleton {
             property JsonObject island: JsonObject {
                 property real xOffset: 0
                 property real yOffset: 0
+                // 专注模式：静默音量 / 通知等瞬态活动
+                property bool silentMode: false
             }
 
             property JsonObject timer: JsonObject {

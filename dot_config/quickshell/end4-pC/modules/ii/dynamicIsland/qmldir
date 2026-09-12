@@ -1,17 +1,23 @@
 singleton IslandTheme 1.0 IslandTheme.qml
 singleton ActivityManager 1.0 ActivityManager.qml
+singleton IslandContext 1.0 IslandContext.qml
+singleton IslandPalette 1.0 IslandPalette.qml
 DynamicIsland 1.0 DynamicIsland.qml
 DynamicIslandHost 1.0 DynamicIslandHost.qml
 IslandVisualizer 1.0 IslandVisualizer.qml
 CavaSource 1.0 CavaSource.qml
 MusicActivity 1.0 MusicActivity.qml
 VolumeActivity 1.0 VolumeActivity.qml
+BrightnessActivity 1.0 BrightnessActivity.qml
+PrivacyActivity 1.0 PrivacyActivity.qml
 RecordingActivity 1.0 RecordingActivity.qml
 PackageActivity 1.0 PackageActivity.qml
 NotificationActivity 1.0 NotificationActivity.qml
 IdleActivity 1.0 IdleActivity.qml
 MprisSource 1.0 MprisSource.qml
 VolumeSource 1.0 VolumeSource.qml
+BrightnessSource 1.0 BrightnessSource.qml
+PrivacySource 1.0 PrivacySource.qml
 RecordSource 1.0 RecordSource.qml
 TaskSource 1.0 TaskSource.qml
 PackageSource 1.0 PackageSource.qml

@@ -235,6 +235,17 @@ ContentPage {
                     }
                 }
 
+                // 专注模式：静默音量 / 亮度 / 通知等瞬态灵动岛提示。
+                // 直接读写持久化状态，避免设置页依赖 dynamicIsland 模块。
+                ConfigSwitch {
+                    buttonIcon: "do_not_disturb_on"
+                    text: Translation.tr("Silence island popups")
+                    checked: Persistent.states.island.silentMode ?? false
+                    onCheckedChanged: {
+                        Persistent.states.island.silentMode = checked;
+                    }
+                }
+
                 ConfigSelectionArray {
                     text: Translation.tr("Split blur amount")
                     icon: "split_scene"

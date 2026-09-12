@@ -174,17 +174,38 @@ quickshell 未运行时使用 hyprlock。
 ## 灵动岛
 
 顶部居中的动态胶囊，按「当前活动」切换形态，同一时刻只显示优先级最高的
-活动。数据源通过 `ActivityManager.set(type, payload, priority)` 注册，UI 订阅
-`currentType` / `currentPayload`。
+活动。数据源通过 `ActivityManager.set(type, payload, priority, options)` 注册，
+UI 订阅 `currentType` / `currentPayload`。
 
 | 活动 | 优先级 | 触发条件 | 主岛内容 |
 |---|---|---|---|
 | `volume` | 30 | 音量 / 静音变化（2 秒后自动消失） | 音量条 |
+| `brightness` | 28 | 亮度变化（1.5 秒后自动消失） | 亮度条 |
 | `music` | 10 | 任意 MPRIS 播放器有曲目 | 封面、频谱、标题 |
 | `package` | 8 | 检测到 pacman / yay / paru / makepkg，或脚本主动上报 | 图标、进度条、百分比 |
 | `download` | 7 | 检测到 curl / wget / aria2c，或脚本主动上报 | 图标、进度条、百分比 |
 | `notification` | 6 | 收到桌面通知（4 秒后自动消失） | 铃铛、通知摘要 |
 | `recording` | 5 | `states.json` 中 `record.enable` 为 true | 脉冲红点、计时 |
+| `privacy` | 4 | 麦克风 / 摄像头被占用 | 警示圆点、设备图标 |
+
+### 联动内核
+
+灵动岛的活动之间不是孤立的，三个单例负责「联动」：
+
+- **`ActivityManager`** — 活动注册表。除 `set` / `clear` 外提供：
+  - `pulse(type, payload, priority, duration)`：统一暂态生命周期，数据源不再各自持有 Timer
+  - `hold(type)` / `release(type, duration)`：展开态暂停 / 恢复过期
+  - `group` 选项：同组任务在副岛合并渲染
+  - 推导属性 `scene`（`recording` / `media` / `task` / `idle`）
+- **`IslandContext`** — 场景门控。`suppressTransient` 为真时，音量 / 亮度 / 通知等
+  瞬态活动不注册。两个来源：
+  - 自动：录屏场景下静默瞬态，避免污染演示画面
+  - 手动：设置 → 背景 → 「静默灵动岛提示」，或 IPC `island silent_toggle`
+- **`IslandPalette`** — 取色中枢。媒体封面主色提升为全局状态，频谱条、亮度条、
+  歌词高亮都读同一份颜色；封面偏暗时自动提亮到可读亮度。
+
+副岛不再硬编码活动类型：任何声明了 `group` 的活动，只要没占着主岛就挂到右侧。
+新增任务类型只需在 `TaskSource` 子类里写一行 `group`。
 
 ### 音乐
 
@@ -279,6 +300,20 @@ quickshell 未运行时使用 hyprlock。
 `Persistent.states.record.enable` 即可恢复。
 
 ## 更新日志
+
+### 2026-09-12（第十五次）
+
+**新增：灵动岛联动内核 + 亮度 / 隐私指示**
+
+- 新增联动内核：`ActivityManager` 支持 `pulse` / `hold` / `release` 统一暂态生命周期与
+  `group` 分组；`IslandContext` 提供场景门控；`IslandPalette` 把封面主色提升为全局状态。
+- 新增**亮度**活动（优先级 28），与音量对称，跟随焦点显示器，1.5 秒后自动消失。
+- 新增**隐私指示**活动（优先级 4），麦克风 / 摄像头被占用时常驻提示；录屏期间自动收起，
+  避免与录屏指示重复。
+- 新增**专注模式**：设置 → 背景 → 「静默灵动岛提示」，静默音量 / 亮度 / 通知等瞬态活动。
+  也可用 IPC：`qs -c end4-pC ipc call island silent_toggle`。
+- 副岛布局数据化：不再硬编码活动类型，声明了 `group` 的任务自动挂到右侧。
+- 主色全链路：频谱条、亮度进度条、歌词高亮共用 `IslandPalette` 的封面主色。
 
 ### 2026-09-12（第十四次）
 

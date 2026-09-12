@@ -17,30 +17,33 @@ Item {
     property string appName: ""
     property string body: ""
 
+    readonly property int visibleDuration: 4000
+
     // 展开通知时置 true：暂停自动清除，否则正文还没读完就消失了。
     property bool holdOpen: false
 
     onHoldOpenChanged: {
         if (holdOpen)
-            hideTimer.stop()
+            ActivityManager.hold("notification")
         else if (ActivityManager.entries["notification"] !== undefined)
-            hideTimer.restart()
+            ActivityManager.release("notification", visibleDuration)
     }
 
     function show(notif) {
+        // 场景静默（录屏 / 专注模式）时不打扰
+        if (!IslandContext.allowTransient())
+            return
         summary = notif?.summary ?? ""
         appName = notif?.appName ?? ""
         body = notif?.body ?? ""
-        ActivityManager.set("notification", {
+        ActivityManager.pulse("notification", {
             summary: summary,
             appName: appName,
             body: body
-        }, 6)
-        hideTimer.restart()
+        }, 6, visibleDuration, { transient: true })
     }
 
     function dismiss() {
-        hideTimer.stop()
         ActivityManager.clear("notification")
     }
 
@@ -52,14 +55,4 @@ Item {
         }
     }
 
-    // 几秒后自动消失；期间再来通知会重新计时
-    Timer {
-        id: hideTimer
-        interval: 4000
-        repeat: false
-        onTriggered: {
-            if (!root.holdOpen)
-                ActivityManager.clear("notification")
-        }
-    }
 }
