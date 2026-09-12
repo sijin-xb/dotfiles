@@ -25,11 +25,27 @@ Item {
     // 仅在“激活 且 共享数据为空”时才自开 cava
     readonly property bool needOwnCava: active && sharedPoints.length === 0
 
+    // cava 启动失败（二进制缺失 / 配置错误）后置位。
+    // 不加这个的话，running 绑定会在进程退出后立刻把它重新拉起，
+    // 形成「启动 → 秒退 → 再启动」的死循环。
+    property bool cavaFailed: false
+
+    // 不再需要自开 cava 时清除失败标记，下次激活允许重试
+    onNeedOwnCavaChanged: {
+        if (!needOwnCava)
+            cavaFailed = false
+    }
+
     Process {
         id: cavaProc
-        running: root.needOwnCava
+        running: root.needOwnCava && !root.cavaFailed
         onRunningChanged: {
             if (!running) root.ownPoints = []
+        }
+        onExited: (exitCode, exitStatus) => {
+            // 非零退出说明 cava 有问题；标记后不再自动重启
+            if (exitCode !== 0)
+                root.cavaFailed = true
         }
         command: ["cava", "-p", `${Directories.scriptPath}/cava/raw_output_config.txt`]
         stdout: SplitParser {

@@ -50,6 +50,10 @@ Singleton {
                     if (name.length > 0)
                         next[name] = true
                 }
+                // 正常系统永远有进程在跑；解析出 0 个说明 ps 本身出问题了，
+                // 此时保留上次快照，避免所有任务活动瞬间消失又闪回。
+                if (Object.keys(next).length === 0)
+                    return
                 root.runningCommands = next
                 root.ready = true
             }

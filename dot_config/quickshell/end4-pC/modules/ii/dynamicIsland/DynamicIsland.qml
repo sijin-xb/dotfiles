@@ -161,11 +161,15 @@ Item {
     onHasContentChanged: syncSize()
     onItemPreferredWidthChanged: syncSize()
 
-    // 收起时回到第一页；切换活动时也重置
+    // 展开 / 收起时驱动内容进出场。
+    // 收起时 pill 高度在弹簧收缩，若内容不先淡出，会被收缩的边缘"切掉"。
     onExpandedChanged: {
-        if (!expanded) {
+        if (expanded) {
+            contentIn.restart()
+        } else {
             page = 0
             focusType = ""   // 收起后回到正常的主岛归属
+            exitFade.restart()
         }
     }
     onActivityTypeChanged: page = 0
@@ -276,8 +280,11 @@ Item {
 
         Rectangle {
             id: pill
-            anchors.left: companion.visible ? companion.right : parent.left
-            anchors.leftMargin: companion.visible ? 8 : 0
+            // 锚点恒定指向副岛右缘：副岛宽度收到 0 时它自然贴回 parent.left。
+            // 若用 visible 切换锚点，会在退场动画中途跳变；
+            // margin 同样按副岛宽度比例收缩，而不是在阈值处硬切。
+            anchors.left: companion.right
+            anchors.leftMargin: Math.min(8, companion.animatedCompanionWidth)
             anchors.top: parent.top
             width: root.animatedWidth
             height: root.animatedHeight
@@ -421,6 +428,17 @@ Item {
                 opacity = 0
                 scale = 0.96
                 contentIn.restart()
+            }
+
+            // 收起时的退场：只动透明度，不碰 scale，
+            // 这样下次展开由 contentIn 接管时不会闪一下。
+            NumberAnimation {
+                id: exitFade
+                target: activityLoader
+                property: "opacity"
+                to: 0
+                duration: IslandTheme.durationContentExit
+                easing.type: Easing.InCubic
             }
             onItemChanged: {
                 if (item) {
