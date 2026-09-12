@@ -64,6 +64,30 @@ cd dotfiles
 
 开发者如果需要手动调整，可直接修改 `background.widgets.<widget>.x/y`；但建议先使用界面完成布局，再把配置纳入版本控制。
 
+## 视频壁纸后端
+
+视频壁纸可以在「设置 → 背景 → 视频壁纸后端」中选择：
+
+| 后端 | 适合场景 |
+|---|---|
+| **Wallr** | 推荐的 Wayland 原生方案，支持 FFmpeg 硬件解码和多显示器 |
+| **Phonto** | 适合测试 GPU 视频播放和低占用表现 |
+| **Mpvpaper** | 当前稳定回退方案 |
+
+Wallr 和 Phonto 都是可选依赖。没有安装时，脚本会自动回退到 Mpvpaper，不会影响已有视频壁纸。
+
+开发者可直接编辑：
+
+```json
+{
+  "background": {
+    "videoBackend": "wallr"
+  }
+}
+```
+
+可选值为 `wallr`、`phonto`、`mpvpaper`。切换后重新选择一次视频壁纸即可生效。脚本会先停止其他视频壁纸进程，确保不会同时运行多个后端。
+
 ## 脚本命令
 
 | 命令 | 功能 |
@@ -243,6 +267,23 @@ quickshell 未运行时使用 hyprlock。
 `Persistent.states.record.enable` 即可恢复。
 
 ## 更新日志
+
+### 2026-09-12（第十二次）
+
+**新增：视频壁纸后端切换**
+
+- 新手：在设置 → 背景中可以选择 `Wallr（推荐）`、`Phonto（GPU 视频）` 或 `Mpvpaper（回退方案）`。
+- 同一时间只会运行一个视频壁纸后端；Wallr 或 Phonto 未安装时会自动回退到 Mpvpaper，不会让桌面壁纸消失。
+- 原有视频缩略图、Matugen 壁纸取色、Quickshell 背景部件和多显示器流程继续保留。
+
+**开发者说明**
+
+- 后端配置字段是 `background.videoBackend`，可选值为 `wallr`、`phonto`、`mpvpaper`。
+- 视频切换和恢复脚本位于 `~/.config/quickshell/end4-pC/scripts/colors/switchwall.sh` 及其生成的 `__restore_video_wallpaper.sh`。
+- Wallr 使用 background layer；Phonto 默认镜像到所有显示器；Mpvpaper 保留原有逐显示器启动参数。
+- 后端切换只影响视频壁纸，静态图片壁纸流程不变。
+- 当前系统未安装 Wallr/Phonto 时会自动继续使用 Mpvpaper；安装对应命令后，在设置中重新选择视频后端即可启用。
+- 后端依赖不是必需同时安装：Wallr/Phonto 缺失不会影响已有的 Mpvpaper 壁纸。
 
 ### 2026-09-12（第十一次）
 

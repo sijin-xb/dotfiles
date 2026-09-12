@@ -276,6 +276,22 @@ ContentPage {
 
                 ConfigComboBox {
                     Layout.fillWidth: true
+                    buttonIcon: "movie"
+                    text: Translation.tr("Video wallpaper backend")
+                    fieldWidth: 50
+                    model: [
+                        { displayName: Translation.tr("Wallr (recommended)"), icon: "wallpaper", value: "wallr" },
+                        { displayName: Translation.tr("Phonto (GPU video)"), icon: "movie", value: "phonto" },
+                        { displayName: Translation.tr("Mpvpaper (fallback)"), icon: "settings_backup_restore", value: "mpvpaper" },
+                    ]
+                    currentValue: Config.options.background.videoBackend
+                    onSelected: newValue => {
+                        Config.options.background.videoBackend = newValue;
+                    }
+                }
+
+                ConfigComboBox {
+                    Layout.fillWidth: true
                     buttonIcon: "texture"
                     text: Translation.tr("Transitions")
                     fieldWidth: 50
