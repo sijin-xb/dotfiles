@@ -14,6 +14,10 @@
 .config/fastfetch/config.jsonc
 .config/mako/colors.conf
 
+# ---- matugen 运行时生成物 ----
+.config/gtk-3.0/gtk.css
+.config/gtk-4.0/gtk.css
+
 # ---- quickshell 运行时生成物 ----
 .config/hypr/hyprland/shellOverrides/main.lua
 .config/hypr/hyprland/shellOverrides/animations.lua

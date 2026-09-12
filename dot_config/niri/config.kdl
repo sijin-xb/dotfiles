@@ -1,0 +1,255 @@
+//  ██████  ██   ██  ██████  ███████ ██ ███    ██ 
+//  ██      ██   ██ ██    ██ ██   ██    ██ ██  ██ 
+//  ███████ ███████ ██    ██ ██████  ██ ██ ██  ██ 
+//       ██ ██   ██ ██    ██ ██   ██ ██ ██  ██ ██ 
+//  ██████  ██   ██  ██████  ██   ██ ██ ██   ████ 
+// 这是niri的配置文件，我写了很多注释方便阅读，同时保留了部分英文注释
+// 自25.11版本起，niri的配置文件支持了拆分，每一条include都代表把已经拆分出去的配置文件嵌入进来。
+include "binds.kdl"
+include optional=true "rule.kdl"
+include optional=true "output.kdl"
+include optional=true "animations.kdl"
+include optional=true "layout.kdl"
+include optional=true "blur.kdl" 
+include optional=true "debug.kdl"
+// 截图保存位置
+screenshot-path "~/Pictures/Screenshots/Niri-screenshots/%Y-%m-%d %H-%M-%S.png"
+
+// 环境变量
+
+environment {
+    LANGUAGE "zh_CN:en"
+    LANG "zh_CN.UTF-8"
+    // 输入法环境变量
+    XMODIFIERS "@im=fcitx"
+    QT_IM_MODULES "wayland;fcitx"
+    // qt主题
+    QT_QPA_PLATFORMTHEME "gtk3"
+    QT_QPA_PLATFORMTHEME_QT6 "gtk3"
+    // 解决quickshell图标主题缺失问题
+    QS_ICON_THEME "Adwaita"
+    // GTK软件使用的渲染器，可以解决n卡双显卡导致的GTK应用启动缓慢问题，AMD或Intel单显卡不需要这行设置可以注释掉
+    GSK_RENDERER "gl"
+    // 默认文本编辑器
+    EDITOR "vim"
+    
+}
+// 光标配置
+cursor {
+    // 主题，存放路径在~/.local/share/icons
+    xcursor-theme "catppuccin-mocha-flamingo-cursors"
+    // 大小
+    xcursor-size 24
+    // 闲置多少毫秒自动隐藏光标
+    hide-after-inactive-ms 15000
+    shake-to-enlarge {
+	//off
+	//grow
+	grow-speed 0.01
+        threshold 2000
+	hold-duration-ms 1500
+	zoom-factor 7
+    }
+}
+ 
+// 带缩略图的alt+tab切换窗口功能（但是我设置的是super+tab，更符合逻辑）
+recent-windows {
+    // 取消//off的注释可以禁用
+    // off
+    debounce-ms 750
+    open-delay-ms 150
+
+    highlight {
+        active-color "#999999ff"
+        urgent-color "#ff9999ff"
+        // 缩略图背景内间距
+        padding 30
+        // 缩略图的背景圆角
+        corner-radius 12
+    }
+
+	//设置缩略图大小
+    previews {
+        max-height 480
+        max-scale 0.2
+    }
+
+    binds {
+        // scope可以设置显示的窗口是当前工作区的、还是当前显示器的、或者显示全部窗口
+        Mod+Tab         { next-window scope="workspace"; }
+        Mod+Shift+Tab   { previous-window scope="workspace"; }
+        // grave是波浪键，显示当前应用的所有窗口
+        Mod+grave       { next-window     filter="app-id"; }
+        Mod+Shift+grave { previous-window filter="app-id"; }
+    }
+}
+// 这是include进来的颜色文件，主要设置了窗口边框
+include "colors.kdl"
+
+input {
+    keyboard {
+        xkb {
+            // You can set rules, model, layout, variant and options.
+            // For more information, see xkeyboard-config(7).
+
+            // For example:
+            // layout "us,ru"
+            // options "grp:win_space_toggle,compose:ralt,ctrl:nocaps"
+
+            // If this section is empty, niri will fetch xkb settings
+            // from org.freedesktop.locale1. You can control these using
+            // localectl set-x11-keymap.
+        }
+
+        // Enable numlock on startup, omitting this setting disables it.
+        //numlock
+	    repeat-delay 250
+	    repeat-rate 35
+    }
+
+    // Next sections include libinput settings.
+    // Omitting settings disables them, or leaves them at their default values.
+    // All commented-out settings here are examples, not defaults.
+    touchpad {
+        // off
+        tap
+        // dwt
+        // dwtp
+        // drag false
+        // drag-lock
+        // nautural-scroll可以翻转触摸板滚动的方向
+        natural-scroll
+        //accel-speed -0.5
+        // accel-profile "flat"
+        // scroll-method "two-finger"
+        // disabled-on-external-mouse
+    }
+
+    mouse {
+        
+	// off
+        // natural-scroll
+        // 鼠标速度
+        accel-speed 0
+        // 禁用鼠标加速 
+        accel-profile "flat"
+	// scroll-method "no-scroll"
+        //speed of scroll,like:
+        //scroll-factor horizontal=2.0 vertical=-5.0 
+    }
+
+    trackpoint {
+        // off
+        // natural-scroll
+        // accel-speed 0.2
+        // accel-profile "flat"
+        // scroll-method "on-button-down"
+        // scroll-button 273
+        // scroll-button-lock
+        // middle-emulation
+    }
+
+    // Uncomment this to make the mouse warp to the center of newly focused windows.
+    //warp-mouse-to-focus
+
+    // Focus windows and outputs automatically when moving the mouse into them.
+    // Setting max-scroll-amount="0%" makes it work only on windows already fully on screen.
+    //focus-follows-mouse max-scroll-amount="50%"
+}
+
+//blur
+//blur {
+	// off
+	//passes 3
+	//offset 2
+	//noise 0.02
+	//saturation 1.5 
+//}
+
+overview {
+	workspace-shadow {
+	//off
+	}
+	//缩放
+	zoom 0.55
+}
+// Add lines like this to spawn processes at startup.
+// Note that running niri as a session supports xdg-desktop-autostart,
+// which may be more convenient to use.
+// See the binds section below for more ipawn examples.
+
+// This line starts waybar, a commonly used bar for Wayland compositors.
+// 自动启动设置
+// 桌面壁纸的守护进程
+spawn-at-startup "awww-daemon"
+// 总览界面背景壁纸的守护进程
+spawn-at-startup "awww-daemon" "-n" "overview"
+// 随机更换一张壁纸
+spawn-sh-at-startup "sleep 1 &&  waypaper --random"
+// 恢复壁纸
+//spawn-at-startup "waypaper" "--restore"
+// 询问管理员权限功能（身份验证）
+spawn-at-startup "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
+// 屏幕分享、录屏相关的环境设置,如果屏幕分享出异常的话可以开启
+ spawn-sh-at-startup "dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP=niri LANG LANGUAGE LC_MESSAGES LC_CTYPE"
+// GNOME tracker修复
+spawn-sh-at-startup "systemctl --user set-environment XDG_SESSION_CLASS=user"
+// 通知程序
+spawn-at-startup "mako"
+// 任务栏
+spawn-at-startup "waybar"
+// 输入法
+spawn-at-startup "fcitx5" 
+// 剪贴板守护进程
+	//cliphist
+spawn-at-startup "wl-paste" "--watch" "cliphist" "store"
+	// wayland <--> x11 剪贴板同步 这个包是我自己推的linuxqq-clipsync-git
+spawn-at-startup "systemctl" "--user" "start" "linuxqq-clipsync"
+// 闲置时自动熄屏锁屏睡眠的脚本，说实话这东西用处不大，建议用 mod+shift+P 打开电源菜单。
+// spawn-at-startup "~/.config/niri/scripts/swayidle.sh"
+// 大写锁定键的osd显示
+spawn-at-startup "swayosd-server"
+// 自动开启护眼模式,经纬度设置位置
+spawn-at-startup "~/.local/bin/toggle-wlsunset"
+// 截图音效的守护进程
+spawn-at-startup "~/.config/niri/scripts/screenshot-sound.sh"
+// alt+tab切换器（这是一个第三方，无缩略图显示的切换器）
+//spawn-at-startup "niriswitcher"
+// niri-siderbar
+spawn-at-startup "~/.local/bin/niri-sidebar" "listen"
+// 允许root通过用户的xwayland打开窗口
+spawn-at-startup "xhost" "+si:localuser:root"
+// 音频调整程序，easyeffects，-w可以在后台启动
+spawn-at-startup "flatpak" "run" "com.github.wwmm.easyeffects" "-w"
+// nirius
+spawn-at-startup "niriusd"
+
+// 取消启动niri时自动开启快捷键教程
+hotkey-overlay {
+    // Uncomment this line to disable the "Important Hotkeys" pop-up at startup.
+     skip-at-startup
+}
+
+// 隐藏窗口标题栏
+prefer-no-csd
+
+magnifier {
+    // off
+    zoom-factor 3
+    track-cursor false 
+    //scale-cursor false
+}
+
+grid-overview {
+    gap 16
+    padding 80
+    focused-column-scale 1.04
+    grid-all-monitors true
+}
+
+debug {
+	// 放宽聚焦拦截，修复点击托盘程序无法跳转聚焦的问题。
+	honor-xdg-activation-with-invalid-serial
+}
+
+

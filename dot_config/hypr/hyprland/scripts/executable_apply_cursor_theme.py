@@ -69,6 +69,17 @@ def main():
         f.write(theme + "\n")
 
     print(f"cursor-theme: primary {primary} -> {theme}")
+    # Keep GTK's runtime cursor setting in sync with the compositor.
+    subprocess.run(
+        ["gsettings", "set", "org.gnome.desktop.interface", "cursor-theme", theme],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    subprocess.run(
+        ["gsettings", "set", "org.gnome.desktop.interface", "cursor-size", str(SIZE)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
     # Apply live if a Hyprland session is running
     if os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):
         subprocess.run(["hyprctl", "setcursor", theme, str(SIZE)],

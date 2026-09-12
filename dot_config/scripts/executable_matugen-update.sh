@@ -220,3 +220,9 @@ else
     gsettings set org.gnome.desktop.interface gtk-theme "adw-gtk"
     gsettings set org.gnome.desktop.interface gtk-theme "adw-gtk3-dark"
 fi
+
+# Keep the wallpaper-derived cursor accent synchronized across Hyprland and GTK.
+CURSOR_THEME_SCRIPT="$HOME/.config/hypr/hyprland/scripts/apply_cursor_theme.py"
+if [ -x "$CURSOR_THEME_SCRIPT" ]; then
+    "$CURSOR_THEME_SCRIPT" >/dev/null 2>&1 || true
+fi
