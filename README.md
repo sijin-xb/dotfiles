@@ -288,6 +288,7 @@ quickshell 未运行时使用 hyprlock。
 - `Config.qml` 的 `videoBackend` 默认值、`switchwall.sh` 的 jq 回退默认值同步改为 `mpvpaper`。
 - 设置页面后端下拉框调整顺序与文案：`Mpvpaper（推荐）` 置顶，`Wallr（可能卡顿）` 标注风险，`Phonto（GPU 视频）` 保留。
 - 同步更新 `en_US.json` 与 `zh_CN.json` 翻译；其余语言通过翻译工具补齐。
+- 修复「设置里切换视频后端后仍然沿用旧后端」的问题：现在切换会立即重新应用当前视频壁纸，替换掉正在运行的后端进程，不再需要手动重新选一次壁纸。
 
 **使用方式**
 

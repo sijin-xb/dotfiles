@@ -287,6 +287,7 @@ ContentPage {
                     currentValue: Config.options.background.videoBackend
                     onSelected: newValue => {
                         Config.options.background.videoBackend = newValue;
+                        Wallpapers.reapplyCurrentWallpaper();
                     }
                 }
 

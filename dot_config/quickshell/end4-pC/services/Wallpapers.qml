@@ -26,6 +26,7 @@ Singleton {
         "jpg", "jpeg", "png", "webp", "avif", "bmp", "svg",
         "mp4", "webm", "mkv", "avi", "mov"
     ]
+    readonly property list<string> videoExtensions: ["mp4", "webm", "mkv", "avi", "mov"]
     property list<string> wallpapers: [] // List of absolute file paths (without file://)
     readonly property bool thumbnailGenerationRunning: thumbgenProc.running
     property real thumbnailGenerationProgress: 0
@@ -65,6 +66,19 @@ Singleton {
         root.confirmedPath = path;
         Quickshell.execDetached([Directories.wallpaperSwitchScriptPath, "--mode", darkMode ? "dark" : "light", "--image", path]);
         root.changed()
+    }
+
+    /**
+     * The backend setting only affects video wallpapers. Re-applying the current
+     * wallpaper replaces the running backend process immediately, instead of
+     * leaving the old one alive until the next wallpaper switch.
+     */
+    function reapplyCurrentWallpaper() {
+        const path = Config.options.background.wallpaperPath;
+        if (!path || path.length === 0) return;
+        const extension = path.split(".").pop()?.toLowerCase() ?? "";
+        if (!root.videoExtensions.includes(extension)) return;
+        root.apply(path);
     }
 
     Process {
