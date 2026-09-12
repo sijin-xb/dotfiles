@@ -244,6 +244,21 @@ quickshell 未运行时使用 hyprlock。
 
 ## 更新日志
 
+### 2026-09-12（第十次）
+
+**新增：桌面小部件布局编辑器**
+
+- 新手：在桌面空白处右键选择「编辑桌面布局」，即可拖动所有已启用的小部件；网格和中心线会帮助对齐，完成后选择「锁定桌面布局」。位置会自动保存，不需要手动编辑 JSON。
+- 音频可视化现在可以拖动。它是全宽部件，横向位置固定，编辑模式下上下拖动即可调整高度。
+- 自动布局的小部件也支持临时手动调整；释放鼠标后会保存位置并切换为自由定位。
+
+**开发者说明**
+
+- 右键菜单入口位于 `modules/ii/desktopMenu/DesktopMenu.qml`。
+- 通用拖动和持久化逻辑位于 `modules/ii/background/widgets/AbstractBackgroundWidget.qml`；位置写入 `~/.config/illogical-impulse/config.json` 的 `background.widgets.<name>.x/y`。
+- `modules/common/widgets/widgetCanvas/WidgetCanvas.qml` 在编辑模式显示网格和对齐参考线。
+- 可视化部件移除了覆盖基类定位逻辑的硬编码坐标，首次显示使用底部定位，拖动后保存实际坐标。
+
 ### 2026-09-12（第九次）
 
 **新增**
