@@ -255,7 +255,7 @@ switch() {
         if is_video "$imgpath"; then
             mkdir -p "$THUMBNAIL_DIR"
 
-            requested_backend=$(jq -r '.background.videoBackend // "wallr"' "$SHELL_CONFIG_FILE" 2>/dev/null)
+            requested_backend=$(jq -r '.background.videoBackend // "mpvpaper"' "$SHELL_CONFIG_FILE" 2>/dev/null)
             video_backend=$(resolve_video_backend "$requested_backend")
             if [[ "$video_backend" != "$requested_backend" ]]; then
                 notify-send \

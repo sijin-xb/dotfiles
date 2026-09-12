@@ -400,8 +400,8 @@ Singleton {
                 }
                 property list<string> screenList: [] 
                 property string wallpaperPath: ""
-                // 视频壁纸后端：wallr / phonto / mpvpaper（缺少首选后端时自动回退到 mpvpaper）
-                property string videoBackend: "wallr"
+                // 视频壁纸后端：mpvpaper / phonto / wallr（缺少首选后端时自动回退到 mpvpaper）
+                property string videoBackend: "mpvpaper"
                 property bool centeredWallpaper: false
                 property string centeredWallpaperShape: "Cookie7Sided"
                 property int centeredWallpaperSize: 400

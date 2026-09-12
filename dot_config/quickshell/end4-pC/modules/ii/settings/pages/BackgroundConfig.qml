@@ -280,9 +280,9 @@ ContentPage {
                     text: Translation.tr("Video wallpaper backend")
                     fieldWidth: 50
                     model: [
-                        { displayName: Translation.tr("Wallr (recommended)"), icon: "wallpaper", value: "wallr" },
+                        { displayName: Translation.tr("Mpvpaper (recommended)"), icon: "settings_backup_restore", value: "mpvpaper" },
+                        { displayName: Translation.tr("Wallr (video may freeze)"), icon: "wallpaper", value: "wallr" },
                         { displayName: Translation.tr("Phonto (GPU video)"), icon: "movie", value: "phonto" },
-                        { displayName: Translation.tr("Mpvpaper (fallback)"), icon: "settings_backup_restore", value: "mpvpaper" },
                     ]
                     currentValue: Config.options.background.videoBackend
                     onSelected: newValue => {

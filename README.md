@@ -70,23 +70,35 @@ cd dotfiles
 
 | 后端 | 适合场景 |
 |---|---|
-| **Wallr** | 推荐的 Wayland 原生方案，支持 FFmpeg 硬件解码和多显示器 |
+| **Mpvpaper** | 推荐，稳定可靠，逐显示器启动 |
 | **Phonto** | 适合测试 GPU 视频播放和低占用表现 |
-| **Mpvpaper** | 当前稳定回退方案 |
+| **Wallr** | 功能更完整，但存在视频随机冻结的已知问题，见下 |
 
-Wallr 和 Phonto 都是可选依赖。没有安装时，脚本会自动回退到 Mpvpaper，不会影响已有视频壁纸。
+Mpvpaper 是默认后端。Wallr 和 Phonto 都是可选依赖；没有安装时，脚本会自动回退到 Mpvpaper，不会影响已有视频壁纸。
+
+### Wallr 已知问题：视频随机冻结
+
+Wallr 的壁纸会**突然定格不动**——视频解码线程可能仍在运行，但渲染循环停止更新，画面停在最后一帧。常见触发场景包括：
+
+- 显示器 DPMS 休眠后唤醒
+- 全屏不透明窗口完全遮挡背景层
+- 显示器热插拔或分辨率 / 缩放变更
+
+临时恢复方法是重启 daemon（`pkill wallr` 后重新 `wallr daemon`）。
+
+由于该问题尚未在上游修复，默认后端保持为 Mpvpaper。如果仍想试用 Wallr，可在设置中手动切换，并留意上述场景。
 
 开发者可直接编辑：
 
 ```json
 {
   "background": {
-    "videoBackend": "wallr"
+    "videoBackend": "mpvpaper"
   }
 }
 ```
 
-可选值为 `wallr`、`phonto`、`mpvpaper`。切换后重新选择一次视频壁纸即可生效。脚本会先停止其他视频壁纸进程，确保不会同时运行多个后端。
+可选值为 `mpvpaper`、`phonto`、`wallr`。切换后重新选择一次视频壁纸即可生效。脚本会先停止其他视频壁纸进程，确保不会同时运行多个后端。
 
 ## 脚本命令
 
@@ -267,6 +279,20 @@ quickshell 未运行时使用 hyprlock。
 `Persistent.states.record.enable` 即可恢复。
 
 ## 更新日志
+
+### 2026-09-12（第十四次）
+
+**修复：视频壁纸默认后端回退到 Mpvpaper**
+
+- 视频壁纸默认后端从 Wallr 改回 **Mpvpaper**。Wallr 存在视频随机冻结的已知问题（见「视频壁纸后端」章节），暂不推荐作为默认值。
+- `Config.qml` 的 `videoBackend` 默认值、`switchwall.sh` 的 jq 回退默认值同步改为 `mpvpaper`。
+- 设置页面后端下拉框调整顺序与文案：`Mpvpaper（推荐）` 置顶，`Wallr（可能卡顿）` 标注风险，`Phonto（GPU 视频）` 保留。
+- 同步更新 `en_US.json` 与 `zh_CN.json` 翻译；其余语言通过翻译工具补齐。
+
+**使用方式**
+
+- 默认即为 Mpvpaper，无需额外配置。
+- 想尝试 Wallr：设置 → 背景 → 视频壁纸后端 → 选择「Wallr（可能卡顿）」；遇到画面定格执行 `pkill wallr && wallr daemon` 恢复。
 
 ### 2026-09-12（第十三次）
 
