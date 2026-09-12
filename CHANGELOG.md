@@ -2,6 +2,31 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+### 2026-09-13（第二十次）
+
+**重构：壁纸选择器去背景、贴底淡入，并修复键盘**
+
+- 去掉面板的大背景、边框、阴影与模糊底图，内容直接叠在壁纸上；原先包住整个网格的
+  圆角裁切一并移除。工具栏（标题 / 目录导航 / 来源选择）统一为胶囊样式。
+- 面板从顶部锚定改为贴底锚定，入场改为从下方淡入。
+- 入场动画为 `opacity` 460ms 叠加 `scale` 0.97 → 1（520ms），出场 280ms；刻意不做位移。
+- 面板位置固定后仍出现整体滑动，根因不在 QML：`Loader.active` 绑在开关状态上，
+  每次打开都会重建 `PanelWindow`，新 surface 以 0 尺寸创建再长到全高，贴底锚定下
+  顶边被向上顶。改为 surface 常驻、只切 `visible`。
+- 位移的第二个来源是 Hyprland 的 layer 规则：`quickshell:wallpaperSelector` 被配了
+  `animation = "slide top"`，属于合成器层动画，与 QML 无关。改为 `no_anim`，
+  动画完全交给 QML，避免两层淡入叠加。
+- 修复方向键失效：`filterField` 定义在 `Loader.sourceComponent` 的独立作用域内，
+  root 层引用不到它的 id，原代码每次打开都抛 `ReferenceError`，使 `forceActiveFocus()`
+  从未真正执行。改为显式暴露 `filterFieldRef` 引用后该行才首次生效，搜索框随即抢走
+  焦点、吞掉方向键。现改为打开时聚焦 root，搜索框按需聚焦（`/`、`Backspace` 或直接输入）。
+- 修复打开壁纸选择器时挂回焦点：`focus: true` 原先挂在作为背景的 `wallpaperGridBackground`
+  上，该节点随去背景一起删除，导致 `Keys.onPressed` 收不到按键。现由 root 承载。
+- 删除 `WallpaperCarousel` 内部的空状态文案。它被 `LocalWallpaperCarousel` 嵌套，
+  两者空状态条件相同，切到轮播视图时两行「No wallpapers found」重叠成重影。
+- chezmoi：`WallpaperSelector.qml` 与 `LocalWallpaperGrid.qml` 此前未被纳管，
+  本次一并纳入。
+
 ### 2026-09-12（第十九次）
 
 **修复：浏览器播放网页视频被识别为音乐**
