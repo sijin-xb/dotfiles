@@ -30,6 +30,8 @@ Item {
     DownloadSource { id: downloadSource }
     NotificationSource { id: notificationSource }
     PrivacySource { id: privacySource }
+    ConnectivitySource { id: connectivitySource }
+    BatterySource { id: batterySource }
 
     // 封面取色：量化当前歌曲封面，得到主色供灵动岛着色。
     // 结果同时写入 IslandPalette，使主色成为全局共享状态。

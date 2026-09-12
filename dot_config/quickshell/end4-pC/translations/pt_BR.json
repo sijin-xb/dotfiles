@@ -741,5 +741,7 @@
   "Silence island popups": "Silence island popups",
   "Mic in use": "Mic in use",
   "Camera in use": "Camera in use",
-  "Mic & camera in use": "Mic & camera in use"
+  "Mic & camera in use": "Mic & camera in use",
+  "Charger connected": "Charger connected",
+  "Charger disconnected": "Charger disconnected"
 }

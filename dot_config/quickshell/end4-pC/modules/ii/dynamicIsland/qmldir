@@ -11,6 +11,8 @@ MusicActivity 1.0 MusicActivity.qml
 VolumeActivity 1.0 VolumeActivity.qml
 BrightnessActivity 1.0 BrightnessActivity.qml
 PrivacyActivity 1.0 PrivacyActivity.qml
+ConnectivityActivity 1.0 ConnectivityActivity.qml
+BatteryActivity 1.0 BatteryActivity.qml
 RecordingActivity 1.0 RecordingActivity.qml
 PackageActivity 1.0 PackageActivity.qml
 NotificationActivity 1.0 NotificationActivity.qml
@@ -19,6 +21,8 @@ MprisSource 1.0 MprisSource.qml
 VolumeSource 1.0 VolumeSource.qml
 BrightnessSource 1.0 BrightnessSource.qml
 PrivacySource 1.0 PrivacySource.qml
+ConnectivitySource 1.0 ConnectivitySource.qml
+BatterySource 1.0 BatterySource.qml
 RecordSource 1.0 RecordSource.qml
 TaskSource 1.0 TaskSource.qml
 PackageSource 1.0 PackageSource.qml

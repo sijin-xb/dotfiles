@@ -677,6 +677,8 @@ Item {
         case "volume":     return volumeComp
         case "brightness": return brightnessComp
         case "privacy":    return privacyComp
+        case "connectivity": return connectivityComp
+        case "battery":    return batteryComp
         case "recording":  return recordingComp
         case "package":    return packageComp
         case "download":   return packageComp
@@ -689,6 +691,8 @@ Item {
     Component { id: volumeComp;    VolumeActivity {} }
     Component { id: brightnessComp; BrightnessActivity {} }
     Component { id: privacyComp;   PrivacyActivity {} }
+    Component { id: connectivityComp; ConnectivityActivity {} }
+    Component { id: batteryComp;   BatteryActivity {} }
     Component { id: recordingComp; RecordingActivity {} }
     Component { id: packageComp;   PackageActivity {} }
     Component { id: notificationComp; NotificationActivity {} }

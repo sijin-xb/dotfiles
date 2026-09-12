@@ -205,9 +205,11 @@ UI 订阅 `currentType` / `currentPayload`。
 | `music` | 10 | 任意 MPRIS 播放器有曲目 | 封面、频谱、标题 |
 | `package` | 8 | 检测到 pacman / yay / paru / makepkg，或脚本主动上报 | 图标、进度条、百分比 |
 | `download` | 7 | 检测到 curl / wget / aria2c，或脚本主动上报 | 图标、进度条、百分比 |
+| `connectivity` | 25 | 蓝牙 / WiFi 连接或断开（2 秒后自动消失） | 连接图标、设备名 |
 | `notification` | 6 | 收到桌面通知（4 秒后自动消失） | 铃铛、通知摘要 |
 | `recording` | 5 | `states.json` 中 `record.enable` 为 true | 脉冲红点、计时 |
 | `privacy` | 4 | 麦克风 / 摄像头被占用 | 警示圆点、设备图标 |
+| `battery` | 3 | 插拔电源 / 低电量 / 充满（2.5 秒后自动消失） | 电池图标、状态、百分比 |
 
 ### 联动内核
 

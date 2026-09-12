@@ -9,7 +9,7 @@
 | 阶段 | 状态 |
 |---|---|
 | 一 · 联动性内核 | 完成 |
-| 二 · 功能扩展 | 部分（2/7） |
+| 二 · 功能扩展 | 部分（4/7） |
 | 三 · 视觉与动效 | 完成 |
 | 四 · 稳定性与性能 | 部分（2/4） |
 
@@ -33,12 +33,14 @@
 |---|---|---|---|
 | volume | 30 | VolumeSource | 瞬态，2s |
 | brightness | 28 | BrightnessSource | 瞬态，1.5s |
+| connectivity | 25 | ConnectivitySource | 瞬态，2s |
 | music | 10 | MprisSource | 常驻，双页 |
 | package | 8 | PackageSource | 任务，可副岛 |
 | download | 7 | DownloadSource | 任务，可副岛 |
 | notification | 6 | NotificationSource | 瞬态，4s |
 | recording | 5 | RecordSource | 常驻，可副岛 |
 | privacy | 4 | PrivacySource | 常驻 |
+| battery | 3 | BatterySource | 瞬态，2.5s |
 
 ### 联动机制
 
@@ -64,8 +66,8 @@
 
 - [x] 亮度
 - [x] 隐私指示（麦克风 / 摄像头）
-- [ ] 蓝牙 / 网络连接
-- [ ] 电池低电量
+- [x] 蓝牙 / 网络连接
+- [x] 电池低电量
 - [ ] 倒计时
 - [ ] 待办 / 更新
 - [ ] 剪贴板
