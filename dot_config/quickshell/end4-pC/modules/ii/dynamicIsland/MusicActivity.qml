@@ -29,14 +29,15 @@ Item {
             return false
         for (let i = 0; i < lyricRepeater.count; i++) {
             const it = lyricRepeater.itemAt(i)
-            if (!it)
+            // 越界槽位高度为 0，跳过
+            if (!it || !it.hasLine)
                 continue
             const topLeft = it.mapToItem(root, 0, 0)
             if (y >= topLeft.y && y <= topLeft.y + it.height) {
                 // 行时间是「歌词坐标系」的时间，而当前行判定用的是
                 // currentTime + effectiveOffset。要让它跳过去之后正好成为当前行，
                 // 得把这个偏移扣掉，否则手动调过歌词偏移时会差一截。
-                const lineStart = root.lyricWindow[i].start ?? 0
+                const lineStart = it.line ? (it.line.start ?? 0) : 0
                 const off = root.lyricsProvider
                     ? (root.lyricsProvider.effectiveOffset ?? 0) : 0
                 root.seekRequested(Math.max(0, lineStart - off))
@@ -50,22 +51,27 @@ Item {
         return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     }
 
-    readonly property var lyricWindow: {
-        const lines = []
-        if (!lyricLines || lyricLines.length === 0) return lines
-        const start = Math.max(0, curIdx - 2)
-        const end = Math.min(lyricLines.length, start + 5)
-        for (let i = start; i < end; i++) {
-            lines.push({
-                text: lyricLines[i].text ?? "",
-                trans: lyricLines[i].trans ?? "",
-                words: lyricLines[i].words ?? null,
-                // 行起始时间：点击该行时据此 seek
-                start: lyricLines[i].start ?? 0,
-                active: i === curIdx
-            })
-        }
-        return lines
+    // 歌词窗口用「固定槽位数 + 索引访问」而不是每次重建的数组。
+    //
+    // 旧写法每次 curIdx 变化都生成一个新数组，Repeater 会把 5 个 delegate
+    // 连同内层逐字 Repeater 全部销毁重建；而窗口其实只滑动一行，
+    // 多数行内容并未改变。改成整数 model 后 delegate 恒定复用，
+    // 窗口滑动只更新属性，不动对象树。
+    readonly property int lyricWindowSize: 5
+    readonly property int lyricLineCount: lyricLines ? lyricLines.length : 0
+    readonly property bool hasLyrics: lyricLineCount > 0
+
+    // 尽量让当前行居中；靠近首尾时窗口贴边
+    readonly property int lyricWindowStart: {
+        if (lyricLineCount === 0)
+            return 0
+        return Math.max(0, Math.min(curIdx - 2, Math.max(0, lyricLineCount - lyricWindowSize)))
+    }
+
+    // 槽位 → 歌词数组下标；越界返回 -1，delegate 据此塌缩
+    function lyricIndexAt(slot) {
+        const i = lyricWindowStart + slot
+        return (i >= 0 && i < lyricLineCount) ? i : -1
     }
 
     signal prevRequested()
@@ -344,7 +350,7 @@ Item {
 
             Text {
                 anchors.centerIn: parent
-                visible: root.lyricWindow.length === 0
+                visible: !root.hasLyrics
                 text: "暂无歌词"
                 color: IslandTheme.textTertiary
                 font.family: IslandTheme.fontFamily
@@ -354,15 +360,29 @@ Item {
             ColumnLayout {
                 anchors.fill: parent
                 spacing: 2
-                visible: root.lyricWindow.length > 0
+                visible: root.hasLyrics
 
                 Repeater {
                     id: lyricRepeater
-                    model: root.lyricWindow
+                    // 整数 model：delegate 数量恒定，窗口滑动不触发销毁重建
+                    model: root.lyricWindowSize
                     delegate: Column {
-                        required property var modelData
+                        id: lineDelegate
+                        required property int index
+                        // 本槽位对应的歌词下标；越界为 -1
+                        readonly property int lineIndex: root.lyricIndexAt(index)
+                        readonly property bool hasLine: lineIndex >= 0
+                        readonly property var line: hasLine ? root.lyricLines[lineIndex] : null
+                        readonly property bool active: hasLine && lineIndex === root.curIdx
+                        readonly property var words: (line && line.words) ? line.words : null
+                        // 离当前行的距离决定暗度，直接用槽位下标算，
+                        // 不再对数组做 indexOf 扫描
+                        readonly property real dimOpacity: Math.max(0.2, 0.6 - Math.abs(index - 2) * 0.15)
+
                         Layout.fillWidth: true
                         Layout.fillHeight: true
+                        // 越界槽位塌缩，让可见行保持原有分布
+                        visible: hasLine
 
                         // 当前行：逐字高亮（分字渲染，避免 RichText 每帧重解析导致的卡顿）
                         Item {
@@ -372,18 +392,18 @@ Item {
                             // 而子项用 anchors.centerIn + clip:true，于是当前行主文本被整条裁掉，
                             // 只剩下面的翻译行可见。
                             width: parent.width
-                            height: !modelData.active ? 0 : ((modelData.words && modelData.words.length > 0)
+                            height: !lineDelegate.active ? 0 : ((lineDelegate.words && lineDelegate.words.length > 0)
                                 ? wordsRow.implicitHeight
                                 : plainText.implicitHeight)
-                            visible: modelData.active
+                            visible: lineDelegate.active
                             clip: true
 
                             // 无逐字数据时，整行普通渲染
                             Text {
                                 id: plainText
                                 anchors.centerIn: parent
-                                visible: !(modelData.words && modelData.words.length > 0)
-                                text: modelData.text
+                                visible: !(lineDelegate.words && lineDelegate.words.length > 0)
+                                text: lineDelegate.line ? (lineDelegate.line.text ?? "") : ""
                                 color: IslandTheme.text
                                 font.family: IslandTheme.fontFamily
                                 font.pixelSize: IslandTheme.fontBody + 1
@@ -397,9 +417,9 @@ Item {
                             Row {
                                 id: wordsRow
                                 anchors.centerIn: parent
-                                visible: modelData.words && modelData.words.length > 0
+                                visible: lineDelegate.words && lineDelegate.words.length > 0
                                 Repeater {
-                                    model: modelData.words ?? []
+                                    model: lineDelegate.words ?? []
                                     delegate: Item {
                                         required property var modelData
                                         // 字内进度 0→1；dur 缺失时按整字已唱/未唱处理
@@ -452,25 +472,23 @@ Item {
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter
                             width: parent.width
-                            visible: !modelData.active
-                            text: modelData.text
+                            visible: !lineDelegate.active
+                            text: lineDelegate.line ? (lineDelegate.line.text ?? "") : ""
                             color: IslandTheme.textTertiary
                             font.family: IslandTheme.fontFamily
                             font.pixelSize: IslandTheme.fontSmall
                             horizontalAlignment: Text.AlignHCenter
                             elide: Text.ElideRight
-                            opacity: {
-                                const d = Math.abs(root.lyricWindow.indexOf(modelData) - 2)
-                                return Math.max(0.2, 0.6 - d * 0.15)
-                            }
+                            opacity: lineDelegate.dimOpacity
                         }
 
                         // 翻译/英文行：随当前行一同高亮（原来恒暗，导致“英文不高亮”）
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter
                             width: parent.width
-                            visible: modelData.active && modelData.trans.length > 0
-                            text: modelData.trans
+                            readonly property string transText: lineDelegate.line ? (lineDelegate.line.trans ?? "") : ""
+                            visible: lineDelegate.active && transText.length > 0
+                            text: transText
                             color: IslandTheme.text
                             opacity: 0.85
                             font.family: IslandTheme.fontFamily
