@@ -161,15 +161,17 @@ Item {
     onHasContentChanged: syncSize()
     onItemPreferredWidthChanged: syncSize()
 
-    // 展开 / 收起时驱动内容进出场。
-    // 收起时 pill 高度在弹簧收缩，若内容不先淡出，会被收缩的边缘"切掉"。
+    // 展开时驱动内容进场。收起不做淡出：
+    // compact 内容是收起态的常态显示，把它一起透明化会让岛变成黑色空条。
+    // 收缩过程中超出 pill 的部分由 clip 裁掉，不需要额外的退场动画。
     onExpandedChanged: {
         if (expanded) {
-            contentIn.restart()
+            activityLoader.playEnter()
         } else {
             page = 0
             focusType = ""   // 收起后回到正常的主岛归属
-            exitFade.restart()
+            // 收起后把透明度复位，保证 compact 内容可见
+            activityLoader.playEnter()
         }
     }
     onActivityTypeChanged: page = 0
@@ -407,6 +409,8 @@ Item {
             scale: 0.96
             transformOrigin: Item.Center
 
+            // 进场：淡入 + 轻微放大。唯一的 opacity 驱动者，
+            // 避免多个动画抢同一属性导致透明度卡死。
             ParallelAnimation {
                 id: contentIn
                 NumberAnimation {
@@ -424,22 +428,16 @@ Item {
                     easing.type: Easing.OutCubic
                 }
             }
-            onSourceComponentChanged: {
+
+            // 统一的进场入口：先复位再播，重复调用安全。
+            function playEnter() {
+                contentIn.stop()
                 opacity = 0
                 scale = 0.96
                 contentIn.restart()
             }
 
-            // 收起时的退场：只动透明度，不碰 scale，
-            // 这样下次展开由 contentIn 接管时不会闪一下。
-            NumberAnimation {
-                id: exitFade
-                target: activityLoader
-                property: "opacity"
-                to: 0
-                duration: IslandTheme.durationContentExit
-                easing.type: Easing.InCubic
-            }
+            onSourceComponentChanged: activityLoader.playEnter()
             onItemChanged: {
                 if (item) {
                     item.expanded = Qt.binding(function() { return root.expanded })
