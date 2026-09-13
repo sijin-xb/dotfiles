@@ -2,9 +2,7 @@
 -- The file name is for the sake of organization and does not matter
 -- See the corresponding files in ~/.config/hypr/hyprland for examples
 
--- FireflySpring Missives 像素光标主题（XCursor 格式，安装于 ~/.local/share/icons）
--- 标称尺寸 32：像素画保持锐利，且 person/pin 的相对大小正确
-hl.env("XCURSOR_THEME", "FireflySpring-Missives-Pixel-Cursors")
-hl.env("XCURSOR_SIZE", "32")
-hl.env("HYPRCURSOR_THEME", "FireflySpring-Missives-Pixel-Cursors")
-hl.env("HYPRCURSOR_SIZE", "32")
+-- 光标主题由 hyprland/execs.lua 统一管理：
+-- 它读取 ~/.cache/cursor_theme（由 generate_cursor_theme.py 按 matugen 主色重写），
+-- 再做 hyprctl setcursor。此处不要再硬编码 XCURSOR_THEME / HYPRCURSOR_THEME，
+-- 否则会和 execs.lua 的设置打架（execs.lua 后加载，会静默覆盖这里的值）。

@@ -2,6 +2,31 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+### 2026-09-13（第二十二次）
+
+**光标主题改为按 matugen 主色精确重渲染**
+
+- 旧实现 `apply_cursor_theme.py` 把 matugen primary 映射到 14 个固定 catppuccin
+  accent 里最近的一个。粉色 `#ffb2bf` 落点最接近 peach `#fab387`，光标就成了棕色，
+  和桌面对不上。离散近似在色相处于两个锚点之间时必然出错，无法靠调权重解决。
+- 新增 `hypr/hyprland/scripts/generate_cursor_theme.py`：拿 `catppuccin-cursors-mocha`
+  的 SVG 模板，把强调色（`#f5c2e7`）替换成 matugen primary 后重新渲染，产出完整的
+  `~/.local/share/icons/Matugen-Cursors`。同时生成 XCursor（rsvg-convert + xcursorgen）
+  与 hyprcursor（重打包 `.hlc`）两套，Hyprland 走原生路径而非回退。
+- hotspot 按 SVG viewport 归一化，而不是 `nominal_size`。catppuccin 模板画在 32×32
+  画布上却标称 24，`bottom_left_corner` 之类热点 y=26 属正常值；按标称尺寸换算会
+  得到越界坐标，被 `xcursorgen` 直接拒绝（11 个 cursor 受影响）。
+- 触发点挂在 `matugen/config.toml` 的 `[templates.m3colors].post_hook`：任何调用
+  matugen 的路径都会重建光标，包括 Quickshell 的 `switchwall.sh`（上游底盘，不在
+  本仓库源树内，无法直接改）和 `matugen-update.sh`。脚本按主色缓存，颜色没变直接返回。
+- 清理三处互相打架的光标设置：`hypr/custom/env.lua` 的硬编码 `FireflySpring`（会
+  被 `execs.lua` 静默覆盖）、`environment.d/cursor.conf` 的旧 fallback、以及
+  `matugen-update.sh` 里现在冗余的显式调用。
+- `install.sh` 增补 `librsvg`、`xorg-xcursorgen`（pacman）与 `catppuccin-cursors-mocha`
+  （AUR，仅作 SVG 源模板）。
+- 覆盖范围：Hyprland 合成器光标、XWayland 应用光标、GTK 应用光标（gsettings
+  `cursor-theme`）现在都是同一个精确主色。
+
 ### 2026-09-13（第二十一次）
 
 **Qt / KDE 配色接入 matugen，GTK 与 Qt 统一到壁纸取色**

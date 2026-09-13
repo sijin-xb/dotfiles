@@ -210,6 +210,8 @@ cmd_install() {
         cliphist easyeffects hypridle hyprlock
         xdg-desktop-portal-hyprland gnome-keyring
         python
+        # 光标主题重渲染工具（源主题 catppuccin-cursors-mocha 在 AUR，见 [2/6]）
+        librsvg xorg-xcursorgen
         # quickshell 源码编译工具链（三级回退时使用，平时不碍事）
         cmake ninja
         qt6-base qt6-declarative qt6-wayland qt6-5compat qt6-shadertools qt6-svg
@@ -226,7 +228,7 @@ cmd_install() {
         (cd "$tmpdir/yay" && makepkg -si --noconfirm)
         rm -rf "$tmpdir"
     fi
-    for p in matugen mpvpaper; do
+    for p in matugen mpvpaper catppuccin-cursors-mocha; do
         if pacman -Q "$p" >/dev/null 2>&1; then
             echo "    已安装: $p"
         elif aur_install "$p"; then

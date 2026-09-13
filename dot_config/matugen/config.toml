@@ -4,6 +4,11 @@ version_check = false
 [templates.m3colors]
 input_path = '~/.config/matugen/templates/colors.json'
 output_path = '~/.local/state/quickshell/user/generated/colors.json'
+# 光标主题按新的 primary 重渲染。挂在 m3colors 上是因为光标脚本要读
+# 它刚写出的 colors.json；放在这里可以覆盖所有 matugen 调用方
+# （switchwall.sh 换壁纸、matugen-update.sh 切策略/明暗），
+# 不必逐个改动上游脚本。脚本内部有主色缓存，颜色没变时立即返回。
+post_hook = 'nohup "$HOME/.config/hypr/hyprland/scripts/generate_cursor_theme.py" >/dev/null 2>&1 &'
 
 [templates.hyprland]
 input_path = '~/.config/matugen/templates/hyprland/colors.lua'

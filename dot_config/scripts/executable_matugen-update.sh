@@ -221,11 +221,9 @@ else
     gsettings set org.gnome.desktop.interface gtk-theme "adw-gtk3-dark"
 fi
 
-# Keep the wallpaper-derived cursor accent synchronized across Hyprland and GTK.
-CURSOR_THEME_SCRIPT="$HOME/.config/hypr/hyprland/scripts/apply_cursor_theme.py"
-if [ -x "$CURSOR_THEME_SCRIPT" ]; then
-    "$CURSOR_THEME_SCRIPT" >/dev/null 2>&1 || true
-fi
+# 光标主题不在这里调用：matugen 的 config.toml 已在 [templates.m3colors]
+# 上挂了 post_hook，任何调用 matugen 的路径（本脚本、Quickshell 的
+# switchwall.sh）都会自动重渲染光标，无需重复触发。
 
 # --- 8. 同步 Qt / KDE 配色 ---
 # GTK 走 gsettings，Qt 走 kde-material-you-colors，两条链彼此独立。

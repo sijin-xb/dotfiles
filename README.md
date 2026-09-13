@@ -44,6 +44,8 @@ bash 脚本完成，不需要 chezmoi 二进制。
     `~/.config/gtk-4.0/gtk.css`，adw-gtk3 系应用跟壁纸换色
   - **Qt / KDE**：matugen 输出种子色，`kde-material-you-colors` 生成 KDE 配色方案，
     Dolphin / Konsole / Kate / Systemsettings 等 KDE 应用跟壁纸换色
+  - **光标**：按 matugen primary 精确重渲染整套光标主题（XCursor + hyprcursor），
+    不再限定于几个预设色
   - **其他**：kitty / alacritty / foot / fastfetch / fcitx5 / mako / Hyprland
 - fish（fzf 绑定、nvm）、nvim（LazyVim）、btop、fastfetch、fuzzel、mako 配置
 
@@ -346,6 +348,11 @@ UI 订阅 `currentType` / `currentPayload`。
   `templates/kde/kde-material-you-colors-wrapper.sh` 读取 matugen 生成的
   种子色（`color.txt`）后调用 kmyc 产出配色方案。换壁纸（`switchwall.sh`）
   和切换配色策略 / 明暗模式（`matugen-update.sh`）都会刷新这两条链
+- 光标主题由 `hypr/hyprland/scripts/generate_cursor_theme.py` 生成：读取
+  matugen primary，替换 `catppuccin-cursors-mocha` 的 SVG 模板颜色后重渲染
+  出 `~/.local/share/icons/Matugen-Cursors`（含 XCursor 与 hyprcursor 两套）。
+  入口是 `matugen/config.toml` 里 `[templates.m3colors]` 的 `post_hook`，
+  因此所有调用 matugen 的路径都会自动触发；脚本按主色缓存，颜色未变时直接跳过
 - 浏览器主界面多为自绘（Chrome / Electron 系完全不跟；Firefox 只跟右键菜单、
   文件对话框等 GTK widget），是这套统一化覆盖不到的部分
 - 桌面歌词偏移微调：

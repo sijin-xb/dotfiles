@@ -30,10 +30,10 @@ hl.on("hyprland.start", function ()
     hl.exec_cmd("wl-paste --type text --watch bash -c 'cliphist store && qs -c $qsConfig ipc call cliphistService update'")
     hl.exec_cmd("wl-paste --type image --watch bash -c 'cliphist store && qs -c $qsConfig ipc call cliphistService update'")
 
-    -- Cursor: theme follows the matugen palette (nearest catppuccin mocha accent),
-    -- persisted by apply_cursor_theme.py to ~/.cache/cursor_theme
+    -- Cursor: theme rebuilt from the exact matugen primary color,
+    -- persisted by generate_cursor_theme.py to ~/.cache/cursor_theme
     local cursorThemeFile = io.open(home_dir .. "/.cache/cursor_theme", "r")
-    local cursorTheme = "catppuccin-mocha-flamingo-cursors"
+    local cursorTheme = "Matugen-Cursors"
     if cursorThemeFile then
         local content = cursorThemeFile:read("*l")
         cursorThemeFile:close()
