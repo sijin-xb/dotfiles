@@ -13,6 +13,5 @@ hl.bind("SUPER + Slash", shell("kitty --single-instance --class quickterminal"),
 hl.bind("SUPER + L", hl.dsp.global("quickshell:lock"), { description = "Lock screen（Quickshell 媒体面板）" })
 hl.bind("SUPER + ALT + T", shell("$HOME/.config/scripts/matugen-select-type.sh"), { description = "Change color strategy" })
 hl.bind("SUPER + U", hl.dsp.focus({ workspace = "r-" .. "1" }), { description = "Previous workspace" })
-hl.bind("SUPER + I", hl.dsp.focus({ workspace = "r+" .. "1" }), { description = "Next workspace" })
 hl.bind("SUPER + CTRL + U", hl.dsp.window.move({ workspace = "r-1" }), { description = "Move window to previous workspace" })
 hl.bind("SUPER + CTRL + I", hl.dsp.window.move({ workspace = "r+1" }), { description = "Move window to next workspace" })

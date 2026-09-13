@@ -2,6 +2,25 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+### 2026-09-13（第二十次）
+
+**修复：登录时 Quickshell 自动启动导致整个桌面卡死**
+
+- 现象：Hyprland 登录后自动拉起 Quickshell，随即整个合成器无响应，连 tty 都切不进去，
+  只能硬重启。
+- 根因：`execs.lua` 启动 Quickshell 时注入了 `QT_IM_MODULE=fcitx`、`GTK_IM_MODULE=fcitx`、
+  `QT_WAYLAND_TEXT_INPUT_PROTOCOL=zwp_text_input_v3` 等一整套输入法环境变量。该组合与
+  layer-shell 存在已知死锁，在合成器刚启动、环境尚未稳定时会把整个会话一起拖死。
+- 修复：去掉那套环境变量，改为干净的 `qs -c $qsConfig`。输入法环境已由前一行
+  `dbus-update-activation-environment` 全局设置，无需重复注入。
+- 同时移除 `SUPER + I` 的「下一工作区」绑定，让位给设置面板切换。
+
+**修复：matugen `config.toml` 丢失光标钩子与部分模板块**
+
+- `config.toml` 此前丢失了 `post_hook`（光标主题重渲染钩子）以及 `[templates.yazi]`、
+  `[templates.obs]`、`[templates.vscode]` 三块，换壁纸后光标颜色不再跟随主色。
+- 从 `config.toml.orig` 恢复完整内容。
+
 ### 2026-09-12（第十九次）
 
 **修复：浏览器播放网页视频被识别为音乐**

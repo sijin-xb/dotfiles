@@ -9,7 +9,10 @@ hl.on("hyprland.start", function ()
     hl.exec_cmd("$HOME/.config/hypr/hyprland/scripts/start_geoclue_agent.sh")
     -- Keep Qt's Wayland text-input fallback available; forcing only the
     -- Fcitx backend can swallow ordinary key events in QtQuick.
-    hl.exec_cmd("while ! fcitx5-remote --check >/dev/null 2>&1; do sleep 0.1; done; env QT_IM_MODULE=fcitx 'QT_IM_MODULES=wayland;fcitx' GTK_IM_MODULE=fcitx XMODIFIERS=@im=fcitx QT_QPA_PLATFORM='wayland;xcb' QT_WAYLAND_TEXT_INPUT_PROTOCOL=zwp_text_input_v3 qs -c $qsConfig")
+    -- 不再注入 fcitx 环境变量：该组合与 layer-shell 存在已知死锁，
+    -- 会在登录时把合成器一起拖死（tty 都进不去）。QT_IM_MODULE 等
+    -- 已由上面那行 dbus-update-activation-environment 全局设置，够用。
+    hl.exec_cmd("while ! fcitx5-remote --check >/dev/null 2>&1; do sleep 0.1; done; qs -c $qsConfig")
     hl.exec_cmd("$HOME/.config/hypr/custom/scripts/__restore_video_wallpaper.sh")
     -- Refresh pinyin search aliases for CJK-named apps (used by AppSearch)
     hl.exec_cmd("$HOME/.local/state/quickshell/.venv/bin/python $HOME/.config/hypr/hyprland/scripts/generate_app_pinyin.py")
