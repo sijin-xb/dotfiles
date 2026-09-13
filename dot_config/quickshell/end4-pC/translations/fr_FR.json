@@ -594,7 +594,6 @@
   "Use old sine wave cookie implementation": "Utiliser l'ancienne implémentation cookie en onde sinusoïdale",
   "Rectangular selection": "Sélection rectangulaire",
   "Audio output": "Sortie audio",
-  "Applications": "Applications",
   "Circle to Search": "Cercle pour rechercher",
   "Audio output | Right-click for volume mixer & device selector": "Sortie audio | Clic droit pour le mixeur de volume et le sélecteur de périphérique",
   "Enable GPS based location": "Activer la localisation par GPS",
@@ -623,5 +622,10 @@
   "Wi-Fi": "Wi-Fi",
   "Charger connected": "Charger connected",
   "Charger disconnected": "Charger disconnected",
-  "Ignore browser media": "Ignore browser media"
+  "Ignore browser media": "Ignore browser media",
+  "Cursor": "Cursor",
+  "Applications": "Applications",
+  "matugen.%1": "matugen.%1",
+  "Terminal options": "Terminal options",
+  "Names come from ~/.config/matugen/config.toml.orig, which the shell treats as the source of truth. Turning a template off removes it from the generated config on the next wallpaper change.": "Names come from ~/.config/matugen/config.toml.orig, which the shell treats as the source of truth. Turning a template off removes it from the generated config on the next wallpaper change."
 }

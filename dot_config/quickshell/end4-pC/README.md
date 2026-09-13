@@ -66,6 +66,21 @@ The position is saved automatically in `~/.config/illogical-impulse/config.json`
 
 > **Visualizer tip:** the audio visualizer is a full-width widget, so its horizontal position is fixed by design. Drag it vertically while layout editing is enabled.
 
+### 📜 Settings panel scrolling
+
+The settings panel is a `Flickable` whose scroll range comes from
+`ContentPage.contentHeight`. If a page appears to "bounce back" when you scroll
+down — the content refuses to move past a certain point — the page's content
+height is being under-reported.
+
+The usual cause is nesting a `Repeater` directly inside `GroupedList`.
+`GroupedList` declares `default property list<Item> items` and computes
+`implicitHeight` from `items.length`, so a `Repeater` counts as a single
+zero-height item and its expanded delegates contribute nothing. Build grouped
+rows with `ColumnLayout` + `Repeater` instead, giving each delegate an explicit
+`implicitHeight` (see `BarConfig.qml` and `BackgroundConfig.qml` for the
+pattern).
+
 ### 🔧 Set as your default shell (optional)
 
 If you like it and want it to load by default instead of `ii`, edit:

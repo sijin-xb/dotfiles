@@ -2,6 +2,30 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+### 2026-09-14（第二十三次）
+
+**修复：设置面板「界面」页无法向下滚动**
+
+- 现象：设置 → 界面，滚到底部时内容直接回弹，`Applications` 等靠后的分节
+  无法查看。
+- 根因：该页把 `Repeater` 直接嵌进了 `GroupedList`。`GroupedList` 的
+  `default property list<Item> items` 只把 `Repeater` 本身算作一个 item，
+  而 `Repeater` 没有 `implicitHeight`，于是展开出的 `ConfigSwitch` 高度
+  完全不计入 `implicitHeight`。整页 `contentHeight` 因此偏小，
+  `StyledFlickable` 里的 `maxY = contentHeight - height` 被压到接近 0，
+  任何向下滚动都被 `Math.min` 夹回原位。
+- 修复：改为 `ColumnLayout` + `Repeater` 手写分组列表，每个 delegate 显式
+  声明 `implicitHeight`，与 `BarConfig.qml` / `BackgroundConfig.qml` 的既有
+  写法一致。该文件此前不在差异层，本次一并纳入，避免重装后修复丢失。
+
+**i18n：补齐新增界面文案**
+
+- 补入 `Applications`、`matugen.%1`、`Terminal options` 及 matugen 模板说明
+  长句，共 4 个键，覆盖全部 14 个语言文件；`zh_CN` 提供中文译文，其余语言
+  暂以英文占位。
+- 修正此前 `zh_CN.json` 被误改为 2 空格缩进导致的整文件重排，恢复 4 空格
+  缩进与原键序。
+
 ### 2026-09-13（第二十二次）
 
 **调整：光标尺寸 32 → 24**
