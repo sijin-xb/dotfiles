@@ -240,8 +240,53 @@ def has_timed_lines(text: str) -> bool:
     """Guard against garbage: lyrics must contain at least one timed line."""
     return bool(re.search(r"\[\d+:\d+", text) or re.search(r"^\[\d+,\d+\]", text, re.M))
 
+# Marks a cached result whose KRC genuinely has no CJK translation block
+# (only romaji exists upstream). Without it, a romaji-only cache would be
+# treated as stale and refetched on every single play.
+CACHE_NO_CJK_MARK = "[kugou:no-cjk-translation]"
+
+_CJK_RE = re.compile(r"[\u3400-\u9fff]")
+
+def classify_translation_block(decrypted: str) -> str:
+    """Classify the KRC's embedded [language:] payload.
+
+    Kugou ships several KRC variants per song hash: some embed a romaji
+    (mora-token) block, others embed the semantic Chinese translation. The
+    romaji variant is useless to the overlay (parseTranslations drops it), so
+    it must not win the candidate race just because it comes first.
+
+    Returns:
+      "cjk"    - carries a real (CJK) semantic translation.
+      "romaji" - carries only a non-CJK transliteration block with content.
+      "none"   - no [language:] tag, or its content is empty (e.g. Chinese
+                 songs that need no translation).
+    """
+    has_romaji = False
+    for b64 in re.findall(r"\[language:([A-Za-z0-9+/=]*)\]", decrypted):
+        try:
+            padded = b64 + "=" * (-len(b64) % 4)
+            payload = json.loads(base64.b64decode(padded).decode("utf-8"))
+        except Exception:
+            continue
+        for block in payload.get("content", []):
+            lines = ["".join(x) if isinstance(x, list) else str(x)
+                     for x in block.get("lyricContent", [])]
+            if not any(line.strip() for line in lines):
+                continue
+            if any(_CJK_RE.search(line) for line in lines):
+                return "cjk"
+            has_romaji = True
+    return "romaji" if has_romaji else "none"
+
+def translation_block_has_cjk(decrypted: str) -> bool:
+    return classify_translation_block(decrypted) == "cjk"
+
 def download_lyrics(candidates: list) -> str:
-    for best in candidates[:2]:
+    """Fetch the best decryptable candidate. Prefers a KRC whose embedded
+    [language:] block contains a real translation; a romaji-only KRC is kept
+    only as a fallback when no translated variant exists in the candidate list."""
+    first_valid = ""
+    for best in candidates[:6]:
         cand_id = best.get("id")
         access_key = best.get("accesskey")
         if not cand_id or not access_key:
@@ -267,8 +312,12 @@ def download_lyrics(candidates: list) -> str:
                     decrypted = f"{decrypted.strip()}\n[language:{trans_b64.strip()}]\n"
             except Exception:
                 pass
-        return decrypted
-    return ""
+
+        if classify_translation_block(decrypted) == "cjk":
+            return decrypted
+        if not first_valid:
+            first_valid = decrypted
+    return first_valid
 
 def fetch_lrclib(title: str, artist: str, duration_sec: float) -> str:
     urls = []
@@ -319,8 +368,16 @@ def main():
     if not refresh and os.path.isfile(cache_file) and os.path.getsize(cache_file) > 10:
         try:
             with open(cache_file, "r", encoding="utf-8") as f:
-                emit(f.read())
-            return
+                cached = f.read()
+            # A cached KRC carrying a non-empty romaji-only [language:] block
+            # is a pick from the old candidate ordering; refetch once to look
+            # for a translated variant. Empty payloads ("none") are legitimate
+            # and must not be refetched on every play.
+            stale_romaji = (CACHE_NO_CJK_MARK not in cached
+                            and classify_translation_block(cached) == "romaji")
+            if not stale_romaji:
+                emit(cached.replace(CACHE_NO_CJK_MARK, ""))
+                return
         except Exception:
             pass
 
@@ -337,8 +394,11 @@ def main():
     # re-fetching unmatched songs instead of locking a wrong result in.)
     if lyrics and matched:
         try:
+            payload = lyrics
+            if classify_translation_block(lyrics) == "romaji":
+                payload = f"{lyrics.rstrip()}\n{CACHE_NO_CJK_MARK}\n"
             with open(cache_file, "w", encoding="utf-8") as f:
-                f.write(lyrics)
+                f.write(payload)
         except Exception:
             pass
     emit(lyrics)
