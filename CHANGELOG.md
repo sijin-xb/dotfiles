@@ -2,6 +2,15 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+### 2026-09-13（第二十二次）
+
+**调整：光标尺寸 32 → 24**
+
+- `custom/env.lua` 的 `XCURSOR_SIZE` / `HYPRCURSOR_SIZE` 从 32 改为 24，
+  像素光标不再显得过大。
+- 同步 `gsettings` 的 `cursor-size` 为 24，GTK 应用读到的尺寸与 Hyprland 一致；
+  此前两者不同步（Hyprland 24 / gsettings 32），光标大小表现不稳定。
+
 ### 2026-09-13（第二十一次）
 
 **调整：壁纸选择器改为自屏幕底部滑入 / 滑出**
