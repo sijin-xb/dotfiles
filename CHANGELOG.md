@@ -2,6 +2,30 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+### 2026-09-13（第二十一次）
+
+**Qt / KDE 配色接入 matugen，GTK 与 Qt 统一到壁纸取色**
+
+- 此前 Qt / KDE 配色只由 Quickshell 的 `switchwall.sh` 触发，所以通过
+  `matugen-select-type.sh` 切换配色策略或明暗模式时，GTK 变了而 Qt 应用仍停在旧
+  配色。`matugen-update.sh` 新增第 8 节，调用 kmyc wrapper 补上这条链，现在两条
+  触发路径（换壁纸、切策略/切明暗）都会刷新 GTK 与 Qt。
+- 配色链是双段的，不是单一来源：GTK 由 matugen 直接渲染 CSS；Qt 由 matugen 输出
+  种子色（`color.txt`）后交 `kde-material-you-colors` 生成 KDE 配色方案。两者同源
+  于 M3 色调算法，视觉一致但由不同生成器产出。
+- wrapper 纳入 chezmoi 源树并重写加固：`set -u`；种子色文件缺失、venv 缺失、
+  kmyc 未安装三种情况均静默退出，不再中断上游的壁纸 / GTK 流程（原实现里
+  `source .../activate` 没有保护，venv 丢失会直接让脚本失败）。
+- `--scheme-variant` 传入未知值时从 `exit 1` 改为 `exit 0`，避免一个拼错的策略名
+  带崩整条链。
+- `install.sh` 的 venv 依赖加入 `kde-material-you-colors`，重装后 Qt 配色链不会断。
+- `.chezmoiignore` 记录 kmyc 运行时产物（`kdeglobals`、`color-schemes/`、
+  `org.kde.syntax-highlighting/`、`kde-material-you-colors/`）。
+- 覆盖范围：KDE 原生应用（Konsole、Kate、Dolphin、Systemsettings、Spectacle、
+  Gwenview、Ark、KCalc）跟壁纸换色，Kate 另含语法高亮；非 KDE 的 Qt 应用（VLC、
+  OBS）只跟外壳色。GTK 应用走另一条链，本次不影响。浏览器主界面普遍自绘，
+  Chrome / Electron 系完全不跟，Firefox 仅跟 GTK widget。
+
 ### 2026-09-13（第二十次）
 
 **重构：壁纸选择器去背景、贴底淡入，并修复键盘**

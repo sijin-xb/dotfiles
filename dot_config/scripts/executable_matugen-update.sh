@@ -226,3 +226,12 @@ CURSOR_THEME_SCRIPT="$HOME/.config/hypr/hyprland/scripts/apply_cursor_theme.py"
 if [ -x "$CURSOR_THEME_SCRIPT" ]; then
     "$CURSOR_THEME_SCRIPT" >/dev/null 2>&1 || true
 fi
+
+# --- 8. 同步 Qt / KDE 配色 ---
+# GTK 走 gsettings，Qt 走 kde-material-you-colors，两条链彼此独立。
+# 不在这里补一刀的话，只有 Quickshell 的 switchwall.sh 会刷新 Qt，
+# 通过 matugen-select-type.sh 切策略/切明暗时 Qt 会掉队。
+KMYC_WRAPPER="$HOME/.config/matugen/templates/kde/kde-material-you-colors-wrapper.sh"
+if [ -x "$KMYC_WRAPPER" ]; then
+    "$KMYC_WRAPPER" --scheme-variant "$STRATEGY" >/dev/null 2>&1 &
+fi

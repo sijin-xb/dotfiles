@@ -18,6 +18,14 @@
 .config/gtk-3.0/gtk.css
 .config/gtk-4.0/gtk.css
 
+# ---- kde-material-you-colors 运行时生成物 ----
+# Qt/KDE 配色链：wrapper 读 matugen 的 source color → kmyc 写出以下文件。
+# 这些路径未纳入源树，列在此处防止未来误把 live 状态当成源文件。
+.config/kdeglobals
+.local/share/color-schemes/
+.local/share/org.kde.syntax-highlighting/
+.local/share/kde-material-you-colors/
+
 # ---- quickshell 运行时生成物 ----
 .config/hypr/hyprland/shellOverrides/main.lua
 .config/hypr/hyprland/shellOverrides/animations.lua

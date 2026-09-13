@@ -39,8 +39,12 @@ bash 脚本完成，不需要 chezmoi 二进制。
   通知+媒体 三栏翼面板）；quickshell 未运行时回退 hyprlock
 - 桌面歌词：逐字计时（酷狗 KRC），适配任意 MPRIS 播放器
 - 灵动岛：音乐 / 音量 / 录屏活动的顶部动态胶囊，详见下文「灵动岛」章节
-- matugen 壁纸取色：kitty / alacritty / foot / fastfetch / fcitx5 / mako /
-  Hyprland 联动配色
+- matugen 壁纸取色，Material You 配色统一：
+  - **GTK3 / GTK4**：matugen 直接渲染 CSS 到 `~/.config/gtk-3.0/gtk.css`、
+    `~/.config/gtk-4.0/gtk.css`，adw-gtk3 系应用跟壁纸换色
+  - **Qt / KDE**：matugen 输出种子色，`kde-material-you-colors` 生成 KDE 配色方案，
+    Dolphin / Konsole / Kate / Systemsettings 等 KDE 应用跟壁纸换色
+  - **其他**：kitty / alacritty / foot / fastfetch / fcitx5 / mako / Hyprland
 - fish（fzf 绑定、nvm）、nvim（LazyVim）、btop、fastfetch、fuzzel、mako 配置
 
 ## 环境要求
@@ -69,7 +73,8 @@ cd dotfiles
 4. 部署 `dot_*` 条目到 `$HOME`；有差异的已存在文件先备份到
    `~/.local/state/dotfiles-backup/` 再覆盖
 5. 首次运行克隆 quickshell 底盘（pctrade/end4-pC）
-6. 创建 python venv（pypinyin、dbus-python），供启动器拼音搜索使用
+6. 创建 python venv（pypinyin、dbus-python、kde-material-you-colors），
+   供启动器拼音搜索与 Qt / KDE 配色使用
 
 重复运行幂等。
 
@@ -337,6 +342,12 @@ UI 订阅 `currentType` / `currentPayload`。
 
 - 更换壁纸会触发重新取色；模板位于 `dot_config/matugen/templates/`
   （Hyprland 窗口阴影颜色也由此生成，见 `templates/hyprland/colors.lua`）
+- GTK 与 Qt 走两条独立链：GTK 由 matugen 直接渲染模板；Qt 由
+  `templates/kde/kde-material-you-colors-wrapper.sh` 读取 matugen 生成的
+  种子色（`color.txt`）后调用 kmyc 产出配色方案。换壁纸（`switchwall.sh`）
+  和切换配色策略 / 明暗模式（`matugen-update.sh`）都会刷新这两条链
+- 浏览器主界面多为自绘（Chrome / Electron 系完全不跟；Firefox 只跟右键菜单、
+  文件对话框等 GTK widget），是这套统一化覆盖不到的部分
 - 桌面歌词偏移微调：
   `qs -c end4-pC ipc call desktoplyrics offset_faster / offset_slower`
 - 备份根目录：`~/.local/state/dotfiles-backup/`（`snapshots/`、`state/`）

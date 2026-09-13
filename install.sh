@@ -308,8 +308,8 @@ cmd_install() {
         mkdir -p "$HOME/.local/state/quickshell"
         python -m venv "$VENV"
     fi
-    "$VENV/bin/pip" install --upgrade --quiet pypinyin dbus-python \
-        || warn "venv 依赖安装失败——启动器的 app 中文名拼音搜索暂不可用，其余功能不受影响"
+    "$VENV/bin/pip" install --upgrade --quiet pypinyin dbus-python kde-material-you-colors \
+        || warn "venv 依赖安装失败——启动器的 app 中文名拼音搜索与 Qt 配色暂不可用，其余功能不受影响"
 
     # ---------- [6/6] 完成 ----------
     say "[6/6] 完成！接下来的步骤："
