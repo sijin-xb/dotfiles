@@ -22,6 +22,7 @@ bash 脚本完成，不需要 chezmoi 二进制。
 - [锁屏](#锁屏)
 - [灵动岛](#灵动岛)
 - [说明](#说明)
+- [排障与已知问题](#排障与已知问题)
 - [致谢与上游](#致谢与上游)
 - [许可证](#许可证)
 
@@ -332,6 +333,40 @@ UI 订阅 `currentType` / `currentPayload`。
 录屏指示器已统一到灵动岛：栏上原有的浮动录屏胶囊（`BarContent.qml` 的
 `recordingPillLoader`）默认关闭，避免重复显示；把它的 `active` 改回
 `Persistent.states.record.enable` 即可恢复。
+
+## 排障与已知问题
+
+### 登录后整个桌面卡死（tty 都进不去）
+
+**症状**：Hyprland 登录后整个合成器无响应，鼠标键盘全无反应，连
+`Ctrl+Alt+F3` 切 tty 都无效，只能硬重启。
+
+**根因**：Quickshell 由 `hypr/hyprland/execs.lua` 在登录时自动拉起。早期该行
+注入了 `QT_IM_MODULE=fcitx`、`GTK_IM_MODULE=fcitx`、`QT_WAYLAND_TEXT_INPUT_PROTOCOL=zwp_text_input_v3`
+一整套输入法环境变量，该组合与 layer-shell 存在死锁，在合成器刚启动、环境
+尚未稳定时会把整个会话一起拖死。
+
+**修复**：启动行改为干净的 `qs -c $qsConfig`，不再注入那套变量。输入法环境
+由前一行 `dbus-update-activation-environment --systemd XMODIFIERS GTK_IM_MODULE …`
+全局设置，无需在 QS 启动时重复注入。
+
+**另注意 Hyprland 版本**：`0.56.2-2.1` / `0.56.2-2` 已长期稳定；升级到
+`0.56.2-3.1` 后曾出现 Quickshell 一启动就把会话拖死的情况。排查期间建议锁定
+版本（在 `/etc/pacman.conf` 加 `IgnorePkg = hyprland`）。
+
+**临时禁用 QS 自启动**：把 `~/.config/quickshell/end4-pC/shell.qml` 改名为
+`shell.qml.off` 即可让 Quickshell 找不到入口而不启动，排查时很有用。
+
+### Quickshell 报 “Could not find \"end4-pC\" config directory”
+
+这不是路径不存在，而是 `~/.config/quickshell/end4-pC/` 下找不到可识别的入口
+`shell.qml`。常见于把 `shell.qml` 改名为 `.off` 之后忘记改回。改回来即可。
+
+### 换壁纸后光标颜色不跟随
+
+`~/.config/matugen/config.toml` 曾丢失 `post_hook`（光标主题重渲染钩子）以及
+`[templates.yazi]`、`[templates.obs]`、`[templates.vscode]` 三块模板。完整内容
+备份在 `config.toml.orig`。若发现光标不再随壁纸主色变化，先比对这两个文件。
 
 ## 说明
 
