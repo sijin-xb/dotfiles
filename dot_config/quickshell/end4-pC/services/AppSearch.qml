@@ -42,12 +42,30 @@ Singleton {
     ]
 
     // Deduped list to fix double icons
-    readonly property list<DesktopEntry> list: Array.from(DesktopEntries.applications.values)
-        .filter((app, index, self) => 
-            index === self.findIndex((t) => (
-                t.id === app.id
-            ))
-    )
+    // 用 Set 一次遍历去重：原先 filter 里嵌 findIndex 是 O(n²)，
+    // pacman 装包写入 .desktop 触发本绑定重算时会在主线程卡一下
+    //（1000+ 桌面文件 ≈ 百万次比较），这里降到 O(n)。
+    readonly property list<DesktopEntry> list: {
+        const seen = new Set()
+        const out = []
+        for (const app of DesktopEntries.applications.values) {
+            if (seen.has(app.id))
+                continue
+            seen.add(app.id)
+            out.push(app)
+        }
+        return out
+    }
+
+    // id -> entry 查找表：preppedPinyin 原先用 list.find 逐个找（O(n·m)），
+    // 建一次 Map 后变 O(1)。用 Map 而不是普通对象，避免 id 撞
+    // Object.prototype 原型链键（如 "constructor"）。
+    readonly property var entryById: {
+        const m = new Map()
+        for (const app of list)
+            m.set(app.id, app)
+        return m
+    }
     
     readonly property var preppedNames: list.map(a => ({
         name: Fuzzy.prepare(`${a.name} ${a.id ?? ""} ${a.genericName ?? ""} ${a.icon ?? ""}`),
@@ -83,7 +101,7 @@ Singleton {
     readonly property var preppedPinyin: Object.keys(pinyinAliases).map(appId => {
         // Resolve from `list` (localized names), not DesktopEntries.byId,
         // otherwise the matched result shows up with an empty name
-        const entry = list.find(a => a.id === appId)
+        const entry = root.entryById.get(appId)
         if (!entry)
             return null
         return {

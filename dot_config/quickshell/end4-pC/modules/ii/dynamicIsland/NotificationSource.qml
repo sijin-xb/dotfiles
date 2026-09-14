@@ -16,6 +16,10 @@ Item {
     property string summary: ""
     property string appName: ""
     property string body: ""
+    // 通知自带图片（QQ 头像等会塞进 notif.image）和应用图标名。
+    // 原生 NotificationPopup 已支持显示图片，灵动岛之前丢了这块。
+    property string image: ""
+    property string appIcon: ""
 
     readonly property int visibleDuration: 4000
 
@@ -36,10 +40,14 @@ Item {
         summary = notif?.summary ?? ""
         appName = notif?.appName ?? ""
         body = notif?.body ?? ""
+        image = notif?.image ?? ""
+        appIcon = notif?.appIcon ?? ""
         ActivityManager.pulse("notification", {
             summary: summary,
             appName: appName,
-            body: body
+            body: body,
+            image: image,
+            appIcon: appIcon
         }, 6, visibleDuration, { transient: true })
     }
 

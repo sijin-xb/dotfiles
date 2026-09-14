@@ -56,9 +56,13 @@ Item {
     }
 
     // ---- 手动接口（由 IPC 调用）----
+    // begin 的一个细节：任务进行中再次 begin 视为「换标签」（例如 pacman
+    // 逐包下载时上报当前包名），保留已有进度，避免进度条闪回 0%。
     function begin(label) {
+        const alreadyActive = manualActive
         manualActive = true
-        manualPercent = 0
+        if (!alreadyActive)
+            manualPercent = 0
         manualLabel = (label && label.length > 0) ? label : defaultLabel
         publish()
     }
