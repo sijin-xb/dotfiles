@@ -22,6 +22,7 @@ bash 脚本完成，不需要 chezmoi 二进制。
 - [锁屏](#锁屏)
 - [灵动岛](#灵动岛)
 - [说明](#说明)
+- [fcitx5-rime × matugen 取色联动](#fcitx5-rime--matugen-取色联动)
 - [排障与已知问题](#排障与已知问题)
 - [致谢与上游](#致谢与上游)
 - [许可证](#许可证)
@@ -40,8 +41,8 @@ bash 脚本完成，不需要 chezmoi 二进制。
   通知+媒体 三栏翼面板）；quickshell 未运行时回退 hyprlock
 - 桌面歌词：逐字计时（酷狗 KRC），适配任意 MPRIS 播放器
 - 灵动岛：音乐 / 音量 / 录屏活动的顶部动态胶囊，详见下文「灵动岛」章节
-- matugen 壁纸取色：kitty / alacritty / foot / fastfetch / fcitx5 / mako /
-  Hyprland 联动配色
+- matugen 壁纸取色：kitty / alacritty / foot / fastfetch / fcitx5（含 fcitx5-rime
+  候选框）/ mako / Hyprland 联动配色
 - fish（fzf 绑定、nvm）、nvim（LazyVim）、btop、fastfetch、fuzzel、mako 配置
 
 ## 环境要求
@@ -175,6 +176,14 @@ dot_config/
   quickshell/end4-pC/     shell 差异层（modules、services、scripts）
     modules/ii/lock/      锁屏：Lock.qml 入口 + SerpantinumLockSurface.qml 视图
   fish/  kitty/  foot/  alacritty/  nvim/  btop/  fastfetch/  fuzzel/  mako/  matugen/
+  fcitx5/
+    config                fcitx5 主配置
+    conf/classicui.conf   Theme=Matugen（matugen 取色联动）
+    conf/*.conf           其余 fcitx5 插件配置
+dot_local/share/fcitx5/
+  rime/
+    default.custom.yaml   全局按键 / 翻页设置
+    rime_ice.custom.yaml  雾凇拼音语法权重调整
 install.sh                安装 / 卸载 / 回档 / 存档 / TUI
 ```
 
@@ -398,9 +407,51 @@ UI 订阅 `currentType` / `currentPayload`。
   `qs -c end4-pC ipc call desktoplyrics offset_faster / offset_slower`
 - 备份根目录：`~/.local/state/dotfiles-backup/`（`snapshots/`、`state/`）
 
+## fcitx5-rime × matugen 取色联动
+
+fcitx5-rime 的候选框外观由 fcitx5 的 Classic UI 主题控制，matugen 每次换壁纸后
+自动重新生成该主题文件，实现输入法配色与壁纸同步。
+
+### 工作原理
+
+```
+壁纸换色（switchwall.sh）
+  └─ matugen 取色
+       └─ [templates.fcitx5] → ~/.local/share/fcitx5/themes/Matugen/theme.conf
+                                  ↑ 由 dot_config/matugen/templates/fcitx5-theme.conf 渲染
+```
+
+`fcitx5-theme.conf` 模板使用 Material You 语义颜色：
+
+| 模板变量 | 含义 | 用途 |
+|---|---|---|
+| `colors.surface_container` | 表面容器色 | 候选框背景 |
+| `colors.primary` | 主色 | 预编辑高亮背景 |
+| `colors.secondary_container` | 次级容器色 | 选中候选背景 |
+| `colors.on_surface` | 表面前景色 | 普通文字 |
+| `colors.on_primary` | 主色前景 | 预编辑高亮文字 |
+| `colors.on_secondary_container` | 次级前景 | 选中候选文字 |
+| `colors.outline` | 轮廓色 | 边框 |
+
+### 相关文件
+
+| 文件 | 说明 |
+|---|---|
+| `dot_config/matugen/templates/fcitx5-theme.conf` | matugen 模板，每次换壁纸重新渲染 |
+| `dot_config/matugen/config.toml` → `[templates.fcitx5]` | 模板注册条目 |
+| `dot_config/fcitx5/conf/classicui.conf` | `Theme=Matugen`（启用生成的主题） |
+| `dot_local/share/fcitx5/rime/default.custom.yaml` | 全局按键 / 翻页定制 |
+| `dot_local/share/fcitx5/rime/rime_ice.custom.yaml` | 雾凇拼音语法权重调整 |
+
+> **注**：fcitx5-rime 在 Linux 下无独立的皮肤系统（squirrel.yaml / weasel.yaml
+> 是 macOS / Windows 专用），候选框样式完全由 fcitx5 Classic UI 主题决定，因此
+> 接入 matugen 只需配置该主题即可，无需额外处理 rime 侧的配色。
+
+
 ## 致谢与上游
 
 本项目的 Quickshell 桌面外壳并非从零编写，而是基于以下上游项目构建，特此声明并致谢。
+
 
 ### 直接上游
 

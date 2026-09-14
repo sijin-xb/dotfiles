@@ -1,0 +1,11 @@
+patch:
+    grammar/collocation_max_length: 7
+    grammar/collocation_min_length: 2
+    grammar/collocation_penalty: -10
+    grammar/language: wanxiang-lts-zh-hans
+    grammar/non_collocation_penalty: -20
+    grammar/rear_penalty: -12
+    grammar/weak_collocation_penalty: -35
+    translator/contextual_suggestions: false
+    translator/max_homographs: 5
+    translator/max_homophones: 5
