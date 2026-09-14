@@ -2,6 +2,24 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+### 2026-09-14（第二十五次）
+
+**修复：Super+鼠标滚轮一次切两个工作区 + 滚动布局下改为切窗口**
+
+- 现象：在 `dwindle` 等非滚动布局下，`Super + 鼠标滚轮` 一次会跳过两个
+  工作区。
+- 根因：默认模板 `hyprland/keybinds.lua:296-302` 已注册 `SUPER + mouse_up/down`
+  切换工作区；后加载的 `custom/keybinds.lua` 又注册了相同按键的布局感知绑定。
+  `hl.bind` 不会自动替换旧绑定，非 `scrolling` 布局时两套绑定都会执行，
+  所以一次滚轮触发两次工作区切换。
+- 修复：在 `custom/keybinds.lua` 的动态滚轮绑定前加入
+  `hl.unbind("SUPER + mouse_up")` / `hl.unbind("SUPER + mouse_down")`，
+  精确移除默认模板的两条 plain Super 绑定；`CTRL + SUPER` 组合不受影响。
+- 功能：`scrolling` 布局下 `Super + 滚轮` 改为在当前工作区内切换窗口
+  （`layout focus r/l`）；其他布局仍切换相邻工作区，且每次只切一个。
+  方向不变：向下 = 下一个/右侧，向上 = 上一个/左侧。
+- README 同步补充该快捷键的说明。
+
 ### 2026-09-14（第二十四次）
 
 **修复：日文歌桌面歌词不显示中文翻译**
