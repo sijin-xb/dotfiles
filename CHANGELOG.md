@@ -2,6 +2,19 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+### 2026-09-14（第二十七次）
+
+**修复：灵动岛动画优化 + 录屏/电池展开尺寸 bug**
+
+- BUG：`IslandTheme.expandedSizes` 中 `recording`/`battery` 的展开尺寸仍是
+  `{ h: 37, r: 19 }`（与 compact 相同），导致展开态内容被 `clip` 裁掉看不到。
+  改为 `{ w: 320, h: 120, r: 28 }`（与 notification 对称）。
+- SpringAnimation `epsilon` 0.5→0.1：之前在离目标 0.5 单位就停了，
+  大尺寸跳变（37→190px）会有微妙的"咔"一下；降到 0.1 让弹簧自然收住。
+  影响范围：pill 宽高圆角、左侧副岛宽度、右侧副岛 margin。
+- 内容进场缩放 0.96→0.92：形变更明显，有"从岛里长出来"的感觉。
+- 内容进场 easing `OutCubic`→`OutBack`：带轻微回弹的弹出效果。
+
 ### 2026-09-14（第二十六次）
 
 **性能：pacman 装包后卡顿 + OBS 录屏时启动器打字延迟**

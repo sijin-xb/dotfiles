@@ -64,9 +64,10 @@ QtObject {
         brightness:   { w: 300, h: 140, r: 28 },
         privacy:      { w: 200, h: 37,  r: 19 },
         connectivity: { w: 190, h: 37,  r: 19 },
-        battery:      { w: 200, h: 37,  r: 19 },
+        // recording/battery 补了展开态，需要给足高度让内容不被 clip 裁掉
+        battery:      { w: 300, h: 120, r: 28 },
         notification: { w: 320, h: 120, r: 28 },
-        recording:    { w: 200, h: 37,  r: 19 },
+        recording:    { w: 320, h: 120, r: 28 },
         package:      { w: 320, h: 140, r: 28 },
         download:     { w: 320, h: 140, r: 28 }
     })

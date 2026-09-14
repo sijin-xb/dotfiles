@@ -181,13 +181,13 @@ Item {
     // 果冻感：弹簧动画带轻微回弹，比 OutQuint 更"活"。
     // damping 越低回弹越明显；0.45 是"看得出弹性但不晃"的平衡点。
     Behavior on animatedWidth {
-        SpringAnimation { spring: 3.2; damping: 0.45; epsilon: 0.5 }
+        SpringAnimation { spring: 3.2; damping: 0.45; epsilon: 0.1 }
     }
     Behavior on animatedHeight {
-        SpringAnimation { spring: 3.2; damping: 0.45; epsilon: 0.5 }
+        SpringAnimation { spring: 3.2; damping: 0.45; epsilon: 0.1 }
     }
     Behavior on animatedRadius {
-        SpringAnimation { spring: 3.2; damping: 0.45; epsilon: 0.5 }
+        SpringAnimation { spring: 3.2; damping: 0.45; epsilon: 0.1 }
     }
 
     // 整体（伴随指示器 + 主岛）水平居中；无伴随指示器时与原来等价。
@@ -220,7 +220,7 @@ Item {
             clip: true
 
             Behavior on animatedCompanionWidth {
-                SpringAnimation { spring: 3.2; damping: 0.45; epsilon: 0.5 }
+                SpringAnimation { spring: 3.2; damping: 0.45; epsilon: 0.1 }
             }
 
             MouseArea {
@@ -405,8 +405,8 @@ Item {
             sourceComponent: root.componentFor(root.renderType)
             opacity: 0
             // 切换内容时轻微缩放：单靠淡入会显得"平"，
-            // 0.96 → 1 的形变让新内容像是从岛里长出来。
-            scale: 0.96
+            // 0.92 → 1 的形变让新内容像是从岛里长出来。
+            scale: 0.92
             transformOrigin: Item.Center
 
             // 进场：淡入 + 轻微放大。唯一的 opacity 驱动者，
@@ -425,7 +425,7 @@ Item {
                     property: "scale"
                     to: 1
                     duration: IslandTheme.durationExpand
-                    easing.type: Easing.OutCubic
+                    easing.type: Easing.OutBack
                 }
             }
 
@@ -433,7 +433,7 @@ Item {
             function playEnter() {
                 contentIn.stop()
                 opacity = 0
-                scale = 0.96
+                scale = 0.92
                 contentIn.restart()
             }
 
@@ -502,7 +502,7 @@ Item {
             spacing: 6
             visible: root.hasAnyTaskCompanion || root.showNotifCompanion
             Behavior on animatedMargin {
-                SpringAnimation { spring: 3.2; damping: 0.45; epsilon: 0.5 }
+                SpringAnimation { spring: 3.2; damping: 0.45; epsilon: 0.1 }
             }
             // Row 的 width/height 默认是 0（不是 implicit 值），用 childrenRect 取实际内容宽。
             width: childrenRect.width
