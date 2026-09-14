@@ -1,16 +1,14 @@
 import QtQuick
 import QtQuick.Layouts
-import Quickshell
-import Quickshell.Widgets
+import qs.modules.common.widgets
+import Quickshell.Services.Notifications
 
 // 通知活动：来消息时的轻量提示。
 // 通常作为主岛右侧的伴随指示器出现；
 // 若通知到达时没有其它活动，则短暂占用主岛。
 //
-// 头像策略（与原生 NotificationPopup 一致）：
-//   1. notif.image 有值（QQ 头像等）→ 显示圆形头像，右下角叠小 appIcon
-//   2. 否则有 appIcon → 显示应用图标
-//   3. 都没有 → 通知铃铛 Material Symbol
+// 头像直接复用原生 NotificationPopup 的 NotificationAppIcon，
+// 保证与弹出通知的显示逻辑 100% 一致（避免自己写 Image 导致差异）。
 Item {
     id: root
 
@@ -37,52 +35,16 @@ Item {
         spacing: 8
         visible: !root.expanded
 
-        // 头像 / 图标
-        Item {
+        // 头像：与弹出通知共用组件，image/appIcon fallback 行为完全一致
+        // 直接设 implicitSize 而非 scale，避免 scale 双重缩放（布局+视觉）
+        NotificationAppIcon {
             id: compactAvatar
             Layout.alignment: Qt.AlignVCenter
-            Layout.preferredWidth: root.avatarSizeCompact
-            Layout.preferredHeight: root.avatarSizeCompact
-
-            // image 优先：圆形头像
-            Image {
-                anchors.fill: parent
-                visible: root.image.length > 0
-                source: root.image
-                fillMode: Image.PreserveAspectCrop
-                cache: false
-                asynchronous: true
-                sourceSize.width: root.avatarSizeCompact
-                sourceSize.height: root.avatarSizeCompact
-                layer.enabled: true
-                layer.effect: OpacityMask {
-                    maskSource: Rectangle {
-                        width: root.avatarSizeCompact
-                        height: root.avatarSizeCompact
-                        radius: width / 2
-                    }
-                }
-            }
-
-            // appIcon fallback
-            IconImage {
-                anchors.fill: parent
-                visible: root.image.length === 0 && root.appIcon.length > 0
-                source: Quickshell.iconPath(root.appIcon, "image-missing")
-                asynchronous: true
-            }
-
-            // 都没有：铃铛
-            Text {
-                anchors.fill: parent
-                visible: root.image.length === 0 && root.appIcon.length === 0
-                text: "notifications"
-                font.family: IslandTheme.iconFontFamily
-                font.pixelSize: 16
-                color: IslandTheme.text
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-            }
+            implicitSize: root.avatarSizeCompact
+            image: root.image
+            appIcon: root.appIcon
+            summary: root.summary
+            urgency: NotificationUrgency.Normal
         }
 
         Text {
@@ -111,61 +73,15 @@ Item {
             Layout.fillWidth: true
             spacing: 10
 
-            // 头像（大）+ 右下角叠加小 appIcon
-            Item {
+            // 大头像：与弹出通知共用组件
+            NotificationAppIcon {
                 id: expandedAvatar
                 Layout.alignment: Qt.AlignVCenter
-                Layout.preferredWidth: root.avatarSizeExpanded
-                Layout.preferredHeight: root.avatarSizeExpanded
-
-                Image {
-                    anchors.fill: parent
-                    visible: root.image.length > 0
-                    source: root.image
-                    fillMode: Image.PreserveAspectCrop
-                    cache: false
-                    asynchronous: true
-                    sourceSize.width: root.avatarSizeExpanded
-                    sourceSize.height: root.avatarSizeExpanded
-                    layer.enabled: true
-                    layer.effect: OpacityMask {
-                        maskSource: Rectangle {
-                            width: root.avatarSizeExpanded
-                            height: root.avatarSizeExpanded
-                            radius: width / 2
-                        }
-                    }
-                }
-
-                IconImage {
-                    anchors.fill: parent
-                    visible: root.image.length === 0 && root.appIcon.length > 0
-                    source: Quickshell.iconPath(root.appIcon, "image-missing")
-                    asynchronous: true
-                }
-
-                Text {
-                    anchors.fill: parent
-                    visible: root.image.length === 0 && root.appIcon.length === 0
-                    text: "notifications"
-                    font.family: IslandTheme.iconFontFamily
-                    font.pixelSize: 28
-                    color: IslandTheme.text
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
-
-                // image 有值时右下角叠小 appIcon（标识来源应用）
-                IconImage {
-                    visible: root.image.length > 0 && root.appIcon.length > 0
-                    anchors.bottom: parent.bottom
-                    anchors.right: parent.right
-                    anchors.bottomMargin: -2
-                    anchors.rightMargin: -2
-                    implicitSize: root.avatarSizeExpanded * 0.42
-                    asynchronous: true
-                    source: Quickshell.iconPath(root.appIcon, "image-missing")
-                }
+                implicitSize: root.avatarSizeExpanded
+                image: root.image
+                appIcon: root.appIcon
+                summary: root.summary
+                urgency: NotificationUrgency.Normal
             }
 
             ColumnLayout {

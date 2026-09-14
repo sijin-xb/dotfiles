@@ -34,8 +34,9 @@
 - `TaskSource.begin` 在任务进行中再次调用只换标签不重置进度，
   pacman 逐包下载时进度条不会闪回 0%。
 - 通知头像：`NotificationSource` 传 `image`/`appIcon`，`NotificationActivity`
-  compact 与 expanded 双态渲染头像（QQ 消息头像等），三层 fallback
-  与原生 NotificationPopup 一致（image → appIcon → 铃铛）。
+  compact 与 expanded 双态直接复用 `NotificationAppIcon` 组件（与弹出通知
+  100% 同一渲染逻辑），用 `implicitSize` 控制尺寸（22px/44px），避免 `scale`
+  双重缩放导致头像只显示 ~13px 的问题。
 - 展开态补齐：`RecordingActivity`（脉冲点 + 录制提示 + 放大计时）、
   `BatteryActivity`（电量条 + 低电量红色警示），参考 macOS Dynamic Island
   HIG「展开态是紧凑态的放大版，保持元素相对位置」原则。
