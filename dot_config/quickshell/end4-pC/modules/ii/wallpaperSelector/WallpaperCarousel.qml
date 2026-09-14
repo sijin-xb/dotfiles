@@ -36,7 +36,6 @@ Item {
         const next = Math.max(0, Math.min(model.count - 1, view.currentIndex + delta));
         if (next === view.currentIndex) return;
         view.currentIndex = next;
-        view.positionViewAtIndex(next, ListView.Center);
     }
 
     function activateCurrent() {
@@ -60,6 +59,7 @@ Item {
         id: view
         anchors.fill: parent
         orientation: ListView.Horizontal
+        keyNavigationEnabled: false
         clip: false
         reuseItems: true
         cacheBuffer: root.itemWidth * 3
@@ -210,13 +210,11 @@ Item {
 
                 MouseArea {
                     anchors.fill: parent
-                    hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
                         view.currentIndex = card.index;
                         root.wallpaperSelected(card.filePath, card.isVideo);
                     }
-                    onEntered: view.currentIndex = card.index
                 }
             }
         }
