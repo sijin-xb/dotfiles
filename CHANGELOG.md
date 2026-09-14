@@ -2,6 +2,44 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+### 2026-09-14（第二十六次）
+
+**性能：pacman 装包后卡顿 + OBS 录屏时启动器打字延迟**
+
+- 现象一：每次用 pacman/yay/paru 装完软件，系统卡一下，Quickshell 也卡。
+- 根因：`services/AppSearch.qml` 的桌面文件去重用 `filter` 套 `findIndex`，
+  是 O(n²)。pacman 写入 `.desktop` 触发 `DesktopEntries.applications` 更新，
+  整条响应式链（`list` → `preppedNames`/`preppedPinyin`/`preppedIcons`）
+  在主线程同步重算，1000+ 桌面文件 ≈ 百万次比较。
+- 修复：去重改用 `Set` 一次遍历（O(n)）；拼音查找的 `list.find` 换成预建
+  的 `entryById` Map（O(1)，用 Map 规避 `constructor` 等原型链键碰撞）。
+- 现象二：OBS 开录屏时按 Super 呼出启动器快速打字明显卡顿和输入延迟。
+- 根因：`services/LauncherSearch.qml` 的 `results` 绑定逐键同步执行全量
+  fuzzy 搜索 + 为每个匹配结果 `createObject` 建 QObject，无防抖；
+  OBS 编码抢占 CPU 时主线程重算被放大成肉眼可见的延迟。
+- 修复：新增 `debouncedQuery`（60ms Timer），`results` 绑定全部跟随它；
+  `query` 仍即时（输入框、前缀图标切换不受影响），清空时立即收起。
+  应用结果截断到 50（渲染只展示前 15），减少无用 QObject 创建。
+
+**功能：灵动岛下载进度条 + 通知头像 + 展开态完善**
+
+- 下载进度：新增 fish 包装函数 `pacman`/`yay`/`paru`/`curl`/`wget`，
+  交互式终端运行时解析输出百分比，通过 `qs ipc call island task_progress`
+  实时上报到灵动岛，有明确进度条。内部解析器 `_island_pkg_progress` /
+  `_island_dl_progress` 仅在百分比变化时上报（节流）。
+- `pacman` 包装自动判断需要 root 的操作（`-S`/`-U`/`-R` 且非只读子项）
+  并加 `sudo`，解决 `sudo pacman` 绕过函数的问题。
+- `DownloadSource` 关掉 curl/wget 自动探测：壁纸切换、AI 请求等后台脚本
+  的 curl 会让下载胶囊乱闪，噪音大于价值；交互下载已由包装函数覆盖。
+- `TaskSource.begin` 在任务进行中再次调用只换标签不重置进度，
+  pacman 逐包下载时进度条不会闪回 0%。
+- 通知头像：`NotificationSource` 传 `image`/`appIcon`，`NotificationActivity`
+  compact 与 expanded 双态渲染头像（QQ 消息头像等），三层 fallback
+  与原生 NotificationPopup 一致（image → appIcon → 铃铛）。
+- 展开态补齐：`RecordingActivity`（脉冲点 + 录制提示 + 放大计时）、
+  `BatteryActivity`（电量条 + 低电量红色警示），参考 macOS Dynamic Island
+  HIG「展开态是紧凑态的放大版，保持元素相对位置」原则。
+
 ### 2026-09-14（第二十五次）
 
 **修复：Super+鼠标滚轮一次切两个工作区 + 滚动布局下改为切窗口**
