@@ -70,6 +70,8 @@ output_path = '~/.config/cava/config'
 [templates.fcitx5]
 input_path = '~/.config/matugen/templates/fcitx5-theme.conf'
 output_path = '~/.local/share/fcitx5/themes/Matugen/theme.conf'
+# 主题生成后重启 fcitx5，使新配色立即生效（否则 fcitx5 不会热重载主题文件）
+post_hook = 'fcitx5-remote -r'
 
 [templates.waybar_colors]
 input_path = '~/.config/matugen/templates/colors.css'
