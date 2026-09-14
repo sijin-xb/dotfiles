@@ -146,6 +146,7 @@ Wallr 的壁纸会**突然定格不动**——视频解码线程可能仍在运�
 | Super+L | 锁屏（quickshell 锁屏界面） |
 | Super+Q | 关闭窗口 |
 | Super+1..0、Super+方向键 | 切换工作区 / 焦点 |
+| Super+鼠标滚轮 | scrolling 布局切换窗口；其他布局切换相邻工作区 |
 | Super+Shift+方向键 | 移动窗口 |
 | Super+Shift+S、Print | 区域截图 |
 | Super+Shift+R | 区域录屏 |
@@ -155,6 +156,11 @@ Wallr 的壁纸会**突然定格不动**——视频解码线程可能仍在运�
 
 完整列表：`~/.config/hypr/hyprland/keybinds.lua` 与
 `~/.config/hypr/custom/keybinds.lua`。
+
+其中，`Super+鼠标滚轮` 会根据当前工作区的布局自动选择行为：使用
+`scrolling` 布局时在当前工作区内切换窗口；使用 `dwindle` 等其他布局时切换
+相邻工作区，每次滚轮只移动一个工作区。向下滚动表示下一个窗口 / 工作区，向上
+滚动表示上一个窗口 / 工作区。
 
 ## 目录结构
 
