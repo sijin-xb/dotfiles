@@ -427,7 +427,7 @@ Singleton {
                     property bool enableWorkspace: true     // 工作区切换时壁纸平移
                     property int workspaceCount: 10         // 参与视差映射的工作区总数（0 = 自动探测）
                     property int workspaceAnimationDuration: 400 // 工作区视差时长(ms)。Hyprland 的 workspaces speed=7 是 700ms，但滚轮连续切工作区时视差要能跟得上，取 400 更跟手
-                    property real workspaceZoom: 1.07       // 壁纸缩放倍率（>1 留出可移动余量）
+                    property real workspaceZoom: 1.07       // 视差强度；静态图只平移不缩放，视频后端仍需缩放留余量
                     property bool enableSidebar: true       // 侧栏开合时壁纸平移
                     property real sidebarShift: 80          // 侧栏偏移像素量
                     property real widgetsFactor: 1.2        // 部件景深倍率（只跟随侧栏，光标跟随不作用于部件）

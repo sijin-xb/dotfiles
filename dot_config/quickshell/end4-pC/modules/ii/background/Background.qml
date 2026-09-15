@@ -534,12 +534,34 @@ Variants {
                 NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
             }
 
+            // ─── 视差露出的部分：同一张壁纸的模糊副本 ──────────────
+            // 平移视差需要"可移动余量"，传统做法是把壁纸放大（zoom）腾出余量，
+            // 代价是壁纸被永久放大。这里改成：壁纸本体保持 1:1 不放大，
+            // 后面垫一层同一张壁纸的模糊副本（静止不动 → layer 结果可缓存，
+            // 只在换壁纸时渲染一次），平移露出来的就是虚化的同款画面。
+            // 于是 workspaceZoom 退化成纯粹的"位移幅度旋钮"，不再造成放大。
+            Image {
+                id: parallaxBackdrop
+                anchors.fill: parent
+                anchors.margins: -80
+                visible: wallpaperParallaxEnabled && !parallaxFrozen && !bgRoot.wallpaperIsVideo
+                source: bgRoot.wallpaperPath
+                fillMode: Image.PreserveAspectCrop
+                cache: true
+                asynchronous: true
+                sourceSize.width: Math.ceil(width)
+                sourceSize.height: Math.ceil(height)
+                layer.enabled: visible
+                layer.effect: FastBlur { radius: 64 }
+            }
+
             // ─── 壁纸视差容器 ───────────────────────────────
             Item {
                 id: wallpaperParallaxContainer
                 width: parent.width
                 height: parent.height
-                scale: wallpaperParallaxEnabled ? parallaxZoom : 1
+                // 不再用 zoom 放大本体：可移动余量由后面的模糊垫底层承接
+                scale: 1
                 transformOrigin: Item.Center
                 x: wallpaperParallaxEnabled && !parallaxFrozen ? parallaxOffsetX : 0
                 y: wallpaperParallaxEnabled && !parallaxFrozen ? parallaxOffsetY : 0
@@ -576,8 +598,8 @@ Variants {
                 // 按缩放后的显示尺寸解码：既避免 4K/8K 壁纸整幅载入占用大量内存，
                 // 又保证视差放大后依然清晰（长宽比不同时 Qt 会等比缩放）。
                 // 解码尺寸已贴合显示尺寸，mipmap 不再有用（只在缩小时才生效）。
-                sourceSize.width: Math.ceil(width * (wallpaperParallaxEnabled ? parallaxZoom : 1))
-                sourceSize.height: Math.ceil(height * (wallpaperParallaxEnabled ? parallaxZoom : 1))
+                sourceSize.width: Math.ceil(width)
+                sourceSize.height: Math.ceil(height)
                 mipmap: false
                 layer.enabled: true
                 visible: false
@@ -592,8 +614,8 @@ Variants {
                 smooth: true
                 mipmap: false
                 asynchronous: true
-                sourceSize.width: Math.ceil(width * (wallpaperParallaxEnabled ? parallaxZoom : 1))
-                sourceSize.height: Math.ceil(height * (wallpaperParallaxEnabled ? parallaxZoom : 1))
+                sourceSize.width: Math.ceil(width)
+                sourceSize.height: Math.ceil(height)
                 layer.enabled: blurLoader.active
                 visible: !blurLoader.active && !bgRoot.centeredWallpaperEnabled && !bgRoot.videoRevealed
                     && (bgRoot.wallpaperAnimation === "" || bgRoot.transitionProgress >= 1.0)
@@ -643,7 +665,7 @@ Variants {
                     && !(bgRoot.userBlurActive || bgRoot.overviewBlurActive)
                 width: parent.width
                 height: parent.height
-                scale: (wallpaperParallaxEnabled ? parallaxZoom : 1) * (GlobalStates.screenLocked ? Config.options.lock.blur.extraZoom : 1)
+                scale: GlobalStates.screenLocked ? Config.options.lock.blur.extraZoom : 1
                 x: wallpaperParallaxEnabled && !parallaxFrozen ? parallaxOffsetX : 0
                 y: wallpaperParallaxEnabled && !parallaxFrozen ? parallaxOffsetY : 0
                 Behavior on scale {
@@ -680,7 +702,7 @@ Variants {
                     && (!bgRoot.centeredWallpaperEnabled || bgRoot.blurFullScreen)
                 width: parent.width
                 height: parent.height
-                scale: wallpaperParallaxEnabled ? parallaxZoom : 1
+                scale: 1
                 x: wallpaperParallaxEnabled && !parallaxFrozen ? parallaxOffsetX : 0
                 y: wallpaperParallaxEnabled && !parallaxFrozen ? parallaxOffsetY : 0
                 Behavior on x {

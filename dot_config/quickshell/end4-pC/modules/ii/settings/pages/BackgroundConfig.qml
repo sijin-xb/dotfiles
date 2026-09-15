@@ -457,10 +457,10 @@ ContentPage {
                         }
                     }
                     ConfigSlider {
-                        text: Translation.tr("Workspace zoom")
+                        text: Translation.tr("Workspace parallax strength")
                         value: Config.options.background.parallax.workspaceZoom
                         usePercentTooltip: false
-                        buttonIcon: "zoom_in"
+                        buttonIcon: "open_in_full"
                         from: 1.02
                         to: 1.5
                         stopIndicatorValues: [1.07]
