@@ -450,11 +450,15 @@ AbstractBackgroundWidget {
         }
     }
 
-    // 数据流入时持续触发重绘，让 Canvas 跟随节奏实时变化
+    // 数据流入时触发重绘。这里刻意用 33ms（30fps）而不是 16ms：
+    // Canvas 每帧都要重绘并上传整块 屏宽×300 的纹理（1920 宽下约 2.3MB/帧），
+    // 60fps 时是 ~138MB/s 的上传量，实测让 quickshell 长期占用 35%+ CPU。
+    // 30fps 对音频可视化完全够用，开销直接减半。
+    // 另外不可见时（锁屏 / 全屏隐藏 / 已淡出）不重绘。
     Timer {
-        interval: 16
+        interval: 33
         repeat: true
-        running: root.activityOpacity > 0
+        running: root.activityOpacity > 0 && root.visible
         onTriggered: painter.requestPaint()
     }
 }
