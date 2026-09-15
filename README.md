@@ -23,6 +23,7 @@ bash 脚本完成，不需要 chezmoi 二进制。
 - [锁屏](#锁屏)
 - [灵动岛](#灵动岛)
 - [说明](#说明)
+- [SPlayer 歌词联动](#splayer-歌词联动)
 - [fcitx5-rime × matugen 取色联动](#fcitx5-rime--matugen-取色联动)
 - [排障与已知问题](#排障与已知问题)
 - [致谢与上游](#致谢与上游)
@@ -214,8 +215,10 @@ switchwall.sh 启动 mpvpaper 时加 input-ipc-server=<socket>
 }
 ```
 
-> - `workspaceZoom` 决定位移幅度：1.02 时 1920 宽屏的总位移只有 19px
->   （每个工作区约 4px，几乎看不出来），建议保持 1.07（约 67px）以上。
+> - `workspaceZoom` 决定位移幅度（也是唯一的幅度旋钮）：可移动余量 =
+>   `屏宽 × (zoom - 1) / 2`。1920 宽屏下：1.02 → 总位移 19px（每工作区约 4px，
+>   几乎看不出来）、1.07 → 67px、**1.15 → 288px（每工作区 32px，明显有视差感）**。
+>   想更夸张就继续加，代价是壁纸被裁得更多（1.15 约裁掉 26% 面积）。
 > - `workspaceAnimationDuration` 太大会在滚轮连续切工作区时追不上切换，
 >   看起来发卡；400ms 左右比较跟手。
 
@@ -444,6 +447,42 @@ UI 订阅 `currentType` / `currentPayload`。
 录屏指示器已统一到灵动岛：栏上原有的浮动录屏胶囊（`BarContent.qml` 的
 `recordingPillLoader`）默认关闭，避免重复显示；把它的 `active` 改回
 `Persistent.states.record.enable` 即可恢复。
+
+## SPlayer 歌词联动
+
+桌面歌词默认走 MPRIS + 酷狗抓词。如果播放器是 **SPlayer**，可以在它的
+「设置 → WebSocket 服务」里打开服务（默认端口 **25885**），歌词会直接由
+SPlayer 推送，省掉抓取、也不用等网络。
+
+```
+SPlayer --WebSocket(25885)--> scripts/desktopLyrics/splayer-ws.py
+                                    │ 每行一个 JSON（stdout）
+                                    ▼
+                        Quickshell DesktopLyrics（Process + SplitParser）
+```
+
+协议（从 SPlayer 的 app.asar 里确认，WS 为单向广播）：
+
+| 消息 | data |
+|---|---|
+| `welcome` | 连接成功 |
+| `song-change` | `title` / `name` / `artist` / `album` / `duration` |
+| `lyric-change` | `lrcData` / `yrcData`（**行数组**，每行含 `startTime`/`endTime`/`words[].word`/`translatedLyric`，时间单位 ms） |
+| `progress-change` | `currentTime` / `duration`（ms，约每 0.5s） |
+| `status-change` | `status`（播放/暂停） |
+
+实现要点：
+
+- `scripts/desktopLyrics/splayer-ws.py` 是纯标准库的极简 WebSocket 客户端，
+  把上述消息归一成 `{"type":"lyric","lines":[...]}` 等 JSON 行写 stdout，
+  断开后每 3s 自动重连（SPlayer 重启无需干预）。
+- QML 侧把数据喂给现有的 `lyricLines` / `currentTime` / `isPlaying`，
+  下游（歌词视图、锁屏、桌面宠物）无需改动。
+- **只有真的收到 WS 歌词才接管**（`splayerHasLyrics`）：SPlayer 只在换歌时
+  推 `lyric-change`，刚连上时可能还没有歌词，此时保留 MPRIS + 酷狗流程兜底。
+- 接管后 `doFetch()` 直接返回、MPRIS 精同步定时器停摆，避免两边互相覆盖。
+- 关闭：`background.desktopLyricsSplayerEnable = false`（或改端口
+  `desktopLyricsSplayerPort`）。
 
 ## 排障与已知问题
 

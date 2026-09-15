@@ -2,6 +2,46 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+### 2026-09-15（第二十九次）
+
+**功能：SPlayer 歌词联动**
+
+- 桌面歌词接入 SPlayer 的 WebSocket（设置 → WebSocket 服务，默认 25885）。
+- 协议从 SPlayer 的 `app.asar` 里逆出来（WS 是单向广播）：
+  `welcome` / `song-change` / `lyric-change` / `progress-change` / `status-change`；
+  其中 `lyric-change` 的 `lrcData`/`yrcData` 是**行数组**，每行含
+  `startTime`/`endTime`/`words[].word`/`translatedLyric`，时间单位 ms。
+- 新增 `scripts/desktopLyrics/splayer-ws.py`：纯标准库的极简 WS 客户端，
+  归一成每行一个 JSON 写到 stdout，断开后自动重连。
+- QML 侧复用现有 `lyricLines`/`currentTime`/`isPlaying`，下游无需改动；
+  **只有真收到 WS 歌词才接管**，否则保留 MPRIS + 酷狗兜底；
+  接管后停掉酷狗抓取与 MPRIS 精同步，避免互相覆盖。
+
+**调整：视差幅度**
+
+- `workspaceZoom` 默认值语义讲清楚：可移动余量 = 屏宽 × (zoom-1) / 2，
+  这是唯一的幅度旋钮。1920 宽屏下 1.02 → 19px（几乎看不出）、
+  1.07 → 67px、1.15 → 288px（每工作区 32px）。本地配置已设到 1.15。
+
+**审查：matugen 取色**
+
+- 用同一张壁纸 + 同参数重算，得到的主色与已生成文件完全一致
+  （`#d6bbfb` / `#cec2da` / `#f2b7c2` / `#151218`），各应用文件也都是
+  同一次生成（时间戳一致）——**取色管线是确定性的，没有偏差**。
+- 顺带发现：8K 壁纸跑一次 matugen 约需 **2 分钟**（每次换壁纸都会等这么久），
+  与取色正确性无关，但换壁纸时的体感延迟主要来自这里。
+
+**记录：Hyprland 0.56 Lua 配置模式的两个坑**
+
+- `hyprctl dispatch <dispatcher> <args>` 的传统写法**不再可用**：0.56 会把参数
+  整体当 Lua 表达式解析，报 `')' expected near ...`（并提示 "dispatch in lua is
+  a shorthand for hl.dispatch(...)"）。必须写 Lua 形式，如
+  `hyprctl dispatch 'hl.dsp.global("quickshell:lock")'`。
+- `hyprctl keyword <name> <value>` 直接报
+  "keyword can't work with non-legacy parsers. Use eval."，要改用 `hyprctl eval`。
+- 排查手法：`hyprctl eval` 可执行任意 Lua（返回 ok），配合
+  `io.open("/tmp/x","w")` 把结果写文件，就能安全探测 API 是否存在。
+
 ### 2026-09-15（第二十八次）
 
 **功能：壁纸视差补全（视频壁纸 + 全工作区 + 光标隔离 + 缩放/曲线）**

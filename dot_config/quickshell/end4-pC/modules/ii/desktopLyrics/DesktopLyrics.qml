@@ -71,7 +71,20 @@ PanelWindow {
             lyricPlayer = candidates[0];
         }
     }
-    readonly property bool isPlaying: (activePlayer?.isPlaying ?? false) && (activePlayer?.playbackState === MprisPlaybackState.Playing || activePlayer?.playbackState === 1 || activePlayer?.isPlaying === true)
+    // SPlayer WS 数据源：连上后以它为准（见下方 splayerBridge）
+    readonly property bool splayerEnable: Config.options.desktopLyricsSplayerEnable ?? false
+    property bool splayerConnected: false
+    property bool splayerPlaying: false
+    property string splayerSongLabel: ""
+    // SPlayer 只在换歌/加载歌词时才推 lyric-change，所以刚连上时可能还没有歌词。
+    // 必须等真的收到歌词才接管，否则会把 MPRIS + kugou 流程掐掉导致歌词空白。
+    property bool splayerHasLyrics: false
+    readonly property bool splayerActive: root.splayerEnable && root.splayerConnected
+        && root.splayerHasLyrics
+
+    readonly property bool isPlaying: root.splayerActive
+        ? root.splayerPlaying
+        : ((activePlayer?.isPlaying ?? false) && (activePlayer?.playbackState === MprisPlaybackState.Playing || activePlayer?.playbackState === 1 || activePlayer?.isPlaying === true))
 
     property bool connected: true // Kept for backwards compatibility
 
@@ -381,6 +394,67 @@ PanelWindow {
         currentLineIndex = index;
     }
 
+    // ─── SPlayer WebSocket 歌词源 ────────────────────────────────────
+    // SPlayer 打开「WebSocket 服务」后（默认 25885）会推送 song-change /
+    // lyric-change / progress-change，直接复用，省掉 kugou 抓取。
+    // 脚本断开后会自动重连，所以这里不需要重启逻辑。
+    Process {
+        id: splayerBridge
+        running: root.enabled && root.splayerEnable
+        command: ["python3", Quickshell.shellPath("scripts/desktopLyrics/splayer-ws.py"),
+            "--port", String(Config.options.desktopLyricsSplayerPort ?? 25885)]
+        stdout: SplitParser {
+            onRead: line => root.handleSplayerMessage(line)
+        }
+        onExited: {
+            root.splayerConnected = false;
+            root.splayerPlaying = false;
+        }
+    }
+
+    function handleSplayerMessage(line) {
+        let msg;
+        try {
+            msg = JSON.parse(line);
+        } catch (e) {
+            return;
+        }
+        switch (msg.type) {
+        case "hello":
+            root.splayerConnected = true;
+            break;
+        case "disconnected":
+            root.splayerConnected = false;
+            root.splayerPlaying = false;
+            root.splayerHasLyrics = false;
+            break;
+        case "song":
+            root.splayerSongLabel = `${msg.title ?? ""}${msg.artist ? " - " + msg.artist : ""}`;
+            // 换歌后旧歌词作废，等新的 lyric-change 到达前先让 MPRIS 流程兜底
+            root.splayerHasLyrics = false;
+            break;
+        case "lyric":
+            // 脚本给的是毫秒，这里换算成秒，和 MPRIS 路径的 lyricLines 保持一致
+            root.lyricLines = (msg.lines ?? []).map(l => ({
+                start: (l.start ?? 0) / 1000,
+                text: l.text ?? "",
+                trans: l.translation ?? "",
+            }));
+            root.rawLyricOffset = 0;
+            root.currentLineIndex = -1;
+            root.splayerHasLyrics = root.lyricLines.length > 0;
+            root.updateCurrentLine();
+            break;
+        case "progress":
+            if (typeof msg.position === "number")
+                root.currentTime = msg.position / 1000;
+            break;
+        case "state":
+            root.splayerPlaying = !!msg.playing;
+            break;
+        }
+    }
+
     // Coalesces rapid metadata changes (trackTitle/trackArtist usually fire
     // together on song switch) into a single fetch.
     property bool pendingRefresh: false
@@ -414,6 +488,9 @@ PanelWindow {
     function doFetch(refresh) {
         pendingRefresh = false;
         if (!enabled)
+            return;
+        // SPlayer 已经给了歌词，不要再抓一遍（会覆盖掉 WS 的数据）
+        if (root.splayerActive)
             return;
 
         const rawTitle = (activePlayer?.trackTitle ?? "").trim();
@@ -534,7 +611,7 @@ PanelWindow {
         if (activePlayer) {
             currentTime = activePlayer.position ?? 0;
             requestFetch();
-        } else {
+        } else if (!root.splayerActive) {
             lyricLines = [];
             currentLineIndex = -1;
         }
@@ -588,6 +665,7 @@ PanelWindow {
         interval: 350
         repeat: true
         running: root.shouldShow && root.isPlaying && root.activePlayer !== null
+            && !root.splayerActive
         onTriggered: {
             if (root.activePlayer) {
                 root.activePlayer.positionChanged();
