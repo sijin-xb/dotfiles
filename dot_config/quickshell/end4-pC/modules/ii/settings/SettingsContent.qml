@@ -280,23 +280,73 @@ Item {
                         }
                     }
 
-                    // 注意：StyledTextInput 是 TextInput（不支持 placeholderText），
-                    // 这里要用 MaterialTextField（TextField 子类）。
-                    MaterialTextField {
-                        id: settingsSearchField
+                    // 搜索框：用与侧栏一致的扁平样式（Material 的填充式输入框在这里太突兀），
+                    // 边距对齐导航项（NavigationRail 左缩进 20 + 内容 margins 5）。
+                    // 注：StyledTextInput 的根是 TextInput，没有 placeholderText，
+                    // 所以占位文字用一个单独的 StyledText 覆盖。
+                    Rectangle {
+                        id: settingsSearchBox
                         Layout.fillWidth: true
-                        Layout.leftMargin: 8
-                        Layout.rightMargin: 8
-                        Layout.bottomMargin: 4
+                        // 与「配置文件」按钮、导航项一致：满宽（它们都没有左右边距）
+                        Layout.bottomMargin: 10
                         visible: navRail.expanded
-                        placeholderText: Translation.tr("Search settings")
-                        onTextChanged: root.settingsSearchQuery = text
+                        implicitHeight: 38
+                        // colLayer2 和侧栏底色太接近，几乎看不出是个输入框，补一层描边
+                        color: Appearance.colors.colLayer2
+                        border.width: 1
+                        border.color: Appearance.colors.colOutline
+                        radius: Appearance.rounding.normal
+
+                        MaterialSymbol {
+                            id: settingsSearchIcon
+                            anchors {
+                                left: parent.left
+                                leftMargin: 9
+                                verticalCenter: parent.verticalCenter
+                            }
+                            text: "search"
+                            iconSize: Appearance.font.pixelSize.large
+                            color: Appearance.colors.colOnLayer1
+                            opacity: 0.55
+                        }
+
+                        StyledText {
+                            anchors {
+                                left: settingsSearchIcon.right
+                                leftMargin: 7
+                                right: parent.right
+                                rightMargin: 9
+                                verticalCenter: parent.verticalCenter
+                            }
+                            visible: settingsSearchInput.text.length === 0
+                            text: Translation.tr("Search settings")
+                            color: Appearance.colors.colOnLayer1
+                            opacity: 0.5
+                        }
+
+                        StyledTextInput {
+                            id: settingsSearchInput
+                            anchors {
+                                left: settingsSearchIcon.right
+                                leftMargin: 7
+                                right: parent.right
+                                rightMargin: 9
+                                verticalCenter: parent.verticalCenter
+                            }
+                            onTextChanged: root.settingsSearchQuery = text
+                            onAccepted: {
+                                const results = root.settingsSearchResults;
+                                if (results.length > 0)
+                                    root.activateSearchResult(results[0]);
+                            }
+                        }
                     }
 
                     ListView {
                         id: settingsSearchResultsList
                         Layout.fillWidth: true
                         Layout.fillHeight: true
+                        Layout.margins: 5
                         visible: navRail.expanded && root.settingsSearchQuery.trim().length > 0
                         clip: true
                         spacing: 2
