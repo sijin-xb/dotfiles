@@ -584,9 +584,15 @@ fcitx5-rime 的候选框外观由 fcitx5 的 Classic UI 主题控制，matugen �
 
 ### 中文模式下 `/` 弹出符号候选框
 
-中文模式下按 `/` 会弹出常用符号候选框（`， 。 、 ； ： ？ ！ “ ” × ÷ ± ≈ ∞ √ ★ ☆ → ← ● ◆ ✓` 等
-48 个），用 `,` / `.` 翻页（`default.custom.yaml` 里已把它们映射为 Page_Up / Page_Down）。
-需要字面量半角斜杠时切到英文（Shift / Ctrl+Space）即可。
+中文模式下按 `/` 会弹出常用符号候选框，用 `,` / `.` 翻页
+（`default.custom.yaml` 里已把它们映射为 Page_Up / Page_Down）。
+
+**权重就是列表顺序**：librime 的 `PunctTranslator` 用 `FifoTranslation`，
+列表第 N 项就是第 N 个候选，`punctuator` 的定义没有独立 weight 字段。
+所以按使用频率排了 49 项，`page_size = 9` 下第一页即为
+`/ ， 。 、 ？ ！ ： ； “` —— 日常写中文不用翻页。半角 `/` 固定在首位，
+打 `/` 后按空格就能上屏字面量斜杠。要调权重直接改
+`rime_ice.custom.yaml` 里的顺序再重新部署即可。
 
 实现方式是把 `half_shape` 里的 `/` 由单值 `'/'` 改成多值列表。
 原理见 librime `src/rime/gear/punctuator.cc`：取到标点定义并把按键推入输入串后，

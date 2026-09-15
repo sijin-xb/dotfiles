@@ -2,6 +2,21 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+### 2026-09-15（第三十一次）
+
+**rime：`/` 符号候选框按使用频率排"权重"**
+
+- librime 的 `PunctTranslator` 用 `FifoTranslation`，**列表顺序就是候选顺序**
+  （`punctuator` 的定义没有独立 weight 字段），所以"权重"= 列表顺序：
+  越常用越靠前。
+- 已按中文书写频率重排 49 项：第一页（`page_size = 9`）为
+  `/ ， 。 、 ？ ！ ： ； “`，日常写中文不用翻页；
+  第二页放 `‘ ’ （ ） 《 》 —— …… ·`，之后依次是数学符号、箭头图形等。
+- 半角 `/` 保留在首位：打 `/` 后按空格即可上屏字面量斜杠，写路径/URL 不受影响。
+- 想自己调权重就直接改 `rime_ice.custom.yaml` 里的顺序，改完重新部署
+  （`rime_deployer --build ~/.local/share/fcitx5/rime /usr/share/rime-data`
+  + `fcitx5-remote -r`）。
+
 ### 2026-09-15（第三十次）
 
 **修复：设置页下拉框吞字（换语言会更严重）**
