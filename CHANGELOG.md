@@ -2,790 +2,449 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
-### 2026-09-16（第三十九次）
+## 2026-09-16
 
-**安装脚本：新增终端字体依赖**
+### 锁屏：Caelestia 风格移植与收尾
 
-- `install.sh`：`PACMAN_PKGS` 增加 `ttf-jetbrains-mono-nerd`（kitty 的
-  `font_family = JetBrains Mono Nerd Font` 所需，含 Nerd 图标）、
-  `ttf-nerd-fonts-symbols`，以及中文 / emoji 兜底的
-  `noto-fonts` / `noto-fonts-cjk` / `noto-fonts-emoji`。
-- `[6/7]` 末尾加一次 `fc-cache -f` 兜底：pacman 装字体包本身有 hook，
-  这步是为了让手动放进 `~/.local/share/fonts/` 的字体重跑脚本后也生效。
+新增 `modules/ii/lock/caelestia/`（28 个 QML，约 2000 行）：方块展开动画、分色大时钟、
+Material 3 形状形变的密码框、媒体卡、资源卡、歌词卡。视觉 1:1 来自 `qt6-m3shapes-git`
+（与 Caelestia `flake.nix` pin 的 commit 一致）与 Caelestia QML 插件（`Caelestia.Config`
+提供 Tokens / AnimCurves）；配色零转换（`Colours.palette.m3*` 与 `Appearance.m3colors.m3*` 同名）。
 
-### 2026-09-16（第三十八次）
+底层复用 end4-pC：认证走 `LockContext`（PAM + 指纹 + keyring），媒体走 `MprisController`，
+资源走 `ResourceUsage`，歌词走 `LyricsService`。**歌词卡是本仓库独有** —— Caelestia 锁屏
+本身没有歌词。旧 `SerpantinumLockSurface.qml` 完整保留，`Lock.qml` 一行即可切回。
 
-**锁屏：文档同步 + 资源卡对齐**
+收尾修正：
 
-- `Resources.qml`：三个 `MaterialShape`（Pentagon / Slanted / Gem）视觉占比不同
-  导致高低不齐，统一取 `Math.min(width, height)` 作为形状尺寸并 `anchors.centerIn`。
-- `docs/lockscreen.md`：新增「屏幕尺寸」一节，说明 `screenHeight = root.height`
-  的正确做法以及 `parent.screen` 父链为何会让布局塌缩到右下角；补全背景 / 配色 /
-  字体 / 圆角 / i18n 的说明；删除已过时的 `screen` 传递描述。
-- `README.md`：致谢段从「未引入其 C++ 插件」改为如实列出依赖
-  （`qt6-m3shapes-git` + Caelestia QML 插件），并明确运行时逻辑仍走 end4-pC 服务；
-  「包含内容」一节补注锁屏依赖。
+- `CaelestiaLockSurface`：屏幕高度改取 `root.height`（不再走 `parent.screen` 父链，
+  否则展开尺寸算成 0、三栏布局塌缩到右下角）；背景换成真实模糊壁纸
+  （`MultiEffect blurMax 64` + `m3scrim` 25%）；圆角/字体/配色统一走 `Appearance`。
+- `Resources.qml`：三个 `MaterialShape`（Pentagon / Slanted / Gem）视觉占比不同导致高低不齐，
+  统一取 `Math.min(width, height)` 作为形状尺寸并 `anchors.centerIn`。
+- i18n 补全 `Unlocking…` / `Enter your password` / `Nothing playing` / `Try playing some music!`。
+- `docs/lockscreen.md` 补「屏幕尺寸」「视觉细节」「i18n」「依赖」四节，删除过时的 `screen` 传递描述。
 
-### 2026-09-16（第三十七次）
+### install.sh：7 步流程 + 依赖补齐 + 字体
 
-**锁屏：移植为 Caelestia 风格（1:1 视觉）**
+安装流程 6 步 → 7 步，新增 `[4/7] Caelestia QML 插件`：clone `caelestia-dots/shell`
+到 `~/src/caelestia-shell`，编译到 `build/qml`，产物由 Hyprland `execs.lua` 与 fish
+`config.fish` 通过 `QML2_IMPORT_PATH` 自动加载（目录不存在时这两处自动跳过）。
+该步骤**失败即中断**，缺 cmake/ninja、clone 失败、CMake 配置失败、编译失败都 `die`
+并给出手动重试命令；`build/qml/Caelestia/*.so` 已存在则跳过编译。移除了
+`CAELESTIA_PLUGIN=0` 跳过开关与「可选」措辞。
 
-- 新增 `modules/ii/lock/caelestia/`（28 个 QML，约 2000 行）：
-  方块展开动画、分色大时钟、Material 3 形状形变的密码框、媒体卡、资源卡、歌词卡。
-- 视觉 1:1 来自 `qt6-m3shapes-git`（与 Caelestia `flake.nix` pin 的 commit 一致）
-  与 Caelestia QML 插件（`Caelestia.Config` 提供 Tokens / AnimCurves）。
-- 配色零转换：`Colours.palette.m3*` 与 `Appearance.m3colors.m3*` 同名。
-- 底层复用 end4-pC：认证走 `LockContext`（PAM + 指纹 + keyring），
-  媒体走 `MprisController`，资源走 `ResourceUsage`，歌词走 `LyricsService`。
-- 歌词卡是本仓库独有 —— Caelestia 锁屏本身没有歌词。
-- 旧 `SerpantinumLockSurface.qml` 完整保留；`Lock.qml` 一行即可切回。
-- `install.sh` AUR 列表加 `qt6-m3shapes-git`。
+依赖调整：
 
-### 2026-09-16（第三十六次）
+- `PACMAN_PKGS` 追加 `spirv-tools`（插件 shader 编译调用 `spirv-opt`）、
+  `aubio libpipewire libqalculate lm_sensors fftw`；AUR 循环加入 `libcava` 与 `qt6-m3shapes-git`。
+- 新增终端字体：`ttf-jetbrains-mono-nerd`（kitty 的 `font_family` 所需，含 Nerd 图标）、
+  `ttf-nerd-fonts-symbols`，中文 / emoji 兜底的 `noto-fonts` / `noto-fonts-cjk` / `noto-fonts-emoji`；
+  `[6/7]` 末尾加 `fc-cache -f` 兜底（pacman 装字体包本身有 hook，这步让手动放进
+  `~/.local/share/fonts/` 的字体重跑脚本后也生效）。
+- **不引入** `caelestia-shell` / `caelestia-meta` / `caelestia-cli`：脚本只备齐编译
+  插件所需的库，运行时逻辑仍走 end4-pC 自身服务。
 
-**install.sh：pacman -Syu 改为可选**
+`[1/7]` 默认改为 `pacman -S --needed`，只安装缺失的包，不再无条件滚动整个系统；
+需要全量升级时用 `FULL_UPGRADE=1 ./install.sh install`。
 
-- `[1/7]` 默认改为 `pacman -S --needed`，只安装缺失的包，不再无条件滚动
-  整个系统（避免在用户没准备时全量升级）。
-- 需要全量升级时用 `FULL_UPGRADE=1 ./install.sh install`。
-- 默认路径下若依赖安装失败，提示先手动 `pacman -Syu` 更新软件库再重试。
-- TUI 注意事项与 README 安装步骤同步更新。
+### install.sh：TUI 与 Caelestia 编译修复
 
-### 2026-09-16（第三十五次）
+- **TUI 乱码**：`draw_line` 用 `tr ' ' '─'` 在多字节 locale 下按字节替换，
+  把 `─`(E2 94 80) 拆成 3 个字节产生非法 UTF-8；`draw_header` 用
+  `cut -c$((...+${#title}))`，`${#title}` 是字节数而 cut 也按字节切，中文标题被从字符中间切开。
+  分别改为按字符循环打印、不截断输出。
+- **TUI 卡死**：`set -euo pipefail` 下，`for p in ...; do [[ -e ... ]] && cnt=$((cnt+1)); done`
+  末次 `[[ ]]` 失败会让 for 返回 1 直接杀掉脚本；且 `cmd_install` 内部的 `die`(=exit)
+  会连带把 TUI 一起 exit 掉。改为 `if` 语句 + TUI 调用各 `cmd_*` 时用子 shell 包裹 + `set +e`
+  单独处理返回码，主菜单 `read` 加 EOF 保护。
+- **`read -i` 报错**：`detail_archive` 里 `read -r -i "$out_path" out_path` 依赖 readline，
+  未加 `-e` 时行为未定义。改为手动提示 + 空则保留默认值。
+- **Caelestia 编译 FATAL**：`--depth=1` clone 不带 tag，上游 CMakeLists 用
+  `git describe --tags` 取版本失败即 `FATAL_ERROR`。脚本改为 clone 后 `git fetch --tags`
+  并显式传 `-DVERSION=`；上游 CMakeLists 同时改为探测失败时 `WARNING` + 回退
+  （`VERSION=0.0.0` / `GIT_REVISION=unknown`）。
 
-**install.sh：Caelestia QML 插件成为正式安装步骤**
+### 文档：README 瘦身 + docs/ 拆分
 
-- 安装流程 6 步 → 7 步，新增 `[4/7] Caelestia QML 插件`：
-  clone `caelestia-dots/shell` 到 `~/src/caelestia-shell`，编译到
-  `build/qml`，产物由 Hyprland `execs.lua` 与 fish `config.fish` 通过
-  `QML2_IMPORT_PATH` 自动加载（目录不存在时这两处自动跳过，零影响）。
-- 该步骤**失败即中断**（不再 warn 放过）：缺 cmake/ninja、clone 失败、
-  CMake 配置失败、编译失败都 `die`，并给出手动重试命令。
-- 幂等：`build/qml/Caelestia/*.so` 已存在则跳过编译。
-- `PACMAN_PKGS` 追加 `spirv-tools`（插件的 shader 编译调用 `spirv-opt`）。
-- 移除 `CAELESTIA_PLUGIN=0` 跳过开关与「可选」措辞。
-- README 安装步骤同步为 7 步，并修正插件说明（由脚本自动编译，不是
-  「自行 clone」）。
+根 README 从 653 行降到入口页（包含内容 / 安装 / 命令 / 快捷键 / 目录结构 / 链接），
+深度实现笔记移出到 5 篇 docs：`appearance.md`（视频壁纸后端 + 视差）、`lockscreen.md`、
+`widgets-layout.md`、`integrations.md`（SPlayer + fcitx5-rime）、`troubleshooting.md`。
+这样 README 只回答「是什么 / 怎么装 / 怎么用」，「为什么这么实现」归 docs，
+「改了什么」归 CHANGELOG。README 致谢段如实列出 `qt6-m3shapes-git` 与 Caelestia QML 插件依赖。
 
-### 2026-09-16（第三十四次）
+## 2026-09-15
 
-**文档：README 瘦身 + docs/ 拆分**
+### 壁纸视差补全（视频壁纸 + 全工作区 + 光标隔离 + 缩放/曲线）
 
-- 根 README 从 653 行降到入口页（包含内容 / 安装 / 命令 / 快捷键 /
-  目录结构 / 链接），深度实现笔记全部移出。
-- 新增 5 篇 docs：`appearance.md`（视频壁纸后端 + 视差）、`lockscreen.md`、
-  `widgets-layout.md`、`integrations.md`（SPlayer + fcitx5-rime）、
-  `troubleshooting.md`。`dynamic-island-roadmap.md` 保持原位。
-- `docs/README.md` 索引同步更新。
-- 这样 README 只回答"是什么 / 怎么装 / 怎么用"，"为什么这么实现"归 docs，
-  "改了什么"归 CHANGELOG，三者不再互相重复。
+- **视频壁纸视差**：视频由 mpvpaper 在后景层绘制，Quickshell 碰不到它的图层，
+  改为走 **mpv 的 JSON IPC** —— `switchwall.sh` 启动 mpvpaper 时加
+  `input-ipc-server=~/.cache/quickshell/mpvpaper/mpvpaper-<显示器名>.sock`，
+  Quickshell 连上后设置 `video-zoom` / `video-align-x` / `video-align-y`。
+  `video-zoom` 传 `log2(parallaxZoom)`，`video-align` 传归一化到 `-1 ~ +1` 的偏移。
+- **工作区视差覆盖全部工作区**：旧实现用 `(工作区号 - 1) % 概览列数` 定位，
+  概览列数是 5，所以第 6 个工作区开始位置重复。改为按工作区总数线性映射，
+  总数取「设置值 / 已出现的最大工作区号 / 概览列数」的最大值，新增「工作区数量」滑杆。
+- **光标跟随只作用于壁纸层**：`WidgetCanvas` 之前也叠加了光标偏移导致鼠标一动
+  桌面部件跟着抖；现在部件只跟随侧栏开合做景深位移。
+- **缩放逻辑**：开启侧栏平移时自动把 `workspaceZoom` 提升到「可移动余量 ≥ sidebarShift」；
+  壁纸按「显示尺寸 × 缩放」解码（`sourceSize`），8K 壁纸不再整幅载入内存；
+  **桌面部件坐标系修正** —— 部件画布是屏幕尺寸、不随壁纸缩放，之前一直按
+  「壁纸缩放空间」定位，`y = -1` 的部件会被推到屏幕外，现统一改回屏幕坐标系。
+- **过渡动画**：时长默认 400ms（Hyprland 的 `workspaces` 是 700ms，滚轮连续切工作区时
+  视差追不上切换就是卡），新增「工作区过渡时长」滑杆（200~1400ms）。
 
-**install.sh：补齐 Caelestia 插件编译依赖**
+**踩坑：`Easing.BezierSpline` 的 `bezierCurve` 必须给 3 个控制点（6 个值，末点 `1, 1`）**。
+按 CSS 写法只给 4 个值 `[0.1, 1.0, 0.0, 1.0]` 时 Qt 不报错，而是**静默退化成匀速直线**
+（无窗口 QML 探针实测：400ms 动画到 192ms 才走到 50%，同样条件下 OutCubic 已到 88%）。
+已改用 `Easing.OutCubic`。
 
-- `PACMAN_PKGS` 追加 `aubio libpipewire libqalculate lm_sensors fftw`。
-- AUR 循环加入 `libcava`（官方仓库无此包）。
-- 不引入 `caelestia-shell` / `caelestia-meta` / `caelestia-cli`：脚本只备齐
-  编译插件所需的库，插件本体由用户自行编译并用 `QML2_IMPORT_PATH` 加载。
+### 修复：静态壁纸开启视差会被放大
 
-### 2026-09-15（第三十三次）
+平移视差需要可移动余量，原实现直接 `scale = parallaxZoom`，所以开启视差就会永久裁切放大
+壁纸（强度 1.15 即放大 15%）。新方案：**静态壁纸本体始终 scale=1**；后面垫一层同一张壁纸
+的 `FastBlur` 缓存层（四周额外铺 80px 防止模糊暗边），平移露出来的边缘显示虚化的同款画面。
+模糊层静止不动，`layer.enabled` 可缓存，只在换壁纸时重渲染。锁屏 GaussianBlur 与
+用户/概览 FastBlur 两层残留的 `parallaxZoom` 一并移除。设置文案 `工作区缩放` →
+`工作区视差强度`。视频壁纸是 mpvpaper 独立图层，无法垫模糊副本，仍需 `video-zoom` 留余量。
 
-**修复：静态壁纸开启视差会被放大**
+### 性能：Hyprland 事件风暴 + ResourceUsage 采样
 
-- 平移视差需要可移动余量，原实现直接 `scale = parallaxZoom`，所以开启视差就会
-  永久裁切放大壁纸（强度 1.15 即放大 15%）。
-- 新方案：**静态壁纸本体始终 scale=1**；后面垫一层同一张壁纸的 `FastBlur`
-  缓存层（四周额外铺 80px 防止模糊暗边），平移露出来的边缘显示虚化的同款画面。
-  模糊层静止不动，`layer.enabled` 可缓存，只在换壁纸时重渲染。
-- 锁屏 GaussianBlur 与用户/概览 FastBlur 两层残留的 `parallaxZoom` 也一并移除，
-  避免进入模糊状态时壁纸又突然放大。
-- 设置文案 `工作区缩放` → `工作区视差强度`；`workspaceZoom` 对静态图仅决定
-  位移幅度，不再决定视觉缩放。
-- 视频壁纸是 mpvpaper 独立图层，无法在 Quickshell 后面垫模糊副本，仍需
-  `video-zoom` 留余量，这是后端限制。
+- **事件风暴**：`services/HyprlandData.qml` 对**每一个** Hyprland 事件都调 `updateAll()`，
+  而一轮 `updateAll()` 要起 5 个 `hyprctl` 子进程（合计约 20ms CPU）。一次工作区切换
+  会收到近十个事件，主线程被进程创建拖住。修复：按事件名只刷对应数据，并用 40ms 定时器
+  把同一波事件合并成一次刷新；`openlayer`/`closelayer` 直接跳过。实测 10 个事件从
+  50 个子进程降到 2 轮刷新。
+- **ResourceUsage**：采样定时器写成 `interval: 1` 且 `repeat: true` —— 每秒上千次
+  reload `/proc` + 正则匹配 + 重建历史数组。改为读取
+  `Config.options.resources.updateInterval`（默认 3000ms），空闲 CPU 3.0% → 0.8%。
 
-### 2026-09-15（第三十二次）
+### 功能：设置面板搜索框
 
-**功能：设置面板加搜索框**
+侧边栏（导航栏展开时）加搜索输入框，输入即列出匹配的页面与小节，点击跳转并自动滚动定位。
+索引由 `scripts/settings/build-search-index.py` 扫描各页的 `ContentSection/ContentSubsection`
+标题生成（10 页 / 98 节），存为 `modules/ii/settings/settingsSearchIndex.json`；运行时用
+`Translation.tr` 翻成当前语言再匹配，中英文都能搜。跳转复用已有的
+`GlobalStates.settingsPage = "页面:小节"` 深链，没有新增导航机制。
 
-- 侧边栏（导航栏展开时）加搜索输入框，输入即列出匹配的页面与小节，
-  点击跳转并自动滚动定位。
-- 索引由 `scripts/settings/build-search-index.py` 扫描各页的
-  `ContentSection/ContentSubsection` 标题生成（10 页 / 98 节），
-  存为 `modules/ii/settings/settingsSearchIndex.json`；运行时用
-  `Translation.tr` 翻成当前语言再匹配，所以中英文都能搜。
-- 跳转复用已有的 `GlobalStates.settingsPage = "页面:小节"` 深链
-  （页面自己的 `goTo()` 负责滚动），没有新增导航机制。
-- 坑：`StyledTextInput` 的根是 `TextInput`，**不支持 `placeholderText`**；
-  要占位符得用 `MaterialTextField`（`TextField` 子类）。
+坑：`StyledTextInput` 的根是 `TextInput`，**不支持 `placeholderText`**；
+要占位符得用 `MaterialTextField`（`TextField` 子类）。
 
-**修复：install.sh 审查（从未实际运行过）**
+### 功能：SPlayer 歌词联动
 
-- **全新安装会丢可执行位**：`dot_config/quickshell/end4-pC/scripts/colors/`
-  下同时存在 `switchwall.sh` 与 `executable_switchwall.sh`（前者是同步时漏加
-  chezmoi 前缀留下的重复，且内容更新）。安装器只按 `executable_` 前缀恢复
-  执行位，两个同名目标互相覆盖 → 可能装上没有 +x 的 switchwall.sh。
-  已删除无前缀的那份，内容并入带前缀的文件。
-- **quickshell 底盘 clone 会硬失败**：`git clone ... "$QS_BASE"` 在目录已存在
-  且非空时报错，配合 `set -e` 直接中断安装。改为先克隆到临时目录再 `cp -a` 合并，
-  失败时给明确提示。
-- **快照文件数统计会输出两行**：`grep -cv '/$' || echo 0` 在计数为 0 时
-  `grep -c` 本身已打印 `0` 但返回 1，于是又追加一个 `0`。改为
-  `grep -v '/$' | wc -l`。
-- 另外记录两点设计取舍（未改）：`pacman -Syu` 会顺带**全系统升级**；
-  venv 里 `pip install dbus-python` 在全新系统上大概率失败（缺 dbus/glib/meson
-  构建依赖），建议改用仓库的 `python-dbus`。
+桌面歌词接入 SPlayer 的 WebSocket（设置 → WebSocket 服务，默认 25885）。协议从 SPlayer
+的 `app.asar` 里逆出来（WS 是单向广播）：`welcome` / `song-change` / `lyric-change` /
+`progress-change` / `status-change`；其中 `lyric-change` 的 `lrcData`/`yrcData` 是行数组，
+每行含 `startTime`/`endTime`/`words[].word`/`translatedLyric`，时间单位 ms。
 
-### 2026-09-15（第三十一次）
+- 新增 `scripts/desktopLyrics/splayer-ws.py`：纯标准库的极简 WS 客户端，归一成每行
+  一个 JSON 写到 stdout，断开后自动重连。
+- QML 侧复用现有 `lyricLines`/`currentTime`/`isPlaying`，下游无需改动；**只有真收到 WS
+  歌词才接管**，否则保留 MPRIS + 酷狗兜底；接管后停掉酷狗抓取与 MPRIS 精同步。
+- **修复**：`lyric-change` 的 `lrcData`/`yrcData` 在只有 LRC（没有逐字歌词）的歌上是
+  **纯文本 LRC 字符串**而不是行数组，桥接脚本只认数组 → 解析成空、歌词完全不显示
+  （《unravel》即属此类）。已支持字符串形式（按 `[mm:ss.xx]` 解析，结束时间取下一行
+  开始时间）。另加 `--debug <file>` 转储原始 WS 报文。
 
-**rime：`/` 符号候选框按使用频率排"权重"**
+### rime：`/` 符号候选框
 
-- librime 的 `PunctTranslator` 用 `FifoTranslation`，**列表顺序就是候选顺序**
-  （`punctuator` 的定义没有独立 weight 字段），所以"权重"= 列表顺序：
-  越常用越靠前。
-- 已按中文书写频率重排 49 项：第一页（`page_size = 9`）为
-  `/ ， 。 、 ？ ！ ： ； “`，日常写中文不用翻页；
-  第二页放 `‘ ’ （ ） 《 》 —— …… ·`，之后依次是数学符号、箭头图形等。
-- 半角 `/` 保留在首位：打 `/` 后按空格即可上屏字面量斜杠，写路径/URL 不受影响。
-- 想自己调权重就直接改 `rime_ice.custom.yaml` 里的顺序，改完重新部署
-  （`rime_deployer --build ~/.local/share/fcitx5/rime /usr/share/rime-data`
-  + `fcitx5-remote -r`）。
+`rime_ice.custom.yaml` 把 `half_shape` 的 `/` 由单值 `'/'` 改成 48 项常用符号列表，
+按 `/` 弹候选框，`,` / `.` 翻页。librime 的 `PunctTranslator` 用 `FifoTranslation`，
+**列表顺序就是候选顺序**，所以「权重」= 列表顺序。已按中文书写频率重排 49 项：
+第一页（`page_size = 9`）为 `/ ， 。 、 ？ ！ ： ； "`，日常写中文不用翻页；
+第二页放 `' ' （ ） 《 》 —— …… ·`，之后依次是数学符号、箭头图形等。半角 `/` 保留
+在首位，打 `/` 后按空格即可上屏字面量斜杠，写路径/URL 不受影响。
 
-### 2026-09-15（第三十次）
+原理（librime `gear/punctuator.cc`）：取到标点定义后只有**单值映射**会立即上屏，
+列表型映射只列候选。
 
-**修复：设置页下拉框吞字（换语言会更严重）**
+**坑一**：必须用 `punctuator/half_shape/+` 这种扁平路径。写成嵌套结构
+`punctuator: { half_shape: ... }` 会把整个 `punctuator` 节点替换掉，v 模式符号表（266 项）
+和全角标点会一起消失。
+**坑二**：键名 `/` 不能写在路径里（会被当成路径分隔符），只能放在值里。
+校验：`rime_deployer --build` 后检查 `build/rime_ice.schema.yaml`。
 
-- 根因：`ConfigComboBox` 的 `fieldWidth` 同时决定按钮和弹窗宽度
-  （`StyledComboBox` 里 `popup.width = root.width`），而视频壁纸后端 /
-  过渡动画把它设成了 **50px**，于是按钮和弹窗里的文案全被截断。
-- 修复：控件层按模型里最长的文案用 `TextMetrics` 量一次宽度，
-  `fieldWidth` 降级为下限 —— 这样所有页面（BarConfig / NiriConfig /
-  ServicesConfig 里也有 50/70/100 的）一起修好，换语言也不会整段被吞。
+### 修复：设置页下拉框吞字 + 光标开关
 
-**修复：配色生成里的「光标」开关是坏的**
+- **下拉框吞字**：`ConfigComboBox` 的 `fieldWidth` 同时决定按钮和弹窗宽度
+  （`StyledComboBox` 里 `popup.width = root.width`），而视频壁纸后端 / 过渡动画把它设成了
+  **50px**，按钮和弹窗文案全被截断。修复：控件层按模型里最长的文案用 `TextMetrics`
+  量一次宽度，`fieldWidth` 降级为下限 —— 所有页面一起修好，换语言也不会整段被吞。
+- **光标开关坏了**：`InterfaceConfig.qml` 的开关绑到
+  `appearance.wallpaperTheming.enableCursor`，但 `Config.qml` 里没有这个键 → 绑到 undefined
+  （日志报 `Unable to assign [undefined] to bool`），点了没反应。该键实际由
+  `generate_cursor_theme.py` 读取（缺键按启用处理），所以脚本一直在跑，只是设置里关不掉。
+  已补上 `property bool enableCursor: true`。
 
-- `InterfaceConfig.qml` 的开关绑到 `appearance.wallpaperTheming.enableCursor`，
-  但 `Config.qml` 里没有这个键 → 绑到 undefined（日志报
-  `Unable to assign [undefined] to bool`），点了没反应。
-- 该键实际由 `~/.config/hypr/hyprland/scripts/generate_cursor_theme.py` 读取
-  （缺键按启用处理），所以脚本一直在跑，只是设置里关不掉。
-- 已补上 `property bool enableCursor: true`。
-- 其余三个开关确认有效：`enableAppsAndShell`、`enableQtApps` 由
-  `switchwall.sh` 读取，`enableTerminal` 由 `applycolor.sh` 读取。
+### 记录：Hyprland 0.56 Lua 配置模式的两个坑
 
-**修复：SPlayer 歌词对部分歌曲完全不跟**
-
-- `lyric-change` 的 `lrcData`/`yrcData` 在只有 LRC（没有逐字歌词）的歌上
-  是**纯文本 LRC 字符串**而不是行数组，桥接脚本只认数组 → 解析成空、
-  歌词完全不显示（《unravel》即属此类）。
-- 已支持字符串形式（按 `[mm:ss.xx]` 解析，结束时间取下一行开始时间），
-  两种形状都单测通过。
-- 另加 `--debug <file>`：把原始 WS 报文转储下来，便于排查单曲问题。
-
-**调整：rime `/` 符号候选框首位加半角 `/`**
-
-- 打 `/` 后按空格即可输入字面量斜杠（菜单第一项），
-  写路径/URL 时不再被符号框挡住；其余 48 项常用符号顺序不变。
-
-**文档：README 许可证章节去重**
-
-- `### 许可证继承` 与 `## 许可证` 重复，合并为一处（保留目录里引用的
-  `## 许可证`，并把"与上游一致 / 保留上游版权与致谢"的信息并进去）。
-
-### 2026-09-15（第二十九次）
-
-**功能：SPlayer 歌词联动**
-
-- 桌面歌词接入 SPlayer 的 WebSocket（设置 → WebSocket 服务，默认 25885）。
-- 协议从 SPlayer 的 `app.asar` 里逆出来（WS 是单向广播）：
-  `welcome` / `song-change` / `lyric-change` / `progress-change` / `status-change`；
-  其中 `lyric-change` 的 `lrcData`/`yrcData` 是**行数组**，每行含
-  `startTime`/`endTime`/`words[].word`/`translatedLyric`，时间单位 ms。
-- 新增 `scripts/desktopLyrics/splayer-ws.py`：纯标准库的极简 WS 客户端，
-  归一成每行一个 JSON 写到 stdout，断开后自动重连。
-- QML 侧复用现有 `lyricLines`/`currentTime`/`isPlaying`，下游无需改动；
-  **只有真收到 WS 歌词才接管**，否则保留 MPRIS + 酷狗兜底；
-  接管后停掉酷狗抓取与 MPRIS 精同步，避免互相覆盖。
-
-**调整：视差幅度**
-
-- `workspaceZoom` 默认值语义讲清楚：可移动余量 = 屏宽 × (zoom-1) / 2，
-  这是唯一的幅度旋钮。1920 宽屏下 1.02 → 19px（几乎看不出）、
-  1.07 → 67px、1.15 → 288px（每工作区 32px）。本地配置已设到 1.15。
-
-**审查：matugen 取色**
-
-- 用同一张壁纸 + 同参数重算，得到的主色与已生成文件完全一致
-  （`#d6bbfb` / `#cec2da` / `#f2b7c2` / `#151218`），各应用文件也都是
-  同一次生成（时间戳一致）——**取色管线是确定性的，没有偏差**。
-- 顺带发现：8K 壁纸跑一次 matugen 约需 **2 分钟**（每次换壁纸都会等这么久），
-  与取色正确性无关，但换壁纸时的体感延迟主要来自这里。
-
-**记录：Hyprland 0.56 Lua 配置模式的两个坑**
-
-- `hyprctl dispatch <dispatcher> <args>` 的传统写法**不再可用**：0.56 会把参数
-  整体当 Lua 表达式解析，报 `')' expected near ...`（并提示 "dispatch in lua is
-  a shorthand for hl.dispatch(...)"）。必须写 Lua 形式，如
+- `hyprctl dispatch <dispatcher> <args>` 的传统写法**不再可用**：0.56 会把参数整体当
+  Lua 表达式解析，报 `')' expected near ...`。必须写 Lua 形式，如
   `hyprctl dispatch 'hl.dsp.global("quickshell:lock")'`。
 - `hyprctl keyword <name> <value>` 直接报
   "keyword can't work with non-legacy parsers. Use eval."，要改用 `hyprctl eval`。
-- 排查手法：`hyprctl eval` 可执行任意 Lua（返回 ok），配合
-  `io.open("/tmp/x","w")` 把结果写文件，就能安全探测 API 是否存在。
+- 排查手法：`hyprctl eval` 可执行任意 Lua（返回 ok），配合 `io.open("/tmp/x","w")`
+  把结果写文件，就能安全探测 API 是否存在。
 
-### 2026-09-15（第二十八次）
+### 审查：matugen 取色 + install.sh
 
-**功能：壁纸视差补全（视频壁纸 + 全工作区 + 光标隔离 + 缩放/曲线）**
+- **matugen 取色**：用同一张壁纸 + 同参数重算，主色与已生成文件完全一致
+  （`#d6bbfb` / `#cec2da` / `#f2b7c2` / `#151218`），各应用文件时间戳一致 ——
+  **取色管线是确定性的，没有偏差**。顺带发现：8K 壁纸跑一次 matugen 约需 2 分钟
+  （每次换壁纸都会等这么久），换壁纸时的体感延迟主要来自这里。
+- **install.sh 审查**：
+  - 全新安装会丢可执行位：`scripts/colors/` 下同时存在 `switchwall.sh` 与
+    `executable_switchwall.sh`（前者是同步时漏加 chezmoi 前缀留下的重复），
+    安装器只按 `executable_` 前缀恢复执行位，两个同名目标互相覆盖。已删除无前缀那份。
+  - quickshell 底盘 clone 会硬失败：`git clone ... "$QS_BASE"` 在目录已存在且非空时报错，
+    配合 `set -e` 直接中断。改为先克隆到临时目录再 `cp -a` 合并。
+  - 快照文件数统计会输出两行：`grep -cv '/$' || echo 0` 在计数为 0 时 `grep -c` 本身
+    已打印 `0` 但返回 1，于是又追加一个 `0`。改为 `grep -v '/$' | wc -l`。
 
-- 视频壁纸视差：视频由 mpvpaper 在后景层绘制，Quickshell 碰不到它的图层，
-  因此改为走 **mpv 的 JSON IPC**——`switchwall.sh` 启动 mpvpaper 时加
-  `input-ipc-server=~/.cache/quickshell/mpvpaper/mpvpaper-<显示器名>.sock`，
-  Quickshell 连上后设置 `video-zoom` / `video-align-x` / `video-align-y`。
-  - `video-zoom` 传 `log2(parallaxZoom)`，`video-align` 传归一化到 `-1 ~ +1`
-    的偏移，与静态壁纸的位移等价。
-  - **坑一**：mpv 的 `align` 符号与 QML 的 `x/y` 相反（`+1` 是视频右边缘贴
-    窗口右边，画面往左露），最初忘了取负号，导致视频壁纸的移动方向与静态壁纸
-    相反。
-  - **坑二**：动画期间每帧把没变的 `video-zoom` 一起重发，mpv 每帧都要重配
-    视频链，画面明显卡顿。改为只发送真正变化的属性；动画期间约 50Hz 推送，
-    静止时按 `cursorPollInterval`。
-    （一开始推到 125Hz 想更顺，结果滚轮连续切工作区时非常卡——mpv 每收到一次
-    `set_property` 就让视频输出重绘一次，推得比刷新率还快只是白烧 GPU。）
-  - **坑三**：mpv 的 IPC 不接受「一次写多条命令」的嵌套数组
-    （返回 `invalid parameter`），只能逐条发送。
-  - **坑四**：Quickshell 的 `Socket` 一次连接失败后不会自己重连
-    （内部 socket 对象不释放），所以 mpvpaper 比 Quickshell 起得晚时，
-    每 2 秒重建一次 Socket 来重试。
-- 工作区视差覆盖全部工作区：旧实现用 `(工作区号 - 1) % 概览列数` 定位，
-  概览列数是 5，所以第 6 个工作区开始位置重复（"只支持五个工作区"）。
-  改为按工作区总数线性映射，总数取「设置值 / 已出现的最大工作区号 /
-  概览列数」的最大值，新增「工作区数量」滑杆。
-- 光标跟随只作用于壁纸层：`WidgetCanvas` 之前也叠加了光标偏移，
-  导致鼠标一动桌面部件跟着抖。现在部件只跟随侧栏开合做景深位移。
-- 缩放逻辑补全：
-  - 开启侧栏平移时自动把 `workspaceZoom` 提升到「可移动余量 ≥ sidebarShift」，
-    否则位移会被 clamp 截断、移不到位。
-  - 壁纸按「显示尺寸 × 缩放」解码（`sourceSize`），8K 壁纸不再整幅载入内存，
-    视差放大后也不发虚；解码尺寸已贴合显示，`mipmap` 关闭。
-  - **桌面部件坐标系修正**：部件画布是屏幕尺寸、不随壁纸缩放，但部件一直按
-    「壁纸缩放空间」定位（`screen × zoom`）。结果 `y = -1`（贴底）的部件会被
-    推到屏幕外，自动摆放也会被重复缩放。现在统一改回屏幕坐标系。
-- 过渡动画：时长默认 400ms（Hyprland 的 `workspaces` 是 `speed = 7` = 700ms，
-  单位 ds；滚轮连续切工作区时 700ms 太长，视差追不上切换就是卡），
-  新增「工作区过渡时长」滑杆（200~1400ms）。
-- **踩坑：`Easing.BezierSpline` 的 `bezierCurve` 必须给 3 个控制点（6 个值，
-  末点 `1, 1`）**。一开始按 CSS 写法只给了 4 个值
-  `[0.1, 1.0, 0.0, 1.0]`，Qt 不报错，而是**静默退化成匀速直线**：
-  写了个无窗口 QML 探针实测，400ms 的动画到 192ms 才走到 50%
-  （同样条件下 OutCubic 已到 88%）。表现就是壁纸匀速慢慢挪、比窗口滑动
-  "慢半拍"。已改用 `Easing.OutCubic`（52ms 39%、192ms 88%、352ms 收尾），
-  探针实测动画恢复为 100Hz 平滑推进。
+## 2026-09-14
 
-**性能：Hyprland 事件风暴导致视差掉帧**
+### 灵动岛：动画调优 + 下载进度 + 展开态
 
-- 现象：切工作区时视频壁纸视差"非常卡、感觉 24 帧都没有"，图片壁纸"慢半拍"。
-- 根因：`services/HyprlandData.qml` 对**每一个** Hyprland 事件都调 `updateAll()`，
-  而一轮 `updateAll()` 要起 5 个 `hyprctl` 子进程（实测每个 3~5ms CPU，
-  合计约 20ms）。一次工作区切换会收到近十个事件（workspace/focusedmon/
-  activewindow/…），滚轮连切时成倍，主线程被进程创建拖住。
-- 修复：按事件名只刷对应数据（workspace/focusedmon/activewindow → 工作区+窗口，
-  openwindow/closewindow/… → 窗口，monitor* → 显示器），并用 40ms 定时器
-  把同一波事件合并成一次刷新；`openlayer`/`closelayer` 直接跳过
-  （quickshell 自己开关面板就发这个事件，实测短时间内来了 6 个）。
-  实测 10 个事件从 50 个子进程降到 2 轮刷新（10 个）。
-- 顺带验证：mpv 的 `set_property` 往返延迟只有 0.05ms，125Hz 推送 CPU 也几乎
-  不变——所以视频视差的卡顿不在 IPC 频率上（推送频率仍从 125Hz 降到 50Hz，
-  因为 mpv 每收到一次 `set_property` 都会让视频输出重绘一次）。
+- **动画**：`IslandTheme.expandedSizes` 中 `recording`/`battery` 的展开尺寸仍是
+  `{ h: 37, r: 19 }`（与 compact 相同），展开态内容被 `clip` 裁掉；改为
+  `{ w: 320, h: 120, r: 28 }`。SpringAnimation `epsilon` 0.5→0.1（大尺寸跳变时不再有
+  "咔"一下）；内容进场缩放 0.96→0.92、easing `OutCubic`→`OutBack`。
+- **下载进度**：新增 fish 包装函数 `pacman`/`yay`/`paru`/`curl`/`wget`，解析输出百分比，
+  通过 `qs ipc call island task_progress` 上报到灵动岛。`pacman` 包装自动判断需要 root
+  的操作（`-S`/`-U`/`-R` 且非只读子项）并加 `sudo`，解决 `sudo pacman` 绕过函数的问题。
+  `DownloadSource` 关掉 curl/wget 自动探测（后台脚本的 curl 会让下载胶囊乱闪）；
+  `TaskSource.begin` 在任务进行中再次调用只换标签不重置进度。
+- **通知头像**：`NotificationSource` 传 `image`/`appIcon`，`NotificationActivity` compact
+  与 expanded 双态直接复用 `NotificationAppIcon` 组件，用 `implicitSize` 控制尺寸
+  （22px/44px），避免 `scale` 双重缩放导致头像只显示 ~13px。
+- **展开态补齐**：`RecordingActivity`（脉冲点 + 录制提示 + 放大计时）、
+  `BatteryActivity`（电量条 + 低电量红色警示），参考 macOS Dynamic Island HIG。
 
-**性能：Quickshell 整体卡顿（OBS 录屏时尤其明显）**
+### 性能：pacman 装包后卡顿 + OBS 录屏时打字延迟
 
-- 根因：`services/ResourceUsage.qml` 的采样定时器写成了 `interval: 1`
-  且 `repeat: true`——每秒上千次 reload `/proc` + 正则匹配 + 重建历史数组，
-  持续抢占事件循环。平时只是白烧 CPU，一旦 OBS 编码抢占 CPU 就被放大成
-  肉眼可见的卡顿。
-- 修复：改为读取 `Config.options.resources.updateInterval`（默认 3000ms）。
-  实测空闲 CPU 占用 3.0% → 0.8%。
+- **pacman 卡顿**：`services/AppSearch.qml` 的桌面文件去重用 `filter` 套 `findIndex`，
+  是 O(n²)。pacman 写入 `.desktop` 触发 `DesktopEntries.applications` 更新，整条响应式链
+  在主线程同步重算，1000+ 桌面文件 ≈ 百万次比较。修复：去重改用 `Set` 一次遍历（O(n)）；
+  拼音查找的 `list.find` 换成预建的 `entryById` Map（用 Map 规避 `constructor` 等
+  原型链键碰撞）。
+- **OBS 打字延迟**：`services/LauncherSearch.qml` 的 `results` 绑定逐键同步执行全量 fuzzy
+  搜索 + 为每个匹配结果 `createObject` 建 QObject，无防抖。修复：新增 `debouncedQuery`
+  （60ms Timer），`results` 跟随它；`query` 仍即时；应用结果截断到 50（渲染只展示前 15）。
 
-**修复：壁纸选择器里的视频缩略图**
+### 修复：Super+滚轮一次切两个工作区
 
-- 选择器的模糊背景 `source: Config.options.background.wallpaperPath`，
-  当前壁纸是视频时会直接把 `.mp4` 交给 QML 解码，日志里报
-  「不支持的图像格式」，整块背景留黑。改为走新增的
-  `Appearance.wallpaperDisplayPath`（视频自动退回缩略图），
-  `NiriOverview` 里的同类问题一并修掉。
-- `ThumbnailImage`：
-  - 生成缩略图改为「先写临时文件再原子改名」。原来进程被中断（GridView /
-    Carousel 复用 delegate 会重启进程）会留下半截 PNG，而后续判断只检查
-    `[ -f ]`，半截文件被当成有效缩略图 → 视频格子永远空白。
-  - 加载失败时不再直接给 `source` 赋值（那会破坏 `source: thumbnailPath`
-    绑定，delegate 复用后会一直显示上一个文件的缩略图），改用
-    `Qt.binding()` 恢复绑定。
-  - ffmpeg 取帧失败时回退到第 0 帧；`magick` 不存在时回退 `convert`。
-  - 同一目标不重复重启进程。
+`dwindle` 等非滚动布局下，`Super + 鼠标滚轮` 一次会跳过两个工作区。根因：默认模板
+`hyprland/keybinds.lua` 已注册 `SUPER + mouse_up/down` 切换工作区；后加载的
+`custom/keybinds.lua` 又注册了相同按键的布局感知绑定。`hl.bind` 不会自动替换旧绑定，
+两套都会执行。修复：在动态滚轮绑定前 `hl.unbind("SUPER + mouse_up")` /
+`hl.unbind("SUPER + mouse_down")`，`CTRL + SUPER` 组合不受影响。
+同时 `scrolling` 布局下 `Super + 滚轮` 改为在当前工作区内切换窗口（`layout focus r/l`）。
 
-**功能：Rime 中文模式下 `/` 弹出常用符号候选框**
+### 修复：日文歌桌面歌词不显示中文翻译
 
-- `rime_ice.custom.yaml` 把 `half_shape` 的 `/` 由单值 `'/'` 改成 48 项
-  常用符号列表，按 `/` 弹候选框，`,` / `.` 翻页。
-- 原理（librime `gear/punctuator.cc`）：取到标点定义后只有**单值映射**会立即
-  上屏，列表型映射只列候选。
-- **坑一**：必须用 `punctuator/half_shape/+` 这种扁平路径。写成嵌套结构
-  `punctuator: { half_shape: ... }` 会把整个 `punctuator` 节点替换掉，
-  v 模式符号表（266 项）和全角标点会一起消失。
-- **坑二**：键名 `/` 不能写在路径里（会被当成路径分隔符），只能放在值里。
-- 校验方式：`rime_deployer --build` 后检查 `build/rime_ice.schema.yaml`。
+`kugou_lyrics.py` 的 `download_lyrics()` 只遍历 `candidates[:2]` 并返回第一个能解密的候选。
+Kugou 对同一首歌返回多个 KRC 变体，排在前面的只内嵌罗马音块，中文翻译块排在后面，
+于是永远命中罗马音版本，QML 侧 `parseTranslations()` 正确丢弃罗马音块 → 翻译行因此为空。
 
-### 2026-09-14（第二十七次）
+修复：新增 `classify_translation_block()` 三态分类（`cjk` / `romaji` / `none`），
+`download_lyrics()` 扫描前 6 个候选，优先返回带 CJK 翻译的版本。缓存自愈：旧的罗马音
+缓存视为过期；若上游确实只有罗马音，写入 `[kugou:no-cjk-translation]` 标记避免反复重取。
 
-**修复：灵动岛动画优化 + 录屏/电池展开尺寸 bug**
+### 修复：设置面板「界面」页无法向下滚动
 
-- BUG：`IslandTheme.expandedSizes` 中 `recording`/`battery` 的展开尺寸仍是
-  `{ h: 37, r: 19 }`（与 compact 相同），导致展开态内容被 `clip` 裁掉看不到。
-  改为 `{ w: 320, h: 120, r: 28 }`（与 notification 对称）。
-- SpringAnimation `epsilon` 0.5→0.1：之前在离目标 0.5 单位就停了，
-  大尺寸跳变（37→190px）会有微妙的"咔"一下；降到 0.1 让弹簧自然收住。
-  影响范围：pill 宽高圆角、左侧副岛宽度、右侧副岛 margin。
-- 内容进场缩放 0.96→0.92：形变更明显，有"从岛里长出来"的感觉。
-- 内容进场 easing `OutCubic`→`OutBack`：带轻微回弹的弹出效果。
+该页把 `Repeater` 直接嵌进 `GroupedList`。`GroupedList` 的 `default property list<Item> items`
+只把 `Repeater` 本身算作一个 item，而 `Repeater` 没有 `implicitHeight`，展开出的
+`ConfigSwitch` 高度完全不计入 `implicitHeight`，`maxY` 被压到接近 0，向下滚动被夹回原位。
+改为 `ColumnLayout` + `Repeater` 手写分组列表，每个 delegate 显式声明 `implicitHeight`。
 
-### 2026-09-14（第二十六次）
+顺带 i18n：补入 `Applications`、`matugen.%1`、`Terminal options` 及 matugen 模板说明长句，
+共 4 个键覆盖 14 个语言文件；修正 `zh_CN.json` 被误改为 2 空格缩进导致的整文件重排。
 
-**性能：pacman 装包后卡顿 + OBS 录屏时启动器打字延迟**
+## 2026-09-13
 
-- 现象一：每次用 pacman/yay/paru 装完软件，系统卡一下，Quickshell 也卡。
-- 根因：`services/AppSearch.qml` 的桌面文件去重用 `filter` 套 `findIndex`，
-  是 O(n²)。pacman 写入 `.desktop` 触发 `DesktopEntries.applications` 更新，
-  整条响应式链（`list` → `preppedNames`/`preppedPinyin`/`preppedIcons`）
-  在主线程同步重算，1000+ 桌面文件 ≈ 百万次比较。
-- 修复：去重改用 `Set` 一次遍历（O(n)）；拼音查找的 `list.find` 换成预建
-  的 `entryById` Map（O(1)，用 Map 规避 `constructor` 等原型链键碰撞）。
-- 现象二：OBS 开录屏时按 Super 呼出启动器快速打字明显卡顿和输入延迟。
-- 根因：`services/LauncherSearch.qml` 的 `results` 绑定逐键同步执行全量
-  fuzzy 搜索 + 为每个匹配结果 `createObject` 建 QObject，无防抖；
-  OBS 编码抢占 CPU 时主线程重算被放大成肉眼可见的延迟。
-- 修复：新增 `debouncedQuery`（60ms Timer），`results` 绑定全部跟随它；
-  `query` 仍即时（输入框、前缀图标切换不受影响），清空时立即收起。
-  应用结果截断到 50（渲染只展示前 15），减少无用 QObject 创建。
+### 修复：登录时 Quickshell 自动启动导致整个桌面卡死
 
-**功能：灵动岛下载进度条 + 通知头像 + 展开态完善**
+Hyprland 登录后自动拉起 Quickshell，随即整个合成器无响应，连 tty 都切不进去。
+根因：`execs.lua` 启动 Quickshell 时注入了 `QT_IM_MODULE=fcitx`、`GTK_IM_MODULE=fcitx`、
+`QT_WAYLAND_TEXT_INPUT_PROTOCOL=zwp_text_input_v3` 等一整套输入法环境变量，
+该组合与 layer-shell 存在已知死锁。修复：去掉那套环境变量，改为干净的 `qs -c $qsConfig`
+（输入法环境已由前一行 `dbus-update-activation-environment` 全局设置）。
+同时移除 `SUPER + I` 的「下一工作区」绑定，让位给设置面板切换。
 
-- 下载进度：新增 fish 包装函数 `pacman`/`yay`/`paru`/`curl`/`wget`，
-  交互式终端运行时解析输出百分比，通过 `qs ipc call island task_progress`
-  实时上报到灵动岛，有明确进度条。内部解析器 `_island_pkg_progress` /
-  `_island_dl_progress` 仅在百分比变化时上报（节流）。
-- `pacman` 包装自动判断需要 root 的操作（`-S`/`-U`/`-R` 且非只读子项）
-  并加 `sudo`，解决 `sudo pacman` 绕过函数的问题。
-- `DownloadSource` 关掉 curl/wget 自动探测：壁纸切换、AI 请求等后台脚本
-  的 curl 会让下载胶囊乱闪，噪音大于价值；交互下载已由包装函数覆盖。
-- `TaskSource.begin` 在任务进行中再次调用只换标签不重置进度，
-  pacman 逐包下载时进度条不会闪回 0%。
-- 通知头像：`NotificationSource` 传 `image`/`appIcon`，`NotificationActivity`
-  compact 与 expanded 双态直接复用 `NotificationAppIcon` 组件（与弹出通知
-  100% 同一渲染逻辑），用 `implicitSize` 控制尺寸（22px/44px），避免 `scale`
-  双重缩放导致头像只显示 ~13px 的问题。
-- 展开态补齐：`RecordingActivity`（脉冲点 + 录制提示 + 放大计时）、
-  `BatteryActivity`（电量条 + 低电量红色警示），参考 macOS Dynamic Island
-  HIG「展开态是紧凑态的放大版，保持元素相对位置」原则。
+### 修复：matugen `config.toml` 丢失光标钩子与部分模板块
 
-### 2026-09-14（第二十五次）
+`config.toml` 此前丢失了 `post_hook`（光标主题重渲染钩子）以及 `[templates.yazi]`、
+`[templates.obs]`、`[templates.vscode]` 三块，换壁纸后光标颜色不再跟随主色。
+从 `config.toml.orig` 恢复完整内容。
 
-**修复：Super+鼠标滚轮一次切两个工作区 + 滚动布局下改为切窗口**
+### 调整：光标尺寸 32 → 24
 
-- 现象：在 `dwindle` 等非滚动布局下，`Super + 鼠标滚轮` 一次会跳过两个
-  工作区。
-- 根因：默认模板 `hyprland/keybinds.lua:296-302` 已注册 `SUPER + mouse_up/down`
-  切换工作区；后加载的 `custom/keybinds.lua` 又注册了相同按键的布局感知绑定。
-  `hl.bind` 不会自动替换旧绑定，非 `scrolling` 布局时两套绑定都会执行，
-  所以一次滚轮触发两次工作区切换。
-- 修复：在 `custom/keybinds.lua` 的动态滚轮绑定前加入
-  `hl.unbind("SUPER + mouse_up")` / `hl.unbind("SUPER + mouse_down")`，
-  精确移除默认模板的两条 plain Super 绑定；`CTRL + SUPER` 组合不受影响。
-- 功能：`scrolling` 布局下 `Super + 滚轮` 改为在当前工作区内切换窗口
-  （`layout focus r/l`）；其他布局仍切换相邻工作区，且每次只切一个。
-  方向不变：向下 = 下一个/右侧，向上 = 上一个/左侧。
-- README 同步补充该快捷键的说明。
+`custom/env.lua` 的 `XCURSOR_SIZE` / `HYPRCURSOR_SIZE` 从 32 改为 24；同步 `gsettings`
+的 `cursor-size` 为 24，GTK 应用读到的尺寸与 Hyprland 一致（此前 Hyprland 24 /
+`gsettings` 32，光标大小表现不稳定）。
 
-### 2026-09-14（第二十四次）
+### 调整：壁纸选择器改为自屏幕底部滑入 / 滑出
 
-**修复：日文歌桌面歌词不显示中文翻译**
+开合动画由「中心缩放 + 淡入」改为「向下位移 + 淡入」，入场 520ms / 退场 380ms。
+`rules.lua` 中该图层由 `animation = "slide top"` 改为 `no_anim`，避免 Hyprland
+在合成器层再做一次顶部滑入、与 QML 动画叠加。
 
-- 现象：`Brave Shine` 等日文歌的桌面歌词只有原文行，翻译行始终为空；
-  部分中文歌则反复重新拉取歌词。
-- 根因：`kugou_lyrics.py` 的 `download_lyrics()` 只遍历 `candidates[:2]`
-  并返回第一个能解密的候选。Kugou 对同一首歌会返回多个 KRC 变体，
-  排在前面的候选只内嵌罗马音（假名转写）块，中文翻译块排在后面，
-  于是永远命中罗马音版本。QML 侧 `parseTranslations()` 会正确丢弃
-  罗马音块，翻译行因此为空；旧实现还会把它当成「无翻译」反复重取。
-- 修复：新增 `classify_translation_block()` 三态分类
-  （`cjk` / `romaji` / `none`）。`download_lyrics()` 改为扫描前 6 个候选，
-  优先返回带 CJK 翻译的版本，找不到才回退到首个可解密结果。
-- 缓存自愈：旧的罗马音缓存视为过期，下次播放自动重取一次；若上游确实
-  只有罗马音，则写入 `[kugou:no-cjk-translation]` 标记，之后正常命中缓存，
-  不会每次播放都重新拉取。空 `[language:]` payload（无需翻译的中文歌）
-  归为 `none`，同样保持缓存命中。
+## 2026-09-12
 
-### 2026-09-14（第二十三次）
+### 视频壁纸后端：切换 / Wallr 启用 / 回退 Mpvpaper
 
-**修复：设置面板「界面」页无法向下滚动**
+- 设置 → 背景中可选择 `Wallr（推荐）`、`Phonto（GPU 视频）` 或 `Mpvpaper（回退方案）`。
+  同一时间只运行一个后端；Wallr 或 Phonto 未安装时自动回退 Mpvpaper。
+- 后端配置字段是 `background.videoBackend`（`wallr` / `phonto` / `mpvpaper`）。
+  切换会立即重新应用当前视频壁纸，替换掉正在运行的后端进程，不再需要手动重新选一次。
+- 修复旧的恢复脚本仍启动 Mpvpaper 的问题；Hyprland 重启后会按当前后端恢复视频壁纸。
+- 删除 `switchwall.sh` 中未使用的 `bc` 光标计算，消除未安装 `bc` 时的警告。
+- 修复 `applycolor.sh` / `materialQT.sh` 仍使用旧 `ii` 配置目录的问题；
+  颜色刷新脚本纳入 chezmoi。
+- **最终回退**：视频壁纸默认后端从 Wallr 改回 **Mpvpaper**。Wallr 存在视频随机冻结的
+  已知问题，暂不推荐作为默认值。设置页顺序：`Mpvpaper（推荐）` 置顶，
+  `Wallr（可能卡顿）` 标注风险，`Phonto（GPU 视频）` 保留。
 
-- 现象：设置 → 界面，滚到底部时内容直接回弹，`Applications` 等靠后的分节
-  无法查看。
-- 根因：该页把 `Repeater` 直接嵌进了 `GroupedList`。`GroupedList` 的
-  `default property list<Item> items` 只把 `Repeater` 本身算作一个 item，
-  而 `Repeater` 没有 `implicitHeight`，于是展开出的 `ConfigSwitch` 高度
-  完全不计入 `implicitHeight`。整页 `contentHeight` 因此偏小，
-  `StyledFlickable` 里的 `maxY = contentHeight - height` 被压到接近 0，
-  任何向下滚动都被 `Math.min` 夹回原位。
-- 修复：改为 `ColumnLayout` + `Repeater` 手写分组列表，每个 delegate 显式
-  声明 `implicitHeight`，与 `BarConfig.qml` / `BackgroundConfig.qml` 的既有
-  写法一致。该文件此前不在差异层，本次一并纳入，避免重装后修复丢失。
-
-**i18n：补齐新增界面文案**
-
-- 补入 `Applications`、`matugen.%1`、`Terminal options` 及 matugen 模板说明
-  长句，共 4 个键，覆盖全部 14 个语言文件；`zh_CN` 提供中文译文，其余语言
-  暂以英文占位。
-- 修正此前 `zh_CN.json` 被误改为 2 空格缩进导致的整文件重排，恢复 4 空格
-  缩进与原键序。
-
-### 2026-09-13（第二十二次）
-
-**调整：光标尺寸 32 → 24**
-
-- `custom/env.lua` 的 `XCURSOR_SIZE` / `HYPRCURSOR_SIZE` 从 32 改为 24，
-  像素光标不再显得过大。
-- 同步 `gsettings` 的 `cursor-size` 为 24，GTK 应用读到的尺寸与 Hyprland 一致；
-  此前两者不同步（Hyprland 24 / gsettings 32），光标大小表现不稳定。
-
-### 2026-09-13（第二十一次）
-
-**调整：壁纸选择器改为自屏幕底部滑入 / 滑出**
-
-- 开合动画由「中心缩放 + 淡入」改为「向下位移 + 淡入」：方向明确为自底部
-  升起、向下退出，入场 520ms / 退场 380ms，比初版更缓。
-- `rules.lua` 中该图层由 `animation = "slide top"` 改为 `no_anim`，避免 Hyprland
-  在合成器层再做一次顶部滑入、与 QML 动画叠加。
-
-### 2026-09-13（第二十次）
-
-**修复：登录时 Quickshell 自动启动导致整个桌面卡死**
-
-- 现象：Hyprland 登录后自动拉起 Quickshell，随即整个合成器无响应，连 tty 都切不进去，
-  只能硬重启。
-- 根因：`execs.lua` 启动 Quickshell 时注入了 `QT_IM_MODULE=fcitx`、`GTK_IM_MODULE=fcitx`、
-  `QT_WAYLAND_TEXT_INPUT_PROTOCOL=zwp_text_input_v3` 等一整套输入法环境变量。该组合与
-  layer-shell 存在已知死锁，在合成器刚启动、环境尚未稳定时会把整个会话一起拖死。
-- 修复：去掉那套环境变量，改为干净的 `qs -c $qsConfig`。输入法环境已由前一行
-  `dbus-update-activation-environment` 全局设置，无需重复注入。
-- 同时移除 `SUPER + I` 的「下一工作区」绑定，让位给设置面板切换。
-
-**修复：matugen `config.toml` 丢失光标钩子与部分模板块**
-
-- `config.toml` 此前丢失了 `post_hook`（光标主题重渲染钩子）以及 `[templates.yazi]`、
-  `[templates.obs]`、`[templates.vscode]` 三块，换壁纸后光标颜色不再跟随主色。
-- 从 `config.toml.orig` 恢复完整内容。
-
-### 2026-09-12（第十九次）
-
-**修复：浏览器播放网页视频被识别为音乐**
-
-- 灵动岛的 `MprisSource` 原先直接遍历 `Mpris.players.values`，绕过了 `MprisController`
-  的去重逻辑。Chrome 视频会同时经原生 bus 与 `plasma-browser-integration` 上报两次，
-  而 MPRIS 协议本身不区分音频与视频，于是看视频时弹出音乐岛。
-- 改为走 `MprisController` 的已过滤列表，新增可配置的浏览器过滤（默认开启）。
-- `MprisController.activePlayer` 增加准入校验：被过滤掉的播放器不再作为回退值，
-  否则已剔除的浏览器 bus 仍会驱动栏与侧栏的媒体显示。
-- 浏览器识别用词边界正则而非子串匹配，避免 `edge` 误命中 `knowledge` 这类词而
-  静默过滤掉真正的音乐播放器。
-- 新增设置项：设置 → 栏 → 媒体 → 「忽略浏览器媒体」。
-- 修正上游 `isRealPlayer` 的浏览器去重：它按 `dbusName` 前缀判断，而所有
-  Electron 应用的 bus 名都是 `org.mpris.MediaPlayer2.chromium.instanceN`，
-  于是 MoeKoeMusic / Vesktop 这类真正的播放器被一并过滤。改用身份判定。
-
-### 2026-09-12（第十八次）
-
-**优化：灵动岛歌词窗口改为差量更新**
-
-- 歌词 `Repeater` 的 model 从「每次重建的数组」改为固定槽位数（5），delegate 恒定复用。
-  窗口滑动时只更新属性，不再销毁重建整棵对象树（含内层逐字 Repeater）。
-- 槽位到歌词下标的映射由 `lyricIndexAt(slot)` 计算，越界槽位塌缩。
-- 行暗度改用槽位下标直接计算，去掉原先每次渲染都跑的 `Array.indexOf` 扫描。
-- `seekAtY` 改用 delegate 自身携带的行数据，不再按下标回查数组。
-
-### 2026-09-12（第十七次）
-
-**新增：灵动岛连接状态与电池提示**
-
-- 新增 `connectivity` 活动（优先级 25）：蓝牙 / WiFi 连接与断开提示，2 秒后消失。
-- 新增 `battery` 活动（优先级 3）：插拔电源、低电量、充满提示；台式机无电池时整体跳过。
-- 两者都走 `IslandContext` 门控，专注模式或录屏时静默；启动时的初始状态填充不算事件，
-  不会在每次登录时误报。
-- i18n：新增 key 同步全部 14 种语言；清理了本轮误引入的重复键。
-
-
-### 2026-09-12（第十六次）
-
-**完善：灵动岛视觉动效与性能**
-
-- 主色全链路：进度条渐变统一走 `IslandPalette`，消除硬编码颜色；封面偏暗时自动生成
-  可读的渐变终止色。
-- 活动切换加入缩放形变（0.96 → 1），不再是单纯的淡入。
-- 左右副岛进出改为弹簧动画，显隐跟随宽度而非直接切换 `visible`，退场过渡可见。
-- 分页指示点当前页拉长成胶囊，切换有过渡。
-- 新增 `ProcessProbe` 共享进程探测器：单次 `ps` 覆盖所有任务类型，替代原先每个
-  `TaskSource` 各自每 2 秒轮询一次；无订阅者时停表。
-- 收起态内容退场：早期尝试过让内容在收起时淡出，但这会把 compact 内容一起
-  透明化，导致岛变成黑色空条。改为收起后复位透明度，溢出交给 `clip` 裁剪。
-- 错误边界：`cava` 异常退出后不再被 `running` 绑定无限重启；`ps` 返回空快照时
-  保留上次结果，避免任务活动闪断。
-- 修复副岛退场时主岛锚点跳变：锚点恒定指向副岛右缘，边距随宽度收缩。
-
-### 2026-09-12（第十五次）
-
-**新增：灵动岛联动内核 + 亮度 / 隐私指示**
+### 灵动岛：联动内核 + 亮度/隐私 + 视觉动效
 
 - 新增联动内核：`ActivityManager` 支持 `pulse` / `hold` / `release` 统一暂态生命周期与
   `group` 分组；`IslandContext` 提供场景门控；`IslandPalette` 把封面主色提升为全局状态。
 - 新增**亮度**活动（优先级 28），与音量对称，跟随焦点显示器，1.5 秒后自动消失。
-- 新增**隐私指示**活动（优先级 4），麦克风 / 摄像头被占用时常驻提示；录屏期间自动收起，
-  避免与录屏指示重复。
-- 新增**专注模式**：设置 → 背景 → 「静默灵动岛提示」，静默音量 / 亮度 / 通知等瞬态活动。
-  也可用 IPC：`qs -c end4-pC ipc call island silent_toggle`。
-- 副岛布局数据化：不再硬编码活动类型，声明了 `group` 的任务自动挂到右侧。
-- 主色全链路：频谱条、亮度进度条、歌词高亮共用 `IslandPalette` 的封面主色。
+- 新增**隐私指示**活动（优先级 4），麦克风 / 摄像头被占用时常驻提示；录屏期间自动收起。
+- 新增**专注模式**：设置 → 背景 → 「静默灵动岛提示」，也可用 IPC
+  `qs -c end4-pC ipc call island silent_toggle`。
+- 副岛布局数据化：声明了 `group` 的任务自动挂到右侧。
+- **视觉动效**：主色全链路（进度条渐变统一走 `IslandPalette`，封面偏暗时自动生成
+  可读的渐变终止色）；活动切换加入缩放形变（0.96 → 1）；左右副岛进出改为弹簧动画，
+  显隐跟随宽度而非直接切 `visible`；分页指示点当前页拉长成胶囊。
+- **性能**：新增 `ProcessProbe` 共享进程探测器，单次 `ps` 覆盖所有任务类型，
+  替代原先每个 `TaskSource` 各自每 2 秒轮询；无订阅者时停表。
+- **错误边界**：`cava` 异常退出后不再被 `running` 绑定无限重启；`ps` 返回空快照时
+  保留上次结果。
+- 收起态内容退场：早期尝试过让内容在收起时淡出，但会把 compact 内容一起透明化
+  导致岛变成黑色空条；改为收起后复位透明度，溢出交给 `clip` 裁剪。
+- 修复副岛退场时主岛锚点跳变：锚点恒定指向副岛右缘，边距随宽度收缩。
 
-### 2026-09-12（第十四次）
+### 灵动岛：连接状态 + 电池提示
 
-**修复：视频壁纸默认后端回退到 Mpvpaper**
+- 新增 `connectivity` 活动（优先级 25）：蓝牙 / WiFi 连接与断开提示，2 秒后消失。
+- 新增 `battery` 活动（优先级 3）：插拔电源、低电量、充满提示；台式机无电池时整体跳过。
+- 两者都走 `IslandContext` 门控，专注模式或录屏时静默；启动时的初始状态填充不算事件。
 
-- 视频壁纸默认后端从 Wallr 改回 **Mpvpaper**。Wallr 存在视频随机冻结的已知问题（见「视频壁纸后端」章节），暂不推荐作为默认值。
-- `Config.qml` 的 `videoBackend` 默认值、`switchwall.sh` 的 jq 回退默认值同步改为 `mpvpaper`。
-- 设置页面后端下拉框调整顺序与文案：`Mpvpaper（推荐）` 置顶，`Wallr（可能卡顿）` 标注风险，`Phonto（GPU 视频）` 保留。
-- 同步更新 `en_US.json` 与 `zh_CN.json` 翻译；其余语言通过翻译工具补齐。
-- 修复「设置里切换视频后端后仍然沿用旧后端」的问题：现在切换会立即重新应用当前视频壁纸，替换掉正在运行的后端进程，不再需要手动重新选一次壁纸。
+### 灵动岛：歌词窗口差量更新
 
-**使用方式**
+歌词 `Repeater` 的 model 从「每次重建的数组」改为固定槽位数（5），delegate 恒定复用，
+窗口滑动时只更新属性，不再销毁重建整棵对象树（含内层逐字 Repeater）。槽位到歌词下标的
+映射由 `lyricIndexAt(slot)` 计算；行暗度改用槽位下标直接计算，去掉每次渲染的
+`Array.indexOf` 扫描；`seekAtY` 改用 delegate 自身携带的行数据。
 
-- 默认即为 Mpvpaper，无需额外配置。
-- 想尝试 Wallr：设置 → 背景 → 视频壁纸后端 → 选择「Wallr（可能卡顿）」；遇到画面定格执行 `pkill wallr && wallr daemon` 恢复。
+### 修复：浏览器播放网页视频被识别为音乐
 
-### 2026-09-12（第十三次）
+灵动岛的 `MprisSource` 原先直接遍历 `Mpris.players.values`，绕过了 `MprisController` 的
+去重逻辑。Chrome 视频会同时经原生 bus 与 `plasma-browser-integration` 上报两次，
+而 MPRIS 协议本身不区分音频与视频，于是看视频时弹出音乐岛。改为走 `MprisController`
+的已过滤列表，新增可配置的浏览器过滤（默认开启）与设置项「忽略浏览器媒体」。
 
-**修复：Wallr 启用与视频壁纸颜色刷新警告**
+`MprisController.activePlayer` 增加准入校验：被过滤掉的播放器不再作为回退值。
+浏览器识别用**词边界正则**而非子串匹配，避免 `edge` 误命中 `knowledge` 这类词。
+修正上游 `isRealPlayer` 的浏览器去重：它按 `dbusName` 前缀判断，而所有 Electron 应用的
+bus 名都是 `org.mpris.MediaPlayer2.chromium.instanceN`，于是 MoeKoeMusic / Vesktop 这类
+真正的播放器被一并过滤。改用身份判定。
 
-- Wallr 现在是视频壁纸默认后端；安装后无需额外改配置，重新选择一次视频壁纸即可启用。
-- 修复旧的恢复脚本仍启动 Mpvpaper 的问题；Hyprland 重启后会按照当前后端恢复视频壁纸。
-- 删除 `switchwall.sh` 中未使用的 `bc` 光标计算，消除系统未安装 `bc` 时的警告。
-- 修复 `applycolor.sh` 和 `materialQT.sh` 仍使用旧 `ii` 配置目录的问题，终端配色刷新不再提前退出。
-- 将颜色刷新脚本纳入 chezmoi，避免下次同步或部署时丢失修复。
+### 新增：GTK Material You 主题整合
 
-**使用方式**
+GTK3 和 GTK4 的 Matugen 模板纳入 chezmoi，包含统一的 Material You 配色、圆角控件、
+侧边栏、开关、进度条、弹出菜单和提示框样式。GTK 默认字体统一为 `Google Sans 11`，
+图标继续使用 `WhiteSur-dark`。光标主题与 Hyprland 和壁纸取色流程同步。
+Qt5/Qt6 的备用配置改为有效的 `MaterialYouDark.colors`，不再引用不存在的 `Darkly.colors`。
 
-- 设置 → 背景 → 视频壁纸后端 → 选择「Wallr（推荐）」。
-- 重新选择当前视频壁纸；如果 Wallr 不可用，脚本会自动回退到 Mpvpaper。
+模板路径：`dot_config/matugen/templates/gtk-3.0/gtk.css` 与 `gtk-4.0/gtk.css`；
+运行时设置：`dot_config/gtk-3.0/settings.ini` 和 `gtk-4.0/settings.ini`。
+更换壁纸后 `matugen-update.sh` 会重新生成 GTK CSS。
 
-### 2026-09-12（第十二次）
+### 新增：桌面小部件布局编辑器
 
-**新增：视频壁纸后端切换**
+桌面空白处右键选择「编辑桌面布局」，即可拖动所有已启用的小部件；网格和中心线帮助对齐，
+完成后选择「锁定桌面布局」。位置自动保存到 `~/.config/illogical-impulse/config.json`
+的 `background.widgets.<name>.x/y`，不需要手动编辑 JSON。音频可视化也可拖动
+（全宽部件，横向位置固定，编辑模式下上下拖动调整高度）。自动布局的小部件也支持临时
+手动调整；释放鼠标后保存位置并切换为自由定位。
 
-- 新手：在设置 → 背景中可以选择 `Wallr（推荐）`、`Phonto（GPU 视频）` 或 `Mpvpaper（回退方案）`。
-- 同一时间只会运行一个视频壁纸后端；Wallr 或 Phonto 未安装时会自动回退到 Mpvpaper，不会让桌面壁纸消失。
-- 原有视频缩略图、Matugen 壁纸取色、Quickshell 背景部件和多显示器流程继续保留。
+入口：`modules/ii/desktopMenu/DesktopMenu.qml`；通用拖动与持久化逻辑：
+`modules/ii/background/widgets/AbstractBackgroundWidget.qml`；
+编辑模式网格：`modules/common/widgets/widgetCanvas/WidgetCanvas.qml`。
 
-**开发者说明**
+### 锁屏：Serpantinum 风格三栏布局
 
-- 后端配置字段是 `background.videoBackend`，可选值为 `wallr`、`phonto`、`mpvpaper`。
-- 视频切换和恢复脚本位于 `~/.config/quickshell/end4-pC/scripts/colors/switchwall.sh` 及其生成的 `__restore_video_wallpaper.sh`。
-- Wallr 使用 background layer；Phonto 默认镜像到所有显示器；Mpvpaper 保留原有逐显示器启动参数。
-- 后端切换只影响视频壁纸，静态图片壁纸流程不变。
-- 当前系统未安装 Wallr/Phonto 时会自动继续使用 Mpvpaper；安装对应命令后，在设置中重新选择视频后端即可启用。
-- 后端依赖不是必需同时安装：Wallr/Phonto 缺失不会影响已有的 Mpvpaper 壁纸。
+锁屏改为三栏布局：居中大时钟 + 左翼系统监控 / 中翼认证 / 右翼歌词、通知、媒体。
+交互结构参考 [Serpantinum](https://github.com/ilyamiro/serpantinum)，但配色、组件、字体、
+动画曲线全部改用本项目已有的设计令牌。锁屏头像改用与桌面 `UserCardWidget` 相同的加载链
+（`avatarPath` → `~/.face` → 图标回退）；右翼歌词卡复用 `LyricsService`。
 
-### 2026-09-12（第十一次）
+Hyprland 窗口阴影对齐 Caelestia：`range` 48 → 15、`render_power` 17 → 4、偏移归零、
+颜色由纯黑改为随主题变化的 `inverse_primary`，由 matugen 模板生成。
 
-**新增：GTK Material You 主题整合**
+修复：字体配置指向不存在的 `Google Sans Flex`，`fc-match` 静默回退到 Noto Sans CJK，
+全局实际一直在用思源黑体。改为 `Google Sans`。
 
-- GTK3 和 GTK4 的 Matugen 模板现在纳入 chezmoi，包含统一的 Material You 配色、圆角控件、侧边栏、开关、进度条、弹出菜单和提示框样式。
-- GTK 默认字体统一为 `Google Sans 11`，图标继续使用稳定的 `WhiteSur-dark`。
-- 光标主题与 Hyprland 和壁纸取色流程同步，当前壁纸会自动选择匹配的 Catppuccin 光标颜色。
-- Qt5/Qt6 的备用配置改为有效的 `MaterialYouDark.colors`，不再引用不存在的 `Darkly.colors`。
+说明：锁屏 QML 基于 Qt6 —— `Button.contentItem` 是 FINAL 属性不可覆盖，圆形图标按钮
+改为自绘；`clip: true` 只裁矩形，圆形头像用 `OpacityMask`。
 
-**开发者说明**
+## 2026-09-11
 
-- GTK3 模板：`dot_config/matugen/templates/gtk-3.0/gtk.css`。
-- GTK4 模板：`dot_config/matugen/templates/gtk-4.0/gtk.css`。
-- GTK 运行时设置：`dot_config/gtk-3.0/settings.ini` 和 `dot_config/gtk-4.0/settings.ini`。
-- 更换壁纸后，`matugen-update.sh` 会重新生成 GTK CSS，并同步 GTK 与 Hyprland 的动态光标。
-- GTK3/GTK4 CSS 已用系统 GTK CSS parser 验证通过。
+### 灵动岛：音量滚轮 + 右键拖动
 
-### 2026-09-12（第十次）
+- 音量调节由「收起态上下滑」改为「滚轮」。上下滑要占用整个收起态的拖动手势，
+  和点击展开互相干扰；滚轮不冲突，每格 5% 步进，触控板连续值按比例缩放。
+- 支持右键拖动调整位置。拖动只移动窗口内的岛，layer-shell 窗口保持全屏不动，
+  避免改 margins 触发 Hyprland 重配 surface 导致拖动抖动。偏移量持久化在
+  `Persistent.states.island`。IPC `island reset_position` 一键复位。
+- `Persistent.qml` 纳入差异层：新增 `island` 字段承载灵动岛偏移量。
 
-**新增：桌面小部件布局编辑器**
+### 灵动岛：歌词点击跳转 + 逐字高亮
 
-- 新手：在桌面空白处右键选择「编辑桌面布局」，即可拖动所有已启用的小部件；网格和中心线会帮助对齐，完成后选择「锁定桌面布局」。位置会自动保存，不需要手动编辑 JSON。
-- 音频可视化现在可以拖动。它是全宽部件，横向位置固定，编辑模式下上下拖动即可调整高度。
-- 自动布局的小部件也支持临时手动调整；释放鼠标后会保存位置并切换为自由定位。
-
-**开发者说明**
-
-- 右键菜单入口位于 `modules/ii/desktopMenu/DesktopMenu.qml`。
-- 通用拖动和持久化逻辑位于 `modules/ii/background/widgets/AbstractBackgroundWidget.qml`；位置写入 `~/.config/illogical-impulse/config.json` 的 `background.widgets.<name>.x/y`。
-- `modules/common/widgets/widgetCanvas/WidgetCanvas.qml` 在编辑模式显示网格和对齐参考线。
-- 可视化部件移除了覆盖基类定位逻辑的硬编码坐标，首次显示使用底部定位，拖动后保存实际坐标。
-
-### 2026-09-12（第九次）
-
-**新增**
-
-- 锁屏改为 Serpantinum 风格三栏布局：居中大时钟 + 左翼系统监控 / 中翼认证 /
-  右翼歌词、通知、媒体。交互结构参考
-  [Serpantinum](https://github.com/ilyamiro/serpantinum)，但配色、组件、字体、
-  动画曲线全部改用本项目已有的设计令牌，未引入其运行时依赖。
-- 锁屏头像改用与桌面 `UserCardWidget` 相同的加载链（`avatarPath` → `~/.face`
-  → 图标回退），此前是写死的占位图标。
-- 锁屏右翼加入歌词卡，复用 `LyricsService`（与桌面歌词同一数据源，无额外拉取）。
-- Hyprland 窗口阴影对齐 Caelestia：`range` 48 → 15、`render_power` 17 → 4、
-  偏移归零、颜色由纯黑改为随主题变化的 `inverse_primary`。阴影改由 matugen
-  模板生成，换壁纸自动跟随。
-
-**修复**
-
-- 字体配置指向不存在的 `Google Sans Flex`，`fc-match` 静默回退到 Noto Sans CJK，
-  全局实际一直在用思源黑体。改为 `Google Sans`。
-
-**说明**
-
-- 锁屏 QML 基于 Qt6：`Button.contentItem` 是 FINAL 属性不可覆盖，圆形图标
-  按钮改为自绘；`clip: true` 只裁矩形，圆形头像用 `OpacityMask`。
-
-### 2026-09-12（第八次）
-
-**调整**
-
-- 灵动岛音量调节由「收起态上下滑」改为「滚轮」。上下滑要占用整个收起态的拖动
-  手势，和点击展开互相干扰；滚轮不冲突，每格 5% 步进，触控板连续值按比例缩放，
-  手感更线性。改的仍是 PipeWire sink 音量，音量 OSD 照常弹出。
-
-**新增**
-
-- 灵动岛支持右键拖动调整位置。拖动只移动窗口内的岛，layer-shell 窗口保持全屏
-  不动，避免改 margins 触发 Hyprland 重配 surface 导致拖动抖动。偏移量持久化在
-  `Persistent.states.island`，范围按岛的实际尺寸动态限制，不会拖出屏幕。
-- IPC `island reset_position`：位置拖乱后一键复位。
-
-**调整**
-
-- `Persistent.qml` 纳入差异层：新增 `island` 字段承载灵动岛偏移量（此前该文件
-  完全跟随上游，拖拽所需的持久化字段无处存放）。
-
-### 2026-09-11（第七次）
-
-**修复**
-
-- 灵动岛歌词页点击某一行无反应。`MusicActivity.qml` 里 `seekAtY()` 调用了
-  `root.seekRequested(...)`，但这个信号从未声明，运行时报
-  `TypeError: Property 'seekRequested' is not a function`；同时 `DynamicIsland.qml`
-  的 `if (item.seekRequested !== undefined)` 因此恒为 false，连接根本没建立。
+- **点击跳转修复**：`MusicActivity.qml` 里 `seekAtY()` 调用了 `root.seekRequested(...)`，
+  但这个信号从未声明，运行时报 `TypeError: Property 'seekRequested' is not a function`；
+  同时 `DynamicIsland.qml` 的 `if (item.seekRequested !== undefined)` 因此恒为 false。
   补上信号声明后，点击歌词行即可跳转。
+- **逐字高亮取色提亮**：封面主色经量化后常常偏暗，而灵动岛底色是纯黑，直接使用会导致
+  高亮几乎读不出来。对高亮色设亮度下限 `0.62` 并轻微提饱和（×1.15）。
+- **跳转补偿歌词偏移**：行时间是歌词坐标系的时间，而当前行判定用的是
+  `currentTime + effectiveOffset`，跳转前扣掉该偏移。
+- **KRC 逐字高亮错乱**：旧代码用 `rawStart >= krc[1]` 判断偏移是绝对时间还是相对时间，
+  会把同一行内偏移较大的字误判为绝对时间，产生非单调时间戳。已统一按「相对行首」累加。
+- **当前行整行不可见**：当前行容器误用 `Layout.fillWidth` / `Layout.fillHeight`，
+  但它的 delegate 根节点是普通 `Column`，这些附加属性不生效，容器实际尺寸为 0，
+  叠加 `clip: true` 后主文本被整条裁掉。改为显式设置宽高。
 
-**调整**
+### 灵动岛：包管理副岛 + 通知副岛
 
-- 歌词逐字高亮取色提亮。封面主色经量化后常常偏暗（深色封面尤其明显），而灵动岛
-  底色是纯黑，直接使用会导致高亮几乎读不出来。现对高亮色设亮度下限
-  `0.62` 并轻微提饱和（×1.15），保留封面色相的同时保证对比度。
-- 点击歌词行跳转时补偿歌词偏移。行时间是歌词坐标系的时间，而当前行判定用的是
-  `currentTime + effectiveOffset`，跳转前扣掉该偏移，手动调过歌词偏移后点击
-  才能精确落到目标行。
+- **包管理副岛**：主岛右侧显示下载 / AUR 构建进度，支持进程自动探测与 IPC 主动上报；
+  `IslandTheme` 补充 `package` 尺寸项。IPC 泛化为 `task_begin` / `task_progress` /
+  `task_end`（`pkg_*` 保留为别名）。
+- **通知副岛**：收到通知时在主岛右侧显示铃铛 + 摘要，4 秒后自动消失，不抢占主岛。
+- **封面取色**：量化当前封面主色，歌词高亮随之着色（`ArtColorSource`）。
+- **`TaskSource` 通用骨架**：把「进程探测 + IPC 上报」抽出来复用，新增 `download` 任务源；
+  右侧副岛改为列表驱动 + Repeater 渲染。
+- **录屏伴随指示器**：主岛左侧的小胶囊，点击停止录屏；`IslandTheme` 补充 `recording`
+  尺寸项。`recording` 活动优先级由 20 下调至 5，使录屏与音乐并存时主岛显示音乐。
+- **调整**：锁屏背景固定为桌面壁纸，移除了播放时淡入的模糊专辑封面背景；
+  栏上的旧录屏胶囊默认关闭；灵动岛窗口宽度 360 → 480 → 640。
+- **修复**：栏上反复报 `Cannot assign to read-only property "mirrored"` ——
+  守卫用的 `item.hasOwnProperty("mirrored")` 会命中原生只读属性 `QQuickItem.mirrored`，
+  改为判断 `modelData === "visualizer"`。`MprisSource` 偶发
+  `Cannot read property 'trackTitle' of null` —— 改为先缓存 `player` 到局部变量再判空。
 
-### 2026-09-11（第六次）
+### 新增：壁纸选择器斜切轮播视图
 
-**调整**
+水平轮播，选中项居中放大，相邻项按距离缩放 / 倾斜，动态圆角，支持滚轮与方向键；
+灵感来自 [Serpantinum](https://github.com/ilyamiro/serpantinum)。浮动筛选胶囊：
+全部 / 历史 / 视频 + 颜色圆点 + 内联搜索框。颜色索引脚本
+`scripts/wallpapers/index_colors.py` 多线程算主色并分桶，按 `(文件名, mtime, size)`
+增量缓存到 `~/.cache/quickshell/wallpapers/`。`wallpaperSelector.viewMode`
+（`grid` 默认，`carousel` 可选），工具栏可一键切换。
 
-- Dock 自动隐藏逻辑优化：空工作区不再自动显示 Dock，仅由鼠标悬浮到底部、应用请求、拖拽或手动 pinned 触发，方便录屏 / 截图时获得干净桌面。
-- 新增 `dock.revealOnDesktop` 配置项（默认 `false`），方便用户根据需要随时恢复旧版“空桌面自动显示”行为。
+### 调整：Dock 自动隐藏
 
-### 2026-09-11（第五次）
-
-**新增**
-
-- 壁纸选择器斜切轮播视图：水平轮播，选中项居中放大，相邻项按距离缩放 / 倾斜，
-  动态圆角，支持滚轮与方向键；灵感来自 [Serpantinum](https://github.com/ilyamiro/serpantinum)
-- 浮动筛选胶囊：全部 / 历史 / 视频 + 颜色圆点（只显示当前目录实际存在的色桶）+ 内联搜索框
-- 颜色索引脚本 `scripts/wallpapers/index_colors.py`：多线程算主色并分桶，
-  按 `(文件名, mtime, size)` 增量缓存到 `~/.cache/quickshell/wallpapers/`
-- `wallpaperSelector.viewMode` 配置项（`grid` 默认，`carousel` 可选），工具栏可一键切换
-
-**说明**
-
-- 网格仍是默认视图，轮播为可选；既有渲染、mpvpaper 视频播放与 matugen 取色均未改动
-
-### 2026-09-11（第四次）
-
-**新增**
-
-- 封面取色：量化当前封面主色，歌词高亮随之着色（`ArtColorSource`）
-- 灵动岛手势：收起态上下滑调音量
-- `TaskSource` 通用骨架：把「进程探测 + IPC 上报」抽出来复用，新增 `download` 任务源
-- 右侧副岛改为列表驱动 + Repeater 渲染，加任务类型不用改布局
-- IPC 泛化为 `task_begin` / `task_progress` / `task_end`（`pkg_*` 保留为别名）
-
-**调整**
-
-- 锁屏背景固定为桌面壁纸，移除了播放时淡入的模糊专辑封面背景
-- `PackageActivity` 的图标改为读 `payload.icon`，可复用于下载等任务
-
-### 2026-09-11（第三次）
-
-**新增**
-
-- 通知副岛：收到通知时在主岛右侧显示铃铛 + 摘要，4 秒后自动消失，不抢占主岛
-- 歌词行点击跳转：点任意一行跳到该句，当前行可点击重播
-- 卡拉OK式逐字填充：字内按进度从左往右点亮，取代原来的整字硬切
-
-**调整**
-
-- 展开 / 收起的过渡由 `OutQuint` 换成弹簧动画（`spring: 3.2, damping: 0.45`），
-  带轻微回弹的"果冻感"
-- 右侧副岛组改为按显示标志计算尺寸，避免 `Row.implicitWidth` 默认为 0 导致整组塌陷
-- `MprisSource` 新增 `seekTo(seconds)`，用可写的 `position` 属性做绝对定位
-
-### 2026-09-11（第二次）
-
-**新增**
-
-- 包管理副岛：主岛右侧显示下载 / AUR 构建进度，支持进程自动探测与 IPC 主动上报
-- `IslandTheme` 补充 `package` 尺寸项
-
-**修复**
-
-- 栏上反复报 `Cannot assign to read-only property "mirrored"`。守卫用的
-  `item.hasOwnProperty("mirrored")` 会命中原生只读属性 `QQuickItem.mirrored`，
-  于是对非 visualizer 组件也尝试赋值。改为判断 `modelData === "visualizer"`。
-- `MprisSource` 偶发 `Cannot read property 'trackTitle' of null`。改为先缓存
-  `player` 到局部变量再判空，避免两次求值之间播放器退出。
-
-**调整**
-
-- 栏上的旧录屏胶囊默认关闭（录屏指示统一到灵动岛）
-- 灵动岛窗口宽度 480 → 640，容纳左右两侧副岛
-
-### 2026-09-11
-
-**修复**
-
-- 灵动岛歌词页当前行整行不可见。当前行容器误用 `Layout.fillWidth` / `Layout.fillHeight`，
-  但它的 delegate 根节点是普通 `Column`，这些附加属性不生效，容器实际尺寸为 0；
-  叠加 `clip: true` 后主文本被整条裁掉，只剩翻译行可见。改为显式设置宽高。
-- KRC 逐字高亮错乱。旧代码用 `rawStart >= krc[1]` 判断偏移是绝对时间还是相对
-  时间，会把同一行内偏移较大的字误判为绝对时间，产生非单调时间戳，高亮忽前
-  忽后。已统一按「相对行首」累加。
-
-**新增**
-
-- 灵动岛录屏伴随指示器：主岛左侧的小胶囊，点击停止录屏
-- `IslandTheme` 补充 `recording` 尺寸项，避免单独录屏时回退到 `idle` 尺寸
-
-**调整**
-
-- `recording` 活动优先级由 20 下调至 5，使录屏与音乐并存时主岛显示音乐
-- 灵动岛窗口宽度 360 → 480，mask 改为覆盖整条内容行（含伴随指示器）
-- 伴随指示器尺寸与主岛收起态对齐，UI 规格统一
-
+空工作区不再自动显示 Dock，仅由鼠标悬浮到底部、应用请求、拖拽或手动 pinned 触发。
+新增 `dock.revealOnDesktop` 配置项（默认 `false`）。
