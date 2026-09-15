@@ -13,7 +13,7 @@
 # 子命令：
 #   ./install.sh              → 进入 TUI 二级菜单
 #   ./install.sh --tui        → 同上
-#   ./install.sh install      → 一键 6 步安装
+#   ./install.sh install      → 一键 7 步安装
 #   ./install.sh rollback     → 回档到最近一次 install 之前
 #   ./install.sh restore      → 从回档前快照恢复 rice 配置
 #   ./install.sh archive      → 打包存档（-o PATH 自定义输出，--delete 打包后清理源文件）
@@ -187,7 +187,7 @@ apply_snapshot_from_state() {
 }
 
 # ============================================================
-# 3. 安装（原 6 步流程，封装进 cmd_install）
+# 3. 安装（7 步流程，封装进 cmd_install）
 # ============================================================
 cmd_install() {
     [[ -f /etc/arch-release ]] || die "本安装器仅支持 Arch Linux 系发行版（CachyOS / Arch 等）。"
@@ -198,11 +198,11 @@ cmd_install() {
     session_warning_if_running
 
     # 关键：在部署之前先保存原始配置快照（回档的基础）
-    say "[0/6] 安装前自动保存当前配置快照（回档用）"
+    say "[0/7] 安装前自动保存当前配置快照（回档用）"
     snapshot_current "$PRE_INSTALL_PREFIX" current || warn "创建 pre-install 快照失败（可继续安装，但 rollback 将不可用）"
 
-    # ---------- [1/6] 基础工具 + 会话依赖（一次 pacman 搞定） ----------
-    say "[1/6] 安装基础工具与会话依赖"
+    # ---------- [1/7] 基础工具 + 会话依赖（一次 pacman 搞定） ----------
+    say "[1/7] 安装基础工具与会话依赖"
     PACMAN_PKGS=(
         git base-devel github-cli
         hyprland kitty jq fish fuzzel
@@ -215,11 +215,21 @@ cmd_install() {
         cmake ninja
         qt6-base qt6-declarative qt6-wayland qt6-5compat qt6-shadertools qt6-svg
         wayland-protocols
+        # Caelestia QML 插件编译依赖（[4/7] 步骤会用到）
+        aubio libpipewire libqalculate lm_sensors fftw spirv-tools
     )
-    "${SUDO:-sudo}" pacman -Syu --needed --noconfirm "${PACMAN_PKGS[@]}"
+    # 默认只安装缺失的包，不做全系统升级（避免在你没准备时滚动整个系统）。
+    # 需要全量升级时：FULL_UPGRADE=1 ./install.sh install
+    if [[ "${FULL_UPGRADE:-0}" == "1" ]]; then
+        say "    FULL_UPGRADE=1：执行全系统升级（pacman -Syu）"
+        "${SUDO:-sudo}" pacman -Syu --needed --noconfirm "${PACMAN_PKGS[@]}"
+    else
+        "${SUDO:-sudo}" pacman -S --needed --noconfirm "${PACMAN_PKGS[@]}" \
+            || die "依赖安装失败。若提示找不到包，先手动执行 sudo pacman -Syu 更新软件库后重试。"
+    fi
 
-    # ---------- [2/6] AUR 包（matugen / mpvpaper / 补丁版 fcitx5） ----------
-    say "[2/6] AUR 依赖"
+    # ---------- [2/7] AUR 包（matugen / mpvpaper / libcava） ----------
+    say "[2/7] AUR 依赖"
     if ! have yay && ! have paru; then
         say "引导安装 yay（AUR helper）"
         tmpdir="$(mktemp -d)"
@@ -227,7 +237,8 @@ cmd_install() {
         (cd "$tmpdir/yay" && makepkg -si --noconfirm)
         rm -rf "$tmpdir"
     fi
-    for p in matugen mpvpaper; do
+    # libcava 仅 AUR 有，供 Caelestia QML 插件编译使用
+    for p in matugen mpvpaper libcava; do
         if pacman -Q "$p" >/dev/null 2>&1; then
             echo "    已安装: $p"
         elif aur_install "$p"; then
@@ -238,8 +249,8 @@ cmd_install() {
     done
     have fcitx5 || warn "fcitx5 未就绪，中文输入暂不可用（fcitx5-rime 依赖应已带入）"
 
-    # ---------- [3/6] quickshell 三级回退 ----------
-    say "[3/6] quickshell"
+    # ---------- [3/7] quickshell 三级回退 ----------
+    say "[3/7] quickshell"
     install_quickshell() {
         if have qs; then
             echo "    已安装: $(qs --version 2>/dev/null | head -1)"
@@ -266,8 +277,33 @@ cmd_install() {
     install_quickshell
     have qs || die "quickshell 安装失败，请检查上方输出。"
 
-    # ---------- [4/6] 部署 dotfiles ----------
-    say "[4/6] 部署配置文件"
+    # ---------- [4/7] Caelestia QML 插件 ----------
+    say "[4/7] Caelestia QML 插件"
+    install_caelestia_plugin() {
+        local dst="$HOME/src/caelestia-shell"
+        # 幂等：已经编译过（有 .so 产物）就直接跳过
+        if compgen -G "$dst/build/qml/Caelestia/*.so" >/dev/null; then
+            echo "    已编译: $dst/build/qml"
+            return 0
+        fi
+        have cmake && have ninja || die "缺少 cmake/ninja，无法编译 Caelestia 插件。"
+        if [[ ! -d "$dst/.git" ]]; then
+            say "    克隆 caelestia-dots/shell"
+            mkdir -p "$(dirname "$dst")"
+            git clone --depth=1 https://github.com/caelestia-dots/shell.git "$dst" \
+                || die "克隆 caelestia-dots/shell 失败（检查网络后重试）。"
+        fi
+        say "    编译插件（约 1-3 分钟）"
+        cmake -S "$dst" -B "$dst/build" -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            || die "Caelestia 插件 CMake 配置失败，见上方输出。"
+        cmake --build "$dst/build" --parallel \
+            || die "Caelestia 插件编译失败，见上方输出。手动重试：cd $dst && cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo && cmake --build build"
+        echo "    编译完成: $dst/build/qml（由 execs.lua / config.fish 自动加载）"
+    }
+    install_caelestia_plugin
+
+    # ---------- [5/7] 部署 dotfiles ----------
+    say "[5/7] 部署配置文件"
     # quickshell 底盘（end-4 illogical-impulse 定制 fork）：本仓库只跟踪差异层
     QS_BASE="$HOME/.config/quickshell/end4-pC"
     if [[ ! -f "$QS_BASE/shell.qml" ]]; then
@@ -311,8 +347,8 @@ cmd_install() {
     done < <(find "$SRC" -type f -print0)
     say "已部署 $installed 个文件；$backed 个有差异的旧文件备份于 $backup_dir"
 
-    # ---------- [5/6] 拼音搜索环境与歌词缓存 ----------
-    say "[5/6] 运行环境与歌词缓存"
+    # ---------- [6/7] 拼音搜索环境与歌词缓存 ----------
+    say "[6/7] 运行环境与歌词缓存"
     mkdir -p "$HOME/.cache/quickshell/kugou_lyrics"
     VENV="$HOME/.local/state/quickshell/.venv"
     if [[ ! -x "$VENV/bin/python" ]]; then
@@ -322,8 +358,8 @@ cmd_install() {
     "$VENV/bin/pip" install --upgrade --quiet pypinyin dbus-python \
         || warn "venv 依赖安装失败——启动器的 app 中文名拼音搜索暂不可用，其余功能不受影响"
 
-    # ---------- [6/6] 完成 ----------
-    say "[6/6] 完成！接下来的步骤："
+    # ---------- [7/7] 完成 ----------
+    say "[7/7] 完成！接下来的步骤："
     cat <<'EOF'
   1. 注销并重新登录，会话选择 "Hyprland"
      （配置入口 ~/.config/hypr/hyprland.lua，Quickshell 随会话自启）
@@ -336,6 +372,8 @@ cmd_install() {
   4. 桌宠 / 桌面歌词开关：设置 → 桌面 → 小部件
      （桌面歌词已解耦，自动适配 KA Music / Spotify / 浏览器等任意播放器）
   5. fish 设为默认 shell（可选）: chsh -s "$(command -v fish)"
+  6. Caelestia QML 插件：已编译到 ~/src/caelestia-shell，产物 build/qml
+     由 Hyprland execs.lua 与 fish config.fish 自动加载。
 EOF
 }
 
@@ -513,7 +551,8 @@ sijin-xb's dotfiles 自部署脚本 —— Rice 版本: ${RICE_VERSION}
 用法：
   $0                    进入 TUI 二级菜单（推荐新手）
   $0 --tui              同上
-  $0 install            一键安装（6 步）
+  $0 install            一键安装（7 步）
+                          默认不滚动系统；FULL_UPGRADE=1 $0 install 则执行 pacman -Syu
   $0 rollback           回档：还原到最近一次 install 之前的状态
                            （执行前会自动保存 pre-rollback 快照供 restore 用）
   $0 restore            恢复：回档后，还原回 rollback 之前的 rice 状态
@@ -652,17 +691,19 @@ detail_install() {
     local cont=y
     while [[ $cont == y ]]; do
         tui_clear
-        draw_header "菜单 1/4 · 执行安装（6 步流程）"
+        draw_header "菜单 1/4 · 执行安装（7 步流程）"
         echo
         cat <<'EOF'
 【功能说明】
   从零部署 sijin-xb's dotfiles：
-    [1/6] pacman -Syu 基础依赖（hyprland / kitty / fish / fcitx5 / cmake ...）
-    [2/6] AUR 包（matugen / mpvpaper + 引导 yay 不存在时的安装）
-    [3/6] quickshell 三级回退（已装→仓库→AUR→源码编译）
-    [4/6] dot_ 前缀 → $HOME 部署；有差异的旧文件自动备份
-    [5/6] 拼音搜索 Python venv + pypinyin / dbus-python
-    [6/6] 输出后续指引（注销重新登录 · fish chsh · 键位速览）
+    [1/7] pacman 基础依赖（hyprland / kitty / fish / fcitx5 / cmake ...）
+          默认只装缺失项；FULL_UPGRADE=1 ./install.sh install 可全系统升级
+    [2/7] AUR 包（matugen / mpvpaper / libcava + 引导 yay 不存在时的安装）
+    [3/7] quickshell 三级回退（已装→仓库→AUR→源码编译）
+    [4/7] Caelestia QML 插件（clone + 编译到 ~/src/caelestia-shell）
+    [5/7] dot_ 前缀 → $HOME 部署；有差异的旧文件自动备份
+    [6/7] 拼音搜索 Python venv + pypinyin / dbus-python
+    [7/7] 输出后续指引（注销重新登录 · fish chsh · 键位速览）
   · 开始前自动保存 pre-install 快照（./install.sh rollback 的基线）
   · 幂等：重复 2 次结果一致（已在的包/文件跳过）
 
@@ -678,7 +719,7 @@ EOF
         echo "                 : $cnt / ${#SNAP_PATHS[@]}（新机器通常为 0~2；现有 rice 安装通常 ≥ 10）"
         [[ -r "$STATE_DIR/current" ]] && echo "  · 上次快照基线 : $(<"$STATE_DIR/current")" || echo "  · 快照基线     : 尚未安装过，本次运行将生成 rollback 可用基线"
         echo
-        printf '%s 注意事项%s：首次运行 pacman -Syu 可能需要 10-30 分钟；quickshell 源码编译 5-15 分钟。\n' "${TC_BOLD}${TC_YELLOW}${TC_BG_BLACK:-}" "${TC_RESET}"
+        printf '%s 注意事项%s：默认只装缺失依赖（首次可能 5-15 分钟）；quickshell 源码编译 5-15 分钟；Caelestia 插件编译 1-3 分钟。\n' "${TC_BOLD}${TC_YELLOW}${TC_BG_BLACK:-}" "${TC_RESET}"
         echo
         # 二次确认 + 返回
         case "$(confirm_3way '确认开始执行安装？')" in

@@ -2,6 +2,52 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+### 2026-09-16（第三十六次）
+
+**install.sh：pacman -Syu 改为可选**
+
+- `[1/7]` 默认改为 `pacman -S --needed`，只安装缺失的包，不再无条件滚动
+  整个系统（避免在用户没准备时全量升级）。
+- 需要全量升级时用 `FULL_UPGRADE=1 ./install.sh install`。
+- 默认路径下若依赖安装失败，提示先手动 `pacman -Syu` 更新软件库再重试。
+- TUI 注意事项与 README 安装步骤同步更新。
+
+### 2026-09-16（第三十五次）
+
+**install.sh：Caelestia QML 插件成为正式安装步骤**
+
+- 安装流程 6 步 → 7 步，新增 `[4/7] Caelestia QML 插件`：
+  clone `caelestia-dots/shell` 到 `~/src/caelestia-shell`，编译到
+  `build/qml`，产物由 Hyprland `execs.lua` 与 fish `config.fish` 通过
+  `QML2_IMPORT_PATH` 自动加载（目录不存在时这两处自动跳过，零影响）。
+- 该步骤**失败即中断**（不再 warn 放过）：缺 cmake/ninja、clone 失败、
+  CMake 配置失败、编译失败都 `die`，并给出手动重试命令。
+- 幂等：`build/qml/Caelestia/*.so` 已存在则跳过编译。
+- `PACMAN_PKGS` 追加 `spirv-tools`（插件的 shader 编译调用 `spirv-opt`）。
+- 移除 `CAELESTIA_PLUGIN=0` 跳过开关与「可选」措辞。
+- README 安装步骤同步为 7 步，并修正插件说明（由脚本自动编译，不是
+  「自行 clone」）。
+
+### 2026-09-16（第三十四次）
+
+**文档：README 瘦身 + docs/ 拆分**
+
+- 根 README 从 653 行降到入口页（包含内容 / 安装 / 命令 / 快捷键 /
+  目录结构 / 链接），深度实现笔记全部移出。
+- 新增 5 篇 docs：`appearance.md`（视频壁纸后端 + 视差）、`lockscreen.md`、
+  `widgets-layout.md`、`integrations.md`（SPlayer + fcitx5-rime）、
+  `troubleshooting.md`。`dynamic-island-roadmap.md` 保持原位。
+- `docs/README.md` 索引同步更新。
+- 这样 README 只回答"是什么 / 怎么装 / 怎么用"，"为什么这么实现"归 docs，
+  "改了什么"归 CHANGELOG，三者不再互相重复。
+
+**install.sh：补齐 Caelestia 插件编译依赖**
+
+- `PACMAN_PKGS` 追加 `aubio libpipewire libqalculate lm_sensors fftw`。
+- AUR 循环加入 `libcava`（官方仓库无此包）。
+- 不引入 `caelestia-shell` / `caelestia-meta` / `caelestia-cli`：脚本只备齐
+  编译插件所需的库，插件本体由用户自行编译并用 `QML2_IMPORT_PATH` 加载。
+
 ### 2026-09-15（第三十三次）
 
 **修复：静态壁纸开启视差会被放大**

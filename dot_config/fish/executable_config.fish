@@ -4,6 +4,13 @@ starship init fish | source
 # ===================== PATH =====================
 set -gx PATH ~/.npm-global/bin $PATH
 
+# ===================== Caelestia QML 插件（可选） =====================
+# 自行 clone caelestia-dots/shell 并编译后，把 build/qml 加入 Qt 导入路径。
+# 目录不存在时不设置，对未装插件的环境零影响。
+if test -d ~/src/caelestia-shell/build/qml
+    set -gx QML2_IMPORT_PATH ~/src/caelestia-shell/build/qml $QML2_IMPORT_PATH
+end
+
 # ===================== INTERACTIVE =====================
 if status is-interactive
 
