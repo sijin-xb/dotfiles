@@ -168,7 +168,8 @@ apply_snapshot_from_state() {
         return 1
     fi
     local nfiles
-    nfiles="$(tar -tzf "$snap_path" 2>/dev/null | grep -cv '/$' || echo 0)"
+    # grep -c 在计数为 0 时仍会打印 "0" 但返回 1，直接 || echo 0 会得到两行
+    nfiles="$(tar -tzf "$snap_path" 2>/dev/null | grep -v '/$' | wc -l)"
     session_warning_if_running
     echo "----------------------------------------------------------------------"
     echo "  快照文件 : $(basename "$snap_path")"
@@ -271,7 +272,17 @@ cmd_install() {
     QS_BASE="$HOME/.config/quickshell/end4-pC"
     if [[ ! -f "$QS_BASE/shell.qml" ]]; then
         say "拉取 quickshell 底盘 (pctrade/end4-pC)"
-        git clone --depth=1 https://github.com/pctrade/end4-pC.git "$QS_BASE"
+        # 注意：不能直接 clone 进 $QS_BASE —— 目录已存在且非空时 git clone 会失败，
+        # 而 set -e 会让整个安装中断。先克隆到临时目录再合并进去。
+        qs_tmp="$(mktemp -d)"
+        if git clone --depth=1 https://github.com/pctrade/end4-pC.git "$qs_tmp/end4-pC"; then
+            mkdir -p "$QS_BASE"
+            cp -a "$qs_tmp/end4-pC/." "$QS_BASE/"
+        else
+            rm -rf "$qs_tmp"
+            die "拉取 quickshell 底盘失败（检查网络后重试，或手动 clone 到 $QS_BASE）"
+        fi
+        rm -rf "$qs_tmp"
     fi
     backup_dir="$BACKUP_ROOT/$(now_ts)"
     installed=0; backed=0

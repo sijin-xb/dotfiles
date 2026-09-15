@@ -1155,5 +1155,6 @@
     "Applications": "应用程序",
     "matugen.%1": "%1（matugen 模板）",
     "Terminal options": "终端选项",
-    "Names come from ~/.config/matugen/config.toml.orig, which the shell treats as the source of truth. Turning a template off removes it from the generated config on the next wallpaper change.": "名称来自 ~/.config/matugen/config.toml.orig，shell 将其视为唯一事实来源。关闭某个模板后，它会在下次更换壁纸时从生成的配置中移除。"
+    "Names come from ~/.config/matugen/config.toml.orig, which the shell treats as the source of truth. Turning a template off removes it from the generated config on the next wallpaper change.": "名称来自 ~/.config/matugen/config.toml.orig，shell 将其视为唯一事实来源。关闭某个模板后，它会在下次更换壁纸时从生成的配置中移除。",
+    "Search settings": "搜索设置"
 }

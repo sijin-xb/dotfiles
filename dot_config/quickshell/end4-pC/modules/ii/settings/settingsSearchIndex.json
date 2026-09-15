@@ -1,0 +1,159 @@
+[
+  {
+    "page": "Quick",
+    "file": "QuickConfig.qml",
+    "sections": [
+      "Wallpaper & Colors",
+      "Transparency",
+      "Bar & Screen"
+    ]
+  },
+  {
+    "page": "General",
+    "file": "GeneralConfig.qml",
+    "sections": [
+      "Time",
+      "Battery",
+      "Audio",
+      "Sounds",
+      "Language",
+      "Work safety"
+    ]
+  },
+  {
+    "page": "Bar",
+    "file": "BarConfig.qml",
+    "sections": [
+      "Screens",
+      "Show bar on",
+      "Bar layout",
+      "Positioning & Styles",
+      "Notifications",
+      "Tray",
+      "Divider",
+      "Utility buttons",
+      "Workspaces",
+      "Resources",
+      "Media",
+      "Tooltips"
+    ]
+  },
+  {
+    "page": "Desktop",
+    "file": "BackgroundConfig.qml",
+    "sections": [
+      "Wallpaper",
+      "Centered wallpaper",
+      "Wallpaper parallax",
+      "Clock",
+      "Digital clock settings",
+      "Cookie clock settings",
+      "Pixel Clock Settings",
+      "Quote",
+      "Custom Image",
+      "Widgets",
+      "Show widgets on",
+      "Canvas",
+      "Visualizer",
+      "Spectrum Ball"
+    ]
+  },
+  {
+    "page": "Interface",
+    "file": "InterfaceConfig.qml",
+    "sections": [
+      "Settings Panel",
+      "Left Sidebar",
+      "Right Sidebar",
+      "Quick toggles",
+      "Sliders",
+      "Hot Corners",
+      "Top",
+      "Bottom",
+      "Overview",
+      "Default Settings",
+      "Dock",
+      "Buttons & Media",
+      "Lock screen",
+      "Security",
+      "Style: General",
+      "Style: Blurred",
+      "Overlay",
+      "Floating Image",
+      "Crosshair",
+      "Region selector (screen snipping/Google Lens)",
+      "Hint target regions",
+      "Google Lens",
+      "Rectangular selection",
+      "Circle selection",
+      "On-screen display",
+      "Wallpaper selector",
+      "Fonts",
+      "Color generation",
+      "Terminal options",
+      "Applications"
+    ]
+  },
+  {
+    "page": "Services",
+    "file": "ServicesConfig.qml",
+    "sections": [
+      "AI",
+      "Networking",
+      "Music Recognition",
+      "Save paths",
+      "Search",
+      "Prefixes",
+      "Web search",
+      "System updates (Arch only)",
+      "Weather"
+    ]
+  },
+  {
+    "page": "Hyprland",
+    "file": "HyprlandConfig.qml",
+    "sections": [
+      "Displays",
+      "Layout",
+      "Input",
+      "Keyboard",
+      "Touchpad",
+      "Visual & Aesthetics",
+      "Autostart Apps",
+      "Animations"
+    ]
+  },
+  {
+    "page": "Niri",
+    "file": "NiriConfig.qml",
+    "sections": [
+      "Displays",
+      "Layout",
+      "Input",
+      "Keyboard",
+      "Touchpad",
+      "Mouse",
+      "Visual & Aesthetics",
+      "Blur",
+      "Cursor",
+      "Animations"
+    ]
+  },
+  {
+    "page": "Profile",
+    "file": "Profile.qml",
+    "sections": [
+      "Avatar",
+      "Identity",
+      "Presets",
+      "Downloaded",
+      "Imported",
+      "Browse Online"
+    ]
+  },
+  {
+    "page": "About",
+    "file": "About.qml",
+    "sections": []
+  }
+]

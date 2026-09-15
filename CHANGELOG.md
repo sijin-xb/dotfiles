@@ -2,6 +2,38 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+### 2026-09-15（第三十二次）
+
+**功能：设置面板加搜索框**
+
+- 侧边栏（导航栏展开时）加搜索输入框，输入即列出匹配的页面与小节，
+  点击跳转并自动滚动定位。
+- 索引由 `scripts/settings/build-search-index.py` 扫描各页的
+  `ContentSection/ContentSubsection` 标题生成（10 页 / 98 节），
+  存为 `modules/ii/settings/settingsSearchIndex.json`；运行时用
+  `Translation.tr` 翻成当前语言再匹配，所以中英文都能搜。
+- 跳转复用已有的 `GlobalStates.settingsPage = "页面:小节"` 深链
+  （页面自己的 `goTo()` 负责滚动），没有新增导航机制。
+- 坑：`StyledTextInput` 的根是 `TextInput`，**不支持 `placeholderText`**；
+  要占位符得用 `MaterialTextField`（`TextField` 子类）。
+
+**修复：install.sh 审查（从未实际运行过）**
+
+- **全新安装会丢可执行位**：`dot_config/quickshell/end4-pC/scripts/colors/`
+  下同时存在 `switchwall.sh` 与 `executable_switchwall.sh`（前者是同步时漏加
+  chezmoi 前缀留下的重复，且内容更新）。安装器只按 `executable_` 前缀恢复
+  执行位，两个同名目标互相覆盖 → 可能装上没有 +x 的 switchwall.sh。
+  已删除无前缀的那份，内容并入带前缀的文件。
+- **quickshell 底盘 clone 会硬失败**：`git clone ... "$QS_BASE"` 在目录已存在
+  且非空时报错，配合 `set -e` 直接中断安装。改为先克隆到临时目录再 `cp -a` 合并，
+  失败时给明确提示。
+- **快照文件数统计会输出两行**：`grep -cv '/$' || echo 0` 在计数为 0 时
+  `grep -c` 本身已打印 `0` 但返回 1，于是又追加一个 `0`。改为
+  `grep -v '/$' | wc -l`。
+- 另外记录两点设计取舍（未改）：`pacman -Syu` 会顺带**全系统升级**；
+  venv 里 `pip install dbus-python` 在全新系统上大概率失败（缺 dbus/glib/meson
+  构建依赖），建议改用仓库的 `python-dbus`。
+
 ### 2026-09-15（第三十一次）
 
 **rime：`/` 符号候选框按使用频率排"权重"**

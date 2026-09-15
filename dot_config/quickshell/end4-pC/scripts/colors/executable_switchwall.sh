@@ -106,6 +106,10 @@ CUSTOM_DIR="$XDG_CONFIG_HOME/hypr/custom"
 RESTORE_SCRIPT_DIR="$CUSTOM_DIR/scripts"
 RESTORE_SCRIPT="$RESTORE_SCRIPT_DIR/__restore_video_wallpaper.sh"
 THUMBNAIL_DIR="$RESTORE_SCRIPT_DIR/mpvpaper_thumbnails"
+# mpvpaper 的 mpv IPC socket 目录：quickshell 通过它实现视频壁纸视差
+# （设置 video-zoom / video-align-x / video-align-y），命名必须与
+# Background.qml 的 videoSocketPath 一致：<dir>/mpvpaper-<monitor>.sock
+MPVPAPER_IPC_DIR="$XDG_CACHE_HOME/quickshell/mpvpaper"
 VIDEO_OPTS="no-audio loop hwdec=auto scale=bilinear interpolation=no video-sync=display-resample panscan=1.0 video-scale-x=1.0 video-scale-y=1.0 video-align-x=0.5 video-align-y=0.5 load-scripts=no"
 
 is_video() {
@@ -117,6 +121,8 @@ kill_existing_video_backend() {
     wallr quit >/dev/null 2>&1 || true
     pkill -x -9 phonto 2>/dev/null || true
     pkill -x -9 mpvpaper 2>/dev/null || true
+    # 清掉上一轮留下的 IPC socket，避免 quickshell 连到已死的 mpv
+    rm -f "$MPVPAPER_IPC_DIR"/mpvpaper-*.sock 2>/dev/null || true
 }
 
 resolve_video_backend() {
@@ -155,8 +161,9 @@ start_video_backend() {
             ;;
         mpvpaper)
             local monitor
+            mkdir -p "$MPVPAPER_IPC_DIR"
             while IFS= read -r monitor; do
-                mpvpaper -o "$VIDEO_OPTS" "$monitor" "$video_path" &
+                mpvpaper -o "$VIDEO_OPTS input-ipc-server=$MPVPAPER_IPC_DIR/mpvpaper-$monitor.sock" "$monitor" "$video_path" &
                 sleep 0.1
             done < <(hyprctl monitors -j | jq -r '.[] | .name')
             ;;
@@ -174,6 +181,7 @@ create_restore_script() {
 wallr quit >/dev/null 2>&1 || true
 pkill -x -9 phonto 2>/dev/null || true
 pkill -x -9 mpvpaper 2>/dev/null || true
+rm -f "$MPVPAPER_IPC_DIR"/mpvpaper-*.sock 2>/dev/null || true
 
 case "$backend" in
     wallr)
@@ -183,8 +191,9 @@ case "$backend" in
         phonto "$video_path" --layer background >/dev/null 2>&1 &
         ;;
     mpvpaper)
+        mkdir -p "$MPVPAPER_IPC_DIR"
         while IFS= read -r monitor; do
-            mpvpaper -o "$VIDEO_OPTS" "\$monitor" "$video_path" &
+            mpvpaper -o "$VIDEO_OPTS input-ipc-server=$MPVPAPER_IPC_DIR/mpvpaper-\$monitor.sock" "\$monitor" "$video_path" &
             sleep 0.1
         done < <(hyprctl monitors -j | jq -r '.[] | .name')
         ;;
