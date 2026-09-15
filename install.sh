@@ -211,6 +211,10 @@ cmd_install() {
         cliphist easyeffects hypridle hyprlock
         xdg-desktop-portal-hyprland gnome-keyring
         python
+        # 字体：kitty 终端用 JetBrains Mono Nerd Font（含 Nerd 图标），
+        # 中文 / emoji 由 Noto 兜底；pacman 装字体包会自动触发 fc-cache
+        ttf-jetbrains-mono-nerd ttf-nerd-fonts-symbols
+        noto-fonts noto-fonts-cjk noto-fonts-emoji
         # quickshell 源码编译工具链（三级回退时使用，平时不碍事）
         cmake ninja
         qt6-base qt6-declarative qt6-wayland qt6-5compat qt6-shadertools qt6-svg
@@ -358,6 +362,12 @@ cmd_install() {
 
     # ---------- [6/7] 拼音搜索环境与歌词缓存 ----------
     say "[6/7] 运行环境与歌词缓存"
+    # 字体缓存：pacman 装字体包时本身有 hook 会自动跑，这里再显式兜底一次，
+    # 让用户手动放进 ~/.local/share/fonts/ 的字体在重跑脚本后也能生效。
+    if have fc-cache; then
+        fc-cache -f >/dev/null 2>&1 || true
+        echo "    字体缓存已刷新（fc-cache -f）"
+    fi
     mkdir -p "$HOME/.cache/quickshell/kugou_lyrics"
     VENV="$HOME/.local/state/quickshell/.venv"
     if [[ ! -x "$VENV/bin/python" ]]; then

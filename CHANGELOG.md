@@ -2,6 +2,17 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+### 2026-09-16（第三十九次）
+
+**安装脚本：新增终端字体依赖**
+
+- `install.sh`：`PACMAN_PKGS` 增加 `ttf-jetbrains-mono-nerd`（kitty 的
+  `font_family = JetBrains Mono Nerd Font` 所需，含 Nerd 图标）、
+  `ttf-nerd-fonts-symbols`，以及中文 / emoji 兜底的
+  `noto-fonts` / `noto-fonts-cjk` / `noto-fonts-emoji`。
+- `[6/7]` 末尾加一次 `fc-cache -f` 兜底：pacman 装字体包本身有 hook，
+  这步是为了让手动放进 `~/.local/share/fonts/` 的字体重跑脚本后也生效。
+
 ### 2026-09-16（第三十八次）
 
 **锁屏：文档同步 + 资源卡对齐**
