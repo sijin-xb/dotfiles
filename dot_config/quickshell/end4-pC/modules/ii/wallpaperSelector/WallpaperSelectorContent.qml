@@ -184,7 +184,8 @@ MouseArea {
                 anchors.fill: parent
                 visible: Config.options.wallpaperSelector.showBlurBackground
                 fillMode: Image.PreserveAspectCrop
-                source: Config.options.background.wallpaperPath
+                // 视频壁纸要退回缩略图，否则会「不支持的图像格式」而整块留黑
+                source: Appearance.wallpaperDisplayPath
                 cache: false
                 layer.enabled: true
                 layer.effect: OpacityMask {

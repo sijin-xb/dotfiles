@@ -95,8 +95,7 @@ MouseArea {
                                 if (FileUtils.parentDirectory(thumbnailImage.sourcePath) !== FileUtils.trimFileProtocol(directory))
                                     return ;
 
-                                thumbnailImage.source = "";
-                                thumbnailImage.source = thumbnailImage.thumbnailPath;
+                                thumbnailImage.reloadThumbnail();
                             }
 
                             function onThumbnailGeneratedFile(filePath) {
@@ -106,8 +105,7 @@ MouseArea {
                                 if (Qt.resolvedUrl(thumbnailImage.sourcePath) !== Qt.resolvedUrl(filePath))
                                     return ;
 
-                                thumbnailImage.source = "";
-                                thumbnailImage.source = thumbnailImage.thumbnailPath;
+                                thumbnailImage.reloadThumbnail();
                             }
 
                             target: Wallpapers

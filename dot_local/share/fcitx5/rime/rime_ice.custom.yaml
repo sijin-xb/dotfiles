@@ -9,3 +9,71 @@ patch:
     translator/contextual_suggestions: false
     translator/max_homographs: 5
     translator/max_homophones: 5
+
+    # ── 中文模式下按 `/` 弹出常用符号候选框 ────────────────────────────
+    # 原理（librime/src/rime/gear/punctuator.cc）：
+    #   按下 `/` 时 Punctuator::ProcessKeyEvent 先取 GetPunctDefinition('/')，
+    #   查找顺序是 punctuator/half_shape → punctuator/symbols。取到定义并把按键
+    #   推入输入串之后，只有「单值映射」才会立刻上屏（ConfirmUniquePunct），
+    #   列表型映射只列出候选交给用户选。
+    #   所以把 half_shape 里的 '/' 从单值 '/' 改成下面的多值列表，
+    #   按 / 就弹出符号候选框，而不再直接上屏 '/'。
+    #
+    # 语法要点（踩过的坑）：
+    #   1) 必须用 `punctuator/half_shape/+`（映射追加）这种扁平路径。
+    #      写成嵌套结构 `punctuator: {half_shape: ...}` 会把整个 punctuator
+    #      节点替换掉，v 模式符号表和全角标点会一起消失。
+    #   2) 键名 '/' 不能出现在路径里（会被当成路径分隔符），只能放在值里。
+    #
+    # 翻页：`,` / `.`（default.custom.yaml 里已映射为 Page_Up / Page_Down）。
+    # 需要字面量半角斜杠时，切到英文（Shift / Ctrl+Space）即可。
+    punctuator/half_shape/+:
+        '/':
+            - '，'
+            - '。'
+            - '、'
+            - '；'
+            - '：'
+            - '？'
+            - '！'
+            - '“'
+            - '”'
+            - '‘'
+            - '’'
+            - '（'
+            - '）'
+            - '【'
+            - '】'
+            - '《'
+            - '》'
+            - '「'
+            - '」'
+            - '——'
+            - '……'
+            - '·'
+            - '～'
+            - '￥'
+            - '%'
+            - '°'
+            - '℃'
+            - '×'
+            - '÷'
+            - '±'
+            - '≈'
+            - '≠'
+            - '≤'
+            - '≥'
+            - '∞'
+            - '√'
+            - '★'
+            - '☆'
+            - '→'
+            - '←'
+            - '↑'
+            - '↓'
+            - '●'
+            - '○'
+            - '◆'
+            - '◇'
+            - '✓'
+            - '✗'

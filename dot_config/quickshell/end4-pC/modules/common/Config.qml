@@ -416,13 +416,17 @@ Singleton {
                     property bool vertical: false           // 垂直方向视差（默认横向）
                     property bool autoVertical: false       // 自动判定方向
                     property bool enableWorkspace: true     // 工作区切换时壁纸平移
+                    property int workspaceCount: 10         // 参与视差映射的工作区总数（0 = 自动探测）
+                    property int workspaceAnimationDuration: 400 // 工作区视差时长(ms)。Hyprland 的 workspaces speed=7 是 700ms，但滚轮连续切工作区时视差要能跟得上，取 400 更跟手
                     property real workspaceZoom: 1.07       // 壁纸缩放倍率（>1 留出可移动余量）
                     property bool enableSidebar: true       // 侧栏开合时壁纸平移
                     property real sidebarShift: 80          // 侧栏偏移像素量
-                    property real widgetsFactor: 1.2        // 部件视差倍率（1.2=比壁纸多动20%）
-                    property bool enableCursor: false       // 光标跟随视差
+                    property real widgetsFactor: 1.2        // 部件景深倍率（只跟随侧栏，光标跟随不作用于部件）
+                    property bool enableCursor: false       // 光标跟随视差（只作用于壁纸层）
                     property real cursorSensitivity: 0.3    // 光标偏移权重（0~1）
                     property int cursorPollInterval: 50     // 光标轮询间隔 ms
+                    property bool enableVideo: true         // 视频壁纸视差（通过 mpv IPC 驱动 mpvpaper）
+                    property string videoSocketDir: ""      // mpvpaper IPC socket 目录，空 = 自动（XDG_RUNTIME_DIR 或 /tmp）
                 }
             }
 

@@ -2,6 +2,108 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+### 2026-09-15（第二十八次）
+
+**功能：壁纸视差补全（视频壁纸 + 全工作区 + 光标隔离 + 缩放/曲线）**
+
+- 视频壁纸视差：视频由 mpvpaper 在后景层绘制，Quickshell 碰不到它的图层，
+  因此改为走 **mpv 的 JSON IPC**——`switchwall.sh` 启动 mpvpaper 时加
+  `input-ipc-server=~/.cache/quickshell/mpvpaper/mpvpaper-<显示器名>.sock`，
+  Quickshell 连上后设置 `video-zoom` / `video-align-x` / `video-align-y`。
+  - `video-zoom` 传 `log2(parallaxZoom)`，`video-align` 传归一化到 `-1 ~ +1`
+    的偏移，与静态壁纸的位移等价。
+  - **坑一**：mpv 的 `align` 符号与 QML 的 `x/y` 相反（`+1` 是视频右边缘贴
+    窗口右边，画面往左露），最初忘了取负号，导致视频壁纸的移动方向与静态壁纸
+    相反。
+  - **坑二**：动画期间每帧把没变的 `video-zoom` 一起重发，mpv 每帧都要重配
+    视频链，画面明显卡顿。改为只发送真正变化的属性；动画期间约 50Hz 推送，
+    静止时按 `cursorPollInterval`。
+    （一开始推到 125Hz 想更顺，结果滚轮连续切工作区时非常卡——mpv 每收到一次
+    `set_property` 就让视频输出重绘一次，推得比刷新率还快只是白烧 GPU。）
+  - **坑三**：mpv 的 IPC 不接受「一次写多条命令」的嵌套数组
+    （返回 `invalid parameter`），只能逐条发送。
+  - **坑四**：Quickshell 的 `Socket` 一次连接失败后不会自己重连
+    （内部 socket 对象不释放），所以 mpvpaper 比 Quickshell 起得晚时，
+    每 2 秒重建一次 Socket 来重试。
+- 工作区视差覆盖全部工作区：旧实现用 `(工作区号 - 1) % 概览列数` 定位，
+  概览列数是 5，所以第 6 个工作区开始位置重复（"只支持五个工作区"）。
+  改为按工作区总数线性映射，总数取「设置值 / 已出现的最大工作区号 /
+  概览列数」的最大值，新增「工作区数量」滑杆。
+- 光标跟随只作用于壁纸层：`WidgetCanvas` 之前也叠加了光标偏移，
+  导致鼠标一动桌面部件跟着抖。现在部件只跟随侧栏开合做景深位移。
+- 缩放逻辑补全：
+  - 开启侧栏平移时自动把 `workspaceZoom` 提升到「可移动余量 ≥ sidebarShift」，
+    否则位移会被 clamp 截断、移不到位。
+  - 壁纸按「显示尺寸 × 缩放」解码（`sourceSize`），8K 壁纸不再整幅载入内存，
+    视差放大后也不发虚；解码尺寸已贴合显示，`mipmap` 关闭。
+  - **桌面部件坐标系修正**：部件画布是屏幕尺寸、不随壁纸缩放，但部件一直按
+    「壁纸缩放空间」定位（`screen × zoom`）。结果 `y = -1`（贴底）的部件会被
+    推到屏幕外，自动摆放也会被重复缩放。现在统一改回屏幕坐标系。
+- 过渡动画：时长默认 400ms（Hyprland 的 `workspaces` 是 `speed = 7` = 700ms，
+  单位 ds；滚轮连续切工作区时 700ms 太长，视差追不上切换就是卡），
+  新增「工作区过渡时长」滑杆（200~1400ms）。
+- **踩坑：`Easing.BezierSpline` 的 `bezierCurve` 必须给 3 个控制点（6 个值，
+  末点 `1, 1`）**。一开始按 CSS 写法只给了 4 个值
+  `[0.1, 1.0, 0.0, 1.0]`，Qt 不报错，而是**静默退化成匀速直线**：
+  写了个无窗口 QML 探针实测，400ms 的动画到 192ms 才走到 50%
+  （同样条件下 OutCubic 已到 88%）。表现就是壁纸匀速慢慢挪、比窗口滑动
+  "慢半拍"。已改用 `Easing.OutCubic`（52ms 39%、192ms 88%、352ms 收尾），
+  探针实测动画恢复为 100Hz 平滑推进。
+
+**性能：Hyprland 事件风暴导致视差掉帧**
+
+- 现象：切工作区时视频壁纸视差"非常卡、感觉 24 帧都没有"，图片壁纸"慢半拍"。
+- 根因：`services/HyprlandData.qml` 对**每一个** Hyprland 事件都调 `updateAll()`，
+  而一轮 `updateAll()` 要起 5 个 `hyprctl` 子进程（实测每个 3~5ms CPU，
+  合计约 20ms）。一次工作区切换会收到近十个事件（workspace/focusedmon/
+  activewindow/…），滚轮连切时成倍，主线程被进程创建拖住。
+- 修复：按事件名只刷对应数据（workspace/focusedmon/activewindow → 工作区+窗口，
+  openwindow/closewindow/… → 窗口，monitor* → 显示器），并用 40ms 定时器
+  把同一波事件合并成一次刷新；`openlayer`/`closelayer` 直接跳过
+  （quickshell 自己开关面板就发这个事件，实测短时间内来了 6 个）。
+  实测 10 个事件从 50 个子进程降到 2 轮刷新（10 个）。
+- 顺带验证：mpv 的 `set_property` 往返延迟只有 0.05ms，125Hz 推送 CPU 也几乎
+  不变——所以视频视差的卡顿不在 IPC 频率上（推送频率仍从 125Hz 降到 50Hz，
+  因为 mpv 每收到一次 `set_property` 都会让视频输出重绘一次）。
+
+**性能：Quickshell 整体卡顿（OBS 录屏时尤其明显）**
+
+- 根因：`services/ResourceUsage.qml` 的采样定时器写成了 `interval: 1`
+  且 `repeat: true`——每秒上千次 reload `/proc` + 正则匹配 + 重建历史数组，
+  持续抢占事件循环。平时只是白烧 CPU，一旦 OBS 编码抢占 CPU 就被放大成
+  肉眼可见的卡顿。
+- 修复：改为读取 `Config.options.resources.updateInterval`（默认 3000ms）。
+  实测空闲 CPU 占用 3.0% → 0.8%。
+
+**修复：壁纸选择器里的视频缩略图**
+
+- 选择器的模糊背景 `source: Config.options.background.wallpaperPath`，
+  当前壁纸是视频时会直接把 `.mp4` 交给 QML 解码，日志里报
+  「不支持的图像格式」，整块背景留黑。改为走新增的
+  `Appearance.wallpaperDisplayPath`（视频自动退回缩略图），
+  `NiriOverview` 里的同类问题一并修掉。
+- `ThumbnailImage`：
+  - 生成缩略图改为「先写临时文件再原子改名」。原来进程被中断（GridView /
+    Carousel 复用 delegate 会重启进程）会留下半截 PNG，而后续判断只检查
+    `[ -f ]`，半截文件被当成有效缩略图 → 视频格子永远空白。
+  - 加载失败时不再直接给 `source` 赋值（那会破坏 `source: thumbnailPath`
+    绑定，delegate 复用后会一直显示上一个文件的缩略图），改用
+    `Qt.binding()` 恢复绑定。
+  - ffmpeg 取帧失败时回退到第 0 帧；`magick` 不存在时回退 `convert`。
+  - 同一目标不重复重启进程。
+
+**功能：Rime 中文模式下 `/` 弹出常用符号候选框**
+
+- `rime_ice.custom.yaml` 把 `half_shape` 的 `/` 由单值 `'/'` 改成 48 项
+  常用符号列表，按 `/` 弹候选框，`,` / `.` 翻页。
+- 原理（librime `gear/punctuator.cc`）：取到标点定义后只有**单值映射**会立即
+  上屏，列表型映射只列候选。
+- **坑一**：必须用 `punctuator/half_shape/+` 这种扁平路径。写成嵌套结构
+  `punctuator: { half_shape: ... }` 会把整个 `punctuator` 节点替换掉，
+  v 模式符号表（266 项）和全角标点会一起消失。
+- **坑二**：键名 `/` 不能写在路径里（会被当成路径分隔符），只能放在值里。
+- 校验方式：`rime_deployer --build` 后检查 `build/rime_ice.schema.yaml`。
+
 ### 2026-09-14（第二十七次）
 
 **修复：灵动岛动画优化 + 录屏/电池展开尺寸 bug**

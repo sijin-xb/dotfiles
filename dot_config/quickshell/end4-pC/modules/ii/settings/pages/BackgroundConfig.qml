@@ -540,11 +540,52 @@ ContentPage {
                     }
                 }
 
+                GroupedList {
+                    visible: Config.options.background.parallax.enable
+                    ConfigSlider {
+                        text: Translation.tr("Workspaces")
+                        value: Config.options.background.parallax.workspaceCount
+                        usePercentTooltip: false
+                        buttonIcon: "workspaces"
+                        from: 2
+                        to: 20
+                        stopIndicatorValues: [10]
+                        onValueChanged: {
+                            Config.options.background.parallax.workspaceCount = Math.round(value);
+                        }
+                    }
+                    ConfigSlider {
+                        text: Translation.tr("Workspace transition")
+                        value: Config.options.background.parallax.workspaceAnimationDuration
+                        usePercentTooltip: false
+                        buttonIcon: "timer"
+                        from: 200
+                        to: 1400
+                        stopIndicatorValues: [400]
+                        onValueChanged: {
+                            Config.options.background.parallax.workspaceAnimationDuration = Math.round(value);
+                        }
+                    }
+                }
+
+                GroupedList {
+                    visible: Config.options.background.parallax.enable
+                    ConfigSwitch {
+                        Layout.fillWidth: true
+                        buttonIcon: "movie"
+                        text: Translation.tr("Video wallpaper parallax")
+                        checked: Config.options.background.parallax.enableVideo
+                        onCheckedChanged: {
+                            Config.options.background.parallax.enableVideo = checked;
+                        }
+                    }
+                }
+
                 StyledText {
                     visible: Config.options.background.parallax.enable
                     Layout.fillWidth: true
                     Layout.topMargin: 4
-                    text: Translation.tr("Parallax is disabled for video wallpapers and centered wallpaper mode.")
+                    text: Translation.tr("Parallax is disabled in centered wallpaper mode. Video wallpapers are panned through mpvpaper's mpv IPC and need the mpvpaper backend.")
                     font.pixelSize: Appearance.font.pixelSize.small
                     color: Appearance.colors.colSubtext
                     opacity: 0.7

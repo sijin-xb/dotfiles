@@ -122,41 +122,61 @@ Variants {
 
         // ─── 壁纸视差引擎 ────────────────────────────────
         readonly property bool parallaxEnabled: Config.options.background.parallax.enable
-        readonly property bool wallpaperParallaxEnabled: parallaxEnabled && !bgRoot.wallpaperIsVideo && !bgRoot.centeredWallpaperEnabled
+        // 壳内壁纸层（静态图 / 视频缩略图）视差：居中壁纸模式下禁用
+        readonly property bool wallpaperParallaxEnabled: parallaxEnabled && !bgRoot.centeredWallpaperEnabled
 
+        // 壁纸缩放：既要覆盖「工作区平移」，也要覆盖「侧栏平移」的最大位移，
+        // 这样任何分辨率下可移动余量都刚好够用，不会出现位移被 clamp 截断。
         readonly property real parallaxZoom: {
             if (!parallaxEnabled) return 1.0;
-            var zoom = Config.options.background.parallax.workspaceZoom;
-            // 侧栏需要额外空间
+            var zoom = Math.max(1.0, Config.options.background.parallax.workspaceZoom);
+            var sw = Math.max(1, bgRoot.screen ? bgRoot.screen.width : 0);
             if (Config.options.background.parallax.enableSidebar) {
-                var sw = bgRoot.screen.width;
-                var sidebarMin = sw > 0 ? 1.0 + Config.options.background.parallax.sidebarShift * 2.0 / sw : 1.08;
-                zoom = Math.max(zoom, sidebarMin);
+                // movableX >= sidebarShift
+                zoom = Math.max(zoom, 1.0 + Config.options.background.parallax.sidebarShift * 2.0 / sw);
             }
             // 启用视差时至少缩放 2%，确保 movableX > 0
             return Math.max(zoom, 1.02);
         }
-        readonly property real movableX: (bgRoot.screen.width * parallaxZoom - bgRoot.screen.width) / 2
-        readonly property real movableY: (bgRoot.screen.height * parallaxZoom - bgRoot.screen.height) / 2
+        readonly property real movableX: Math.max(0, bgRoot.screen.width * (parallaxZoom - 1) / 2)
+        readonly property real movableY: Math.max(0, bgRoot.screen.height * (parallaxZoom - 1) / 2)
 
         // 工作区位置→偏移
         readonly property int activeWorkspaceId: Hyprland.focusedWorkspace?.id ?? 1
         readonly property bool isVerticalLayout: Config.options.background.parallax.autoVertical
             ? (Config.options.overview.columns <= Config.options.overview.rows)
             : Config.options.background.parallax.vertical
+        // 已经出现过的最大工作区号（用于自动探测工作区总数）
+        readonly property int observedWorkspaceCount: {
+            var maxId = 1;
+            var list = Hyprland.workspaces.values;
+            for (var i = 0; i < list.length; ++i) {
+                var id = list[i] ? list[i].id : 0;
+                if (id > maxId && id < 1000) maxId = id;
+            }
+            return maxId;
+        }
+        // 参与视差映射的工作区总数：配置值优先，其次自动探测，
+        // 且至少覆盖概览网格的一行，保证每个工作区都有独立的视差位置。
+        readonly property int workspaceCount: {
+            var configured = Config.options.background.parallax.workspaceCount;
+            var count = configured > 0 ? configured : Config.options.overview.columns;
+            return Math.max(2, count, bgRoot.observedWorkspaceCount);
+        }
+        readonly property real wsNormIndex: {
+            if (bgRoot.workspaceCount <= 1) return 0;
+            var idx = Math.min(Math.max(bgRoot.activeWorkspaceId, 1), bgRoot.workspaceCount) - 1;
+            return idx / (bgRoot.workspaceCount - 1) * 2 - 1; // -1 .. 1
+        }
         readonly property real wsNormX: {
             if (!Config.options.background.parallax.enableWorkspace || !parallaxEnabled) return 0;
-            var cols = Config.options.overview.columns;
-            if (cols <= 1) return 0;
-            var col = (activeWorkspaceId - 1) % cols;
-            return (col - (cols - 1) / 2.0) / ((cols - 1) / 2.0);
+            if (bgRoot.isVerticalLayout) return 0;
+            return bgRoot.wsNormIndex;
         }
         readonly property real wsNormY: {
-            if (!Config.options.background.parallax.enableWorkspace || !parallaxEnabled || !isVerticalLayout) return 0;
-            var rows = Config.options.overview.rows;
-            if (rows <= 1) return 0;
-            var row = Math.floor((activeWorkspaceId - 1) / Config.options.overview.columns) % rows;
-            return (row - (rows - 1) / 2.0) / ((rows - 1) / 2.0);
+            if (!Config.options.background.parallax.enableWorkspace || !parallaxEnabled) return 0;
+            if (!bgRoot.isVerticalLayout) return 0;
+            return bgRoot.wsNormIndex;
         }
 
         // 侧栏偏移
@@ -230,6 +250,141 @@ Variants {
             repeat: true
             onTriggered: { cursorPosProcess.running = true }
         }
+
+        // ─── 视频壁纸视差（mpv IPC）─────────────────────────
+        // 视频壁纸由 mpvpaper 在后景层播放，quickshell 的壁纸容器管不到它。
+        // switchwall.sh 会给每个显示器的 mpvpaper 加 input-ipc-server，
+        // 这里连上该 socket，用 video-zoom / video-align-x / video-align-y
+        // 复刻静态壁纸的缩放与平移（align ±1 正好对应 ±movableX/Y）。
+        readonly property bool videoParallaxEnabled: parallaxEnabled
+            && Appearance.wallpaperIsVideo && Config.options.background.parallax.enableVideo
+        readonly property string videoSocketDir: {
+            var configured = Config.options.background.parallax.videoSocketDir;
+            if (configured && configured.length > 0) return configured.replace(/\/+$/, "");
+            // 与 switchwall.sh 的 MPVPAPER_IPC_DIR 保持一致（都基于 XDG 缓存目录）
+            return CF.FileUtils.trimFileProtocol(`${Directories.cache}/mpvpaper`);
+        }
+        readonly property string videoSocketPath:
+            `${bgRoot.videoSocketDir}/mpvpaper-${bgRoot.screen ? bgRoot.screen.name : "unknown"}.sock`
+        readonly property bool videoParallaxActive: bgRoot.videoParallaxEnabled
+            && !bgRoot.parallaxFrozen && bgRoot.transitionProgress >= 1.0
+
+        property real lastVideoZoom: -1
+        property real lastVideoAlignX: -2
+        property real lastVideoAlignY: -2
+        // 只要「已应用的壁纸」是视频，mpvpaper 就在跑，就保持连接，
+        // 这样关掉视差时还能把视频复位回中性状态。
+        readonly property bool videoSocketWanted: Appearance.wallpaperIsVideo
+        property bool videoSocketLoaderActive: false
+        readonly property var mpvIpc: mpvIpcLoader.item
+        readonly property bool mpvConnected: bgRoot.mpvIpc ? bgRoot.mpvIpc.connected : false
+
+        function armVideoSocket() {
+            bgRoot.videoSocketLoaderActive = bgRoot.videoSocketWanted;
+        }
+        onVideoSocketWantedChanged: bgRoot.armVideoSocket()
+
+        // 静态壁纸下不创建 Socket，避免无意义的连接尝试与告警
+        Loader {
+            id: mpvIpcLoader
+            active: bgRoot.videoSocketLoaderActive
+            sourceComponent: Socket {
+                path: bgRoot.videoSocketPath
+                connected: true
+                // 消费 mpv 的回包，避免 socket 缓冲区堆积
+                parser: SplitParser {
+                    onRead: (line) => {}
+                }
+                onConnectionStateChanged: {
+                    if (connected) bgRoot.pushVideoParallax(true);
+                }
+            }
+        }
+        // Quickshell 的 Socket 连接失败后不会自己重连（socket 对象仍留在内部），
+        // 所以重试的方式是重建整个 Socket。
+        Timer {
+            id: videoSocketRetryTimer
+            interval: 2000
+            repeat: true
+            running: bgRoot.videoSocketLoaderActive && !bgRoot.mpvConnected
+            onTriggered: {
+                bgRoot.videoSocketLoaderActive = false;
+                Qt.callLater(bgRoot.armVideoSocket);
+            }
+        }
+
+        function mpvCommand(command) {
+            if (!bgRoot.mpvConnected) return;
+            bgRoot.mpvIpc.write(JSON.stringify({ command: command }) + "\n");
+            bgRoot.mpvIpc.flush();
+        }
+
+        // 视频视差偏移：跟着壁纸层的过渡曲线做插值。直接把目标值丢给 mpv 会让
+        // 视频在切换工作区时"瞬移"，看起来就是视差不够流畅。
+        property real videoOffsetX: bgRoot.parallaxOffsetX
+        property real videoOffsetY: bgRoot.parallaxOffsetY
+        // 与壁纸层用同一条曲线，视频和静态壁纸的运动才一致
+        Behavior on videoOffsetX {
+            enabled: !parallaxFrozen
+            NumberAnimation {
+                duration: GlobalStates.sidebarLeftOpen || GlobalStates.sidebarRightOpen
+                    ? 200 : Config.options.background.parallax.workspaceAnimationDuration
+                easing.type: Easing.OutCubic
+            }
+        }
+        Behavior on videoOffsetY {
+            enabled: !parallaxFrozen
+            NumberAnimation {
+                duration: GlobalStates.sidebarLeftOpen || GlobalStates.sidebarRightOpen
+                    ? 200 : Config.options.background.parallax.workspaceAnimationDuration
+                easing.type: Easing.OutCubic
+            }
+        }
+        readonly property bool videoAnimating: Math.abs(bgRoot.videoOffsetX - bgRoot.parallaxOffsetX) > 0.05
+            || Math.abs(bgRoot.videoOffsetY - bgRoot.parallaxOffsetY) > 0.05
+
+        // 把当前视差状态推给 mpvpaper；force 时忽略节流直接发送。
+        // 只发送真正变化的属性：动画期间 align 每帧都在变，如果顺手把没变的
+        // video-zoom 也重发一遍，mpv 每帧都要重配视频链，画面就会卡。
+        function pushVideoParallax(force) {
+            if (!bgRoot.mpvConnected) return;
+            var active = bgRoot.videoParallaxActive;
+            // mpv 的 video-zoom 是 log2 倍率：0 = 原尺寸，1 = 200%
+            var zoom = active ? Math.log(bgRoot.parallaxZoom) / Math.LN2 : 0;
+            // 注意：mpv 的 video-align-x/y 与 QML 里 x/y 的符号相反
+            //（align = +1 表示视频右边缘贴窗口右边，画面是往左露），所以取负号，
+            // 否则视频壁纸的移动方向会和静态壁纸相反。
+            var alignX = (active && movableX > 0)
+                ? -Math.max(-1, Math.min(1, bgRoot.videoOffsetX / movableX)) : 0;
+            var alignY = (active && movableY > 0)
+                ? -Math.max(-1, Math.min(1, bgRoot.videoOffsetY / movableY)) : 0;
+
+            if (force || Math.abs(zoom - bgRoot.lastVideoZoom) >= 0.0002) {
+                bgRoot.lastVideoZoom = zoom;
+                bgRoot.mpvCommand(["set_property", "video-zoom", zoom]);
+            }
+            if (force || Math.abs(alignX - bgRoot.lastVideoAlignX) >= 0.0004) {
+                bgRoot.lastVideoAlignX = alignX;
+                bgRoot.mpvCommand(["set_property", "video-align-x", alignX]);
+            }
+            if (force || Math.abs(alignY - bgRoot.lastVideoAlignY) >= 0.0004) {
+                bgRoot.lastVideoAlignY = alignY;
+                bgRoot.mpvCommand(["set_property", "video-align-y", alignY]);
+            }
+        }
+
+        Timer {
+            id: videoParallaxTimer
+            // 过渡期间 ~50Hz 推送：mpv 每个 set_property 都会让 VO 重绘一次，
+            // 推得比显示器刷新率还快只是白烧 GPU（滚轮连续切工作区时会明显卡）。
+            // 50Hz 对只有十几~几十像素的位移已经足够平滑。
+            interval: bgRoot.videoAnimating ? 20
+                : Math.max(16, Config.options.background.parallax.cursorPollInterval)
+            repeat: true
+            running: bgRoot.videoParallaxActive && bgRoot.mpvConnected
+            onTriggered: bgRoot.pushVideoParallax(false)
+        }
+        onVideoParallaxActiveChanged: bgRoot.pushVideoParallax(true)
         // ─── 视差引擎结束 ──────────────────────────────────
 
         readonly property bool hiddenForFullscreen: !GlobalStates.screenLocked
@@ -302,6 +457,7 @@ Variants {
                     : bgRoot.wallpaperAnimation
             }
             bgRoot.videoRevealed = bgRoot.wallpaperIsVideo
+            bgRoot.armVideoSocket()
             bgRoot._updateParallaxFrozen()
         }
 
@@ -388,13 +544,25 @@ Variants {
                 x: wallpaperParallaxEnabled && !parallaxFrozen ? parallaxOffsetX : 0
                 y: wallpaperParallaxEnabled && !parallaxFrozen ? parallaxOffsetY : 0
 
+                // 注意：不要用 Easing.BezierSpline + 4 个值的 bezierCurve。
+                // Qt 需要 3 个控制点（6 个值，末点必须是 1,1），少写终点会退化成
+                // 匀速直线（实测 400ms 动画在 192ms 才走到 50%），壁纸就会"慢半拍"。
+                // OutCubic：52ms 走 39%、192ms 走 88%、352ms 收尾，前段跟手、尾巴短。
                 Behavior on x {
                     enabled: !parallaxFrozen
-                    NumberAnimation { duration: GlobalStates.sidebarLeftOpen || GlobalStates.sidebarRightOpen ? 200 : 600; easing.type: Easing.OutCubic }
+                    NumberAnimation {
+                        duration: GlobalStates.sidebarLeftOpen || GlobalStates.sidebarRightOpen
+                            ? 200 : Config.options.background.parallax.workspaceAnimationDuration
+                        easing.type: Easing.OutCubic
+                    }
                 }
                 Behavior on y {
                     enabled: !parallaxFrozen
-                    NumberAnimation { duration: 600; easing.type: Easing.OutCubic }
+                    NumberAnimation {
+                        duration: GlobalStates.sidebarLeftOpen || GlobalStates.sidebarRightOpen
+                            ? 200 : Config.options.background.parallax.workspaceAnimationDuration
+                        easing.type: Easing.OutCubic
+                    }
                 }
 
             Image {
@@ -403,9 +571,14 @@ Variants {
                 height: wallpaperParallaxContainer.height
                 fillMode: Image.PreserveAspectCrop
                 cache: true
-                mipmap: true
                 smooth: true
                 asynchronous: true
+                // 按缩放后的显示尺寸解码：既避免 4K/8K 壁纸整幅载入占用大量内存，
+                // 又保证视差放大后依然清晰（长宽比不同时 Qt 会等比缩放）。
+                // 解码尺寸已贴合显示尺寸，mipmap 不再有用（只在缩小时才生效）。
+                sourceSize.width: Math.ceil(width * (wallpaperParallaxEnabled ? parallaxZoom : 1))
+                sourceSize.height: Math.ceil(height * (wallpaperParallaxEnabled ? parallaxZoom : 1))
+                mipmap: false
                 layer.enabled: true
                 visible: false
             }
@@ -417,8 +590,10 @@ Variants {
                 fillMode: Image.PreserveAspectCrop
                 cache: true
                 smooth: true
-                mipmap: true
+                mipmap: false
                 asynchronous: true
+                sourceSize.width: Math.ceil(width * (wallpaperParallaxEnabled ? parallaxZoom : 1))
+                sourceSize.height: Math.ceil(height * (wallpaperParallaxEnabled ? parallaxZoom : 1))
                 layer.enabled: blurLoader.active
                 visible: !blurLoader.active && !bgRoot.centeredWallpaperEnabled && !bgRoot.videoRevealed
                     && (bgRoot.wallpaperAnimation === "" || bgRoot.transitionProgress >= 1.0)
@@ -701,27 +876,17 @@ Variants {
                 width: parent.width
                 height: parent.height
 
-                // 部件视差偏移：只响应侧栏/光标，工作区切换保持原位（视差中性）
-                // widgetsFactor 仍然放大景深，让部件在镜头微动时更明显
+                // 部件只跟随侧栏开合做轻微景深位移。光标跟随仅作用于壁纸层，
+                // 否则鼠标一动桌面部件就会跟着抖动；工作区切换时部件保持原位。
                 x: parallaxEnabled && !parallaxFrozen
-                    ? (sidebarOffsetX + cursorNormX * movableX * Config.options.background.parallax.cursorSensitivity) * Config.options.background.parallax.widgetsFactor
+                    ? sidebarOffsetX * Config.options.background.parallax.widgetsFactor
                     : 0
-                y: parallaxEnabled && !parallaxFrozen
-                    ? (cursorNormY * movableY * Config.options.background.parallax.cursorSensitivity) * Config.options.background.parallax.widgetsFactor
-                    : 0
+                y: 0
                 Behavior on x {
                     enabled: !parallaxFrozen
                     NumberAnimation { duration: 600; easing.type: Easing.OutCubic }
                 }
-                Behavior on y {
-                    enabled: !parallaxFrozen
-                    NumberAnimation { duration: 600; easing.type: Easing.OutCubic }
-                }
 
-                // 视差缩放参数传递给子组件
-                readonly property real effectiveWallpaperScale: wallpaperParallaxEnabled ? parallaxZoom : 1
-                readonly property real effectiveScaledWidth: bgRoot.screen.width * effectiveWallpaperScale
-                readonly property real effectiveScaledHeight: bgRoot.screen.height * effectiveWallpaperScale
 
                 transitions: Transition {
                     PropertyAnimation {
@@ -743,9 +908,6 @@ Variants {
                     sourceComponent: VisualizerWidget {
                         screenWidth: bgRoot.screen.width
                         screenHeight: bgRoot.screen.height
-                        scaledScreenWidth: widgetCanvas.effectiveScaledWidth
-                        scaledScreenHeight: widgetCanvas.effectiveScaledHeight
-                        wallpaperScale: widgetCanvas.effectiveWallpaperScale
                     }
                 }
                 FadeLoader {
@@ -755,9 +917,6 @@ Variants {
                     sourceComponent: CustomImage {
                         screenWidth:        bgRoot.screen.width
                         screenHeight:       bgRoot.screen.height
-                        scaledScreenWidth: widgetCanvas.effectiveScaledWidth
-                        scaledScreenHeight: widgetCanvas.effectiveScaledHeight
-                        wallpaperScale: widgetCanvas.effectiveWallpaperScale
                     }
                 }
                 FadeLoader {
@@ -767,9 +926,6 @@ Variants {
                     sourceComponent: CalendarWidget {
                         screenWidth: bgRoot.screen.width
                         screenHeight: bgRoot.screen.height
-                        scaledScreenWidth: widgetCanvas.effectiveScaledWidth
-                        scaledScreenHeight: widgetCanvas.effectiveScaledHeight
-                        wallpaperScale: widgetCanvas.effectiveWallpaperScale
                     }
                 }
                 FadeLoader {
@@ -779,9 +935,6 @@ Variants {
                     sourceComponent: WeatherWidget {
                         screenWidth: bgRoot.screen.width
                         screenHeight: bgRoot.screen.height
-                        scaledScreenWidth: widgetCanvas.effectiveScaledWidth
-                        scaledScreenHeight: widgetCanvas.effectiveScaledHeight
-                        wallpaperScale: widgetCanvas.effectiveWallpaperScale
                     }
                 }
                 FadeLoader {
@@ -792,9 +945,6 @@ Variants {
                     sourceComponent: ClockWidget {
                         screenWidth: bgRoot.screen.width
                         screenHeight: bgRoot.screen.height
-                        scaledScreenWidth: widgetCanvas.effectiveScaledWidth
-                        scaledScreenHeight: widgetCanvas.effectiveScaledHeight
-                        wallpaperScale: widgetCanvas.effectiveWallpaperScale
                         wallpaperSafetyTriggered: bgRoot.wallpaperSafetyTriggered
                     }
                 }
@@ -805,9 +955,6 @@ Variants {
                     sourceComponent: NotesWidget {
                         screenWidth: bgRoot.screen.width
                         screenHeight: bgRoot.screen.height
-                        scaledScreenWidth: widgetCanvas.effectiveScaledWidth
-                        scaledScreenHeight: widgetCanvas.effectiveScaledHeight
-                        wallpaperScale: widgetCanvas.effectiveWallpaperScale
                     }
                 }
                 FadeLoader {
@@ -819,9 +966,6 @@ Variants {
                     sourceComponent: MediaWidget {
                         screenWidth: bgRoot.screen.width
                         screenHeight: bgRoot.screen.height
-                        scaledScreenWidth: widgetCanvas.effectiveScaledWidth
-                        scaledScreenHeight: widgetCanvas.effectiveScaledHeight
-                        wallpaperScale: widgetCanvas.effectiveWallpaperScale
                     }
                     onLoaded: {
                         if (item && item.requestReset) {
@@ -839,9 +983,6 @@ Variants {
                     sourceComponent: ImageConverterWidget {
                         screenWidth:        bgRoot.screen.width
                         screenHeight:       bgRoot.screen.height
-                        scaledScreenWidth: widgetCanvas.effectiveScaledWidth
-                        scaledScreenHeight: widgetCanvas.effectiveScaledHeight
-                        wallpaperScale: widgetCanvas.effectiveWallpaperScale
                     }
                 }
                 FadeLoader {
@@ -851,9 +992,6 @@ Variants {
                     sourceComponent: ResourcesWidget {
                         screenWidth:        bgRoot.screen.width
                         screenHeight:       bgRoot.screen.height
-                        scaledScreenWidth: widgetCanvas.effectiveScaledWidth
-                        scaledScreenHeight: widgetCanvas.effectiveScaledHeight
-                        wallpaperScale: widgetCanvas.effectiveWallpaperScale
                     }
                 }
                 FadeLoader {
@@ -863,9 +1001,6 @@ Variants {
                     sourceComponent: WorldClockWidget {
                         screenWidth: bgRoot.screen.width
                         screenHeight: bgRoot.screen.height
-                        scaledScreenWidth: widgetCanvas.effectiveScaledWidth
-                        scaledScreenHeight: widgetCanvas.effectiveScaledHeight
-                        wallpaperScale: widgetCanvas.effectiveWallpaperScale
                     }
                 }
                 FadeLoader {
@@ -875,9 +1010,6 @@ Variants {
                     sourceComponent: UserCardWidget {
                         screenWidth: bgRoot.screen.width
                         screenHeight: bgRoot.screen.height
-                        scaledScreenWidth: widgetCanvas.effectiveScaledWidth
-                        scaledScreenHeight: widgetCanvas.effectiveScaledHeight
-                        wallpaperScale: widgetCanvas.effectiveWallpaperScale
                     }
                 }
                 FadeLoader {
@@ -887,9 +1019,6 @@ Variants {
                     sourceComponent: TodoWidget {
                         screenWidth: bgRoot.screen.width
                         screenHeight: bgRoot.screen.height
-                        scaledScreenWidth: widgetCanvas.effectiveScaledWidth
-                        scaledScreenHeight: widgetCanvas.effectiveScaledHeight
-                        wallpaperScale: widgetCanvas.effectiveWallpaperScale
                     }
                 }
                 FadeLoader {
@@ -899,9 +1028,6 @@ Variants {
                     sourceComponent: TimerWidget {
                         screenWidth:        bgRoot.screen.width
                         screenHeight:       bgRoot.screen.height
-                        scaledScreenWidth: widgetCanvas.effectiveScaledWidth
-                        scaledScreenHeight: widgetCanvas.effectiveScaledHeight
-                        wallpaperScale: widgetCanvas.effectiveWallpaperScale
                     }
                 }
             }
