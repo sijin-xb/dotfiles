@@ -2,6 +2,47 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+### 2026-09-15（第三十次）
+
+**修复：设置页下拉框吞字（换语言会更严重）**
+
+- 根因：`ConfigComboBox` 的 `fieldWidth` 同时决定按钮和弹窗宽度
+  （`StyledComboBox` 里 `popup.width = root.width`），而视频壁纸后端 /
+  过渡动画把它设成了 **50px**，于是按钮和弹窗里的文案全被截断。
+- 修复：控件层按模型里最长的文案用 `TextMetrics` 量一次宽度，
+  `fieldWidth` 降级为下限 —— 这样所有页面（BarConfig / NiriConfig /
+  ServicesConfig 里也有 50/70/100 的）一起修好，换语言也不会整段被吞。
+
+**修复：配色生成里的「光标」开关是坏的**
+
+- `InterfaceConfig.qml` 的开关绑到 `appearance.wallpaperTheming.enableCursor`，
+  但 `Config.qml` 里没有这个键 → 绑到 undefined（日志报
+  `Unable to assign [undefined] to bool`），点了没反应。
+- 该键实际由 `~/.config/hypr/hyprland/scripts/generate_cursor_theme.py` 读取
+  （缺键按启用处理），所以脚本一直在跑，只是设置里关不掉。
+- 已补上 `property bool enableCursor: true`。
+- 其余三个开关确认有效：`enableAppsAndShell`、`enableQtApps` 由
+  `switchwall.sh` 读取，`enableTerminal` 由 `applycolor.sh` 读取。
+
+**修复：SPlayer 歌词对部分歌曲完全不跟**
+
+- `lyric-change` 的 `lrcData`/`yrcData` 在只有 LRC（没有逐字歌词）的歌上
+  是**纯文本 LRC 字符串**而不是行数组，桥接脚本只认数组 → 解析成空、
+  歌词完全不显示（《unravel》即属此类）。
+- 已支持字符串形式（按 `[mm:ss.xx]` 解析，结束时间取下一行开始时间），
+  两种形状都单测通过。
+- 另加 `--debug <file>`：把原始 WS 报文转储下来，便于排查单曲问题。
+
+**调整：rime `/` 符号候选框首位加半角 `/`**
+
+- 打 `/` 后按空格即可输入字面量斜杠（菜单第一项），
+  写路径/URL 时不再被符号框挡住；其余 48 项常用符号顺序不变。
+
+**文档：README 许可证章节去重**
+
+- `### 许可证继承` 与 `## 许可证` 重复，合并为一处（保留目录里引用的
+  `## 许可证`，并把"与上游一致 / 保留上游版权与致谢"的信息并进去）。
+
 ### 2026-09-15（第二十九次）
 
 **功能：SPlayer 歌词联动**

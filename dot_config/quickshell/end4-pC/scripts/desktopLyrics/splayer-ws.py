@@ -19,6 +19,7 @@ import argparse
 import base64
 import json
 import os
+import re
 import socket
 import struct
 import sys
@@ -135,11 +136,45 @@ def line_text(line: dict) -> str:
     return ""
 
 
+LRC_TIME_RE = re.compile(r"\[(\d{1,2}):(\d{1,2})(?:[.:](\d{1,3}))?\]")
+
+
+def parse_lrc_text(text: str) -> list[dict]:
+    """解析纯文本 LRC（"[00:12.34]歌词" 形式）。
+
+    有些歌 SPlayer 只拿得到 LRC 文本，lrcData 会是字符串而不是行数组；
+    之前只处理数组，这类歌就会解析成空、歌词完全不跟。
+    """
+    lines: list[dict] = []
+    for raw in text.splitlines():
+        stamps = LRC_TIME_RE.findall(raw)
+        if not stamps:
+            continue
+        content = LRC_TIME_RE.sub("", raw).strip()
+        if not content:
+            continue
+        for minute, second, frac in stamps:
+            ms = int(minute) * 60000 + int(second) * 1000
+            if frac:
+                ms += int(frac.ljust(3, "0")[:3])
+            lines.append({"start": ms, "end": ms, "text": content, "translation": ""})
+    lines.sort(key=lambda x: x["start"])
+    # 每行的结束时间取下一行的开始时间
+    for i, line in enumerate(lines[:-1]):
+        line["end"] = lines[i + 1]["start"]
+    return lines
+
+
 def normalize_lyrics(data: dict) -> list[dict]:
     """把 lrcData / yrcData 归一成 [{start, end, text, translation}]（时间单位 ms）。"""
     raw = None
     for key in ("yrcData", "lrcData"):
         value = data.get(key)
+        # 字符串 = 纯文本 LRC（SPlayer 在只有 LRC 没有逐字歌词时会这样推）
+        if isinstance(value, str) and value.strip():
+            parsed = parse_lrc_text(value)
+            if parsed:
+                return parsed
         if isinstance(value, list) and value:
             raw = value
             break
@@ -225,6 +260,7 @@ def main() -> int:
     parser.add_argument("--port", type=int, default=25885)
     parser.add_argument("--path", default="/")
     parser.add_argument("--retry", type=float, default=3.0, help="重连间隔（秒）")
+    parser.add_argument("--debug", default="", help="把原始 WS 报文追加写到此文件，用于排查")
     args = parser.parse_args()
 
     last: dict = {"lines": [], "duration": 0}
@@ -241,6 +277,12 @@ def main() -> int:
                     break
                 opcode, payload = frame
                 if opcode == 0x1:
+                    if args.debug:
+                        try:
+                            with open(args.debug, "a", encoding="utf-8") as dbg:
+                                dbg.write(payload.decode("utf-8", "replace")[:20000] + "\n")
+                        except OSError:
+                            pass
                     try:
                         handle_message(client, json.loads(payload.decode("utf-8", "replace")), last)
                     except (ValueError, TypeError) as exc:

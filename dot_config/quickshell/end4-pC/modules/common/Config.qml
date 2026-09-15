@@ -134,6 +134,11 @@ Singleton {
                     property bool enableAppsAndShell: true
                     property bool enableQtApps: true
                     property bool enableTerminal: true
+                    // 光标主题跟随壁纸主色重渲染。由
+                    // ~/.config/hypr/hyprland/scripts/generate_cursor_theme.py 读取；
+                    // 之前 Config.qml 里漏了这个键，导致设置里的"光标"开关是坏的
+                    // （绑到 undefined，点了没反应，还会报 Unable to assign）。
+                    property bool enableCursor: true
                     property JsonObject terminalGenerationProps: JsonObject {
                         property real harmony: 0.6
                         property real harmonizeThreshold: 100

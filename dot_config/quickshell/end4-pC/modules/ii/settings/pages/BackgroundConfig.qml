@@ -289,7 +289,6 @@ ContentPage {
                     Layout.fillWidth: true
                     buttonIcon: "movie"
                     text: Translation.tr("Video wallpaper backend")
-                    fieldWidth: 50
                     model: [
                         { displayName: Translation.tr("Mpvpaper (recommended)"), icon: "settings_backup_restore", value: "mpvpaper" },
                         { displayName: Translation.tr("Wallr (video may freeze)"), icon: "wallpaper", value: "wallr" },
@@ -306,7 +305,6 @@ ContentPage {
                     Layout.fillWidth: true
                     buttonIcon: "texture"
                     text: Translation.tr("Transitions")
-                    fieldWidth: 50
                     model: [
                         { displayName: Translation.tr("None"), icon: "block", value: "" },
                         { displayName: Translation.tr("Circle"), icon: "circle", value: "circleSelect" },
