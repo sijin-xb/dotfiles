@@ -200,11 +200,21 @@ def normalize_lyrics(data: dict) -> list[dict]:
         except (TypeError, ValueError):
             continue
         translation = item.get("translatedLyric") or inner.get("translatedLyric") or ""
+        # 音译：SPlayer 给的是整行的 romanLyric，或逐字的 words[].romanWord
+        roman = item.get("romanLyric") or inner.get("romanLyric") or ""
+        if not roman:
+            words = inner.get("words")
+            if isinstance(words, list):
+                roman = " ".join(
+                    str(w.get("romanWord", "")) for w in words
+                    if isinstance(w, dict) and w.get("romanWord")
+                )
         lines.append({
             "start": start_ms,
             "end": end_ms,
             "text": text,
             "translation": str(translation).strip(),
+            "roman": str(roman).strip(),
         })
     lines.sort(key=lambda x: x["start"])
     return lines

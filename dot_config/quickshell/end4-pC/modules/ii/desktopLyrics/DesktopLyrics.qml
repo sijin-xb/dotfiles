@@ -371,10 +371,14 @@ PanelWindow {
                 continue;
             const trans = translations.length > 0 ? (translations[transIndex] ?? "") : "";
             transIndex += 1;
+            // 音译（romaji）与语义翻译分开存：原来是「看起来像音译就丢掉」，
+            // 现在保留到 roman 字段，由视图决定怎么显示。
+            const looksRomaji = isRomajiText(trans);
             lines.push({
                 start: start,
                 text: text,
-                trans: (trans !== text && !isRomajiText(trans)) ? trans.trim() : "",
+                trans: (trans !== text && !looksRomaji) ? trans.trim() : "",
+                roman: (trans !== text && looksRomaji) ? trans.trim() : "",
                 words: (words && words.length > 0) ? words : null
             });
         }
@@ -439,6 +443,7 @@ PanelWindow {
                 start: (l.start ?? 0) / 1000,
                 text: l.text ?? "",
                 trans: l.translation ?? "",
+                roman: l.roman ?? "",
             }));
             root.rawLyricOffset = 0;
             root.currentLineIndex = -1;
@@ -837,12 +842,17 @@ PanelWindow {
                     }
                 }
 
+                // 音译（romaji / 拼音）优先，没有音译时退回语义翻译
                 Text {
+                    readonly property string sub: (parent.modelData.roman ?? "").length > 0
+                        ? parent.modelData.roman
+                        : (parent.modelData.trans ?? "")
                     anchors.horizontalCenter: parent.horizontalCenter
-                    visible: parent.isCurrent && parent.modelData.trans.length > 0
-                    text: parent.modelData.trans
+                    visible: parent.isCurrent && sub.length > 0
+                    text: sub
                     font.family: Appearance.font.family.expressive
                     font.pixelSize: 13
+                    font.italic: (parent.modelData.roman ?? "").length > 0
                     color: Appearance.colors.colSecondary
                     opacity: 0.85
                     horizontalAlignment: Text.AlignHCenter

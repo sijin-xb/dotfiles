@@ -365,7 +365,19 @@ Item {
                         }
                     }
 
-                    NavigationRailTabArray {
+                    // 导航项放进可滚动容器：加了搜索框之后，侧栏内容变高，
+                    // 窗口不够高时最后一项（关于）会溢出面板外。
+                    Flickable {
+                        id: settingsNavScroll
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        contentHeight: settingsNavArray.implicitHeight
+                        clip: true
+                        boundsBehavior: Flickable.StopAtBounds
+
+                        NavigationRailTabArray {
+                        id: settingsNavArray
+                        width: settingsNavScroll.width
                         visible: !(navRail.expanded && root.settingsSearchQuery.trim().length > 0)
                         currentIndex: root.currentPage
                         expanded: navRail.expanded
@@ -386,6 +398,7 @@ Item {
                                 buttonText: modelData.name
                                 showToggledHighlight: false
                             }
+                        }
                         }
                     }
                 }
