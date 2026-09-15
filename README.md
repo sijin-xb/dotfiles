@@ -28,7 +28,8 @@ bash 脚本完成，不需要 chezmoi 二进制。
   （同名文件在模板之后加载并覆盖模板）
 - Quickshell（end4-pC fork）差异层：栏、侧边栏、启动器、总览、设置面板
 - 锁屏：Caelestia 风格三栏布局（居中圆角方块 → 点击展开成横条，Material 3
-  形状 morph 动画）；quickshell 未运行时回退 hyprlock。
+  形状 morph 动画），按屏幕高度自适应并支持密码框自动 / 唤醒重聚焦；quickshell
+  未运行时回退 hyprlock。依赖 `qt6-m3shapes-git`（AUR）与 Caelestia QML 插件。
   详见 [docs/lockscreen.md](docs/lockscreen.md)
 - 桌面歌词：逐字计时（酷狗 KRC），适配任意 MPRIS 播放器；SPlayer 可走
   WebSocket 直推。详见 [docs/integrations.md](docs/integrations.md)
@@ -190,10 +191,14 @@ docs/                     设计说明与排障文档（见下）
 - 部分 shader 过渡效果来自 [@simeulinuxkaliaiwr](https://github.com/simeulinuxkaliaiwr)
 - 壁纸选择器的斜切轮播视图 UI 灵感来自 [ilyamiro/serpantinum](https://github.com/ilyamiro/serpantinum)
   by [@ilyamiro](https://github.com/ilyamiro)，按本项目设计令牌重写，未引入其运行时依赖
-- 锁屏的三栏布局交互与 Hyprland 窗口阴影参数参考
+- 锁屏的三栏布局与展开动画移植自
   [caelestia-dots/caelestia](https://github.com/caelestia-dots/caelestia)
-  by [@caelestia-dots](https://github.com/caelestia-dots)，按本项目设计令牌重写，
-  未引入其 C++ 插件与运行时依赖
+  by [@caelestia-dots](https://github.com/caelestia-dots)（GPL-3.0），
+  按本项目设计令牌（`Appearance`）重写配色与字体；形变动画依赖其生态的
+  [soramanew/m3shapes](https://github.com/soramanew/m3shapes)（AUR 包
+  `qt6-m3shapes-git`），配置层依赖 Caelestia QML 插件（`Caelestia.Config`
+  的 `Tokens.anim.*`，由安装脚本 `[4/7]` 步编译）。认证、媒体、歌词等
+  运行时逻辑仍走 end4-pC 自身服务，未引入 Caelestia shell / CLI。
 
 ## 许可证
 

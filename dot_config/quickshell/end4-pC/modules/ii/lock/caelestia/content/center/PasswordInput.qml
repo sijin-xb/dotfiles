@@ -3,13 +3,12 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import M3Shapes
-import Caelestia.Config
 import qs.modules.common
+import qs.services
 import "../../components"
 
 // 移植自 caelestia-dots/shell（GPL-3.0）modules/lock/center/PasswordInput.qml。
 // pam.* -> LockContext：buffer 判定用 currentText，提交用 tryUnlock()。
-// 键盘输入直接操作 currentText，Enter 触发 tryUnlock。
 StyledRect {
     id: root
 
@@ -18,15 +17,16 @@ StyledRect {
     required property var lock
 
     readonly property bool hasInput: lock.currentText.length > 0
+    readonly property int fieldHeight: Math.round(40 * Math.max(0.9, centerScale))
 
     implicitWidth: {
-        const w = centerWidth * 0.8;
-        return hasInput ? w : Math.min(w, inputField.placeholderWidth + iconWrapper.implicitWidth + enterButton.implicitWidth + input.spacing * 2 + Tokens.padding.medium * 2);
+        const w = centerWidth * 0.9;
+        return hasInput ? w : Math.min(w, inputField.placeholderWidth + iconWrapper.implicitWidth + enterButton.implicitWidth + input.spacing * 2 + 20)
     }
-    implicitHeight: input.implicitHeight + Tokens.padding.small
+    implicitHeight: fieldHeight
 
-    color: Appearance.m3colors.m3surfaceContainer
-    radius: Tokens.rounding.full
+    color: Appearance.m3colors.m3surfaceContainerHigh
+    radius: Appearance.rounding.full
 
     focus: true
     onActiveFocusChanged: {
@@ -65,9 +65,7 @@ StyledRect {
         }
     }
 
-    Behavior on implicitWidth {
-        Anim {}
-    }
+    Behavior on implicitWidth { Anim {} }
 
     StateLayer {
         hoverEnabled: false
@@ -77,31 +75,29 @@ StyledRect {
 
     RowLayout {
         id: input
-
         anchors.fill: parent
-        anchors.margins: Tokens.padding.extraSmall
-        spacing: Tokens.spacing.medium
+        anchors.leftMargin: 6
+        anchors.rightMargin: 6
+        spacing: 8
 
         Item {
             id: iconWrapper
-
             Layout.fillHeight: true
             implicitWidth: height
 
             MaterialIcon {
                 anchors.centerIn: parent
-                anchors.verticalCenterOffset: 1
                 text: inputField.showPassword ? "visibility" : "lock"
                 color: Appearance.m3colors.m3onSurfaceVariant
-                fontStyle: Tokens.font.icon.builders.medium.scale(root.centerScale).build()
+                font.pixelSize: Math.round(Appearance.font.pixelSize.large * Math.max(0.9, centerScale))
                 fill: text === "visibility"
 
                 StateLayer {
                     anchors.fill: undefined
                     anchors.centerIn: parent
-                    implicitWidth: parent.implicitHeight + Tokens.padding.small * 2
+                    implicitWidth: parent.implicitHeight + 12
                     implicitHeight: implicitWidth
-                    radius: Tokens.rounding.full
+                    radius: Appearance.rounding.full
                     onClicked: inputField.showPassword = !inputField.showPassword
                 }
             }
@@ -117,17 +113,12 @@ StyledRect {
 
         Item {
             id: enterButton
-
             implicitWidth: implicitHeight
-            implicitHeight: {
-                const h = enterIcon.implicitHeight + Tokens.padding.extraSmall * 2;
-                return h % 2 === 0 ? h : h + 1;
-            }
+            implicitHeight: Math.round(30 * Math.max(0.9, centerScale))
 
             MaterialShape {
                 anchors.fill: parent
-
-                color: root.hasInput ? Appearance.m3colors.m3primary : Appearance.m3colors.m3surfaceContainerHigh
+                color: root.hasInput ? Appearance.m3colors.m3primary : Appearance.m3colors.m3surfaceContainerHighest
                 shape: root.hasInput ? MaterialShape.Arrow : MaterialShape.Circle
                 scale: !root.hasInput ? 1 : mouse.pressed ? 0.6 : mouse.containsMouse ? 0.8 : 0.7
                 rotation: 90
@@ -151,9 +142,9 @@ StyledRect {
                 id: enterIcon
                 anchors.centerIn: parent
                 text: "arrow_forward"
-                color: Appearance.m3colors.m3onSurfaceVariant
-                fontStyle: Tokens.font.icon.builders.medium.scale(root.centerScale * 1.2).build()
-                opacity: root.hasInput ? 0 : 1
+                color: root.hasInput ? Appearance.m3colors.m3onPrimary : Appearance.m3colors.m3onSurfaceVariant
+                font.pixelSize: Math.round(Appearance.font.pixelSize.normal * Math.max(0.9, centerScale))
+                opacity: root.hasInput ? 1 : 0
                 Behavior on opacity { Anim { type: Anim.DefaultEffects } }
             }
         }

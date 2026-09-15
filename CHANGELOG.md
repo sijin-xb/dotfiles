@@ -2,6 +2,19 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+### 2026-09-16（第三十八次）
+
+**锁屏：文档同步 + 资源卡对齐**
+
+- `Resources.qml`：三个 `MaterialShape`（Pentagon / Slanted / Gem）视觉占比不同
+  导致高低不齐，统一取 `Math.min(width, height)` 作为形状尺寸并 `anchors.centerIn`。
+- `docs/lockscreen.md`：新增「屏幕尺寸」一节，说明 `screenHeight = root.height`
+  的正确做法以及 `parent.screen` 父链为何会让布局塌缩到右下角；补全背景 / 配色 /
+  字体 / 圆角 / i18n 的说明；删除已过时的 `screen` 传递描述。
+- `README.md`：致谢段从「未引入其 C++ 插件」改为如实列出依赖
+  （`qt6-m3shapes-git` + Caelestia QML 插件），并明确运行时逻辑仍走 end4-pC 服务；
+  「包含内容」一节补注锁屏依赖。
+
 ### 2026-09-16（第三十七次）
 
 **锁屏：移植为 Caelestia 风格（1:1 视觉）**

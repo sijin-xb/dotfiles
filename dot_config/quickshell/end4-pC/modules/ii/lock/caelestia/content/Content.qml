@@ -2,20 +2,22 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import qs.modules.common
 import "center"
 
 // 移植自 caelestia-dots/shell（GPL-3.0）modules/lock/Content.qml。
-// 三栏：左（媒体 + 歌词）/ 中（时钟 + 密码）/ 右（资源 + 通知）。
+// 三栏：左（媒体 + 歌词）/ 中（时钟 + 密码）/ 右（资源）。
 RowLayout {
     id: root
 
     required property var lock
+    required property real screenHeight
 
-    spacing: Tokens.spacing.largeIncreased * 2
+    spacing: 16
 
     ColumnLayout {
         Layout.fillWidth: true
-        spacing: Tokens.spacing.medium
+        spacing: 12
 
         Media {
             Layout.fillWidth: true
@@ -31,17 +33,17 @@ RowLayout {
 
     Center {
         lock: root.lock
+        screenHeight: root.screenHeight
     }
 
     ColumnLayout {
         Layout.fillWidth: true
-        spacing: Tokens.spacing.medium
+        spacing: 12
 
         Resources {
             Layout.fillWidth: true
         }
 
-        // 阶段 3：通知面板
         Item { Layout.fillWidth: true; Layout.fillHeight: true }
     }
 }

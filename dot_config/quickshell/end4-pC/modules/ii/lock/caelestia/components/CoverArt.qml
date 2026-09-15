@@ -65,7 +65,7 @@ Item {
         grade: 200
         text: image.status === Image.Error ? "broken_image" : "art_track"
         color: Appearance.m3colors.m3onSurfaceVariant
-        fontStyle: Tokens.font.icon.size((parent.width * 0.35) || 1).build()
+        font.pixelSize: Math.round((root.width * 0.35) || 16)
         opacity: image.status === Image.Null || image.status === Image.Error ? 1 : 0
         animate: true
 

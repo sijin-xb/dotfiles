@@ -3,7 +3,7 @@
 > **范围**：`dot_config/quickshell/end4-pC/modules/ii/lock/`
 > **历史变更**：[CHANGELOG.md](../CHANGELOG.md)
 
-锁屏采用 Caelestia 风格：透明锁屏层上，居中一个圆角方块，里面是旋转的锁图标；
+锁屏采用 Caelestia 风格：模糊壁纸背景上，居中一个圆角方块，里面是旋转的锁图标；
 点击或按键后方块展开成横条，露出三栏内容。认证复用 end4-pC 的 `LockContext`
 （PAM + 指纹 + keyring）。quickshell 未运行时回退 hyprlock。
 
@@ -37,17 +37,54 @@ modules/ii/lock/
 |---|---|
 | 左 | 媒体卡（封面 / 曲名 / 播放控制）、歌词卡 |
 | 中 | 分色大时钟、日期、ClamShell 头像、密码框、错误提示 |
-| 右 | CPU / 内存 / 磁盘环形资源 |
+| 右 | CPU / 内存 / 磁盘资源卡 |
+
+## 屏幕尺寸
+
+屏幕高度取自 `CaelestiaLockSurface` 自身：
+
+~~~qml
+readonly property real screenHeight: root.height > 0 ? root.height : 1080
+~~~
+
+本组件由 `LockScreen.qml` 的 `Loader { anchors.fill: parent }` 拉伸至全屏，
+所以 `root.height` 就是屏幕高度。**不要走 `parent.screen` 父链** ——
+`WlSessionLockSurface` 的子项挂在它的 `contentItem` 下，`parent.parent` 拿到的
+是 contentItem 而非 surface 本身，`screen` 会是 `null`，展开尺寸算成 0，
+三栏布局会塌缩到屏幕右下角。
+
+展开尺寸：
+
+~~~qml
+readonly property real expandedHeight: Math.max(360, screenHeight * 0.58)
+readonly property real expandedWidth: expandedHeight * (16 / 9)
+~~~
+
+`0.58` 是相对 Caelestia 原版 `0.7` 的下调（1080p 下 756px → 626px），避免
+在 1080p 屏上占比过大。
 
 ## 视觉细节
 
-- **方块展开**：`lockContent` 从 `size × size` 的正方形动画到 `屏高×0.7×16/9` 的横条，
-  同时圆角从 `size/4` 变到 `Tokens.rounding.extraLarge × 1.5`，锁图标旋转 360° 后淡出。
-- **形变动画**：由 `qt6-m3shapes-git` 提供（AUR）。密码字符每输入一位就从一个随机
-  Material 形状（Slanted / Arch / Fan / Gem / SoftBurst …）morph 成圆形；
+- **方块展开**：`lockContent` 从 `96×96` 的正方形动画到
+  `expandedWidth × expandedHeight` 的横条，圆角从 `size/4` 变到
+  `Appearance.rounding.verylarge`，锁图标旋转 360° 后淡出。
+- **背景**：模糊后的桌面壁纸（`MultiEffect`，`blurMax: 64`）叠加 25%
+  `m3scrim` 遮罩，保证文字可读。
+- **形变动画**：由 `qt6-m3shapes-git` 提供（AUR）。密码字符每输入一位就从一个
+  随机 Material 形状（Slanted / Arch / Fan / Gem / SoftBurst …）morph 成圆形；
   提交按钮从圆形 morph 成箭头。
-- **配色**：全部取自 `Appearance.m3colors`（与 Caelestia 的 `Colours.palette` 同名），
-  随壁纸 matugen 联动。
+- **配色 / 字体 / 圆角**：全部取自 `Appearance`（`m3colors` / `font` /
+  `rounding`），随壁纸 matugen 联动，与 shell 其余部分一致。
+- **资源卡对齐**：三个 `MaterialShape`（Pentagon / Slanted / Gem）视觉占比不同，
+  统一取 `Math.min(width, height)` 作为形状尺寸并 `anchors.centerIn`，
+  避免高低不齐。
+- **文案**：所有面向用户的字符串走 `Translation.tr()`，词条在
+  `translations/zh_CN.json` 与 `en_US.json`。
+
+## 焦点
+
+密码框创建后会主动获取键盘焦点，并响应 `LockContext.shouldReFocus()`，因此锁屏
+唤醒后可以重新输入密码。
 
 ## 认证链
 
@@ -63,11 +100,11 @@ modules/ii/lock/
 
 ## 切回旧版
 
-`Lock.qml` 里把 `lockSurface` 从 `CaelestiaLockSurface` 换回 `SerpantinumLockSurface`
-即可，旧文件完整保留。
+`Lock.qml` 里把 `lockSurface` 从 `CaelestiaLockSurface` 换回
+`SerpantinumLockSurface` 即可，旧文件完整保留。
 
 ## 依赖
 
 - `qt6-m3shapes-git`（AUR）—— Material 3 形状 morph
 - Caelestia QML 插件（`QML2_IMPORT_PATH` 指向 `~/src/caelestia-shell/build/qml`）——
-  提供 `Caelestia.Config`（Tokens / AnimCurves / Rounding / Spacing）
+  提供 `Caelestia.Config`（`Tokens.anim.*` 与动画曲线）

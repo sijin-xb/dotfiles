@@ -2,20 +2,18 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
-import Caelestia.Config
 import qs.modules.common
 import qs.services
 import "../components"
 
-// 歌词卡：直接复用 end4-pC 的 LyricsService（7 行窗口 + 逐字进度）。
-// Caelestia 锁屏本身没有歌词，这是本仓库独有功能。
+// 歌词卡：复用 end4-pC 的 LyricsService（7 行窗口）。
 StyledRect {
     id: root
 
     required property var lock
 
-    implicitHeight: layout.implicitHeight + layout.anchors.margins * 2
-    radius: Tokens.rounding.extraLarge
+    implicitHeight: 150
+    radius: Appearance.rounding.large
     color: Appearance.m3colors.m3surfaceContainer
 
     readonly property var lines: LyricsService.slots
@@ -23,12 +21,9 @@ StyledRect {
 
     ColumnLayout {
         id: layout
-
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
-        anchors.margins: Tokens.padding.extraLarge
-        spacing: Tokens.spacing.small
+        anchors.fill: parent
+        anchors.margins: 14
+        spacing: 3
 
         Repeater {
             model: root.lines
@@ -45,10 +40,11 @@ StyledRect {
                 color: index === root.activeIdx
                     ? Appearance.m3colors.m3primary
                     : Appearance.m3colors.m3onSurfaceVariant
-                font: index === root.activeIdx
-                    ? Tokens.font.body.medium
-                    : Tokens.font.body.small
-                opacity: modelData === "" ? 0 : (index === root.activeIdx ? 1 : 0.6)
+                font.pixelSize: index === root.activeIdx
+                    ? Appearance.font.pixelSize.small
+                    : Appearance.font.pixelSize.smallie
+                font.weight: index === root.activeIdx ? Font.DemiBold : Font.Normal
+                opacity: modelData === "" ? 0 : (index === root.activeIdx ? 1 : 0.55)
                 Behavior on opacity { Anim { type: Anim.DefaultEffects } }
                 Behavior on color { CAnim {} }
             }

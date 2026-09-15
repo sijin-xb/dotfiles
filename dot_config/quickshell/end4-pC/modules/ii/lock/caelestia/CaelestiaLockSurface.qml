@@ -4,34 +4,43 @@ import QtQuick
 import QtQuick.Effects
 import Caelestia.Config
 import qs.modules.common
+import qs.services
 import "components"
 import "content"
 
 // 移植自 caelestia-dots/shell（GPL-3.0）modules/lock/LockSurface.qml。
-// 结构：透明 WlSessionLockSurface → 模糊背景 + 居中方块（锁图标旋转）→ 展开成横条。
-// 配色：Colours.palette.* -> Appearance.m3colors.*（同名映射）。
-// 认证：使用 end4-pC 的 LockContext（PAM + 指纹 + keyring）。
+// 结构：模糊壁纸背景 + 居中方块（锁图标旋转）→ 展开成横条。
+// 配色/字体/圆角：统一走 end4-pC 的 Appearance。
+// 认证：复用 LockContext（PAM + 指纹 + keyring）。
 Item {
     id: root
 
     required property var context       // LockContext
 
-    property var screen: null
+    // 本 Item 由 WlSessionLockSurface 的 Loader(anchors.fill) 拉伸至全屏，
+    // root.height 就是屏幕高度。不要走 parent.screen 父链。
+    readonly property real screenHeight: root.height > 0 ? root.height : 1080
+
+    // 展开区域尺寸：屏高的 58%，16:9 比例。Caelestia 原版是 0.7，1080p 下偏大。
+    readonly property real expandedHeight: Math.max(360, screenHeight * 0.58)
+    readonly property real expandedWidth: expandedHeight * (16 / 9)
 
     readonly property alias unlocking: unlockAnim.running
 
-    // context.unlocked 触发时播解锁动画（屏幕随即被 LockScreen 关闭）
+    // 壁纸源：与 shell 其余部分一致
+    readonly property string wallpaperSource:
+        Wallpapers.previewPath || Wallpapers.confirmedPath || Config.options.background.wallpaperPath
+
     Connections {
         function onUnlocked(): void {
             unlockAnim.start();
         }
-
         target: root.context
     }
 
+    // ── 解锁动画 ─────────────────────────────────────────────
     SequentialAnimation {
         id: unlockAnim
-
         ParallelAnimation {
             Anim {
                 target: lockContent
@@ -80,9 +89,9 @@ Item {
         }
     }
 
+    // ── 入场动画 ─────────────────────────────────────────────
     ParallelAnimation {
         id: initAnim
-
         running: true
 
         Anim {
@@ -134,54 +143,57 @@ Item {
                 Anim {
                     target: lockBg
                     property: "radius"
-                    to: lockContent.Tokens.rounding.extraLarge * 1.5
+                    to: Appearance.rounding.verylarge
                 }
                 Anim {
                     target: lockContent
                     property: "implicitWidth"
-                    to: (root.screen?.height ?? 0) * lockContent.Tokens.sizes.lock.heightMult * lockContent.Tokens.sizes.lock.ratio
+                    to: root.expandedWidth
                 }
                 Anim {
                     target: lockContent
                     property: "implicitHeight"
-                    to: (root.screen?.height ?? 0) * lockContent.Tokens.sizes.lock.heightMult
+                    to: root.expandedHeight
                 }
             }
         }
     }
 
+    // ── 模糊壁纸背景 ─────────────────────────────────────────
     Item {
         id: background
-
         anchors.fill: parent
         opacity: 0
 
-        layer.enabled: true
-        layer.effect: MultiEffect {
-            autoPaddingEnabled: false
-            blurEnabled: true
-            blur: 1
-            blurMax: 64
-            blurMultiplier: 1
-        }
-
-        Loader {
+        Image {
             anchors.fill: parent
-            sourceComponent: screencopyBackground
+            source: root.wallpaperSource
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
+            sourceSize: Qt.size(width, height)
+
+            layer.enabled: true
+            layer.effect: MultiEffect {
+                blurEnabled: true
+                blur: 1
+                blurMax: 64
+                autoPaddingEnabled: false
+            }
+        }
+
+        // 轻微压暗，提高文字可读性
+        Rectangle {
+            anchors.fill: parent
+            color: Appearance.m3colors.m3scrim
+            opacity: 0.25
         }
     }
 
-    Component {
-        id: screencopyBackground
-
-        // 背景由外部注入（end4-pC 现有实现）；这里只占位。
-        Item {}
-    }
-
+    // ── 居中方块 → 展开 ──────────────────────────────────────
     Item {
         id: lockContent
 
-        readonly property int size: lockIcon.implicitHeight + Tokens.padding.large * 4
+        readonly property int size: 96
         readonly property int radius: size / 4
 
         anchors.centerIn: parent
@@ -193,11 +205,10 @@ Item {
 
         StyledRect {
             id: lockBg
-
             anchors.fill: parent
             color: Appearance.m3colors.m3surface
             radius: parent.radius
-            opacity: 0.85
+            opacity: 0.92
 
             layer.enabled: true
             layer.effect: MultiEffect {
@@ -207,28 +218,29 @@ Item {
             }
         }
 
-        MaterialIcon {
+        StyledText {
             id: lockIcon
-
             anchors.centerIn: parent
             text: "lock"
-            fontStyle: Tokens.font.icon.builders.extraLarge.scale(4).weight(Font.Bold).build()
-            rotation: 180
             color: Appearance.m3colors.m3onSurface
+            font.family: Appearance.font.family.iconMaterial
+            font.pixelSize: 44
+            font.weight: Font.Bold
+            rotation: 180
         }
 
         Loader {
             id: content
-
             anchors.centerIn: parent
-            width: (root.screen?.height ?? 0) * Tokens.sizes.lock.heightMult * Tokens.sizes.lock.ratio - Tokens.padding.extraLargeIncreased
-            height: (root.screen?.height ?? 0) * Tokens.sizes.lock.heightMult - Tokens.padding.extraLargeIncreased
+            width: Math.max(1, root.expandedWidth - 24)
+            height: Math.max(1, root.expandedHeight - 24)
 
             opacity: 0
             scale: 0
             active: true
             sourceComponent: Content {
                 lock: root.context
+                screenHeight: root.screenHeight
             }
         }
     }

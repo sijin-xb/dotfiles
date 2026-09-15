@@ -3,35 +3,25 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import M3Shapes
-import Caelestia.Config
 import qs.modules.common
 import qs.services
 import "../components"
 
 // 移植自 caelestia-dots/shell（GPL-3.0）modules/lock/Resources.qml。
-// Cpu/Memory/Storage -> end4-pC 的 ResourceUsage 单例。
 StyledRect {
     id: root
 
-    readonly property real fontScale: {
-        const diff = width / 391 - 1;
-        return 1 + Math.pow(Math.abs(diff), 0.8) * Math.sign(diff);
-    }
-
-    implicitHeight: layout.implicitHeight + layout.anchors.margins * 2
-    radius: Tokens.rounding.extraLarge
+    implicitHeight: 96
+    radius: Appearance.rounding.large
     color: Appearance.m3colors.m3surfaceContainer
 
     RowLayout {
         id: layout
-
         anchors.fill: parent
-        anchors.margins: Tokens.padding.large
-        spacing: Tokens.spacing.large
+        anchors.margins: 10
+        spacing: 8
 
         Resource {
-            id: cpu
-
             icon: "memory"
             value: `${Math.round(ResourceUsage.cpuUsage * 100)}%`
             fillValue: ResourceUsage.cpuUsage
@@ -40,7 +30,6 @@ StyledRect {
             fillColour: Qt.alpha(Appearance.m3colors.m3secondary, 0.3)
             shape: MaterialShape.Pentagon
         }
-
         Resource {
             icon: "memory_alt"
             value: `${Math.round(ResourceUsage.memoryUsedPercentage * 100)}%`
@@ -50,7 +39,6 @@ StyledRect {
             fillColour: Qt.alpha(Appearance.m3colors.m3tertiary, 0.3)
             shape: MaterialShape.Slanted
         }
-
         Resource {
             icon: "hard_disk"
             value: `${Math.round(ResourceUsage.diskUsedPercentage * 100)}%`
@@ -75,14 +63,16 @@ StyledRect {
         readonly property alias mShape: shape
 
         Layout.fillWidth: true
-        implicitHeight: width
+        Layout.fillHeight: true
 
-        Behavior on shapeColour { CAnim {} }
+        // 三种 MaterialShape 视觉占比不同（Pentagon 内缩、Slanted/Gem 更满），
+        // 统一取较短边作为形状尺寸并居中，避免高低不齐。
+        readonly property real shapeSize: Math.min(width, height)
 
         MaterialShape {
             id: shape
-
-            implicitSize: res.width
+            anchors.centerIn: parent
+            implicitSize: res.shapeSize
             color: Qt.alpha(res.shapeColour, 1)
             opacity: res.shapeColour.a
             layer.enabled: true
@@ -90,23 +80,18 @@ StyledRect {
 
         Loader {
             id: fillLoader
-
             anchors.fill: shape
             active: res.fillValue >= 0
             asynchronous: true
-
             layer.enabled: active
-            layer.effect: Mask {
-                maskSource: shape
-            }
+            layer.effect: Mask { maskSource: shape }
 
             sourceComponent: Item {
                 WavyTopRect {
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
-
-                    implicitHeight: shape.implicitSize * Math.max(0, Math.min(1, res.fillValue))
+                    implicitHeight: shape.height * Math.max(0, Math.min(1, res.fillValue))
                     color: res.fillColour
                 }
             }
@@ -114,20 +99,21 @@ StyledRect {
 
         ColumnLayout {
             anchors.centerIn: parent
-            spacing: -Tokens.spacing.extraSmall
+            spacing: -3
 
             MaterialIcon {
                 Layout.alignment: Qt.AlignHCenter
                 text: res.icon
-                color: Appearance.m3colors.m3secondary
-                fontStyle: Tokens.font.icon.builders.medium.scale(root.fontScale).build()
+                color: Appearance.m3colors.m3onSurfaceVariant
+                font.pixelSize: Appearance.font.pixelSize.smallie
             }
 
             StyledText {
                 Layout.alignment: Qt.AlignHCenter
                 text: res.value
                 color: res.colour
-                font: Tokens.font.headline.builders.large.scale(root.fontScale).width(50).build()
+                font.pixelSize: Appearance.font.pixelSize.small
+                font.weight: Font.DemiBold
             }
         }
 

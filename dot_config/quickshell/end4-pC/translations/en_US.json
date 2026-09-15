@@ -767,5 +767,9 @@
   "Applications": "Applications",
   "matugen.%1": "matugen.%1",
   "Terminal options": "Terminal options",
-  "Names come from ~/.config/matugen/config.toml.orig, which the shell treats as the source of truth. Turning a template off removes it from the generated config on the next wallpaper change.": "Names come from ~/.config/matugen/config.toml.orig, which the shell treats as the source of truth. Turning a template off removes it from the generated config on the next wallpaper change."
+  "Names come from ~/.config/matugen/config.toml.orig, which the shell treats as the source of truth. Turning a template off removes it from the generated config on the next wallpaper change.": "Names come from ~/.config/matugen/config.toml.orig, which the shell treats as the source of truth. Turning a template off removes it from the generated config on the next wallpaper change.",
+  "Unlocking…": "Unlocking…",
+  "Enter your password": "Enter your password",
+  "Nothing playing": "Nothing playing",
+  "Try playing some music!": "Try playing some music!"
 }

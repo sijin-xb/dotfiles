@@ -3,12 +3,12 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import M3Shapes
-import Caelestia.Config
 import qs.modules.common
+import qs.services
 import "../../components"
 
 // 移植自 caelestia-dots/shell（GPL-3.0）modules/lock/center/InputField.qml。
-// pam.buffer -> LockContext.currentText。
+// pam.buffer -> LockContext.currentText。文案走 Translation.tr。
 Item {
     id: root
 
@@ -18,6 +18,8 @@ Item {
     readonly property alias placeholderWidth: nonAnimPlaceholder.width
     property string buffer
     property bool showPassword
+
+    readonly property int charSize: Math.round(Appearance.font.pixelSize.small * Math.max(0.9, centerScale))
 
     readonly property list<int> shapeQueue: {
         const shapes = [MaterialShape.Slanted, MaterialShape.Arch, MaterialShape.Fan, MaterialShape.Arrow, MaterialShape.SemiCircle, MaterialShape.Triangle, MaterialShape.Diamond, MaterialShape.ClamShell, MaterialShape.Pentagon, MaterialShape.Gem, MaterialShape.Sunny, MaterialShape.VerySunny, MaterialShape.Cookie4Sided, MaterialShape.Ghostish, MaterialShape.SoftBurst];
@@ -45,18 +47,19 @@ Item {
 
     TextMetrics {
         id: nonAnimPlaceholder
-        text: root.lock.unlockInProgress ? "Unlocking…" : "Enter your password"
+        text: root.lock.unlockInProgress
+            ? Translation.tr("Unlocking…")
+            : Translation.tr("Enter your password")
         font: placeholder.font
     }
 
     StyledText {
         id: placeholder
         anchors.centerIn: parent
-        anchors.verticalCenterOffset: 1
         text: nonAnimPlaceholder.text
         animate: true
         color: root.lock.unlockInProgress ? Appearance.m3colors.m3secondary : Appearance.m3colors.m3outline
-        font: Tokens.font.body.builders.medium.scale(root.centerScale).width(110).build()
+        font.pixelSize: root.charSize
         opacity: root.buffer ? 0 : 1
         Behavior on opacity { Anim { type: Anim.DefaultEffects } }
     }
@@ -81,9 +84,9 @@ Item {
         anchors.horizontalCenterOffset: implicitWidth > root.width ? -(implicitWidth - root.width) / 2 : 0
 
         implicitWidth: fullWidth
-        implicitHeight: Tokens.font.body.medium.pointSize
+        implicitHeight: root.charSize
         orientation: Qt.Horizontal
-        spacing: Tokens.spacing.extraSmall
+        spacing: 5
         interactive: false
 
         model: ScriptModel {
@@ -139,7 +142,7 @@ Item {
         MaterialShape {
             id: charShape
             anchors.centerIn: parent
-            implicitSize: charList.implicitHeight * 1.5
+            implicitSize: charList.implicitHeight * 1.3
             shape: root.shapeQueue[char.index % root.shapeQueue.length] ?? MaterialShape.Circle
             color: Appearance.m3colors.m3onSurface
             opacity: root.showPassword ? 0 : 1
@@ -156,7 +159,7 @@ Item {
             sourceComponent: StyledText {
                 text: root.buffer[char.index]
                 color: Appearance.m3colors.m3onSurface
-                font: Tokens.font.body.medium
+                font.pixelSize: root.charSize
             }
             Behavior on opacity { Anim { type: Anim.DefaultEffects } }
         }

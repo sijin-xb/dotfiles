@@ -5,7 +5,6 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Services.Mpris
 import M3Shapes
-import Caelestia.Config
 import qs.modules.common
 import qs.services
 import "../components"
@@ -25,49 +24,41 @@ StyledClippingRect {
         return (u && u !== "") ? u : ""
     }
 
-    implicitHeight: layout.implicitHeight + layout.anchors.margins * 2
-    radius: Tokens.rounding.extraLarge
+    implicitHeight: Math.max(180, layout.implicitHeight + 32)
+    radius: Appearance.rounding.large
     color: Appearance.m3colors.m3surfaceContainer
 
     FadeImage {
         anchors.fill: parent
         source: root.artUrl
         visible: root.artUrl !== ""
-
         asynchronous: true
         fillMode: Image.PreserveAspectCrop
-        sourceSize: {
-            const dpr = (QsWindow.window as QsWindow)?.devicePixelRatio ?? 1;
-            return Qt.size(width * dpr, height * dpr);
-        }
-
+        sourceSize: Qt.size(width, height)
         layer.enabled: true
         opacity: status === Image.Ready ? 1 : 0
 
         StyledRect {
             anchors.fill: parent
             color: Appearance.m3colors.m3surface
-            opacity: 0.7
+            opacity: 0.72
         }
 
-        Behavior on opacity {
-            Anim { type: Anim.StandardExtraLarge }
-        }
+        Behavior on opacity { Anim { type: Anim.StandardLarge } }
     }
 
     ColumnLayout {
         id: layout
-
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        anchors.margins: Tokens.padding.extraLarge
-        spacing: Tokens.spacing.extraSmall
+        anchors.margins: 18
+        spacing: 4
 
         CoverArt {
             Layout.alignment: Qt.AlignHCenter
-            Layout.preferredWidth: Math.min(root.width * 0.5, 140)
-            Layout.preferredHeight: width
+            Layout.preferredWidth: 96
+            Layout.preferredHeight: 96
             artSource: root.artUrl
             isPlaying: root.isPlaying
             visible: root.artUrl !== ""
@@ -75,29 +66,30 @@ StyledClippingRect {
 
         StyledText {
             Layout.fillWidth: true
-            Layout.topMargin: Tokens.spacing.small
+            Layout.topMargin: 8
             animate: true
-            text: root.player?.trackTitle || "Nothing playing"
+            text: root.player?.trackTitle || Translation.tr("Nothing playing")
             color: Appearance.m3colors.m3primary
             horizontalAlignment: Text.AlignHCenter
-            font: Tokens.font.title.medium
+            font.pixelSize: Appearance.font.pixelSize.normal
+            font.weight: Font.DemiBold
             elide: Text.ElideRight
         }
 
         StyledText {
             Layout.fillWidth: true
             animate: true
-            text: root.player?.trackArtist || "Try playing some music!"
+            text: root.player?.trackArtist || Translation.tr("Try playing some music!")
             color: Appearance.m3colors.m3onSurfaceVariant
             horizontalAlignment: Text.AlignHCenter
-            font: Tokens.font.body.small
+            font.pixelSize: Appearance.font.pixelSize.smallie
             elide: Text.ElideRight
         }
 
         RowLayout {
             Layout.alignment: Qt.AlignHCenter
-            Layout.topMargin: Tokens.spacing.medium
-            spacing: Tokens.spacing.extraSmall
+            Layout.topMargin: 10
+            spacing: 8
 
             component CtrlBtn: MaterialShape {
                 id: btn
@@ -105,11 +97,11 @@ StyledClippingRect {
                 required property bool interactable
                 property var onActivate
 
-                implicitSize: 44
+                implicitSize: 36
                 shape: MaterialShape.Circle
                 color: ma.pressed ? Appearance.m3colors.m3surfaceContainerHighest
                      : ma.containsMouse ? Appearance.m3colors.m3surfaceContainerHigh
-                     : Appearance.m3colors.m3surfaceContainer
+                     : Appearance.m3colors.m3surfaceContainerLow
                 opacity: btn.interactable ? 1 : 0.35
 
                 Behavior on color { CAnim {} }
@@ -118,7 +110,7 @@ StyledClippingRect {
                     anchors.centerIn: parent
                     text: btn.glyph
                     color: Appearance.m3colors.m3onSurfaceVariant
-                    fontStyle: Tokens.font.icon.medium
+                    font.pixelSize: Appearance.font.pixelSize.normal
                 }
 
                 MouseArea {
@@ -136,13 +128,11 @@ StyledClippingRect {
                 interactable: root.player?.canGoPrevious ?? false
                 onActivate: root.player?.previous()
             }
-
             CtrlBtn {
                 glyph: root.isPlaying ? "pause" : "play_arrow"
                 interactable: root.player?.canTogglePlaying ?? false
                 onActivate: root.player?.togglePlaying()
             }
-
             CtrlBtn {
                 glyph: "skip_next"
                 interactable: root.player?.canGoNext ?? false
