@@ -294,8 +294,16 @@ cmd_install() {
             git clone --depth=1 https://github.com/caelestia-dots/shell.git "$dst" \
                 || die "克隆 caelestia-dots/shell 失败（检查网络后重试）。"
         fi
-        say "    编译插件（约 1-3 分钟）"
+        # shallow clone 默认没有 tag，上游 CMakeLists 用 `git describe --tags` 拿版本，
+        # 拿不到就会 FATAL_ERROR 中断整个安装。这里显式拉一次 tags；
+        # 即使拉不到，也给 CMake 传显式版本兜底（配合上游已改为优雅降级）。
+        ( cd "$dst" && git fetch --tags --depth=1 --quiet 2>/dev/null ) || true
+        local _cv=""
+        _cv="$(cd "$dst" && git describe --tags --abbrev=0 2>/dev/null || true)"
+        [[ -z "$_cv" ]] && _cv="0.0.0"
+        say "    编译插件（约 1-3 分钟），version=$_cv"
         cmake -S "$dst" -B "$dst/build" -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DVERSION="${_cv#v}" \
             || die "Caelestia 插件 CMake 配置失败，见上方输出。"
         cmake --build "$dst/build" --parallel \
             || die "Caelestia 插件编译失败，见上方输出。手动重试：cd $dst && cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo && cmake --build build"
@@ -596,16 +604,21 @@ TC_YELLOW="$(tc setaf 3)"; TC_BLUE="$(tc setaf 4)"; TC_MAG="$(tc setaf 5)"; TC_C
 
 tui_clear() { clear 2>/dev/null || printf '\n\n\n\n'; }
 
+# 逐字符打印分隔线：
+# 旧实现用 `tr ' ' "$ch"`，在多字节 locale 下 tr 按字节替换，
+# '─'(E2 94 80) 会被拆成 3 个字节分别映射，产生非法 UTF-8 乱码。
 draw_line() {
-    local ch="${1:--}" w="${COLUMNS:-80}"
-    printf '%*s\n' "$w" '' | tr ' ' "$ch"
+    local ch="${1:--}" w="${COLUMNS:-80}" i
+    for ((i=0; i<w; i++)); do printf '%s' "$ch"; done
+    printf '\n'
 }
 
 # 打印一个带标题的分隔框；参数：标题
+# 旧实现用 cut -c$((...+${#title}))，${#title} 是字节数而 cut -c 也按字节切，
+# 中文标题会被从多字节字符中间切开产生乱码。这里改为不填满整行，避免截断。
 draw_header() {
     local title="${1:-}"
-    printf '%s%s%s ' "${TC_BOLD}${TC_GREEN}" "=== ${title}" "${TC_RESET}"
-    draw_line '=' | cut -c$((1 + ${#title} + 6))-
+    printf '%s=== %s ===%s\n' "${TC_BOLD}${TC_GREEN}" "$title" "${TC_RESET}"
 }
 
 # 欢迎页 / Splash
@@ -716,7 +729,11 @@ EOF
         echo "  · sudo 可用?   : $( have sudo && echo ✓ || echo ✗；将使用 \${SUDO:-sudo} )"
         echo "  · 已存在的 rice 路径数:"
         local cnt=0 p
-        for p in "${SNAP_PATHS[@]}"; do [[ -e "$HOME/$p" ]] && cnt=$((cnt+1)); done
+        # 注意：不能用 `[[ ... ]] && cnt=$((cnt+1))` 作为 for 体最后一条命令，
+        # 最后一次 [[ ]] 失败会让 for 返回 1，配合 set -e 直接杀掉整个脚本。
+        for p in "${SNAP_PATHS[@]}"; do
+            if [[ -e "$HOME/$p" ]]; then cnt=$((cnt+1)); fi
+        done
         echo "                 : $cnt / ${#SNAP_PATHS[@]}（新机器通常为 0~2；现有 rice 安装通常 ≥ 10）"
         [[ -r "$STATE_DIR/current" ]] && echo "  · 上次快照基线 : $(<"$STATE_DIR/current")" || echo "  · 快照基线     : 尚未安装过，本次运行将生成 rollback 可用基线"
         echo
@@ -724,9 +741,16 @@ EOF
         echo
         # 二次确认 + 返回
         case "$(confirm_3way '确认开始执行安装？')" in
-            0) cmd_install; read -r -p "完成，按回车返回主菜单 ..." _; cont=n ;;
+            0) # 用子 shell 包裹：cmd_install 内部的 die 只会退出子 shell，
+               # 不会再连带把 TUI 一起 exit 掉（之前界面"卡死"的根因之一）。
+               local rc=0
+               set +e; ( cmd_install ); rc=$?; set -e
+               ((rc != 0)) && warn "安装返回码 ${rc}（详情见上方输出）" || true
+               tui_clear
+               read -r -p "按回车返回主菜单 ..." _ || true
+               cont=n ;;
             2) cont=n ;;
-            *) read -r -p "已取消，按回车返回主菜单 ..." _; cont=n ;;
+            *) read -r -p "已取消，按回车返回主菜单 ..." _ || true; cont=n ;;
         esac
     done
 }
@@ -748,7 +772,9 @@ detail_uninstall() {
 【当前状态】
 EOF
         local cnt=0 p
-        for p in "${SNAP_PATHS[@]}" "${EXTRA_ARCHIVE_PATHS[@]}"; do [[ -e "$HOME/$p" ]] && cnt=$((cnt+1)); done
+        for p in "${SNAP_PATHS[@]}" "${EXTRA_ARCHIVE_PATHS[@]}"; do
+            if [[ -e "$HOME/$p" ]]; then cnt=$((cnt+1)); fi
+        done
         echo "  · 将会删除的顶级路径数（存在才删）: $cnt"
         local tsize=0
         for p in "${SNAP_PATHS[@]}" "${EXTRA_ARCHIVE_PATHS[@]}"; do
@@ -761,9 +787,14 @@ EOF
         echo "  · 估算释放空间: $(numfmt --to=iec "${tsize}K" 2>/dev/null || echo ${tsize}KB)"
         echo
         case "$(confirm_3way '确认进入卸载流程？')" in
-            0) cmd_uninstall; read -r -p "完成，按回车返回主菜单 ..." _; cont=n ;;
+            0) local rc=0
+               set +e; ( cmd_uninstall ); rc=$?; set -e
+               ((rc != 0)) && warn "卸载返回码 ${rc}（详情见上方输出）" || true
+               tui_clear
+               read -r -p "按回车返回主菜单 ..." _ || true
+               cont=n ;;
             2) cont=n ;;
-            *) read -r -p "已取消，按回车返回主菜单 ..." _; cont=n ;;
+            *) read -r -p "已取消，按回车返回主菜单 ..." _ || true; cont=n ;;
         esac
     done
 }
@@ -806,9 +837,14 @@ EOF
             read -r -p "按回车返回主菜单 ..." _; cont=n
         else
             case "$(confirm_3way '确认执行回档？')" in
-                0) cmd_rollback; read -r -p "完成，按回车返回主菜单 ..." _; cont=n ;;
+                0) local rc=0
+                   set +e; ( cmd_rollback ); rc=$?; set -e
+                   ((rc != 0)) && warn "回档返回码 ${rc}（详情见上方输出）" || true
+                   tui_clear
+                   read -r -p "按回车返回主菜单 ..." _ || true
+                   cont=n ;;
                 2) cont=n ;;
-                *) read -r -p "已取消，按回车返回主菜单 ..." _; cont=n ;;
+                *) read -r -p "已取消，按回车返回主菜单 ..." _ || true; cont=n ;;
             esac
         fi
     done
@@ -833,7 +869,12 @@ detail_archive() {
 【当前可用参数】
 EOF
         [[ -z $out_path ]] && out_path="$HOME/dotfiles-archive-$(now_ts).tar.gz"
-        printf '  · 输出文件: '; IFS= read -r -i "$out_path" out_path
+        # 旧实现 read -r -i ... 依赖 readline，未加 -e 时行为未定义/报错。
+        # 改为手动提示 + 空则保留默认值。
+        printf '  · 输出文件 [%s]: ' "$out_path"
+        local _ans=""
+        IFS= read -r _ans || true
+        [[ -n "$_ans" ]] && out_path="$_ans" || true
         local p cnt=0 tsize=0
         for p in "${SNAP_PATHS[@]}" "${EXTRA_ARCHIVE_PATHS[@]}"; do
             if [[ -e "$HOME/$p" ]]; then
@@ -849,10 +890,18 @@ EOF
         if confirm "打包完成后是否删除源文件（相当于先备份再卸载）？"; then dodel=1; fi
         echo
         case "$(confirm_3way '确认开始打包存档？')" in
-            0) if ((dodel)); then cmd_archive -o "$out_path" --delete; else cmd_archive -o "$out_path"; fi
-               read -r -p "完成，按回车返回主菜单 ..." _; cont=n ;;
+            0) local rc=0
+               if ((dodel)); then
+                   set +e; ( cmd_archive -o "$out_path" --delete ); rc=$?; set -e
+               else
+                   set +e; ( cmd_archive -o "$out_path" ); rc=$?; set -e
+               fi
+               ((rc != 0)) && warn "打包返回码 ${rc}（详情见上方输出）" || true
+               tui_clear
+               read -r -p "按回车返回主菜单 ..." _ || true
+               cont=n ;;
             2) cont=n ;;
-            *) read -r -p "已取消，按回车返回主菜单 ..." _; cont=n ;;
+            *) read -r -p "已取消，按回车返回主菜单 ..." _ || true; cont=n ;;
         esac
     done
 }
@@ -880,7 +929,12 @@ main_menu_loop() {
         draw_line '─'
         local sel=""
         printf '请选择: '
-        IFS= read -r sel
+        # stdin EOF（例如被管道/重定向）时不要用 set -e 杀掉脚本，优雅退出
+        if ! IFS= read -r sel; then
+            echo
+            echo "输入结束，退出。"
+            return 0
+        fi
         case "$sel" in
             1) detail_install ;;
             2) detail_uninstall ;;
