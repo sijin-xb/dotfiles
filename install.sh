@@ -228,7 +228,7 @@ cmd_install() {
             || die "依赖安装失败。若提示找不到包，先手动执行 sudo pacman -Syu 更新软件库后重试。"
     fi
 
-    # ---------- [2/7] AUR 包（matugen / mpvpaper / libcava） ----------
+    # ---------- [2/7] AUR 包（matugen / mpvpaper / libcava / m3shapes） ----------
     say "[2/7] AUR 依赖"
     if ! have yay && ! have paru; then
         say "引导安装 yay（AUR helper）"
@@ -237,8 +237,9 @@ cmd_install() {
         (cd "$tmpdir/yay" && makepkg -si --noconfirm)
         rm -rf "$tmpdir"
     fi
-    # libcava 仅 AUR 有，供 Caelestia QML 插件编译使用
-    for p in matugen mpvpaper libcava; do
+    # libcava 供 Caelestia QML 插件编译；qt6-m3shapes-git 是 Caelestia 锁屏
+    # 形变动画（MaterialShape）的运行时依赖，两者都只有 AUR 有。
+    for p in matugen mpvpaper libcava qt6-m3shapes-git; do
         if pacman -Q "$p" >/dev/null 2>&1; then
             echo "    已安装: $p"
         elif aur_install "$p"; then

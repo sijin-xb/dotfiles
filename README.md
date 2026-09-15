@@ -27,8 +27,9 @@ bash 脚本完成，不需要 chezmoi 二进制。
 - Hyprland 配置（Lua）。`hyprland/` 为模板层，`custom/` 为个人覆盖层
   （同名文件在模板之后加载并覆盖模板）
 - Quickshell（end4-pC fork）差异层：栏、侧边栏、启动器、总览、设置面板
-- 锁屏：Serpantinum 风格三栏布局（居中大时钟 → 点击展开三栏翼面板）；
-  quickshell 未运行时回退 hyprlock。详见 [docs/lockscreen.md](docs/lockscreen.md)
+- 锁屏：Caelestia 风格三栏布局（居中圆角方块 → 点击展开成横条，Material 3
+  形状 morph 动画）；quickshell 未运行时回退 hyprlock。
+  详见 [docs/lockscreen.md](docs/lockscreen.md)
 - 桌面歌词：逐字计时（酷狗 KRC），适配任意 MPRIS 播放器；SPlayer 可走
   WebSocket 直推。详见 [docs/integrations.md](docs/integrations.md)
 - 灵动岛：音乐 / 音量 / 录屏活动的顶部动态胶囊，详见
@@ -62,7 +63,7 @@ cd dotfiles
    编译所需的 aubio / libpipewire / libqalculate / lm_sensors / fftw /
    spirv-tools）。**默认只装缺失项，不滚动系统**；需要全量升级时用
    `FULL_UPGRADE=1 ./install.sh install`
-2. AUR 包（matugen、mpvpaper、libcava）；无 AUR helper 时自动安装 yay
+2. AUR 包（matugen、mpvpaper、libcava、qt6-m3shapes-git）；无 AUR helper 时自动安装 yay
 3. quickshell 三级回退：已有二进制 → pacman → AUR → 源码编译
 4. **Caelestia QML 插件**：clone `caelestia-dots/shell` 并编译到
    `~/src/caelestia-shell/build/qml`（失败中断，不静默跳过）
@@ -130,7 +131,9 @@ dot_config/
     hyprlock.conf         回退锁屏配置
     hyprlock/             配色与辅助脚本
   quickshell/end4-pC/     shell 差异层（modules、services、scripts）
-    modules/ii/lock/      锁屏：Lock.qml 入口 + SerpantinumLockSurface.qml 视图
+    modules/ii/lock/      锁屏：Lock.qml 入口
+      caelestia/          Caelestia 风格锁屏（内容、组件、形变动画）
+      SerpantinumLockSurface.qml  旧版锁屏（保留可切回）
   fish/  kitty/  foot/  alacritty/  nvim/  btop/  fastfetch/  fuzzel/  mako/  matugen/
   fcitx5/
     config                fcitx5 主配置

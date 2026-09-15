@@ -3,21 +3,71 @@
 > **范围**：`dot_config/quickshell/end4-pC/modules/ii/lock/`
 > **历史变更**：[CHANGELOG.md](../CHANGELOG.md)
 
-`Super+L` 触发 `quickshell:lock`。锁屏采用 Serpantinum 风格三栏布局：初始
-只有居中大时钟（时:分、日期、分时段问候），点击任意处或按任意键展开，大
-时钟缩小上移，三栏翼面板从下方浮现。
+锁屏采用 Caelestia 风格：透明锁屏层上，居中一个圆角方块，里面是旋转的锁图标；
+点击或按键后方块展开成横条，露出三栏内容。认证复用 end4-pC 的 `LockContext`
+（PAM + 指纹 + keyring）。quickshell 未运行时回退 hyprlock。
+
+## 结构
+
+~~~
+modules/ii/lock/
+├── Lock.qml                      入口，装配 LockSurface
+├── SerpantinumLockSurface.qml    旧版锁屏（保留，可切回）
+└── caelestia/                    Caelestia 风格锁屏
+    ├── CaelestiaLockSurface.qml  外壳：背景 + 方块展开动画
+    ├── components/               vendored 组件（Anim / StyledRect / MaterialIcon ...）
+    ├── utils/                    Paths / Strings
+    └── content/
+        ├── Content.qml           三栏 RowLayout
+        ├── Media.qml             媒体卡（接 MprisController）
+        ├── LockLyrics.qml        歌词卡（接 LyricsService，本仓库独有）
+        ├── Resources.qml         CPU / 内存 / 磁盘（接 ResourceUsage）
+        └── center/
+            ├── Center.qml        中栏布局
+            ├── Clock.qml         分色大时钟（时 m3primary / 分 m3secondary）
+            ├── ProfilePic.qml    ClamShell 形状头像
+            ├── PasswordInput.qml 密码框 + 箭头形变按钮
+            ├── InputField.qml    密码字符（15 种 Material 形状 morph）
+            └── StateMessage.qml  密码错误提示
+~~~
+
+## 三栏内容
 
 | 栏位 | 内容 |
 |---|---|
-| 左翼 | 系统监控四宫格：CPU / 内存 / 温度 / 磁盘，环形进度 + 居中数值 |
-| 中翼 | 头像、用户名与状态、密码框、键盘布局与电池胶囊、电源按钮（休眠 / 重启 / 关机） |
-| 右翼 | 歌词卡（当前行前后共 7 行）、通知列表、媒体卡（封面、曲名、进度、播放控制） |
+| 左 | 媒体卡（封面 / 曲名 / 播放控制）、歌词卡 |
+| 中 | 分色大时钟、日期、ClamShell 头像、密码框、错误提示 |
+| 右 | CPU / 内存 / 磁盘环形资源 |
 
-`Esc` 收起并清空密码。头像加载链与桌面 `UserCardWidget` 一致：
-`Config.options.profile.avatarPath` 优先，否则读 `~/.face`，失败回退 person
-图标。歌词直接复用 `LyricsService`，与桌面歌词同一数据源。
+## 视觉细节
 
-认证复用 `LockContext`（PAM + 指纹 + keyring），配色、圆角、字体、动画
-曲线全部取自 `Appearance`。背景是模糊后的桌面壁纸（与桌面同一源链，含
-`lockWall` 覆盖与视频缩略图分支）。hypridle 超时锁屏走同一入口；
-quickshell 未运行时使用 hyprlock。
+- **方块展开**：`lockContent` 从 `size × size` 的正方形动画到 `屏高×0.7×16/9` 的横条，
+  同时圆角从 `size/4` 变到 `Tokens.rounding.extraLarge × 1.5`，锁图标旋转 360° 后淡出。
+- **形变动画**：由 `qt6-m3shapes-git` 提供（AUR）。密码字符每输入一位就从一个随机
+  Material 形状（Slanted / Arch / Fan / Gem / SoftBurst …）morph 成圆形；
+  提交按钮从圆形 morph 成箭头。
+- **配色**：全部取自 `Appearance.m3colors`（与 Caelestia 的 `Colours.palette` 同名），
+  随壁纸 matugen 联动。
+
+## 认证链
+
+`PasswordInput` 直接读写 `LockContext.currentText`：
+
+- 键盘输入 → 追加到 `currentText`
+- 回车 / 点箭头 → `LockContext.tryUnlock()`
+- 指纹由 `LockContext` 内部处理
+- 失败 → `LockContext.showFailure` 置位，`StateMessage` 显示提示
+
+解锁成功后 `LockContext.unlocked` 触发 `CaelestiaLockSurface` 的收起动画，
+随后 `LockScreen` 关闭 session lock。
+
+## 切回旧版
+
+`Lock.qml` 里把 `lockSurface` 从 `CaelestiaLockSurface` 换回 `SerpantinumLockSurface`
+即可，旧文件完整保留。
+
+## 依赖
+
+- `qt6-m3shapes-git`（AUR）—— Material 3 形状 morph
+- Caelestia QML 插件（`QML2_IMPORT_PATH` 指向 `~/src/caelestia-shell/build/qml`）——
+  提供 `Caelestia.Config`（Tokens / AnimCurves / Rounding / Spacing）

@@ -2,6 +2,21 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+### 2026-09-16（第三十七次）
+
+**锁屏：移植为 Caelestia 风格（1:1 视觉）**
+
+- 新增 `modules/ii/lock/caelestia/`（28 个 QML，约 2000 行）：
+  方块展开动画、分色大时钟、Material 3 形状形变的密码框、媒体卡、资源卡、歌词卡。
+- 视觉 1:1 来自 `qt6-m3shapes-git`（与 Caelestia `flake.nix` pin 的 commit 一致）
+  与 Caelestia QML 插件（`Caelestia.Config` 提供 Tokens / AnimCurves）。
+- 配色零转换：`Colours.palette.m3*` 与 `Appearance.m3colors.m3*` 同名。
+- 底层复用 end4-pC：认证走 `LockContext`（PAM + 指纹 + keyring），
+  媒体走 `MprisController`，资源走 `ResourceUsage`，歌词走 `LyricsService`。
+- 歌词卡是本仓库独有 —— Caelestia 锁屏本身没有歌词。
+- 旧 `SerpantinumLockSurface.qml` 完整保留；`Lock.qml` 一行即可切回。
+- `install.sh` AUR 列表加 `qt6-m3shapes-git`。
+
 ### 2026-09-16（第三十六次）
 
 **install.sh：pacman -Syu 改为可选**

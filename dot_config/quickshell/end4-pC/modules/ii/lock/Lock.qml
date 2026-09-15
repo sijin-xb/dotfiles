@@ -4,6 +4,7 @@ import qs.services
 import qs.modules.common
 import qs.modules.common.functions
 import qs.modules.common.panels.lock
+import "caelestia"
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -35,7 +36,8 @@ LockScreen {
         }
     }
 
-    lockSurface: SerpantinumLockSurface {
+    // 锁屏 surface：Caelestia 风格。想切回旧版把下一行换成 SerpantinumLockSurface。
+    lockSurface: CaelestiaLockSurface {
         context: root.context
     }
 
