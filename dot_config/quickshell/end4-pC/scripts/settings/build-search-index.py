@@ -17,7 +17,6 @@ ORDER = [
     ("ServicesConfig.qml", "Services"),
     ("HyprlandConfig.qml", "Hyprland"),
     ("NiriConfig.qml", "Niri"),
-    ("Profile.qml", "Profile"),
     ("About.qml", "About"),
 ]
 

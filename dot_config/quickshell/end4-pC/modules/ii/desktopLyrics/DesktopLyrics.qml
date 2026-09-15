@@ -842,19 +842,27 @@ PanelWindow {
                     }
                 }
 
-                // 音译（romaji / 拼音）优先，没有音译时退回语义翻译
+                // 当前行下方两行副标题：先翻译、再音译（原文 / 翻译 / 音译 三行）
                 Text {
-                    readonly property string sub: (parent.modelData.roman ?? "").length > 0
-                        ? parent.modelData.roman
-                        : (parent.modelData.trans ?? "")
                     anchors.horizontalCenter: parent.horizontalCenter
-                    visible: parent.isCurrent && sub.length > 0
-                    text: sub
+                    visible: parent.isCurrent && (parent.modelData.trans ?? "").length > 0
+                    text: parent.modelData.trans ?? ""
                     font.family: Appearance.font.family.expressive
                     font.pixelSize: 13
-                    font.italic: (parent.modelData.roman ?? "").length > 0
                     color: Appearance.colors.colSecondary
                     opacity: 0.85
+                    horizontalAlignment: Text.AlignHCenter
+                }
+
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    visible: parent.isCurrent && (parent.modelData.roman ?? "").length > 0
+                    text: parent.modelData.roman ?? ""
+                    font.family: Appearance.font.family.expressive
+                    font.pixelSize: 13
+                    font.italic: true
+                    color: Appearance.colors.colSecondary
+                    opacity: 0.65
                     horizontalAlignment: Text.AlignHCenter
                 }
             }

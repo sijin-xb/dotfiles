@@ -83,10 +83,14 @@ Item {
         return out.slice(0, 12);
     }
     function activateSearchResult(result) {
+        // 注意：深链那边比较的是 pages[i].name（翻译后的名字，如「桌面」），
+        // 传英文 key 会 findIndex 返回 -1、什么都不发生。
+        const pageName = Translation.tr(result.page);
         GlobalStates.settingsPage = result.section.length > 0
-            ? result.page + ":" + Translation.tr(result.section)
-            : result.page;
+            ? pageName + ":" + Translation.tr(result.section)
+            : pageName;
         root.settingsSearchQuery = "";
+        settingsSearchInput.text = "";
     }
 
     onCurrentPageChanged: {
@@ -295,10 +299,28 @@ Item {
                         visible: navRail.expanded
                         implicitHeight: 38
                         // colLayer2 和侧栏底色太接近，几乎看不出是个输入框，补一层描边
-                        color: Appearance.colors.colLayer2
+                        readonly property bool focused: settingsSearchInput.activeFocus
+                        color: focused ? Appearance.colors.colLayer3 : Appearance.colors.colLayer2
                         border.width: 1
                         border.color: Appearance.colors.colOutline
                         radius: Appearance.rounding.normal
+
+                        Behavior on color {
+                            ColorAnimation { duration: 150; easing.type: Easing.OutCubic }
+                        }
+
+                        // 聚焦时的强调描边（用透明度做动画，避免对 border.color 直接做 Behavior）
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: parent.radius
+                            color: "transparent"
+                            border.width: 1
+                            border.color: Appearance.colors.colPrimary
+                            opacity: settingsSearchBox.focused ? 1 : 0
+                            Behavior on opacity {
+                                NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
+                            }
+                        }
 
                         MaterialSymbol {
                             id: settingsSearchIcon
@@ -327,14 +349,45 @@ Item {
                             opacity: 0.5
                         }
 
+                        // 有内容时出现的清空按钮
+                        MaterialSymbol {
+                            id: settingsSearchClear
+                            anchors {
+                                right: parent.right
+                                rightMargin: 9
+                                verticalCenter: parent.verticalCenter
+                            }
+                            text: "close"
+                            iconSize: Appearance.font.pixelSize.large
+                            color: Appearance.colors.colOnLayer1
+                            opacity: settingsSearchInput.text.length > 0 ? 0.7 : 0
+                            visible: opacity > 0.01
+                            Behavior on opacity {
+                                NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
+                            }
+                            MouseArea {
+                                anchors.fill: parent
+                                anchors.margins: -4
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    settingsSearchInput.text = "";
+                                    root.settingsSearchQuery = "";
+                                }
+                            }
+                        }
+
                         StyledTextInput {
                             id: settingsSearchInput
                             anchors {
                                 left: settingsSearchIcon.right
                                 leftMargin: 7
-                                right: parent.right
-                                rightMargin: 9
+                                right: settingsSearchClear.left
+                                rightMargin: 6
                                 verticalCenter: parent.verticalCenter
+                            }
+                            Keys.onEscapePressed: {
+                                text = "";
+                                root.settingsSearchQuery = "";
                             }
                             onTextChanged: root.settingsSearchQuery = text
                             onAccepted: {
@@ -350,18 +403,36 @@ Item {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         Layout.margins: 5
-                        visible: navRail.expanded && root.settingsSearchQuery.trim().length > 0
+                        // 用透明度驱动显隐：visible 直接跟查询长度会让淡入动画来不及播
+                        opacity: navRail.expanded && root.settingsSearchQuery.trim().length > 0 ? 1 : 0
+                        visible: opacity > 0.01
                         clip: true
                         spacing: 2
                         model: root.settingsSearchResults
+                        Behavior on opacity {
+                            NumberAnimation { duration: 170; easing.type: Easing.OutCubic }
+                        }
                         delegate: NavigationRailButton {
                             required property var modelData
+                            required property int index
                             width: ListView.view.width
                             expanded: true
                             buttonIcon: "search"
                             buttonText: modelData.label
                             showToggledHighlight: false
                             onPressed: root.activateSearchResult(modelData)
+
+                            // 结果项错开进场（每项延迟 25ms，最多累计 150ms）
+                            opacity: 0
+                            Component.onCompleted: appearTimer.start()
+                            Timer {
+                                id: appearTimer
+                                interval: Math.min(index * 25, 150)
+                                onTriggered: parent.opacity = 1
+                            }
+                            Behavior on opacity {
+                                NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+                            }
                         }
                     }
 

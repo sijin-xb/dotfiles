@@ -140,18 +140,6 @@
     ]
   },
   {
-    "page": "Profile",
-    "file": "Profile.qml",
-    "sections": [
-      "Avatar",
-      "Identity",
-      "Presets",
-      "Downloaded",
-      "Imported",
-      "Browse Online"
-    ]
-  },
-  {
     "page": "About",
     "file": "About.qml",
     "sections": []
