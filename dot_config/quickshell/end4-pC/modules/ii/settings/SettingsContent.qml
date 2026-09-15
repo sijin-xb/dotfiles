@@ -288,6 +288,9 @@ Item {
                         id: settingsSearchBox
                         Layout.fillWidth: true
                         // 与「配置文件」按钮、导航项一致：满宽（它们都没有左右边距）
+                        // 注意：「配置文件」那个 FloatingActionButton 有 bottomMargin: -25，
+                        // 会把后面的元素往上吸，这里要补回 25 再加一点间距，否则会重叠。
+                        Layout.topMargin: 33
                         Layout.bottomMargin: 10
                         visible: navRail.expanded
                         implicitHeight: 38
