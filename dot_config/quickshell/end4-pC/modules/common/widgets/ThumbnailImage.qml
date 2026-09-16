@@ -14,6 +14,10 @@ StyledImage {
 
     property bool generateThumbnail: true
     required property string sourcePath
+    // 视频帧抽取引擎：在脚本内由 sourcePath 派生 md5 + 缓存路径，再 ffmpeg 抽帧。
+    // 这样 ffmpeg 的 -i 与最后的 mv 落到同一份输入算出来的目标，
+    // 杜绝 GridView 复用 delegate 时"-i 仍是旧文件、目标已是新文件"的串写。
+    readonly property string videoThumbScriptPath: `${FileUtils.trimFileProtocol(Directories.scriptPath)}/thumbnails/generate-video-thumbnail.sh`
     property string thumbnailSizeName: Images.thumbnailSizeNameForDimensions(sourceSize.width, sourceSize.height)
     property string thumbnailPath: {
         if (sourcePath.length == 0) return;
@@ -55,10 +59,22 @@ StyledImage {
         thumbnailGeneration.running = true;
     }
 
+    // 关键：sourcePath 变化时，先把 source 清掉再重新绑定。
+    // 否则 StyledImage 的 retainWhileLoading: true 会在异步加载新帧期间
+    // 一直保留上一个 delegate 留下的 pixmap，看上去就是"视频格显示成
+    // 别张静态壁纸"。
+    function clearStaleThumbnail() {
+        root.source = "";
+        root.source = Qt.binding(() => root.thumbnailPath);
+    }
+
     // Regenerate when the target thumbnail path changes: this covers both
     // size changes and sourcePath changes (GridView delegate recycling),
     // so newly added files get their missing thumbnail on first display.
-    onThumbnailPathChanged: root.ensureThumbnail()
+    onThumbnailPathChanged: {
+        root.clearStaleThumbnail();
+        root.ensureThumbnail();
+    }
     Component.onCompleted: root.ensureThumbnail()
 
     Process {
@@ -68,19 +84,17 @@ StyledImage {
             const isVideo = Images.isValidVideoByName(root.sourcePath);
             const out = FileUtils.trimFileProtocol(root.thumbnailPath);
             const dir = out.replace(/\/[^/]+$/, "");
+            // 视频走专用脚本：目标路径在脚本里按 sourcePath 现算，
+            // 避免绑定求值顺序引发的串写。脚本内部 mktemp + 原子 mv，
+            // 文件已存在且不要求 force 时直接 exit 0（on-demand 模式不重抽）。
+            if (isVideo) {
+                return ["bash", root.videoThumbScriptPath, root.sourcePath, root.thumbnailSizeName];
+            }
+            // 图片保持原本的 magick 分支（图片没观察到串写问题，逻辑不动）。
             const filter = `scale=${maxSize}:${maxSize}:force_original_aspect_ratio=decrease`;
-            // 先写临时文件再原子改名：进程被中断时不会在目标路径留下半截 PNG，
-            // 否则后续的“文件已存在”判断会把它当成有效缩略图，格子永远空白。
             const head = `mkdir -p '${dir}'; out='${out}'; tmp="$out.tmp.$$"; ` +
                 `[ -s "$out" ] && exit 0; `;
             const tail = `[ -s "$tmp" ] || { rm -f "$tmp"; exit 2; }; mv -f "$tmp" "$out"; exit 1;`;
-            if (isVideo) {
-                // 取第 1 秒的一帧；个别短视频 / 异常时间轴取不到时回退到第 0 帧
-                return ["bash", "-c", head +
-                    `ffmpeg -loglevel error -y -ss 1 -i '${root.sourcePath}' -frames:v 1 -an -sn -threads 1 -vf "${filter}" "$tmp" ` +
-                    `|| ffmpeg -loglevel error -y -ss 0 -i '${root.sourcePath}' -frames:v 1 -an -sn -threads 1 -vf "${filter}" "$tmp"; ` +
-                    tail];
-            }
             return ["bash", "-c", head +
                 `magick '${root.sourcePath}' -resize ${maxSize}x${maxSize} "$tmp" 2>/dev/null ` +
                 `|| convert '${root.sourcePath}' -resize ${maxSize}x${maxSize} "$tmp" 2>/dev/null; ` +
@@ -88,10 +102,8 @@ StyledImage {
         }
         onExited: (exitCode, exitStatus) => {
             root.pendingThumbnailPath = "";
-            if (exitCode === 1) {
-                root.reloadThumbnail(); // 新生成
-            } else if (exitCode === 0 && root.status === Image.Error) {
-                root.reloadThumbnail(); // 文件本来就在，但加载失败过一次
+            if (exitCode === 0) {
+                root.reloadThumbnail(); // 0：新生成或本来就存在，统一刷一下保险
             } else if (exitCode === 2) {
                 console.log("[ThumbnailImage] thumbnail generation failed:", root.sourcePath);
             }

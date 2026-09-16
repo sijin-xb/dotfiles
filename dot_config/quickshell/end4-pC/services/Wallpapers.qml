@@ -17,6 +17,10 @@ Singleton {
 
     property string thumbgenScriptPath: `${FileUtils.trimFileProtocol(Directories.scriptPath)}/thumbnails/thumbgen-venv.sh`
     property string generateThumbnailsMagickScriptPath: `${FileUtils.trimFileProtocol(Directories.scriptPath)}/thumbnails/generate-thumbnails-magick.sh`
+    // 强制覆盖视频缩略图：thumbgen 的 lookup(uri,mtime) 会跳过"已存在"
+    // 的文件，导致先前渲染错误的内容永远不被刷新；这里单独走视频脚本
+    // 并加 --force，让"更新缩略图"按钮真正能把错的视频帧盖掉。
+    property string videoThumbScriptPath: `${FileUtils.trimFileProtocol(Directories.scriptPath)}/thumbnails/generate-video-thumbnail.sh`
     property alias directory: folderModel.folder
     readonly property string effectiveDirectory: FileUtils.trimFileProtocol(folderModel.folder.toString())
     property url defaultFolder: Qt.resolvedUrl(`${Directories.pictures}/Wallpapers`)
@@ -193,9 +197,16 @@ Singleton {
         if (!["normal", "large", "x-large", "xx-large"].includes(size)) throw new Error("Invalid thumbnail size");
         thumbgenProc.directory = root.directory
         thumbgenProc.running = false
+        const dir = FileUtils.trimFileProtocol(root.directory)
+        // 第一段：thumbgen（图片 + 视频，但会跳过已存在缓存）；
+        //        失败时退回 magick（只处理图片）。
+        // 第二段：强制 --force 抽帧覆盖所有视频，修复 thumbgen
+        //        跳过已有文件导致错误帧永远留存的问题。视频脚本
+        //        在脚本内按 sourcePath 算 md5+目标路径，源和目标天然锁定。
+        // 末尾 `|| true` 保证整体退出 0，让 thumbnailGenerated 信号照常发出。
         thumbgenProc.command = [
             "bash", "-c",
-            `${thumbgenScriptPath} --size ${size} --machine_progress -d ${FileUtils.trimFileProtocol(root.directory)} || ${generateThumbnailsMagickScriptPath} --size ${size} -d ${FileUtils.trimFileProtocol(root.directory)}`,
+            `(${thumbgenScriptPath} --size ${size} --machine_progress -d '${dir}' || ${generateThumbnailsMagickScriptPath} --size ${size} -d '${dir}'); ${videoThumbScriptPath} --dir '${dir}' ${size} --force || true`,
         ]
         // console.log("[Wallpapers] Updating thumbnails with command ", thumbgenProc.command.join(" "))
         root.thumbnailGenerationProgress = 0
