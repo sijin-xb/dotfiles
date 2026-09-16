@@ -1375,12 +1375,13 @@ ContentPage {
                     }
                 }
 
-                // 读不到 /dev/input 时把守护的原因直接摆出来，不要让人猜为什么没反应
+                // 读不到 /dev/input 时把原因直接摆出来，不要让人猜为什么没反应。
+                // 文案由 KeycapDisplay 按当前语言翻译好，这里不做字符串拼接。
                 StyledText {
-                    visible: Config.options.keycapDisplay.enable && KeycapDisplay.error !== ""
+                    visible: Config.options.keycapDisplay.enable && KeycapDisplay.errorText !== ""
                     Layout.fillWidth: true
                     Layout.topMargin: 6
-                    text: Translation.tr("Keycap reader unavailable") + "：" + KeycapDisplay.error
+                    text: KeycapDisplay.errorText
                     font.pixelSize: Appearance.font.pixelSize.smaller
                     color: Appearance.colors.colError
                     wrapMode: Text.WordWrap

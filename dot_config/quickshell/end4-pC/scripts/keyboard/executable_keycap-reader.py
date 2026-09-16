@@ -106,12 +106,12 @@ def close_all(opened: dict[int, str]) -> None:
 def main() -> int:
     opened = open_devices()
     if not opened:
-        print(
-            "读不到任何 /dev/input/event*。请确认当前用户在 input 组里：\n"
-            "  sudo usermod -aG input $USER   # 之后重新登录\n"
-            "可用 id -nG 检查。",
-            file=sys.stderr,
-        )
+        # 第一行是给 QML 用的稳定错误码（界面据此翻译成本地语言），
+        # 以 # 开头的后续行是给人手工运行本脚本时看的提示。
+        print("ERROR:NO_INPUT_DEVICES", file=sys.stderr)
+        print("# 读不到任何 /dev/input/event*。请确认当前用户在 input 组里：", file=sys.stderr)
+        print("#   sudo usermod -aG input $USER   # 之后重新登录", file=sys.stderr)
+        print("# 可用 id -nG 检查。", file=sys.stderr)
         return 1
 
     print(f"keycap-reader: 已接管 {len(opened)} 个输入设备", file=sys.stderr, flush=True)

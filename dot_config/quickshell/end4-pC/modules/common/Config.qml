@@ -656,7 +656,7 @@ Singleton {
             property JsonObject keycapDisplay: JsonObject {
                 property bool enable: false
                 // 全部松开后键帽再停留多久（毫秒）—— 太短会来不及看见快速点按
-                property int timeout: 1200
+                property int timeout: 1600
                 property string position: "bottom" // "bottom" | "top"
             }
 

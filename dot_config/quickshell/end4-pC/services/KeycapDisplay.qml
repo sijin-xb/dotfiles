@@ -27,15 +27,31 @@ Singleton {
     // 不用可选链（?. / ??）：qmllint 的 JS 解析器还不认，会整片报 Syntax error
     property bool enabled: Config.options.keycapDisplay.enable
     property int timeout: Config.options.keycapDisplay.timeout
-
     /** 守护上报的当前按住集合 */
     property list<string> heldKeys: []
     /** 界面要显示的集合（松开后还会留一会儿） */
     property list<string> shownKeys: []
     /** 是否有内容要画 */
     property bool showing: false
-    /** 守护的报错（读不到设备 / 权限不足等），供设置界面展示 */
-    property string error: ""
+
+    /**
+     * 守护上报的错误码（形如 NO_INPUT_DEVICES），空串表示没出错。
+     * 守护只报稳定的错误码、不报人话 —— 人话在这里按当前语言翻译，
+     * 否则界面会把守护的中文原样显示给用其它语言的用户。
+     */
+    property string errorCode: ""
+
+    /** 供界面直接显示的错误文案（已按当前语言翻译） */
+    readonly property string errorText: {
+        switch (root.errorCode) {
+        case "NO_INPUT_DEVICES":
+            return Translation.tr("Cannot read input devices — add your user to the input group and log back in");
+        case "":
+            return "";
+        default:
+            return root.errorCode;
+        }
+    }
 
     function applyLine(line) {
         const text = String(line).trim()
@@ -84,8 +100,14 @@ Singleton {
         stderr: SplitParser {
             onRead: (line) => {
                 const text = String(line).trim()
-                if (text !== "")
-                    root.error = text
+                if (text === "")
+                    return
+                if (text.startsWith("ERROR:")) {
+                    root.errorCode = text.slice(6)
+                } else if (text.startsWith("#")) {
+                    // 以 # 开头的是给人手工运行脚本时看的说明，界面不需要
+                    console.log("[keycap-reader]", text.slice(1).trim())
+                }
             }
         }
 
@@ -100,5 +122,6 @@ Singleton {
         root.heldKeys = []
         root.shownKeys = []
         root.showing = false
+        root.errorCode = ""
     }
 }
