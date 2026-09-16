@@ -9,15 +9,18 @@ import qs.modules.common
  * 按键显示的数据源。
  *
  * 起 scripts/keyboard/keycap-reader.py 读 /dev/input/event*（只读，不 grab，
- * 不会影响按键进到应用里），逐行读它输出的 {"keys": ["Ctrl","A"]}。
+ * 不会影响按键进到应用里），逐行读它输出的
+ *     {"keys": ["Ctrl","Shift"], "text": "hello wor"}
  *
- * 状态分两层，因为「按住」和「显示」不是一回事：
- *   heldKeys  —— 守护上报的真实状态，手指松开就空了
- *   shownKeys —— 界面要画的东西。按下时立刻跟上，全部松开后还留 timeout 毫秒
- *                再淡出，否则快速点一下根本来不及看见
+ * 两个字段对应两种显示需求，分开满足：
+ *   keys —— 需要以键帽展示的键：修饰键、以及按住 Ctrl/Alt/Super 时的组合键、
+ *           方向键 / F 键这类不可打印键。适合看快捷键。
+ *   text —— 已经打出来的可见文本。可打印字符走这里而不是键帽，否则一个单词会被
+ *           拆成一堆单独闪过的键帽，根本读不出你打了什么。
  *
- * 需要能读 /dev/input/event*：把用户加进 input 组即可。读不到时守护会往
- * stderr 说明原因，这里收进 error 供设置界面提示。
+ * 键帽和文本的存活时间都交给守护（--text-idle），界面只负责画：
+ * 守护自己会在闲置后清空文本并推送新快照，界面不做第二套超时逻辑，
+ * 否则两边时间对不上会出现「界面清空了、下次按键又冒出旧文本」。
  */
 Singleton {
     id: root
@@ -26,13 +29,34 @@ Singleton {
 
     // 不用可选链（?. / ??）：qmllint 的 JS 解析器还不认，会整片报 Syntax error
     property bool enabled: Config.options.keycapDisplay.enable
+    property bool showTypedText: Config.options.keycapDisplay.showTypedText
     property int timeout: Config.options.keycapDisplay.timeout
-    /** 守护上报的当前按住集合 */
+    property int textTimeout: Config.options.keycapDisplay.textTimeout
+    property int maxTextLength: Config.options.keycapDisplay.maxTextLength
+
+    /** 守护上报的、需要以键帽展示的键 */
     property list<string> heldKeys: []
-    /** 界面要显示的集合（松开后还会留一会儿） */
+    /** 守护上报的、已经打出来的文本 */
+    property string typedText: ""
+
+    /** 界面实际要画的键帽：松开后还留一会儿，否则快速点按会一闪而过 */
     property list<string> shownKeys: []
     /** 是否有内容要画 */
     property bool showing: false
+
+    Timer {
+        id: keycapLinger
+        interval: root.timeout
+        repeat: false
+        onTriggered: {
+            root.shownKeys = []
+            root.refreshShowing()
+        }
+    }
+
+    function refreshShowing() {
+        root.showing = root.shownKeys.length > 0 || root.typedText.length > 0
+    }
 
     /**
      * 守护上报的错误码（形如 NO_INPUT_DEVICES），空串表示没出错。
@@ -53,45 +77,47 @@ Singleton {
         }
     }
 
+    readonly property var command: {
+        const args = ["python3", root.scriptPath,
+                      "--text-idle", String(Math.max(0.5, root.textTimeout / 1000)),
+                      "--max-text", String(root.maxTextLength)];
+        if (!root.showTypedText)
+            args.push("--no-text");
+        return args;
+    }
+
     function applyLine(line) {
-        const text = String(line).trim()
-        if (text === "")
+        const raw = String(line).trim()
+        if (raw === "")
             return
         let payload
         try {
-            payload = JSON.parse(text)
+            payload = JSON.parse(raw)
         } catch (e) {
             return // 半行 JSON，等下一次
         }
-        const keys = payload ? payload.keys : null
-        if (!Array.isArray(keys))
-            return
+
+        const keys = Array.isArray(payload.keys) ? payload.keys : []
+        const text = (typeof payload.text === "string") ? payload.text : ""
 
         root.heldKeys = keys
-        if (keys.length > 0) {
-            // 按着的时候就一直显示，不要开始倒计时
-            root.shownKeys = keys
-            root.showing = true
-            hideTimer.stop()
-        } else if (root.shownKeys.length > 0) {
-            hideTimer.restart()
-        }
-    }
+        root.typedText = text
 
-    Timer {
-        id: hideTimer
-        interval: root.timeout
-        repeat: false
-        onTriggered: {
-            root.showing = false
-            root.shownKeys = []
+        // 键帽：按住期间实时跟随；全部松开后不立刻清空，交给 keycapLinger 停留一会儿。
+        // 否则快速点一下 Ctrl+A 只闪一帧，等于没显示。
+        if (keys.length > 0) {
+            root.shownKeys = keys
+            keycapLinger.stop()
+        } else if (root.shownKeys.length > 0) {
+            keycapLinger.restart()
         }
+        root.refreshShowing()
     }
 
     Process {
         id: reader
         running: root.enabled
-        command: ["python3", root.scriptPath]
+        command: root.command
 
         stdout: SplitParser {
             onRead: (line) => root.applyLine(line)
@@ -118,8 +144,9 @@ Singleton {
     }
 
     function reset() {
-        hideTimer.stop()
+        keycapLinger.stop()
         root.heldKeys = []
+        root.typedText = ""
         root.shownKeys = []
         root.showing = false
         root.errorCode = ""

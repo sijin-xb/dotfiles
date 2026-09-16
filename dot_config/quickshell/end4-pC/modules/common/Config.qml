@@ -658,8 +658,16 @@ Singleton {
             // 读 /dev/input/event* 提供，需要当前用户在 input 组里。
             property JsonObject keycapDisplay: JsonObject {
                 property bool enable: false
-                // 全部松开后键帽再停留多久（毫秒）—— 太短会来不及看见快速点按
+                // 打出来的字累积成可读文本显示。关掉就只显示键帽（快捷键模式）。
+                // 非 US 布局下字符映射会不对，那种情况建议关掉这个。
+                property bool showTypedText: true
+                // 键帽松开后停留多久（毫秒）。太短会来不及看见快速点按。
                 property int timeout: 1600
+                // 停止输入多久后清空文本（毫秒）。比键帽长得多 ——
+                // 键帽看一眼就够，文本是要读的。
+                property int textTimeout: 5000
+                // 文本缓冲区上限，超出丢最老的，避免浮层无限变宽
+                property int maxTextLength: 48
                 property string position: "bottom" // "bottom" | "top"
             }
 

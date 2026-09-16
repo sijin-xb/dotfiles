@@ -1355,6 +1355,14 @@ ContentPage {
                         onCheckedChanged: { Config.options.keycapDisplay.enable = checked }
                     }
 
+                    ConfigSwitch {
+                        Layout.fillWidth: true
+                        buttonIcon: "spellcheck"
+                        text: Translation.tr("Show typed text (readable)")
+                        checked: Config.options.keycapDisplay.showTypedText
+                        onCheckedChanged: { Config.options.keycapDisplay.showTypedText = checked }
+                    }
+
                     ConfigSelectionArray {
                         text: Translation.tr("Position")
                         icon: "vertical_align_center"
