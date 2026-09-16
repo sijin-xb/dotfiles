@@ -2,6 +2,47 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+## 2026-09-16（深夜）
+
+### 新增：歌词通杀（音频指纹兜底）
+
+桌面歌词原本只认 MPRIS，浏览器网页播放器 / 游戏 / 视频播放器都不覆盖，逐个软件
+适配是维护不完的。现在加了一条与「谁在放」无关的路径：听系统输出认歌。
+详见 [docs/integrations.md](docs/integrations.md)。
+
+- `services/AudioActivity.qml`：`pactl subscribe` 事件驱动判断「有没有音频在放」，
+  零轮询；收到事件去抖 250ms 再查一次状态，空闲时没有任何定时器与子进程。
+- `services/LyricsIdentifier.qml`：有声音且没有可信身份时跑一次
+  `recognize-music.sh`（`songrec listen -d <默认输出>.monitor`），拿到歌名/艺人后
+  复用原有 kugou 取词链路。带 60 秒冷却（Shazam 会限流）、15 分钟身份有效期、
+  静默 10 秒后忘记身份（去抖，避免切歌/缓冲的短暂静音触发重复识别）。
+- `DesktopLyrics.doFetch`：MPRIS 给不出可用元数据时改用指纹身份，并置
+  `usingFingerprint`。进度沿用原有的 100ms 本地插值定时器，无需另造时钟。
+
+**PipeWire 的坑**：`pactl -f json list sink-inputs` 在 PipeWire 后端**没有 `state`
+字段**（那是原生 PulseAudio 才有的），只有 `corked`。只看 `state` 会永远判定为
+「没在播」。已用真实输出验证（Chromium 流：`state=None, corked=False` → 在播），
+并对两种后端各跑了边界用例。
+
+**同步精度的实话**：指纹只能认出「是哪首歌」，给不出歌内位置 —— 这是 Shazam 类服务
+的固有限制。所以指纹路径的进度从识别成功那一刻记 0 自己走表，起点天然偏后一段，
+用歌词偏移对齐一次即可；要完全免对齐就用支持 MPRIS 的播放器。
+
+### 按键显示：修裁切与浅色对比度、加打字反馈、i18n 全语言
+
+- 距屏幕边缘的间距从子项的 anchors 边距改成窗口自己的 `margins`。窗口高度自适应
+  子项，子项再带 `topMargin` 会把自己顶出窗口 —— 这是「上方边框被截断」的根因。
+  照 OSD 的写法重写（`anchors` + `margins` + `implicitWidth/Height`）。
+- 底色改用**不透明**的 M3 token（`surfaceContainerHighest` / `primaryContainer`）。
+  原来的 `colLayer*` 在开启透明度后是半透明的，铺在浅色壁纸上文字看不清。
+- 键帽新出现时用 `OutBack` 弹一下（`Component.onCompleted` 触发），打字有了反馈；
+  `Repeater` 按下标复用 delegate，所以一直按住的 Ctrl 不会反复弹。
+- 键帽高度 46、窗口四周留 8px（描边不再贴边被切），停留时长默认 1200→1600ms。
+- 守护改为输出稳定错误码（`ERROR:NO_INPUT_DEVICES`）+ `#` 开头的人类提示，文案由
+  `KeycapDisplay.errorText` 按当前语言翻译，不再把中文 stderr 直接显示给用户。
+- 按键显示相关 7 个 key 补齐到**全部 14 个语言文件**（+70 条），并清掉已不再引用的
+  `Keycap reader unavailable`。
+
 ## 2026-09-16（夜）
 
 ### 新增：键盘按键显示

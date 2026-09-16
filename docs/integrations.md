@@ -2,6 +2,59 @@
 
 > **历史变更**：[CHANGELOG.md](../CHANGELOG.md)
 
+## 歌词通杀：音频指纹兜底
+
+桌面歌词原本只认 MPRIS 播放器。MPRIS 覆盖不到的音源（浏览器网页播放器、游戏、
+视频播放器）逐个软件做适配是维护不完的，所以加了一条与「谁在放」完全无关的路径：
+
+~~~
+pactl subscribe / list sink-inputs      （有没有音频在放，谁在放）
+  └─ services/AudioActivity.qml
+       └─ services/LyricsIdentifier.qml （有声音 + 没有可信身份 → 认一次）
+            └─ scripts/musicRecognition/recognize-music.sh
+                 └─ songrec listen -d <默认输出>.monitor   （听系统输出，不挑音源）
+                      └─ 得到 歌名 / 艺人
+                           └─ 复用原有 kugou 取词（scripts/lyrics/kugou_lyrics.py）
+~~~
+
+取词、缓存、逐字渲染、偏移微调全部复用原有链路，新增的只有「身份从哪来」这一层。
+
+### 身份来源优先级
+
+| 优先级 | 来源 | 进度精度 |
+|---|---|---|
+| 1 | SPlayer WebSocket | 播放器直推，最准 |
+| 2 | MPRIS | 播放器给位置，准 |
+| 3 | **音频指纹** | **没有位置可问，自己走表** |
+
+### 同步精度的实话
+
+指纹只能认出「是哪首歌」，**给不出歌内位置** —— 这是 Shazam 这类服务的固有限制，
+不是实现问题。所以第 3 条路径的进度是：识别成功那一刻记 0，之后由桌面歌词原有的
+100ms 本地插值定时器推进；识别本身是在歌已经放了一会儿之后才成功的，起点天然偏后
+一段，用 **设置 → 界面 → 歌词偏移**（或 IPC `desktoplyrics offset_faster/slower`）
+对齐一次即可，之后整首歌都是准的。
+
+想彻底避免手动对齐，就用支持 MPRIS 的播放器（第 1、2 条路径）。
+
+### 两个实现要点
+
+- **事件驱动，不轮询**。`pactl subscribe` 常驻，只在音频对象变化时吐行；收到事件后
+  去抖 250ms 再查一次状态。空闲时没有任何定时器和子进程。
+- **PipeWire 下没有 `state` 字段**。`pactl -f json list sink-inputs` 在 PipeWire 后端
+  只给 `corked`，`state` 是原生 PulseAudio 才有的。所以判断「在播」要优先看
+  `corked`，`state` 只作兜底 —— 只看 `state` 的话在 PipeWire 上会永远判定为「没在播」。
+
+### 开关
+
+~~~json
+{
+  "desktopLyricsFingerprintEnable": true
+}
+~~~
+
+关掉后行为与之前完全一致（只走 SPlayer + MPRIS）。
+
 ## SPlayer 歌词联动
 
 桌面歌词默认走 MPRIS + 酷狗抓词。如果播放器是 **SPlayer**，可以在它的

@@ -82,6 +82,9 @@ Singleton {
 
             // 桌面歌词总开关（设置 → 桌面 → 小部件）
             property bool desktopLyricsEnabled: true // 桌面歌词总开关
+            // 音频指纹兜底：MPRIS 拿不到元数据的音源（浏览器网页播放器、游戏、
+            // 非 MPRIS 播放器）改用 songrec 听系统输出认歌，再走同一套 kugou 取词。
+            property bool desktopLyricsFingerprintEnable: true
             property real desktopLyricsOffset: 0.0 // 桌面歌词全局时间偏移微调（秒，正数提前，负数延后）
             // SPlayer 自带 WebSocket 歌词源（SPlayer 设置 → WebSocket 服务）。
             // 开启后歌词/进度直接来自 SPlayer，不用再走 MPRIS + kugou 抓取。

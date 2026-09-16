@@ -82,9 +82,18 @@ PanelWindow {
     readonly property bool splayerActive: root.splayerEnable && root.splayerConnected
         && root.splayerHasLyrics
 
+    // 当前这首歌的身份是不是来自音频指纹（MPRIS 拿不到元数据时的兜底）。
+    // 这种情况下没有播放器可问「在不在播 / 放到哪了」：
+    //   · 在不在播 → 问系统音频（AudioActivity）
+    //   · 放到哪了 → 完全靠下面那个 100ms 本地插值定时器自己走，
+    //                350ms 的 MPRIS 漂移校正对这条路径不生效（也没得校正）
+    property bool usingFingerprint: false
+
     readonly property bool isPlaying: root.splayerActive
         ? root.splayerPlaying
-        : ((activePlayer?.isPlaying ?? false) && (activePlayer?.playbackState === MprisPlaybackState.Playing || activePlayer?.playbackState === 1 || activePlayer?.isPlaying === true))
+        : (root.usingFingerprint
+            ? AudioActivity.playing
+            : ((activePlayer?.isPlaying ?? false) && (activePlayer?.playbackState === MprisPlaybackState.Playing || activePlayer?.playbackState === 1 || activePlayer?.isPlaying === true)))
 
     property bool connected: true // Kept for backwards compatibility
 
@@ -501,25 +510,49 @@ PanelWindow {
         const rawTitle = (activePlayer?.trackTitle ?? "").trim();
         const rawArtist = (activePlayer?.trackArtist ?? "").trim();
         const norm = normalizeTitleArtist(rawTitle, rawArtist);
-        const title = norm.title;
-        const artist = norm.artist;
-        const dur = activePlayer?.length ?? 0;
+        let title = norm.title;
+        let artist = norm.artist;
+        let duration = activePlayer?.length ?? 0;
+        let fromFingerprint = false;
+
+        // MPRIS 给不出可用元数据 —— 浏览器网页播放器、游戏、视频播放器都会走到这里。
+        // 这是「逐个软件适配」永远补不完的窟窿，所以改成用音频指纹认歌：
+        // recognize-music.sh 抓的是默认输出的 monitor 源，谁在出声都能录到。
+        if (!title && LyricsIdentifier.enabled && AudioActivity.playing) {
+            LyricsIdentifier.requestIdentify();
+            if (LyricsIdentifier.hasIdentity) {
+                title = LyricsIdentifier.title;
+                artist = LyricsIdentifier.artist;
+                // 指纹认不出时长，交给 kugou 用「歌名 + 艺人」去匹配
+                duration = 0;
+                fromFingerprint = true;
+            }
+        }
 
         if (!title) {
             lyricLines = [];
             lastRawLyrics = "";
             lastSongKey = "";
             currentLineIndex = -1;
+            usingFingerprint = false;
             return;
         }
 
         const songKey = `${title} - ${artist}`;
         if (!refresh && songKey === lastSongKey && lyricLines.length > 0) {
+            usingFingerprint = fromFingerprint;
             return;
         }
 
         lastSongKey = songKey;
         songName = title;
+        usingFingerprint = fromFingerprint;
+
+        // 指纹来源没有播放器可问进度，从 0 开始自己走表。
+        // 识别是在歌已经放了一会儿之后才成功的，所以起点天然偏后一段；
+        // 用 设置里的歌词偏移（或 IPC 的 offset_faster/slower）对齐即可。
+        if (fromFingerprint)
+            currentTime = 0;
 
         // Show the new song instantly instead of stale lyrics from the
         // previous track; replaced as soon as the fetch returns.
@@ -534,7 +567,7 @@ PanelWindow {
         const cmd = ["python3", `${Directories.scriptPath}/lyrics/kugou_lyrics.py`];
         if (refresh)
             cmd.push("--refresh");
-        cmd.push(title, artist, String(Math.floor(dur)), String(fetchGeneration));
+        cmd.push(title, artist, String(Math.floor(duration)), String(fetchGeneration));
         lyricsProc.running = false;
         lyricsProc.command = cmd;
         lyricsProc.running = true;
@@ -658,6 +691,29 @@ PanelWindow {
         running: root.enabled
         repeat: true
         onTriggered: root.pickPlayer()
+    }
+
+    // ─── 音频指纹兜底（MPRIS 覆盖不到的音源） ──────────────────────────
+    // 指纹认出歌之后重新取一次词。识别本身由 LyricsIdentifier 自己做冷却控制，
+    // 这里只负责在「认出来了」和「该再认一次了」两个时机推它一把。
+    Connections {
+        target: LyricsIdentifier
+        function onIdentified() {
+            if (root.enabled && !root.splayerActive)
+                root.doFetch(false);
+        }
+    }
+
+    Timer {
+        // 指纹身份过期（或一直没认出来）时重试。间隔比识别自身的冷却长，
+        // 真正的限流判断在 LyricsIdentifier 里。
+        interval: 15000
+        running: root.enabled && root.usingFingerprint && AudioActivity.playing
+        repeat: true
+        onTriggered: {
+            if (!LyricsIdentifier.hasIdentity)
+                LyricsIdentifier.requestIdentify();
+        }
     }
 
     onCurrentTimeChanged: updateCurrentLine()
