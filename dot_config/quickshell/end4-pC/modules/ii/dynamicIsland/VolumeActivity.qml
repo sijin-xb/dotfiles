@@ -63,7 +63,7 @@ Item {
                 }
                 Text {
                     Layout.alignment: Qt.AlignVCenter
-                    text: "音量"
+                    text: Translation.tr("Volume")
                     color: IslandTheme.text
                     font.family: IslandTheme.fontFamily
                     font.pixelSize: IslandTheme.fontBody

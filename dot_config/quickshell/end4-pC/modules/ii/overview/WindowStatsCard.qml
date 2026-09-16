@@ -293,7 +293,7 @@ Popup {
                 color: Appearance.colors.colOnSurfaceVariant
             }
             StyledText {
-                text: "处理器"
+                text: Translation.tr("Processor")
                 font.pixelSize: Appearance.font.pixelSize.smaller
                 color: Appearance.colors.colOnLayer1
             }
@@ -334,7 +334,7 @@ Popup {
                 color: Appearance.colors.colOnSurfaceVariant
             }
             StyledText {
-                text: "内存"
+                text: Translation.tr("Memory")
                 font.pixelSize: Appearance.font.pixelSize.smaller
                 color: Appearance.colors.colOnLayer1
             }
@@ -402,7 +402,7 @@ Popup {
             }
 
             DialogButton {
-                buttonText: "聚焦"
+                buttonText: Translation.tr("Focus")
                 implicitHeight: 30
                 padding: 10
                 Layout.fillWidth: true
@@ -416,7 +416,7 @@ Popup {
                 }
             }
             DialogButton {
-                buttonText: "关闭"
+                buttonText: Translation.tr("Close")
                 implicitHeight: 30
                 padding: 10
                 Layout.fillWidth: true

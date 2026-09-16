@@ -351,7 +351,7 @@ Item {
             Text {
                 anchors.centerIn: parent
                 visible: !root.hasLyrics
-                text: "暂无歌词"
+                text: Translation.tr("No lyrics")
                 color: IslandTheme.textTertiary
                 font.family: IslandTheme.fontFamily
                 font.pixelSize: IslandTheme.fontBody

@@ -34,7 +34,7 @@ STATE_DIR="$BACKUP_ROOT/state"
 PRE_INSTALL_PREFIX="pre-install"
 PRE_ROLLBACK_PREFIX="pre-rollback"
 
-# 快照 / 存档涉及的源路径清单（spec FR-4.0 的 18 项 + 存档额外 4 项）
+# 快照 / 存档涉及的源路径清单（SNAP_PATHS 16 项 + EXTRA_ARCHIVE_PATHS 3 项）
 # 缺失的路径在 tar 时会跳过，不报错
 SNAP_PATHS=(
     ".config/hypr"
@@ -388,7 +388,7 @@ cmd_install() {
        SUPER+T      终端召唤（居中浮动，再按隐藏）
        SUPER+S      scratchpad
        SUPER        启动器（支持中文拼音搜索）
-  4. 桌宠 / 桌面歌词开关：设置 → 桌面 → 小部件
+  4. 桌面歌词开关：设置 → 桌面 → 小部件
      （桌面歌词已解耦，自动适配 KA Music / Spotify / 浏览器等任意播放器）
   5. fish 设为默认 shell（可选）: chsh -s "$(command -v fish)"
   6. Caelestia QML 插件：已编译到 ~/src/caelestia-shell，产物 build/qml
@@ -564,7 +564,7 @@ print_help() {
     cat <<EOF
 sijin-xb's dotfiles 自部署脚本 —— Rice 版本: ${RICE_VERSION}
 
-核心特性：液态玻璃毛玻璃效果 · Bongo Cat 桌宠 · 桌面歌词逐字卡拉OK ·
+核心特性：液态玻璃毛玻璃效果 · 桌面歌词逐字卡拉OK ·
          拼音搜索启动器 · SUPER+T 终端召唤 · matugen Material 3 全局取色
 
 用法：
@@ -652,8 +652,7 @@ EOF
     draw_header "✨ 核心特性"
     printf '  %s%s%1s 液态玻璃毛玻璃效果%s   阴影代替边框，柔和光晕 + vibrancy 色彩染色\n'  "${TC_BOLD}" "${TC_CYAN}" "·" "${TC_RESET}"
     printf '      (quickshell 面板推荐: 模糊半径 10 / 活动不透明度 82 / 非活动 68)\n'
-    printf '  %s%s%1s Bongo Cat 桌宠%s       系统状态换心情、拎起甩动有惯性、落点持久化\n' "${TC_BOLD}" "${TC_MAG}" "·" "${TC_RESET}"
-    printf '  %s%s%1s 桌面歌词%s             MoeKoe Music 逐字卡拉OK + 猫猫嘴型同步\n'      "${TC_BOLD}" "${TC_GREEN}" "·" "${TC_RESET}"
+    printf '  %s%s%1s 桌面歌词%s             逐字计时（酷狗 KRC），自动适配任意 MPRIS 播放器\n' "${TC_BOLD}" "${TC_GREEN}" "·" "${TC_RESET}"
     printf '  %s%s%1s 拼音搜索启动器%s     支持中文拼音搜索 + 窗口缩略图悬浮信息卡\n' "${TC_BOLD}" "${TC_YELLOW}" "·" "${TC_RESET}"
     printf '  %s%s%1s 终端召唤%s             SUPER+T 居中浮动，状态保留（kitty-quake）\n'   "${TC_BOLD}" "${TC_BLUE}" "·" "${TC_RESET}"
     printf '  %s%s%1s Material 3 取色%s     matugen 壁纸→全局配色（11+ 应用联动）\n'        "${TC_BOLD}" "${TC_RED}" "·" "${TC_RESET}"
@@ -675,7 +674,7 @@ show_help() {
     echo "【① 适配环境】"
     echo "  · OS: CachyOS / Arch / EndeavourOS（/etc/arch-release 必须存在）"
     echo "  · 会话: Wayland · Hyprland · Quickshell (end4-pC)"
-    echo "  · 建议 GPU: ≥ Intel UHD 620（模糊+桌宠要一点 GPU 算力）"
+    echo "  · 建议 GPU: ≥ Intel UHD 620（模糊 + 壁纸视差要一点 GPU 算力）"
     echo
     echo "【② 键位速览】"
     echo "  SUPER         启动器（中文拼音搜索 + 窗口缩略图信息卡）"

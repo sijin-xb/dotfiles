@@ -35,6 +35,13 @@ output_path = '~/.config/kitty/current-theme.conf'
 input_path = '~/.config/matugen/templates/foot/foot.ini'
 output_path = '~/.config/foot/matugen.ini'
 
+[templates.btop]
+input_path = '~/.config/matugen/templates/btop.theme'
+output_path = '~/.config/btop/themes/ii-auto.theme'
+# btop 的 SIGUSR2 等价于界面里的 Ctrl+R「重载配置」：会重读 btop.conf 并重设
+# 主题，正在跑的实例立刻换色，不需要重启。没有实例时 pkill 返回 1，忽略即可。
+post_hook = 'pkill -SIGUSR2 -x btop 2>/dev/null || true'
+
 [templates.mako]
 input_path = '~/.config/matugen/templates/mako/colors.conf'
 output_path = '~/.config/mako/colors.conf'

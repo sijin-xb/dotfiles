@@ -1,0 +1,107 @@
+# Matugen template for btop
+#
+# 渲染目标：~/.config/btop/themes/ii-auto.theme（见 config.toml 的
+# [templates.btop]），btop.conf 里的 color_theme 指向它。
+# 换壁纸 / 切明暗后 matugen 重写该文件，post_hook 再发 SIGUSR2
+# 让正在运行的 btop 热重载，不用手动重启。
+# 不要手改生成物，改这个模板才有用。
+#
+# 配色取自 M3 语义 token，与 kitty / foot / alacritty 用的是同一套
+# token 对应关系，终端 ANSI 色和 btop 曲线属于同一色系。
+
+
+# Colors should be in 6 or 2 character hexadecimal or single spaced rgb decimal: "#RRGGBB", "#BW" or "0-255 0-255 0-255"
+# example for white: "#ffffff", "#ff" or "255 255 255".
+
+# All graphs and meters can be gradients
+# For single color graphs leave "mid" and "end" variable empty.
+# Use "start" and "end" variables for two color gradient
+# Use "start", "mid" and "end" for three color gradient
+
+# Main background, empty for terminal default, need to be empty if you want transparent background
+theme[main_bg]=""
+
+# Main text color
+theme[main_fg]="{{colors.on_surface.default.hex}}"
+
+# Title color for boxes
+theme[title]="{{colors.primary.default.hex}}"
+
+# Highlight color for keyboard shortcuts
+theme[hi_fg]="{{colors.secondary.default.hex}}"
+
+# Background color of selected item in processes box
+theme[selected_bg]="{{colors.primary.default.hex}}"
+
+# Foreground color of selected item in processes box
+theme[selected_fg]="{{colors.on_primary.default.hex}}"
+
+# Color of inactive/disabled text
+theme[inactive_fg]="{{colors.on_surface_variant.default.hex}}"
+
+# Text drawn on top of graphs and meters (btop 1.4+)
+theme[graph_text]="{{colors.on_surface_variant.default.hex}}"
+
+# Background of the unfilled part of meters (btop 1.4+)
+# 比 main_bg 亮一档，否则 meter 的边界看不出来
+theme[meter_bg]="{{colors.surface_container_low.default.hex}}"
+
+# Misc colors for processes box including mini cpu graphs, details memory graph and details status text
+theme[proc_misc]="{{colors.tertiary.default.hex}}"
+
+# Cpu box outline color
+theme[cpu_box]="{{colors.outline.default.hex}}"
+
+# Memory/disks box outline color
+theme[mem_box]="{{colors.outline.default.hex}}"
+
+# Net up/down box outline color
+theme[net_box]="{{colors.outline.default.hex}}"
+
+# Processes box outline color
+theme[proc_box]="{{colors.outline.default.hex}}"
+
+# Box divider line and small boxes line color
+theme[div_line]="{{colors.outline_variant.default.hex}}"
+
+# Temperature graph colors
+theme[temp_start]="{{colors.secondary.default.hex}}"
+theme[temp_mid]="{{colors.primary.default.hex}}"
+theme[temp_end]="{{colors.error.default.hex}}"
+
+# CPU graph colors
+theme[cpu_start]="{{colors.secondary.default.hex}}"
+theme[cpu_mid]="{{colors.primary.default.hex}}"
+theme[cpu_end]="{{colors.error.default.hex}}"
+
+# Mem/Disk free meter
+# 注意别拿 *_container 当终点：M3 在暗色模式下 container 比基色更暗，
+# 渐变会变成「越满越暗」，与 btop 默认主题的走向相反。下面统一用基色。
+theme[free_start]="{{colors.secondary.default.hex}}"
+theme[free_mid]=""
+theme[free_end]="{{colors.primary.default.hex}}"
+
+# Mem/Disk cached meter
+theme[cached_start]="{{colors.tertiary.default.hex}}"
+theme[cached_mid]=""
+theme[cached_end]="{{colors.secondary.default.hex}}"
+
+# Mem/Disk available meter
+theme[available_start]="{{colors.primary.default.hex}}"
+theme[available_mid]=""
+theme[available_end]="{{colors.primary.default.hex}}"
+
+# Mem/Disk used meter
+theme[used_start]="{{colors.primary.default.hex}}"
+theme[used_mid]=""
+theme[used_end]="{{colors.error.default.hex}}"
+
+# Download graph colors
+theme[download_start]="{{colors.secondary.default.hex}}"
+theme[download_mid]="{{colors.primary.default.hex}}"
+theme[download_end]="{{colors.tertiary.default.hex}}"
+
+# Upload graph colors
+theme[upload_start]="{{colors.secondary.default.hex}}"
+theme[upload_mid]="{{colors.primary.default.hex}}"
+theme[upload_end]="{{colors.tertiary.default.hex}}"

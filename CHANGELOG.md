@@ -2,6 +2,104 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+## 2026-09-16（下午）
+
+### 配色链路：加固、去冗余、修三处静默失效
+
+**修复三个「不报错但功能是坏的」问题：**
+
+- **视频壁纸换色会永久挂死**。`switchwall.sh` 用 `ffmpeg` 抽视频首帧当取色源，
+  但没加 `-nostdin`；quickshell / 设置面板 / 快捷键都以「常开管道」的形式拉起脚本，
+  ffmpeg 会去读 stdin 并一直等下去（实测零 CPU 卡死 2 分钟以上，配色不更新也没有报错）。
+  除加 `-nostdin` 外，脚本入口统一 `exec </dev/null`，从根上杜绝这一类问题。
+  顺带：缩略图比视频新时直接复用，不再每次换色都重新抽帧（4K 视频省下大头）。
+- **`palette.type = auto` 从来没生效过**。`scheme_for_image.py` 依赖 `cv2`，而 venv 里
+  没装 OpenCV，脚本一直抛 `ModuleNotFoundError`，被调用方当成「识别失败」静默退回
+  `scheme-tonal-spot`。改用 Pillow 重写彩色度指标（`ImageChops` + `ImageStat`，
+  都是 C 实现），既去掉了 OpenCV 这个重依赖，也真正让 auto 开始工作。
+  另外视频壁纸现在用可推导的缩略图路径做识别，不再拿 mp4 去喂 PIL。
+- **SUPER+ALT+T「切换配色策略」是坏的**。`matugen-update.sh` 只从 niri/awww 和
+  waypaper 找当前壁纸，两者都是上一套 rice 的残留（niri socket 不存在、waypaper 指向的
+  文件已删），必然 `exit 1`。改为优先读 Quickshell 的 `background.wallpaperPath`，
+  并把取色与分发整体委托给 `switchwall.sh`（新增 `--index` 参数），
+  不再自己调 matugen —— 否则会出现「Quickshell 变了、终端没变」。
+
+**去冗余：**
+
+- `applycolor.sh` 里 kitty 主题渲染出的文件**没有任何消费者**（kitty 读的是 matugen
+  直接写的 `~/.config/kitty/current-theme.conf`），`$alpha` 替换也是空操作（模板里
+  没有这个占位符）。整块删掉，只保留「发 SIGUSR1 让 kitty 重读配置」。
+- 终端配色的 scss 解析原来用 `cut -d ' ' -f2`，依赖「冒号后正好一个空格」这种排版细节，
+  排版一变就会静默抽出空值、把终端刷成一片黑。换成 `render_terminal_theme.py`：
+  显式解析 + 替换，**替换不完整就报错退出**，绝不把半成品推给终端。
+- `switchwall.sh` 删掉未使用的 `MATUGEN_DIR`、`post_process` 的三个未用参数，
+  以及只为它们服务的 `hyprctl monitors` 调用；`set_wallpaper_path` /
+  `set_thumbnail_path` / `set_accent_color` 三处重复的原子写合并成一个函数。
+- `matugen-update.sh` 里 gsettings 分支先 set 再反向 set 同一个键（净效果靠最后一次
+  覆盖），且与 `switchwall.sh` 的 `pre_process` 完全重复 —— 全部删掉，统一由后者处理。
+
+**提升健壮性：**
+
+- matugen 是「全有或全无」的：任一模板的 `input_path` 不存在，整轮渲染直接失败，
+  所有应用一起停在旧配色。新增 `filter_matugen_templates.py` 做调用前预检，
+  缺哪个跳过哪个，并在日志 / 通知里点名缺失项。
+- 加依赖自检（jq / matugen 缺失时给出可执行的安装命令）、matugen 与
+  `generate_colors_material.py` 的退出码检查与失败通知。
+- `ILLOGICAL_IMPULSE_VIRTUAL_ENV` 未导出时退回默认 venv 路径并显式 export，
+  让两个 python 脚本的 shebang 也能拿到。
+- KDE/Qt 配色助手在 Hyprland 下会因 KWin 不存在而抛 DBus 异常刷屏，
+  输出改为归档到 `~/.cache/quickshell/kde-colors.log`，日志不再被污染。
+
+**准确性：**
+
+- **同源取色**：`generate_colors_material.py` 有自己的取色算法（`Score.score`），
+  与 matugen 的 `--source-color-index` 不是一回事 —— 两边各挑各的，终端 16 色和
+  Quickshell 的 M3 就会来自同一张图的不同颜色。现在直接把 matugen 选定的源色
+  （`[templates.kde_colors]` 已写入 `color.txt`）通过 `--color` 喂给
+  `generate_colors_material.py`，两边同源；`--cache` 也不再互相覆盖同一个文件。
+- `get_type_from_config` / `get_accent_color_from_config` 的 `|| echo 默认值` 从来不生效
+  （jq 键不存在时输出 `null` 且退出码为 0），改成 `// 默认值`。
+
+### btop 配色适配
+
+`btop.conf` 一直指向 `ii-auto`，但 `~/.config/btop/themes/ii-auto.theme` 是个**没有任何
+脚本生成的静态死文件** —— 换壁纸后 btop 配色永远不变。现在：
+
+- 新增 `dot_config/matugen/templates/btop.theme`（`[templates.btop]` 注册在
+  `config.toml` / `config.toml.orig`），用 M3 语义 token 映射 btop 的 16 个槽位，
+  与 kitty / foot / alacritty 用同一套 token 对应关系，终端 ANSI 色和 btop 曲线同色系；
+- 补齐 btop 1.4 的 `graph_text` / `meter_bg` 两个槽位；
+- 修正 4 个内存/磁盘仪表的渐变方向（原先终点用 `*_container`，暗色模式下反而更暗，
+  与「越满越醒目」相反）；
+- `post_hook` 发 **SIGUSR2**（等价界面里的 Ctrl+R，实测确认是热重载配置），
+  正在运行的 btop 立刻换色，不需要重启。
+
+### 模板入仓（兼容性）
+
+`config.toml` 引用 22 个模板，仓库里只跟踪了 8 个；另有 `switchwall.sh` 依赖的
+`kde/kde-material-you-colors-wrapper.sh` 也未入仓。**全新安装时 matugen 会因为
+input_path 缺失整体失败**，等于零配色。缺的 12 个模板与 kde wrapper 已全部纳入
+`dot_config/matugen/`。
+
+### 移除桌宠
+
+`modules/ii/pet/`（`Pet.qml` 2009 行 + `PetState.qml` + `PetWindow.qml`，合计约 2288 行）
+与 `scripts/pet/petMetrics.sh` 整体删除：`shell.qml` 里的 `PetWindow` 实例与 import、
+`Config.options.petEnabled`、设置 → 桌面 → 小部件里的「Desktop pet (bongo cat)」开关、
+install.sh / 帮助文案里的相关描述一并清掉。`scripts/pet/winStats.sh` 保留 ——
+总览的窗口统计卡片在用它。
+
+### 卡顿：pacman 装包时输入延迟
+
+`services/Updates.qml` 每 2 小时执行 `checkupdates` + `yay -Qua`。pacman 装包时它持有
+`/var/lib/pacman/db.lck`，这两个命令会一起阻塞在锁上 —— 一个检查能挂满整轮安装，
+期间白占进程和 IO，正是「后台装软件时桌面发卡」的来源之一。现在：
+
+- 锁文件存在时直接沿用上次结果，不去抢锁；
+- `timeout` 兜底，helper 卡住不会留进程常驻；
+- 结果落盘缓存（`~/.cache/quickshell/updates-count`）；
+- AUR helper 改为 paru 优先（`paru -Qua` 比 yay 快不少，与 `install.sh` 的选择一致）。
+
 ## 2026-09-16
 
 ### 锁屏：Caelestia 风格移植与收尾

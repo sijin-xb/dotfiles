@@ -1213,11 +1213,6 @@ ContentPage {
                 Repeater {
                     model: [
                         {
-                            icon: "pets",
-                            name: Translation.tr("Desktop pet (bongo cat)"),
-                            enabled: Config.options.petEnabled
-                        },
-                        {
                             icon: "lyrics",
                             name: Translation.tr("Desktop lyrics"),
                             enabled: Config.options.desktopLyricsEnabled
@@ -1306,9 +1301,7 @@ ContentPage {
                                     Layout.fillWidth: false
                                     checked: modelData.enabled
                                     onCheckedChanged: {
-                                        if (modelData.icon === "pets")
-                                            Config.options.petEnabled = checked
-                                        else if (modelData.icon === "lyrics")
+                                        if (modelData.icon === "lyrics")
                                             Config.options.desktopLyricsEnabled = checked
                                         else if (modelData.icon === "weather_mix")
                                             Config.options.background.widgets.weather.enable = checked

@@ -61,11 +61,6 @@ ShellRoot {
 
     DesktopLyrics { id: desktopLyrics }
 
-    // 桌宠：拿桌面歌词的逐字 KRC 数据来"唱歌"
-    PetWindow {
-        lyricsProvider: desktopLyrics
-    }
-
     // 灵动岛：统一承载音乐 / 音量 / 录屏等活动
     // 歌词页复用桌面歌词的数据源（酷狗 KRC）
     DynamicIslandHost {
