@@ -1,6 +1,6 @@
--- PVZ ImGui 悬浮窗：悬浮 + 关模糊（磨砂背景就是 blur 给半透明窗口加的）
+-- PVZ ImGui 悬浮窗：悬浮
 -- class 来自 WM_CLASS，XWayland 下是 exe / 窗口名，这里是 "pvz-imgui-overlay"
-hl.window_rule({match = {class = "^(pvz-imgui-overlay)$"},   float = true, no_blur = true})
+hl.window_rule({match = {class = "^(pvz-imgui-overlay)$"},   float = true})
 
 -- ============================================================
 -- 终端召唤（SUPER + T）：kitty 常驻 special:quake 工作区，
@@ -24,23 +24,10 @@ hl.window_rule({match = {class = "^(kitty-quake)$"}, rounding = 14})
 -- 这里只放 window_rule 层面的差异化规则。
 -- ============================================================
 
--- -------- 模糊/透明豁免：游戏、视频、绘图工具 --------
--- 注：fullscreen 匹配符里 1=最大化(Super+D)、2=真全屏。这里只豁免真全屏，
---     否则 Super+D 会命中 no_blur，把焦点窗口的模糊关掉。
--- 这些应用如果开模糊会严重影响画质/性能，强制关模糊
--- （透明度使用全局默认的 fullscreen_opacity=1，全屏时自动变不透明）
-hl.window_rule({match = {class = "^(mpv)$"},                          no_blur = true })
-hl.window_rule({match = {class = "^(vlc)$"},                          no_blur = true })
-hl.window_rule({match = {class = "^(CelluloID)$"},                    no_blur = true })
-hl.window_rule({match = {class = ".*steam_app.*"},                    no_blur = true })
-hl.window_rule({match = {class = "^(lutris)$"},                       no_blur = true })
-hl.window_rule({match = {class = "^(heroic)$"},                       no_blur = true })
-hl.window_rule({match = {title = ".*\\.exe.*"},                       no_blur = true })
-hl.window_rule({match = {fullscreen = 2},                             no_blur = true })
-hl.window_rule({match = {class = "^(hyprpicker)$"},                   no_blur = true })
-hl.window_rule({match = {class = "^(gimp)$"},                         no_blur = true })
-hl.window_rule({match = {class = "^(krita)$"},                        no_blur = true })
-hl.window_rule({match = {class = "^(Inkscape)$"},                     no_blur = true })
+-- -------- 模糊：全局开启，无任何窗口级豁免 --------
+-- 所有窗口一律参与模糊；要单独关某个窗口，再自己加 no_blur = true。
+-- 注：Hyprland 的 fullscreen 匹配符 1=最大化、2=真全屏，这里都不再豁免。
+hl.window_rule({match = {class = ".*"}, no_blur = false })
 
 -- -------- 终端类：稍高透明度，代码阅读更舒适 --------
 hl.window_rule({match = {class = "^(kitty|foot|Alacritty|wezterm)$"}, opacity = 0.90 })
