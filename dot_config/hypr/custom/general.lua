@@ -62,3 +62,11 @@ hl.config({
         fullscreen_opacity = 1.0,
     },
 })
+
+-- -------- 光标：禁止焦点变化导致的自动跳转 --------
+-- no_warps=true 后，键盘/脚本/面板切换焦点时不再把光标拽到目标窗口
+hl.config({
+    cursor = {
+        no_warps = true,
+    },
+})

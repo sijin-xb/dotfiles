@@ -25,6 +25,8 @@ hl.window_rule({match = {class = "^(kitty-quake)$"}, rounding = 14})
 -- ============================================================
 
 -- -------- 模糊/透明豁免：游戏、视频、绘图工具 --------
+-- 注：fullscreen 匹配符里 1=最大化(Super+D)、2=真全屏。这里只豁免真全屏，
+--     否则 Super+D 会命中 no_blur，把焦点窗口的模糊关掉。
 -- 这些应用如果开模糊会严重影响画质/性能，强制关模糊
 -- （透明度使用全局默认的 fullscreen_opacity=1，全屏时自动变不透明）
 hl.window_rule({match = {class = "^(mpv)$"},                          no_blur = true })
@@ -34,7 +36,7 @@ hl.window_rule({match = {class = ".*steam_app.*"},                    no_blur = 
 hl.window_rule({match = {class = "^(lutris)$"},                       no_blur = true })
 hl.window_rule({match = {class = "^(heroic)$"},                       no_blur = true })
 hl.window_rule({match = {title = ".*\\.exe.*"},                       no_blur = true })
-hl.window_rule({match = {fullscreen = 1},                             no_blur = true })
+hl.window_rule({match = {fullscreen = 2},                             no_blur = true })
 hl.window_rule({match = {class = "^(hyprpicker)$"},                   no_blur = true })
 hl.window_rule({match = {class = "^(gimp)$"},                         no_blur = true })
 hl.window_rule({match = {class = "^(krita)$"},                        no_blur = true })
