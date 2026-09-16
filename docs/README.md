@@ -9,4 +9,5 @@
 | [lockscreen.md](lockscreen.md) | Serpantinum 风格三栏锁屏：布局、认证链、配色来源 |
 | [widgets-layout.md](widgets-layout.md) | 桌面小部件可视化布局编辑（右键拖动） |
 | [integrations.md](integrations.md) | SPlayer WebSocket 歌词联动、fcitx5-rime × matugen 取色联动 |
+| [keycap-display.md](keycap-display.md) | 键盘按键显示：evdev 读取守护、浮层、权限与测试 |
 | [troubleshooting.md](troubleshooting.md) | 排障索引：症状 → 根因 → 修复 |

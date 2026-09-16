@@ -651,6 +651,15 @@ Singleton {
                 property int timeout: 1000
             }
 
+            // 键盘按键显示（设置 → 桌面）。数据由 scripts/keyboard/keycap-reader.py
+            // 读 /dev/input/event* 提供，需要当前用户在 input 组里。
+            property JsonObject keycapDisplay: JsonObject {
+                property bool enable: false
+                // 全部松开后键帽再停留多久（毫秒）—— 太短会来不及看见快速点按
+                property int timeout: 1200
+                property string position: "bottom" // "bottom" | "top"
+            }
+
             property JsonObject osk: JsonObject {
                 property string layout: "qwerty_full"
                 property bool pinnedOnStartup: false

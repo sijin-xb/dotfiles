@@ -1343,6 +1343,50 @@ ContentPage {
                 }
             }
             ContentSubsection {
+                title: Translation.tr("Keycap display")
+                Layout.bottomMargin: 10
+
+                GroupedList {
+                    ConfigSwitch {
+                        Layout.fillWidth: true
+                        buttonIcon: "keyboard"
+                        text: Translation.tr("Show pressed keys on screen")
+                        checked: Config.options.keycapDisplay.enable
+                        onCheckedChanged: { Config.options.keycapDisplay.enable = checked }
+                    }
+
+                    ConfigSelectionArray {
+                        text: Translation.tr("Position")
+                        icon: "vertical_align_center"
+                        currentValue: Config.options.keycapDisplay.position
+                        options: [
+                            { "displayName": Translation.tr("Bottom"), "icon": "vertical_align_bottom", "value": "bottom" },
+                            { "displayName": Translation.tr("Top"),    "icon": "vertical_align_top",    "value": "top" },
+                        ]
+                        onSelected: newValue => { Config.options.keycapDisplay.position = newValue }
+                    }
+
+                    ConfigSpinBox {
+                        icon: "timer"
+                        text: Translation.tr("Hide delay (ms)")
+                        value: Config.options.keycapDisplay.timeout
+                        from: 300; to: 5000; stepSize: 100
+                        onValueChanged: { Config.options.keycapDisplay.timeout = value }
+                    }
+                }
+
+                // 读不到 /dev/input 时把守护的原因直接摆出来，不要让人猜为什么没反应
+                StyledText {
+                    visible: Config.options.keycapDisplay.enable && KeycapDisplay.error !== ""
+                    Layout.fillWidth: true
+                    Layout.topMargin: 6
+                    text: Translation.tr("Keycap reader unavailable") + "：" + KeycapDisplay.error
+                    font.pixelSize: Appearance.font.pixelSize.smaller
+                    color: Appearance.colors.colError
+                    wrapMode: Text.WordWrap
+                }
+            }
+            ContentSubsection {
                 title: Translation.tr("Canvas")
                 Layout.bottomMargin: 10
 

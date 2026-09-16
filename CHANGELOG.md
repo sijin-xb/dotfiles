@@ -2,6 +2,30 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+## 2026-09-16（夜）
+
+### 新增：键盘按键显示
+
+设置 → 桌面 → 按键显示（默认关闭）。在屏幕上实时显示按下的按键，组合键按顺序
+排开，全部松开后延迟淡出。详见 [docs/keycap-display.md](docs/keycap-display.md)。
+
+- `scripts/keyboard/keycap-reader.py`：常驻守护，单线程 `select` 多路复用读
+  `/dev/input/event*`，逐行输出 `{"keys": ["Ctrl","A"]}`。
+  **只读不 grab** —— 抓设备会让按键不再进到应用里，那是键盘重映射工具的活。
+  空闲时进程完全睡着，每 5 秒重扫设备列表以支持热插拔。
+- `services/KeycapDisplay.qml`：起守护、解析 JSON、维护「按住」与「显示」两层状态。
+- `modules/ii/keycapDisplay/KeycapOverlay.qml`：layer-shell 浮层，只覆盖键帽本身、
+  不吃输入；修饰键用主色描边区分。
+- `scripts/keyboard/keynames.py` 从 `/usr/include/linux/input-event-codes.h`
+  自动生成（387 键码 + 110 个 `BTN_*`），手写表很容易漏多媒体键与小键盘。
+- 踩到的坑：**`BTN_*` 与 `KEY_*` 的码值区间是重叠的**（`BTN_TRIGGER_HAPPY` 在
+  `0x2c0`，`KEY_*` 用到 `0x2ff`），所以「码值 ≥ 256 就是鼠标键」这种区间判断是错的，
+  必须用从内核头文件生成的 `BTN_CODES` 集合精确排除。另外头文件里 `KEY_*` 是十进制
+  而 `BTN_*` 是 `0x` 十六进制，正则只吃十进制会一个 `BTN_*` 都解析不出来。
+- 解析逻辑抽成 `parse_buffer()` 并配了确定性测试（`test-keycap-reader.py`，
+  16 项）：按键没法在测试里合成，但伪造 `input_event` 字节很容易。
+- 需要用户在 `input` 组里（本机已满足）；install.sh 的收尾指引里加了这一步。
+
 ## 2026-09-16（晚）
 
 ### 差异层完整性审计 + 设置页预加载修复

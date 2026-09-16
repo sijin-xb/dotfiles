@@ -393,6 +393,10 @@ cmd_install() {
   5. fish 设为默认 shell（可选）: chsh -s "$(command -v fish)"
   6. Caelestia QML 插件：已编译到 ~/src/caelestia-shell，产物 build/qml
      由 Hyprland execs.lua 与 fish config.fish 自动加载。
+  7. 键盘按键显示（可选，默认关闭）：需要读 /dev/input/event*，把当前用户
+     加进 input 组后重新登录，再到 设置 → 桌面 → 按键显示 打开开关：
+       sudo usermod -aG input "$USER"
+     用 id -nG 确认组已生效。没加组也能装，只是开关打开后读不到按键。
 EOF
 }
 
