@@ -1,6 +1,7 @@
 pragma Singleton
 
 import QtQuick
+import Quickshell
 
 /** 上游 `qs.utils.Strings` 里锁屏用到的那两个格式化函数。 */
 Singleton {

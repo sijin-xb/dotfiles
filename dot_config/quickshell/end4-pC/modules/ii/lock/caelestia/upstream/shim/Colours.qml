@@ -1,7 +1,9 @@
 pragma Singleton
 
 import QtQuick
+import Quickshell
 import qs.modules.common
+import qs.modules.common.functions
 
 /**
  * 上游 Caelestia 锁屏的配色入口。
@@ -66,12 +68,30 @@ Singleton {
         property color m3surfaceContainerHighest: Appearance.m3colors.m3surfaceContainerHigh
     }
 
-    // 上游的层叠底色：layer0 最外层，数字越大越靠上层
-    readonly property var layer: [
-        Appearance.colors.colLayer0,
-        Appearance.colors.colLayer1,
-        Appearance.colors.colLayer2,
-        Appearance.colors.colLayer3,
-        Appearance.colors.colLayer4
-    ]
+    // 上游的层叠底色不是数组，而是两个函数：
+    //   layer(c, layer)  按层级把颜色调暗/加透明度（layer=0 用 base，其余按 layers 递进）
+    //   on(c)            取「落在该颜色之上的内容色」
+    // 上游 12 处调用的是函数形式，写成数组会报 “Property 'layer' is not a function”。
+    // 这里映射到本仓库的透明度体系：开着透明度时逐层加一点，关着就原样返回。
+    readonly property QtObject transparency: QtObject {
+        readonly property bool enabled: Config.options.appearance.transparency.enable
+        readonly property real base: Config.options.appearance.transparency.backgroundTransparency
+        readonly property real layers: Config.options.appearance.transparency.contentTransparency
+    }
+
+    function layer(c, layerIndex) {
+        if (!root.transparency.enabled)
+            return c;
+        const depth = (layerIndex === undefined || layerIndex === null) ? 1 : layerIndex;
+        if (depth === 0)
+            return Qt.alpha(c, root.transparency.base);
+        // 逐层往 surface 方向混一点，层级越深越不透明
+        const mixAmount = Math.min(0.9, root.transparency.layers + depth * 0.08);
+        return ColorUtils.mix(c, Appearance.m3colors.m3surface, mixAmount);
+    }
+
+    function on(c) {
+        // 上游用它取「叠在该色之上的前景色」，本仓库没有对应概念，原样返回
+        return c;
+    }
 }

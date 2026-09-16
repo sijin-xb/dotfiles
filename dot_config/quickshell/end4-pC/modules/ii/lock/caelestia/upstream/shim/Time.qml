@@ -1,6 +1,7 @@
 pragma Singleton
 
 import QtQuick
+import Quickshell
 import qs.services
 
 /** 上游 `Time` → 本仓库 `DateTime`。上游锁屏的大时钟用这四个成员。 */

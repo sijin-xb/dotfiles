@@ -1,6 +1,7 @@
 pragma Singleton
 
 import QtQuick
+import Quickshell
 import qs.services
 
 /** 上游 `Players` → 本仓库 `MprisController`。上游只用到 active 与 getArtUrl。 */

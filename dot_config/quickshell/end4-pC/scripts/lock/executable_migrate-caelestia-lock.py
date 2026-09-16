@@ -59,8 +59,11 @@ def rewrite_imports(text: str, depth: int) -> str:
     text = re.sub(r"^import qs\.services$", f'import "{prefix}shim"', text, flags=re.M)
     text = re.sub(r"^import qs\.utils$", f'import "{prefix}shim"', text, flags=re.M)
 
-    # 同目录模块引用
-    text = re.sub(r"^import qs\.modules\.lock$", 'import "."', text, flags=re.M)
+    # 同模块内互相引用（qs.modules.lock 指向上游 lock 模块的**根目录**）。
+    # 必须按目录深度算：center/ 下的文件里 "." 指的是 center/ 而不是模块根，
+    # 写成 "." 会让它们找不到根目录的 Pam / Content 等类型。
+    back_to_root = "." if depth == 0 else "/".join([".."] * depth)
+    text = re.sub(r"^import qs\.modules\.lock$", f'import "{back_to_root}"', text, flags=re.M)
 
     return text
 

@@ -1,6 +1,7 @@
 pragma Singleton
 
 import QtQuick
+import Quickshell
 import qs.services
 
 /** 上游 `Notifs` → 本仓库 `Notifications`。通知坞用 list / notClosed。 */

@@ -7,4 +7,4 @@ singleton Notifs 1.0 Notifs.qml
 singleton Hypr 1.0 Hypr.qml
 singleton Paths 1.0 Paths.qml
 singleton Strings 1.0 Strings.qml
-singleton Config 1.0 Config.qml
+NotifData 1.0 NotifData.qml

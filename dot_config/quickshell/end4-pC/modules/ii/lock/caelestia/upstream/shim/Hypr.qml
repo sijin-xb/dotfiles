@@ -1,25 +1,29 @@
 pragma Singleton
 
 import QtQuick
-import qs.services
+import Quickshell
+import Caelestia.Services
 
 /**
- * 上游 `Hypr` → 本仓库 `HyprlandXkb`。
- * 上游锁屏只用到键盘状态：当前布局 + 大小写锁定（在密码框旁提示 Caps Lock）。
+ * 上游 `qs.services.Hypr` → 插件自带的 `Caelestia.Services.HyprDevices`。
  *
- * 布局用本仓库真实的 `currentLayoutName`。
+ * 上游锁屏只用键盘状态：当前布局 + 大小写锁定（在密码框旁提示 Caps Lock）。
+ * 这两个都由插件的 `HyprKeyboard` 提供（capsLock / activeKeymap），
+ * 所以这里不需要自己造状态源 —— 事件驱动、且与原版行为一致。
  *
- * capsLock 目前恒为 false：本仓库没有任何服务跟踪大小写锁定状态
- * （Hyprland 也不通过 IPC 广播它，只有 `hyprctl devices -j` 里能查到，轮询不值当）。
- * 待办：接一个事件驱动的来源（例如监听键盘设备，或在按键守护里顺带跟踪）后，
- * 这里的 Caps 提示才会真正出现。其余布局相关的行为不受影响。
+ * 注意：`HyprDevices.keyboards` 是列表，取第一个（主键盘）。
  */
 Singleton {
     id: root
 
-    readonly property bool capsLock: false
-    readonly property string kbLayout: HyprlandXkb.currentLayoutName
-    readonly property string kbLayoutFull: HyprlandXkb.currentLayoutName
-    readonly property string defaultKbLayout: HyprlandXkb.currentLayoutName
+    readonly property var primaryKeyboard: {
+        const keyboards = HyprDevices.keyboards;
+        return (keyboards && keyboards.length > 0) ? keyboards[0] : null;
+    }
+
+    readonly property bool capsLock: root.primaryKeyboard ? root.primaryKeyboard.capsLock : false
+    readonly property string kbLayout: root.primaryKeyboard ? root.primaryKeyboard.activeKeymap : ""
+    readonly property string kbLayoutFull: root.kbLayout
+    readonly property string defaultKbLayout: root.kbLayout
     readonly property bool numLock: false
 }

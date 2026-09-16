@@ -25,6 +25,7 @@ shell 根；vendored 过来之后这些 import 被改写成 `import "shim"`，�
 from __future__ import annotations
 
 import pathlib
+import re
 import sys
 
 FILES: dict[str, str] = {}
@@ -38,7 +39,7 @@ singleton Notifs 1.0 Notifs.qml
 singleton Hypr 1.0 Hypr.qml
 singleton Paths 1.0 Paths.qml
 singleton Strings 1.0 Strings.qml
-singleton Config 1.0 Config.qml
+NotifData 1.0 NotifData.qml
 """
 
 # ── Colours：上游引用最多（264 次），全部映射到本仓库的 M3 调色板 ────────
@@ -46,6 +47,7 @@ FILES["Colours.qml"] = '''pragma Singleton
 
 import QtQuick
 import qs.modules.common
+import qs.modules.common.functions
 
 /**
  * 上游 Caelestia 锁屏的配色入口。
@@ -110,14 +112,32 @@ Singleton {
         property color m3surfaceContainerHighest: Appearance.m3colors.m3surfaceContainerHigh
     }
 
-    // 上游的层叠底色：layer0 最外层，数字越大越靠上层
-    readonly property var layer: [
-        Appearance.colors.colLayer0,
-        Appearance.colors.colLayer1,
-        Appearance.colors.colLayer2,
-        Appearance.colors.colLayer3,
-        Appearance.colors.colLayer4
-    ]
+    // 上游的层叠底色不是数组，而是两个函数：
+    //   layer(c, layer)  按层级把颜色调暗/加透明度（layer=0 用 base，其余按 layers 递进）
+    //   on(c)            取「落在该颜色之上的内容色」
+    // 上游 12 处调用的是函数形式，写成数组会报 “Property 'layer' is not a function”。
+    // 这里映射到本仓库的透明度体系：开着透明度时逐层加一点，关着就原样返回。
+    readonly property QtObject transparency: QtObject {
+        readonly property bool enabled: Config.options.appearance.transparency.enable
+        readonly property real base: Config.options.appearance.transparency.backgroundTransparency
+        readonly property real layers: Config.options.appearance.transparency.contentTransparency
+    }
+
+    function layer(c, layerIndex) {
+        if (!root.transparency.enabled)
+            return c;
+        const depth = (layerIndex === undefined || layerIndex === null) ? 1 : layerIndex;
+        if (depth === 0)
+            return Qt.alpha(c, root.transparency.base);
+        // 逐层往 surface 方向混一点，层级越深越不透明
+        const mixAmount = Math.min(0.9, root.transparency.layers + depth * 0.08);
+        return ColorUtils.mix(c, Appearance.m3colors.m3surface, mixAmount);
+    }
+
+    function on(c) {
+        // 上游用它取「叠在该色之上的前景色」，本仓库没有对应概念，原样返回
+        return c;
+    }
 }
 '''
 
@@ -184,26 +204,29 @@ Singleton {
 FILES["Hypr.qml"] = '''pragma Singleton
 
 import QtQuick
-import qs.services
+import Caelestia.Services
 
 /**
- * 上游 `Hypr` → 本仓库 `HyprlandXkb`。
- * 上游锁屏只用到键盘状态：当前布局 + 大小写锁定（在密码框旁提示 Caps Lock）。
+ * 上游 `qs.services.Hypr` → 插件自带的 `Caelestia.Services.HyprDevices`。
  *
- * 布局用本仓库真实的 `currentLayoutName`。
+ * 上游锁屏只用键盘状态：当前布局 + 大小写锁定（在密码框旁提示 Caps Lock）。
+ * 这两个都由插件的 `HyprKeyboard` 提供（capsLock / activeKeymap），
+ * 所以这里不需要自己造状态源 —— 事件驱动、且与原版行为一致。
  *
- * capsLock 目前恒为 false：本仓库没有任何服务跟踪大小写锁定状态
- * （Hyprland 也不通过 IPC 广播它，只有 `hyprctl devices -j` 里能查到，轮询不值当）。
- * 待办：接一个事件驱动的来源（例如监听键盘设备，或在按键守护里顺带跟踪）后，
- * 这里的 Caps 提示才会真正出现。其余布局相关的行为不受影响。
+ * 注意：`HyprDevices.keyboards` 是列表，取第一个（主键盘）。
  */
 Singleton {
     id: root
 
-    readonly property bool capsLock: false
-    readonly property string kbLayout: HyprlandXkb.currentLayoutName
-    readonly property string kbLayoutFull: HyprlandXkb.currentLayoutName
-    readonly property string defaultKbLayout: HyprlandXkb.currentLayoutName
+    readonly property var primaryKeyboard: {
+        const keyboards = HyprDevices.keyboards;
+        return (keyboards && keyboards.length > 0) ? keyboards[0] : null;
+    }
+
+    readonly property bool capsLock: root.primaryKeyboard ? root.primaryKeyboard.capsLock : false
+    readonly property string kbLayout: root.primaryKeyboard ? root.primaryKeyboard.activeKeymap : ""
+    readonly property string kbLayoutFull: root.kbLayout
+    readonly property string defaultKbLayout: root.kbLayout
     readonly property bool numLock: false
 }
 '''
@@ -285,52 +308,57 @@ Singleton {
 }
 '''
 
-FILES["Config.qml"] = '''pragma Singleton
+# ── Config：**不提供** ────────────────────────────────────────────────────
+# 插件的 `Caelestia.Config` 已经导出了 `Config`（与 `Tokens`、`GlobalConfig` 一起），
+# 上游文件里的 `Config.lock.*` / `Config.appearance.*` 直接就能用。
+# 如果 shim 再提供一个 `Config`，会和插件的同名单例撞车（两个 import 都提供同名类型），
+# 所以这里刻意不生成它。
 
-import QtQuick
-import qs.modules.common
 
-/**
- * 上游 `qs.services.Config` → 本仓库 `Config`。
- *
- * 上游锁屏只用到 `Config.options.*` 里的少量字段（时间格式、锁屏相关开关）。
- * 本仓库的 Config 结构不同，这里把用到的字段做适配；
- * 上游文件里 `Config.options.x` 的写法因此可以保持不变。
- */
-Singleton {
-    id: root
+# ── 从上游 services/ 直接 vendor 的类型（纯数据类，不需要适配） ──────────
+# NotifData 是通知的数据对象（NotifGroup 用它构造条目），上游放在 services/ 下，
+# 插件也没导出它。它只依赖 Qt / Caelestia.*，所以原样搬过来、
+# 把指向 Caelestia shell 根的 import 换成本地即可。
+VENDOR_FROM_SERVICES = ["NotifData.qml"]
 
-    readonly property QtObject options: QtObject {
-        readonly property QtObject time: QtObject {
-            property string format: Config.options.time.format
-        }
-        readonly property QtObject lock: QtObject {
-            // 上游的锁屏行为开关，本仓库没有对应项，给保守默认值
-            property bool enableFingerprint: true
-            property bool enableWeather: true
-            property bool enableMedia: true
-            property bool enableNotifications: true
-        }
-        readonly property QtObject appearance: QtObject {
-            // 上游叫 font，本仓库的主字体字段叫 main
-            property string font: Config.options.appearance.main
-        }
-    }
-}
-'''
+
+def vendor_from_services(upstream: pathlib.Path, target: pathlib.Path) -> int:
+    src = upstream / "services"
+    count = 0
+    for name in VENDOR_FROM_SERVICES:
+        path = src / name
+        if not path.is_file():
+            print(f"  ! 上游没有 {path}，跳过")
+            continue
+        text = path.read_text(encoding="utf-8")
+        # 同一个 shim 目录里互相引用
+        text = re.sub(r"^import qs\.services$", 'import "."', text, flags=re.M)
+        text = re.sub(r"^import qs\.utils$", 'import "."', text, flags=re.M)
+        (target / name).write_text(text, encoding="utf-8")
+        count += 1
+    return count
 
 
 def main() -> int:
-    if len(sys.argv) != 2:
+    if len(sys.argv) != 3:
         print(__doc__.strip().splitlines()[-1], file=sys.stderr)
+        print("用法：gen-lock-shim.py <shim 目录> <上游仓库根>", file=sys.stderr)
         return 1
     target = pathlib.Path(sys.argv[1]).expanduser()
+    upstream = pathlib.Path(sys.argv[2]).expanduser()
     target.mkdir(parents=True, exist_ok=True)
     for name, content in FILES.items():
+        # `Singleton { }` 是 Quickshell 提供的根类型（不是 QML 内置的），
+        # 少了 `import Quickshell` 会在加载时报 “Singleton is not a type”，
+        # 而且报错链条会一路往上抛（Colours → StyledText → … → Content），
+        # 看起来像别处坏了。这里统一补上。
+        if name.endswith(".qml") and "Singleton {" in content and "import Quickshell" not in content:
+            content = content.replace("import QtQuick\n", "import QtQuick\nimport Quickshell\n", 1)
         (target / name).write_text(content, encoding="utf-8")
-    print(f"写出 {len(FILES)} 个 shim 文件到 {target}")
-    for name in sorted(FILES):
-        print(f"  {name}")
+
+    vendored = vendor_from_services(upstream, target)
+
+    print(f"写出 {len(FILES)} 个 shim 文件 + 从上游 vendor {vendored} 个到 {target}")
     return 0
 
 
