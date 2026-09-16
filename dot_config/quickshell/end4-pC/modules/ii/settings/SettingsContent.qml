@@ -121,14 +121,17 @@ Item {
     }
 
     Component.onCompleted: {
+        // 这里原来用 Qt.callLater 把所有设置页 Loader 都 active = true，
+        // 把上面那条「只加载当前页」的 active 绑定整个作废 —— 结果是 7 个设置页
+        // （合计约 7200 行 QML，含 1400+ 行的 InterfaceConfig / BackgroundConfig）
+        // 在 shell 启动时全部实例化并常驻，而设置面板可能一整天都不打开一次。
+        // 这是 qs 常驻内存偏高的一个实打实的来源。
+        //
+        // 去掉预热是安全的：搜索跳转本来就已经处理了「目标页还没加载」的情况
+        // （见 onSettingsPageChanged 里的 loader.onLoaded 分支），
+        // 而 Loader 的 active 绑定写成 (currentPage === index || item !== null)，
+        // 访问过的页面不会被回收，重复打开不会再付一次构建成本。
         Config.readWriteDelay = 0
-        Qt.callLater(() => {
-            for (let i = 0; i < root.pages.length; i++) {
-                let loader = pagesRepeater.itemAt(i)
-                if (loader) loader.active = true
-            }
-            if (profileLoader) profileLoader.active = true
-        })
     }
 
     ColumnLayout {
@@ -528,7 +531,10 @@ Item {
 
                     Loader {
                         id: profileLoader
-                        active: false
+                        // 原来是硬编码 active: false，靠 Component.onCompleted 里那次
+                        // 强制激活才加载得到。现在改成和其他设置页一样的懒加载：
+                        // 首次打开个人资料页时才构建，之后保留（item !== null）。
+                        active: root.showingProfile || item !== null
                         anchors.fill: parent
                         source: Qt.resolvedUrl("pages/Profile.qml")
 

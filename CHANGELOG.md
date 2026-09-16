@@ -2,6 +2,66 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+## 2026-09-16（晚）
+
+### 差异层完整性审计 + 设置页预加载修复
+
+**差异层有洞，install.sh 装完不会复现。** 仓库的架构是「chezmoi 只存差异层，
+底盘由 install.sh 从 `pctrade/end4-PC` 拉取」，所以任何与底盘不同的文件都必须
+在差异层里。实际审计（拿工作树与差异层逐个对照）发现 4 个文件没进去：
+
+| 文件 | 后果 |
+|---|---|
+| `services/Updates.qml` | pacman 锁竞争修复装完不生效 |
+| `services/SystemTheming.qml` | 你的定制装完丢失 |
+| `modules/common/widgets/StyledFlickable.qml` | 同上 |
+| `modules/ii/wallpaperSelector/LocalWallpaperGrid.qml` | 同上 |
+
+4 个都已补入 `dot_config/quickshell/end4-pC/`。以后新增/修改底盘文件时记得一并
+放进差异层，否则「本机好、重装丢」——而且不会有任何报错。
+
+**设置面板的懒加载被自己作废了。** `SettingsContent.qml` 里每个设置页的
+`Loader.active` 本来写的是 `Config.ready && (currentPage === index || item !== null)`
+—— 只加载当前页、访问过的保留，完全正确。但 `Component.onCompleted` 里有一段
+`Qt.callLater` 循环把所有页面 Loader 强制 `active = true`，等于把懒加载整个废掉：
+7 个设置页（合计约 7200 行 QML，含 1400+ 行的 `InterfaceConfig` / `BackgroundConfig`）
+在 shell 启动时就全部实例化并常驻，而设置面板可能一整天都不开一次。
+
+去掉预热是安全的 —— 搜索跳转本来就处理了「目标页还没加载」的情况
+（`onSettingsPageChanged` 里的 `loader.onLoaded` 分支），而 `item !== null` 保证
+访问过的页面不会被回收，重复打开不会再付构建成本。
+
+顺带修了 `profileLoader`：它的 `active` 是硬编码 `false`，原来只靠那段强制激活
+才加载得到；现在改成 `root.showingProfile || item !== null`，与设置页一致。
+
+### 排查记录：为什么面板不能改成按需加载
+
+一度尝试把 `PanelLoader` 改成「按需创建」（`active` 额外依赖一个 open 标志），
+**已撤回** —— 每个面板自己注册了 Hyprland 全局快捷键与 IPC target：
+
+```
+modules/ii/overview/Overview.qml        → quickshell:overviewWorkspacesToggle
+modules/ii/sidebarLeft/SidebarLeft.qml  → quickshell:sidebarLeftToggle
+modules/ii/onScreenKeyboard/…           → quickshell:oskToggle
+modules/ii/wallpaperSelector/…          → quickshell:wallpaperSelectorToggle
+…（另有 settings / session / mediaControls / region / overlay / screenTranslator / desktopmenu 的 IpcHandler）
+```
+
+而快捷键是 `hl.dsp.global("quickshell:xxxToggle")`、面板打开也走 `qs ipc call`。
+面板不加载 → 快捷键与 IPC target 都不存在 → 直接失效。所以「启动即实例化」是这套
+架构的必然结果，不是疏漏。真要按需加载，得先把这些注册集中到一个常驻的小单例里，
+再让面板懒加载 —— 那是独立的一轮重构。
+
+### 内存归因（qs 实测 RSS 964.9 MB）
+
+- **706 MB 是堆上的匿名内存**（Pss_Anon），映射文件只占 81 MB → 主要是 QML 对象图、
+  JS 数据与图像数据，不是 mmap 的库。
+- 95 个线程，其中 18 组 `qs:gl0` / `qs:gdrv0` + 9 个 `QSGRenderThread`，对应 9 个
+  layer surface（4 个 `screenframe` + bar / dock / background / dynamicIsland / 通用）。
+- 已排除：壁纸选择器不是大户（`sourceSize` 降采样 + `cache: false` 都做了）。
+- 已修：设置页预加载（见上）。**注意 quickshell 的热重载不会释放旧对象图**，
+  所以这个改动要在下一次全新启动才看得到效果，原地测量只会看到数值不降反升。
+
 ## 2026-09-16（下午）
 
 ### 配色链路：加固、去冗余、修三处静默失效
