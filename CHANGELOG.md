@@ -2,6 +2,95 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+## 2026-09-18
+
+### 仪表盘：概览页改版 · 媒体页增强 · 系统页加进程列表
+
+居中时钟仪表盘本轮做了一次较大的内容调整，并补齐了交互与动效。
+
+**概览页：去掉番茄钟 / 待办，改为最近通知**（`modules/ii/bar/ClockDashboard.qml`）
+
+番茄钟与待办对多数场景是低频功能，占据概览页右列的空间不划算。改成显示
+最近 4 条通知：
+
+- 通知图标复用全局 `NotificationAppIcon` 组件（与弹出通知 / 动态岛 / 锁屏同一套
+  降级逻辑：`image` > `appIcon` > 按 summary 猜 Material 图标），不再统一显示铃铛。
+- 标题行右侧加「一键清空」按钮（`delete_sweep`），调用
+  `Notifications.discardAllNotifications()`；每条通知行尾加单条删除按钮
+  （`X`），调用 `Notifications.discardNotification(id)`。两者都会同步落盘并
+  dismiss notification server 里的 tracked 通知。
+
+**媒体页：圆形封面 · 多行歌词 · 可拖动进度条**
+
+- 封面改成正圆。`Rectangle` 的 `clip` 只裁外接矩形不裁圆角，所以封面 `Image`
+  走 `layer.enabled` + `Qt5Compat.GraphicalEffects` 的 `OpacityMask`，用同尺寸圆
+  形遮罩裁形。
+- 歌词从「单行当前句」升级成 **5 行窗口**（上 2 + 当前 + 下 2），当前行
+  `large` + `Bold` + 主色，其余行按距离衰减透明度；每行独立带翻译行。数据取
+  `LyricsService.lyricLines` + `currentLineIndex`，换歌时自动重算。
+- 进度条支持**点击跳转与拖动 seek**：`MouseArea` 加 `preventStealing: true`
+  阻止 `SwipeView` 底层 Flickable 抢事件；拖动期间置 `root.progressDragging`
+  并把 `pager.interactive` 关掉（双保险），松手调 `player.seek(target - current)`，
+  保留预览 400ms 等 D-Bus position 追上，避免视觉回跳。
+- 播放/暂停键改用 `anchors.fill` + 双向 `Text.Align*` 居中，绕开 `Text` 隐式行高
+  （含 descent）导致的字形整体下偏。
+
+**新增：卡片左侧音频可视化**
+
+播放时从仪表盘卡片左侧滑出一条水平条堆叠的音频可视化，卡片暂停时收起（宽度
+归零，不占位）：
+
+- 40 条水平短横条，用 `Column` 上下锚定撑满卡片高度（`anchors.top` + `anchors.bottom`
+  + 16px 呼吸位），条高 `(cardHeight - 32) / barCount` 自动均分；
+- 数据取 `GlobalStates.visualizerPoints`（与桌面背景 VisualizerWidget、媒体控件
+  同一份 cava 输出），33ms 采样避免每帧跑 JS；
+- 加了 `gain: 2.5` 增益：cava 原始输出 0~1000，实际音乐通常只走到 200~500，
+  直接 `v / 1000` 会显得「不敏感」，乘 2.5 后把常用区推满。
+
+**系统页：新增进程列表**（新服务 `services/ProcessList.qml`）
+
+- 数据源：单次 `ps -eo pid,user,comm,pcpu,pmem,rss,args --sort=<flag>`；排序键
+  CPU / 内存 / 名称，分别映射 `-pcpu` / `-pmem` / `comm`（名称无 `-` 前缀，升序）。
+- 交互：搜索框（按 pid / 用户名 / 命令名 / 完整命令行做不敏感子串匹配）；
+  CPU / MEM / Name 三个排序 pill；手动刷新按钮；hover 行显示 kill 按钮（发 SIGTERM）。
+- 内核线程过滤：`args` 整段被方括号包裹（`[kworker/0:1]`）的条目默认隐藏，
+  列表更干净、delegate 池更小。`hideKernelThreads` 可关。
+- **性能**：列表用 `ListView { reuseItems: true; cacheBuffer: 400 }` 而非
+  `Repeater`。`Repeater` 每次模型变化会销毁重建全部 delegate，后台轮询 + 搜索
+  输入都会触发全量重建；`ListView` 复用 item，只更新可见的约 15 行。
+- 轮询只在「仪表盘打开且停留在系统页」时开启（`ProcessList.autoRefresh`），
+  切页/关面板即停。
+- 已知 bug 修复：`StdioCollector` 未加 `id` 却在回调里访问 `stdoutCollector.text`，
+  导致解析回调抛 `ReferenceError`、`list` 永远为空、列表一直「加载中」。已补 `id`。
+
+**仪表盘动画**（曲线取 `Appearance.animation.*`，与 caelestia `Tokens.anim` 对齐）
+
+- 世界时钟卡片错峰进入：每张卡延迟 `index * 60ms`，opacity 走 `elementMoveEnter`
+  （emphasizedDecel），y 位移走 `elementMove`（expressiveDefaultSpatial，带过冲）。
+  **踩坑**：`Behavior on y` 必须挂在 `Translate` 的 `y` 上 —— `Rectangle.y` 由 Layout
+  控制、本身不变，挂父级动画不生效。
+- 底部页指示按钮：当前页 `scale: 1.08` + `Behavior on scale` 走 `clickBounce`。
+- 媒体页封面：`opacity: 0 → 1` + `scale: 0.85 → 1` 的并行进入动画。
+
+**世界时钟 / 天气布局修正**
+
+- 世界时钟卡片高度 72 → 84、内边距 12 → 10、`spacing` 4 → 3、加 `clip: true`：
+  原高度装不下「图标 + 城市名 + 时间」三行，时间从卡片下边顶出，`elide` 只截横向
+  帮不上。
+- 天气页左列限 `Layout.maximumWidth: parent.width * 0.5`，温度 / 描述 / 城市 /
+  体感全部 `Layout.fillWidth` + `elide`，超大字号温度不再横向撑破分隔线。
+
+**i18n**
+
+- 补齐本轮新增文案：`Recent notifications` / `Notification`（单数）/
+  `No recent notifications` / `Processes` / `Filter processes…` /
+  `No matching process` / `No process` / `Name`。
+
+**其它**
+
+- 仪表盘各页顶层 Layout 补 `Layout.fillWidth: true` + `Layout.fillHeight: true`，
+  避免个别 Quickshell/Qt 版本下顶层容器按 implicitWidth 居中导致的整体偏移。
+
 ## 2026-09-17（深夜）
 
 ### 仪表盘改成多页 + 背景模糊改为 QML 自绘

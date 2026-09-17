@@ -211,6 +211,9 @@ cmd_install() {
         cliphist easyeffects hypridle hyprlock
         xdg-desktop-portal-hyprland gnome-keyring
         python
+        # procps-ng 提供 ps 命令，仪表盘系统页的进程列表依赖它
+        # （base 组已含，这里显式声明以防万一被精简掉）
+        procps-ng
         # 字体：kitty 终端用 JetBrains Mono Nerd Font（含 Nerd 图标），
         # 中文 / emoji 由 Noto 兜底；pacman 装字体包会自动触发 fc-cache
         ttf-jetbrains-mono-nerd ttf-nerd-fonts-symbols
