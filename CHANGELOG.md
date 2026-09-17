@@ -2,6 +2,87 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+## 2026-09-17（深夜）
+
+### 仪表盘改成多页 + 背景模糊改为 QML 自绘
+
+居中时钟的仪表盘从「一个页面」扩成「固定状态栏 + 5 页」，并把背景模糊从
+「交给 Hyprland」改成「自己抓屏自己糊」，不再依赖合成器的全局模糊设置。
+
+**多页仪表盘**（`modules/ii/bar/ClockDashboard.qml`）
+
+- 固定状态栏（切页不变）：工作区胶囊（当前高亮）· 日期/星期 + 大号 时:分 ·
+  音量 / 亮度 / 电量。台式机没有电池时电量行整行隐藏；亮度取不到时显示 `--` 而不是 `NaN%`。
+- 5 页，`SwipeView` 左右滑动切换，也支持滚轮 / `←` `→` / 点页签：
+
+  | 页 | 内容 |
+  |---|---|
+  | 概览 | 月历 · 世界时钟 · 番茄钟 · 待办 |
+  | 媒体 | 封面 · 曲目 · 进度 · 上一首/播放/下一首 · 当前歌词 |
+  | 系统 | CPU / 内存 / 交换 / 磁盘进度条 · 用户名/发行版 · 运行时间 |
+  | 天气 | 当前天气 + 湿度/风/降水/能见度/气压/云量 + 刷新 |
+  | GitHub | 用户名输入 + 仓库卡片列表 |
+
+- 新增 IPC：`page <n>` / `nextPage` / `previousPage`。
+- 修掉两处只有肉眼能发现的布局问题：页高不够导致月历最后一行被 `SwipeView` 裁掉；
+  概览页第一列未显式顶对齐，`RowLayout` 默认垂直居中把月历往下推出可视区。
+
+**背景模糊：QML 自绘，限定在面板范围内**（新组件 `modules/common/widgets/GlassBackdrop.qml`）
+
+- 原理：`ScreencopyView`（wlr-screencopy）抓整个输出 → `MultiEffect` 高斯模糊 →
+  按屏幕坐标对齐 → 面板自身的 `clip` + 圆角裁形。
+  **模糊只发生在面板覆盖的那一块，屏幕其余部分完全不受影响。**
+- 顺带解决合成器模糊的三个老问题：模糊范围覆盖整个图层（面板铺满整屏 → 整屏采样）、
+  `ignore_alpha` 阈值高于玻璃 alpha 导致静默不糊、tooltip 配色要靠 `xray`/`ignore_alpha`
+  双 hack。现在这些参数与该面板无关。
+- `quickshell:clockDashboard` 的 `layerrule blur` 改为 `false`，避免两层模糊叠加。
+- 两个必须处理的时序：抓帧时面板自己不能已画出来（否则自反馈），
+  所以面板 `opacity` 挂在 `hasContent` 上；抓帧超时 300ms 兜底放行，
+  保证 screencopy 不可用时仪表盘仍然打得开。
+- 配置：`appearance.transparency.qmlBackdropBlur`（默认开）/ `qmlBackdropBlurRadius`（默认 56）。
+  关掉即退回原来的合成器模糊路径。
+- 详见 [docs/backdrop-blur.md](docs/backdrop-blur.md)（含技术路线、接口清单、
+  规避清单、与全局模糊的取舍对照表）。
+
+**GitHub 项目页**（`services/GitHub.qml` + `modules/common/widgets/GitHubRepoCard.qml`）
+
+- 两个入口共用一份数据与逻辑：**仪表盘第 5 页**（日常查看）与 **设置 → GitHub**（完整配置项）。
+- 填用户名 → 走 `gh api` 拉仓库列表 → 点卡片在浏览器打开。
+  用 `gh` 而不是直连 api.github.com：不碰凭据、吃登录后的速率额度、能看到已授权的私有仓库。
+- 卡片显示：名称（私有带锁）/ `fork`·`archived` 徽标 / 描述 / 语言色点 / Star / Fork /
+  相对更新时间（today · yesterday · N days ago · …）。
+- 状态行覆盖：加载中、用户不存在、网络失败、未登录 `gh`、无仓库、解析失败、
+  输入已改待重拉。
+- 踩坑：卡片一开始写成根对象内部的 inline component，Quickshell 报 `Syntax error`
+  —— inline component 必须与根对象同级，改成独立文件。
+
+**i18n**
+
+- 审计全部 **696 个 .qml**：绕过 `Translation.tr` 的硬编码可见文本从 **2 处降到 0 处**
+  （`GlobalStates.qml` 快捷键描述、`ImageConverterWidget.qml` 格式列表）。
+- 本轮新增 **45 个 key**，补齐 **14 种语言共 630 条译文**；
+  语言文件保持按 key 排序，diff 只有插入行。
+- 实测：切到 `zh_CN` 后新页面文案全部正确（重新加载 / 打开主页 / 个仓库 / 今天 /
+  拖动、滚轮或 ← → 切换页面）。
+- 新增 [docs/i18n.md](docs/i18n.md)：机制、切换语言、扩展新语言、新增文案姿势、
+  硬编码审计方法、已知欠账。
+
+**其它**
+
+- `install.sh`：按需求移除「液态玻璃 2.0」的宣传文案（版本号、splash 副标题、
+  核心特性两条、FAQ 与目录说明的措辞），保留功能性说明。
+- `docs/` 新增 [backdrop-blur.md](docs/backdrop-blur.md)、[github-page.md](docs/github-page.md)、
+  [i18n.md](docs/i18n.md)；[bar-and-dashboard.md](docs/bar-and-dashboard.md) 补多页结构；
+  [troubleshooting.md](docs/troubleshooting.md) 补「组件 unavailable 排查」
+  与「玻璃糊不起来」两条。
+
+### 关于悬停交互的范围修正
+
+上一轮曾把整个 shell 的悬停交互动效一并移除，范围过大。现已全部恢复，
+**只保留「栏上居中时钟」这一处的悬停移除**（不弹预览弹窗、不变色、不改指针形状），
+其余组件（`UtilButton` 悬停变宽、`Workspaces` 悬停预览、各弹层悬停触发、
+悬停 tooltip、设置页表单控件）一律回到原样。
+
 ## 2026-09-16（凌晨）
 
 ### 按键显示：新增「已输入文本」显示（原来的键帽模式读不出单词）

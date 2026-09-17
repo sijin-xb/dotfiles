@@ -48,6 +48,15 @@ PanelWindow {
     readonly property real cardHeight: Math.min(contentColumn.implicitHeight + 32,
         Math.min(root.cardMaxHeight, root.height - Appearance.sizes.barHeight - 40))
 
+    // 背景模糊抓帧的兜底：超过这个时间还没抓到就放弃模糊、直接显示面板，
+    // 否则一旦 screencopy 不可用，整个仪表盘就打不开了
+    property bool backdropGaveUp: false
+    Timer {
+        running: root.opened && !root.backdropGaveUp && !backdrop.ready
+        interval: 300
+        onTriggered: root.backdropGaveUp = true
+    }
+
     // ── 状态栏用的数据 ──────────────────────────────────────────────────
     readonly property var player: MprisController.activePlayer
     readonly property var brightMonitor: Brightness.getMonitorForScreen(root.screen)
@@ -141,15 +150,31 @@ PanelWindow {
             width: root.cardWidth
             height: root.cardHeight
             radius: Appearance.rounding.large
-            // 液态玻璃底板：半透明基底（不低于 minAlpha）+ 透光 + 折射高光 + 双层描边
-            // 背景模糊由 Hyprland 的 `layerrule = blur, quickshell:clockDashboard` 提供
+            // 液态玻璃底板：半透明基底（不低于 minAlpha）+ 透光 + 折射高光 + 双层描边。
+            // 开了 QML 自绘背景模糊时把底色压薄，否则模糊了也透不出来；
+            // 走合成器模糊（或都不开）时用原来的厚度。
             tint: Qt.rgba(Appearance.colors.colLayer1Base.r, Appearance.colors.colLayer1Base.g,
-                Appearance.colors.colLayer1Base.b, 0.78)
+                Appearance.colors.colLayer1Base.b,
+                (Config.options.appearance.transparency.qmlBackdropBlur && backdrop.ready) ? 0.55 : 0.78)
             clip: true
             focus: true
 
-            // 展开动画
-            opacity: root.opened ? 1 : 0
+            // ── 背景模糊：只发生在卡片自身范围内，不依赖 Hyprland 全局模糊 ──
+            // 抓帧是异步的，而且必须在我们自己画出来之前完成，否则会抓到面板自己；
+            // 所以卡片的 opacity 挂在 backdrop.ready 上。
+            // 万一抓帧一直不来（协议不可用），由下面的 Timer 兜底放行，保证面板能用。
+            GlassBackdrop {
+                id: backdrop
+                anchors.fill: parent
+                z: -1
+                screen: root.screen
+                live: false
+                intensity: Config.options.appearance.transparency.qmlBackdropBlur ? 1.0 : 0.0
+                blurRadius: Config.options.appearance.transparency.qmlBackdropBlurRadius
+            }
+
+            // 抓帧没到位就先不画面板（避免自反馈）；超时则放弃模糊直接显示
+            opacity: (root.opened && (backdrop.ready || root.backdropGaveUp)) ? 1 : 0
             scale: root.opened ? 1 : 0.96
             Behavior on opacity {
                 NumberAnimation {

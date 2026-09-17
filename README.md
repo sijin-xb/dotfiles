@@ -27,6 +27,14 @@ bash 脚本完成，不需要 chezmoi 二进制。
 - Hyprland 配置（Lua）。`hyprland/` 为模板层，`custom/` 为个人覆盖层
   （同名文件在模板之后加载并覆盖模板）
 - Quickshell（end4-pC fork）差异层：栏、侧边栏、启动器、总览、设置面板
+- 居中时钟仪表盘：固定状态栏（工作区 · 日期时间 · 音量/亮度/电量）+ 5 页
+  （概览 / 媒体 / 系统 / 天气 / GitHub），支持滑动、滚轮、`←` `→` 切页。
+  背景模糊为 **QML 自绘**（抓屏 → 高斯模糊 → 面板内裁剪），不依赖 Hyprland 全局模糊。
+  详见 [docs/bar-and-dashboard.md](docs/bar-and-dashboard.md) 与
+  [docs/backdrop-blur.md](docs/backdrop-blur.md)
+- GitHub 项目页：填用户名列出该用户仓库（名称 / 描述 / 语言 / Star / 更新时间），
+  点击跳转。两个入口：仪表盘第 5 页 + 设置 → GitHub。详见
+  [docs/github-page.md](docs/github-page.md)
 - 锁屏：Caelestia 风格三栏布局（居中圆角方块 → 点击展开成横条，Material 3
   形状 morph 动画），按屏幕高度自适应并支持密码框自动 / 唤醒重聚焦；quickshell
   未运行时回退 hyprlock。依赖 `qt6-m3shapes-git`（AUR）与 Caelestia QML 插件。
@@ -162,11 +170,16 @@ docs/                     设计说明与排障文档（见下）
 
 - [CHANGELOG.md](CHANGELOG.md) — 全部历史变更
 - [docs/](docs/README.md) — 设计说明、实现笔记与排障
+  - [bar-and-dashboard.md](docs/bar-and-dashboard.md) — 居中时钟、多页仪表盘、统一歌词源、液态玻璃、悬停动效范围
+  - [backdrop-blur.md](docs/backdrop-blur.md) — 限定范围的背景模糊（QML 自绘，不依赖合成器）
+  - [github-page.md](docs/github-page.md) — GitHub 项目页
+  - [i18n.md](docs/i18n.md) — 国际化：机制、切换与扩展语言、硬编码审计
   - [appearance.md](docs/appearance.md) — 视频壁纸后端与视差
   - [lockscreen.md](docs/lockscreen.md) — 锁屏
   - [dynamic-island-roadmap.md](docs/dynamic-island-roadmap.md) — 灵动岛
   - [widgets-layout.md](docs/widgets-layout.md) — 桌面小部件布局
   - [integrations.md](docs/integrations.md) — SPlayer / fcitx5-rime 联动
+  - [keycap-display.md](docs/keycap-display.md) — 键盘按键显示
   - [troubleshooting.md](docs/troubleshooting.md) — 排障索引
 
 ## 致谢与上游

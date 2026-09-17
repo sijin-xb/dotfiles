@@ -206,7 +206,7 @@ hl.layer_rule({ match = { namespace = "quickshell:osk" }, order = -1})          
 -- 低于阈值的像素（例如栏上完全透明的空白段）依然不会被模糊，只有玻璃块会被采样。
 hl.layer_rule({ match = { namespace = "quickshell:bar" }, ignore_alpha = 0.2})
 hl.layer_rule({ match = { namespace = "quickshell:popup" }, ignore_alpha = 0.2})
-hl.layer_rule({ match = { namespace = "quickshell:clockDashboard" }, blur = true})
+hl.layer_rule({ match = { namespace = "quickshell:clockDashboard" }, blur = false}) -- 仪表盘改用 QML 自绘背景模糊（GlassBackdrop），关掉合成器模糊避免叠加
 hl.layer_rule({ match = { namespace = "quickshell:clockDashboard" }, ignore_alpha = 0.2})
 hl.layer_rule({ match = { namespace = "quickshell:clockDashboard" }, animation = "fade"})
 

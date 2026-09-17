@@ -132,6 +132,10 @@ Singleton {
                     property bool automatic: true
                     property real backgroundTransparency: 0.11
                     property real contentTransparency: 0.57
+                    // 仪表盘的背景模糊：自己抓屏 + 模糊 + 裁剪，不依赖 Hyprland 的
+                    // layerrule blur。关掉就退回「合成器模糊 + 纯玻璃底色」。
+                    property bool qmlBackdropBlur: true
+                    property real qmlBackdropBlurRadius: 40
                 }
                 property JsonObject wallpaperTheming: JsonObject {
                     property bool enableAppsAndShell: true
