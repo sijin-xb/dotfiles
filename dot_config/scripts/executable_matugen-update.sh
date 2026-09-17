@@ -129,7 +129,7 @@ fi
 ln -sf "$WALLPAPER" "$CURRENT_WALL_LINK"
 
 # --- 3. 读取策略与模式 ---
-STRATEGY="scheme-vibrant"
+STRATEGY="scheme-content"
 [[ -f "$TYPE_FILE" ]] && STRATEGY="$(<"$TYPE_FILE")"
 MODE="dark"
 [[ -f "$MODE_FILE" ]] && MODE="$(<"$MODE_FILE")"
