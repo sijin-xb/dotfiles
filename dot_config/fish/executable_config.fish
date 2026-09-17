@@ -19,6 +19,13 @@ if status is-interactive
         fastfetch
     end
 
+    # ===================== COLORS =====================
+    # 命令参数里的有效路径（如 `kate keybinds.lua` 的 keybinds.lua）
+    # 默认继承 fish_color_param 太暗，显式设成 kitty 主题的亮紫
+    set -g fish_color_valid_path --underline '#d5bbff'
+    # 普通命令参数同步提亮，避免混排时明暗突兀
+    set -g fish_color_param '#e7e0ea'
+
     # ===================== ALIASES =====================
     alias clear "printf '\033[2J\033[3J\033[1;1H'"
     alias celar clear
