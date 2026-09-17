@@ -62,6 +62,15 @@ output_path = '~/.config/gtk-4.0/gtk.css'
 input_path = '~/.config/matugen/templates/kde/color.txt'
 output_path = '~/.local/state/quickshell/user/generated/color.txt'
 
+[templates.gtk-folder]
+# 把 Adwaita 文件夹 / 部分 mimetypes 图标按 matugen 主色重新着色。
+# recolor.sh 是模板（含 {{colors.*}} 占位符），matugen 渲染出真实 hex 到
+# 缓存目录后再由 post_hook 执行。生成到 ~/.local/share/icons/Adwaita-Matugen-{A,B}
+# （A/B 交替绕开 GTK/Qt 的图标缓存），并把 gsettings icon-theme 切过去。
+input_path = '~/.config/matugen/templates/gtk-folder/recolor.sh'
+output_path = '~/.local/state/quickshell/user/generated/recolor-folders.sh'
+post_hook = 'nohup bash "$HOME/.local/state/quickshell/user/generated/recolor-folders.sh" >/dev/null 2>&1 &'
+
 [templates.wallpaper]
 input_path = '~/.config/matugen/templates/wallpaper.txt'
 output_path = '~/.local/state/quickshell/user/generated/wallpaper/path.txt'

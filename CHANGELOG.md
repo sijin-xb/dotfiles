@@ -4,7 +4,26 @@
 
 ## 2026-09-18
 
-### 图标主题：WhiteSur-dark → Papirus-Dark
+### 文件夹图标：恢复 matugen 自动着色（撤销 Papirus）
+
+之前把图标主题切到 Papirus-Dark，失去了文件夹跟随壁纸主色的效果。本轮恢复，
+并找到「自动化配色不生效」的真正原因。
+
+- **matugen 接上 recolor.sh**。config.toml 里从来没有 [templates.gtk-folder] 段，
+  recolor.sh 只是个孤立脚本，从未被自动触发——这就是不生效的根因。现在补上
+  input_path / output_path / post_hook 三项，每次换壁纸自动重新着色文件夹。
+- **recolor.sh 补齐静态配置文件同步**。原脚本只写 gsettings，Qt（qt5ct/qt6ct）、
+  fuzzel、xsettingsd、GTK2 仍读旧值，表现为「文件夹变了但 fuzzel 图标没变」。
+  新增尾部逻辑：重着色后同步写这 6 个文件，并 pkill -HUP xsettingsd。
+- **撤销 Papirus**。移除 install.sh 里的 papirus-icon-theme / papirus-folders 依赖，
+  以及 [6/7] 段的图标主题切换逻辑；改为触发一次 switchwall.sh --noswitch，
+  让新机器装完就有 Adwaita-Matugen 主题。
+- **5 处配置回滚**：gtk-3.0/settings.ini、gtk-4.0/settings.ini、qt5ct/qt5ct.conf、
+  qt6ct/qt6ct.conf、fuzzel/fuzzel.ini 里 Papirus-Dark → Adwaita-Matugen-A。
+- **差异层新增** dot_config/matugen/templates/gtk-folder/（含 recolor.sh 与
+  Adwaita-Matugen 模板 SVG），之前只在 live 里存在、chezmoi 未跟踪。
+
+### 图标主题：WhiteSur-dark → Papirus-Dark（已撤销）
 
 原来的 `WhiteSur-dark` 是 macOS 图标移植，很多 Linux 原生应用（包括本仓库的
 quickshell 组件）没有专属图标，会 fallback 到通用图形——表现为「很多图标不

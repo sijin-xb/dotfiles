@@ -224,9 +224,6 @@ cmd_install() {
         wayland-protocols
         # Caelestia QML 插件编译依赖（[4/7] 步骤会用到）
         aubio libpipewire libqalculate lm_sensors fftw spirv-tools
-        # 图标主题：Papirus 覆盖率是 Linux 里最全的一档，Material 扁平风格
-        # 与桌面 M3 配色协调，比 WhiteSur 这种 macOS 移植覆盖面广很多。
-        papirus-icon-theme
     )
     # 默认只安装缺失的包，不做全系统升级（避免在你没准备时滚动整个系统）。
     # 需要全量升级时：FULL_UPGRADE=1 ./install.sh install
@@ -249,9 +246,7 @@ cmd_install() {
     fi
     # libcava 供 Caelestia QML 插件编译；qt6-m3shapes-git 是 Caelestia 锁屏
     # 形变动画（MaterialShape）的运行时依赖，两者都只有 AUR 有。
-    # papirus-folders 用于把 Papirus 图标主题的文件夹配色改成和壁纸主色一致
-    # （只有 AUR 有）。装不上不影响 Papirus 本体，只是文件夹保持默认蓝。
-    for p in matugen mpvpaper libcava qt6-m3shapes-git papirus-folders; do
+    for p in matugen mpvpaper libcava qt6-m3shapes-git; do
         if pacman -Q "$p" >/dev/null 2>&1; then
             echo "    已安装: $p"
         elif aur_install "$p"; then
@@ -385,31 +380,13 @@ cmd_install() {
     "$VENV/bin/pip" install --upgrade --quiet pypinyin dbus-python \
         || warn "venv 依赖安装失败——启动器的 app 中文名拼音搜索暂不可用，其余功能不受影响"
 
-    # 图标主题：切到 Papirus-Dark 并把文件夹配色改成 violet（近似紫色）。
-    # 必须在 [5/7] 之后，因为 set-icon-theme.sh 在差异层里，部署完才有。
-    if pacman -Q papirus-icon-theme >/dev/null 2>&1; then
-        set_theme_script="$HOME/.config/quickshell/end4-pC/scripts/theming/set-icon-theme.sh"
-        if [[ -x "$set_theme_script" ]]; then
-            "$set_theme_script" Papirus-Dark \
-                && echo "    图标主题已切换到 Papirus-Dark" \
-                || warn "图标主题切换失败（可稍后在 设置 → 外观 里手动切）"
-        else
-            warn "未找到 $set_theme_script，跳过图标主题切换"
-        fi
-        # papirus-folders 改的是 /usr/share/icons/，需要 root。
-        # 幂等：已经是 violet 就跳过，避免重复弹 sudo 密码。
-        if have papirus-folders; then
-            current_folder_color="$(papirus-folders -l -t Papirus-Dark 2>/dev/null | sed -n 's/^ *> *//p')"
-            if [[ "$current_folder_color" == "violet" ]]; then
-                echo "    文件夹配色已是 violet，跳过"
-            elif "${SUDO:-sudo}" papirus-folders -C violet -t Papirus-Dark; then
-                echo "    Papirus 文件夹配色已设为 violet（可用 papirus-folders -C <color> -t Papirus-Dark 更换）"
-            else
-                warn "文件夹配色设置失败（不影响图标本体，保持默认蓝）"
-            fi
-        fi
-    else
-        warn "papirus-icon-theme 未安装，跳过图标主题设置"
+    # 图标主题：文件夹图标由 matugen 的 [templates.gtk-folder] 每次换壁纸
+    # 自动重新着色（生成到 ~/.local/share/icons/Adwaita-Matugen-{A,B}）。
+    # 这里只负责触发一次，让新机器装完就有主题，不用等用户手动换壁纸。
+    if [[ -f "$HOME/.config/illogical-impulse/config.json" ]]; then
+        nohup bash "$HOME/.config/quickshell/end4-pC/scripts/colors/switchwall.sh" --noswitch \
+            >/dev/null 2>&1 &
+        echo "    已触发一次 matugen 渲染（后台执行，图标主题会随之生成）"
     fi
 
     # ---------- [7/7] 完成 ----------
@@ -432,9 +409,9 @@ cmd_install() {
      加进 input 组后重新登录，再到 设置 → 桌面 → 按键显示 打开开关：
        sudo usermod -aG input "$USER"
      用 id -nG 确认组已生效。没加组也能装，只是开关打开后读不到按键。
-  8. 图标主题：已切到 Papirus-Dark，文件夹配色 violet。
-     想换别的颜色：papirus-folders -l -t Papirus-Dark 列出全部，
-     然后 papirus-folders -C <color> -t Papirus-Dark（需 sudo）。
+  8. 图标主题：文件夹图标由 matugen 自动着色（换壁纸时重渲），
+     主题名为 Adwaita-Matugen-A / Adwaita-Matugen-B（交替）。
+     想手动换：设置 → 外观 → 图标主题。
 EOF
 }
 
