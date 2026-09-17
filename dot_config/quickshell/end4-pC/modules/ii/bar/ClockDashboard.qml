@@ -1055,6 +1055,177 @@ PanelWindow {
                             }
                         }
                     }
+                    // ── 页 4：GitHub ──────────────────────────────────────
+                    ColumnLayout {
+                        spacing: 10
+
+                        // 用户名输入 + 操作
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                implicitHeight: 34
+                                radius: Appearance.rounding.full
+                                color: Appearance.colors.colSurfaceContainerHigh
+                                border.width: ghInput.activeFocus ? 2 : 1
+                                border.color: ghInput.activeFocus
+                                    ? Appearance.colors.colPrimary
+                                    : Appearance.colors.colLayer0Border
+
+                                TextField {
+                                    id: ghInput
+                                    anchors {
+                                        fill: parent
+                                        leftMargin: 12
+                                        rightMargin: 12
+                                    }
+                                    background: null
+                                    text: Config.options.github.username
+                                    placeholderText: Translation.tr("GitHub username")
+                                    placeholderTextColor: Appearance.colors.colOnSurfaceVariant
+                                    color: Appearance.colors.colOnLayer1
+                                    font.pixelSize: Appearance.font.pixelSize.small
+                                    selectByMouse: true
+                                    // 回车或失焦时提交（避免每敲一个字母就发一次请求）
+                                    onEditingFinished: {
+                                        GitHub.setUsername(ghInput.text);
+                                        GitHub.fetch();
+                                    }
+                                }
+                            }
+
+                            RippleButtonWithIcon {
+                                materialIcon: "refresh"
+                                mainText: Translation.tr("Reload")
+                                enabled: GitHub.username.length > 0 && !GitHub.loading
+                                onClicked: GitHub.fetch()
+                            }
+
+                            RippleButtonWithIcon {
+                                materialIcon: "open_in_new"
+                                mainText: Translation.tr("Open profile")
+                                enabled: GitHub.username.length > 0
+                                onClicked: GitHub.openProfile()
+                            }
+                        }
+
+                        // 状态行
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            MaterialLoadingIndicator {
+                                visible: GitHub.loading
+                                loading: GitHub.loading
+                                implicitSize: 18
+                                colBg: Appearance.colors.colPrimaryContainer
+                                colShape: Appearance.colors.colOnPrimaryContainer
+                            }
+
+                            StyledText {
+                                Layout.fillWidth: true
+                                text: {
+                                    if (GitHub.loading)
+                                        return Translation.tr("Loading…");
+                                    if (GitHub.errorText.length > 0)
+                                        return GitHub.errorText;
+                                    if (GitHub.username.length === 0)
+                                        return Translation.tr("Type a GitHub username and press Enter.");
+                                    return `${GitHub.visibleRepos.length} / ${GitHub.repos.length} ` + Translation.tr("repositories");
+                                }
+                                color: GitHub.errorText.length > 0
+                                    ? Appearance.colors.colError
+                                    : Appearance.colors.colOnSurfaceVariant
+                                font.pixelSize: Appearance.font.pixelSize.smaller
+                                wrapMode: Text.WordWrap
+                            }
+
+                            StyledText {
+                                visible: GitHub.dirty
+                                text: Translation.tr("(reload to refresh)")
+                                color: Appearance.colors.colOnSurfaceVariant
+                                font.pixelSize: Appearance.font.pixelSize.smallest
+                            }
+                        }
+
+                        // 仓库网格（页内滚动）
+                        Flickable {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            contentHeight: ghGrid.implicitHeight
+                            clip: true
+                            boundsBehavior: Flickable.StopAtBounds
+
+                            ColumnLayout {
+                                id: ghGrid
+                                width: parent.width
+                                spacing: 10
+
+                                Repeater {
+                                    model: Math.ceil(GitHub.visibleRepos.length / 2)
+
+                                    delegate: RowLayout {
+                                        required property int index
+                                        Layout.fillWidth: true
+                                        spacing: 10
+
+                                        Repeater {
+                                            model: {
+                                                const base = index * 2;
+                                                const list = GitHub.visibleRepos;
+                                                return [list[base] ?? null, list[base + 1] ?? null];
+                                            }
+
+                                            delegate: Item {
+                                                required property var modelData
+                                                Layout.fillWidth: true
+                                                Layout.preferredWidth: 0
+                                                implicitHeight: modelData ? 118 : 0
+                                                visible: modelData !== null
+
+                                                GitHubRepoCard {
+                                                    anchors.fill: parent
+                                                    repo: parent.modelData ?? ({})
+                                                    onActivated: url => GitHub.openRepo(url)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // 空状态
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    implicitHeight: 96
+                                    visible: !GitHub.loading && GitHub.visibleRepos.length === 0
+                                    radius: Appearance.rounding.normal
+                                    color: Appearance.colors.colSurfaceContainerHigh
+
+                                    ColumnLayout {
+                                        anchors.centerIn: parent
+                                        spacing: 4
+
+                                        MaterialSymbol {
+                                            Layout.alignment: Qt.AlignHCenter
+                                            text: "code"
+                                            iconSize: 28
+                                            color: Appearance.colors.colOnSurfaceVariant
+                                        }
+                                        StyledText {
+                                            Layout.alignment: Qt.AlignHCenter
+                                            text: GitHub.username.length === 0
+                                                ? Translation.tr("No username set")
+                                                : Translation.tr("Nothing to show")
+                                            color: Appearance.colors.colOnSurfaceVariant
+                                            font.pixelSize: Appearance.font.pixelSize.smaller
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
 
                 // ══ 页指示 + 底部 ═══════════════════════════════════════
@@ -1067,7 +1238,8 @@ PanelWindow {
                             { icon: "dashboard", label: Translation.tr("Overview") },
                             { icon: "music_note", label: Translation.tr("Media") },
                             { icon: "monitor_heart", label: Translation.tr("System") },
-                            { icon: "cloud", label: Translation.tr("Weather") }
+                            { icon: "cloud", label: Translation.tr("Weather") },
+                            { icon: "code", label: Translation.tr("GitHub") }
                         ]
 
                         delegate: RippleButton {
