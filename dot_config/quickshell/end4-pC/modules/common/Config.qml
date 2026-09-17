@@ -548,7 +548,7 @@ Singleton {
                 // 居中时钟（对齐 caelestia bar.clock 的显示项 + 自身交互）
                 property JsonObject clock: JsonObject {
                     property bool background: false // 药丸底色
-                    property bool showIcon: true    // 日历图标
+                    property bool showIcon: false   // 日历图标（默认关，避免时钟左侧多一个日历符号）
                     property bool showDate: true    // 日期（周几 / 日）
                     property bool showSeconds: true  // 秒（默认沿用旧的 hh:mm:ss 显示）
                     property bool showAmPm: true    // 12 小时制时显示 AM/PM

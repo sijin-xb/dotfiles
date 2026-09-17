@@ -4,6 +4,13 @@
 
 ## 2026-09-18
 
+### 时钟：默认关闭日历图标
+
+栏上居中时钟左侧的 `calendar_month` 图标默认关掉（`bar.clock.showIcon` 默认值
+`true → false`）。运行时通过 `~/.config/illogical-impulse/config.json` 关闭，
+`Config.qml` 的默认值同步改为 `false`，新机器装完不会再多一个日历符号。
+需要时可以到 设置 → 栏 → Clock 里打开「Show icon」。
+
 ### 系统更新检查：`pacman -Qu` 替代 `checkupdates`，2.8 倍提速
 
 `services/Updates.qml` 用于栏上的更新计数器。旧实现用 `checkupdates`（来自
