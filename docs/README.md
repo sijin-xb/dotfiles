@@ -6,6 +6,7 @@
 |---|---|
 | [bar-and-dashboard.md](bar-and-dashboard.md) | 居中时钟与多页仪表盘、统一歌词源、液态玻璃、动画令牌、悬停动效处理范围 |
 | [github-page.md](github-page.md) | GitHub 项目页：用户名 → 仓库列表、状态处理、实现要点 |
+| [i18n.md](i18n.md) | 国际化：机制、切换语言、扩展新语言、新增文案姿势、硬编码审计、已知欠账 |
 | [dynamic-island-roadmap.md](dynamic-island-roadmap.md) | 灵动岛架构、联动机制、阶段进度 |
 | [appearance.md](appearance.md) | 视频壁纸后端（mpvpaper / wallr / phonto）与静态 / 视频壁纸视差实现 |
 | [lockscreen.md](lockscreen.md) | Serpantinum 风格三栏锁屏：布局、认证链、配色来源 |

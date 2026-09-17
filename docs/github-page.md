@@ -1,19 +1,36 @@
 # GitHub 项目页
 
-设置 → **GitHub**（`modules/ii/settings/pages/GitHub.qml`）。
+两个入口，**共用同一份数据和逻辑**（`services/GitHub.qml`）：
+
+| 入口 | 位置 | 用途 |
+|---|---|---|
+| **仪表盘第 5 页** | 栏中央时钟 → 左键开仪表盘 → 切到「GitHub」页（`modules/ii/bar/ClockDashboard.qml`） | 日常快速查看 |
+| 设置页 | 设置 → **GitHub**（`modules/ii/settings/pages/GitHub.qml`） | 完整的配置项（fork / 归档 / 上限） |
+
 填一个 GitHub 用户名，页面会列出该用户的公开仓库；点任意仓库在浏览器打开对应页面。
 
 ## 1. 使用方式
 
+### 仪表盘第 5 页
+
+1. 左键点栏中央的时钟 → 打开仪表盘
+2. 底部切到 **GitHub**（或按 `←` `→` / 滚轮 / 左右滑动）
+3. 在输入框里填用户名（例如 `torvalds`），**按回车提交**（避免每敲一个字母就发一次请求）
+4. 卡片网格支持页内滚动
+
+### 设置页
+
 1. 打开设置面板（`SUPER + I`，或 `qs -c end4-pC ipc call settings toggle`）
 2. 左侧选 **GitHub**
-3. 在「GitHub username」里填用户名（例如 `torvalds`），输入停止 0.6 秒后自动拉取
-4. 仓库以两列卡片展示，每张卡显示：
-   - 仓库名（私有仓库带锁图标）
-   - `fork` / `archived` 徽标
-   - 描述（最多 3 行，超出省略）
-   - 语言（带色点）、Star 数、Fork 数、最后更新时间（相对时间：today / N days ago / …）
-5. 点击卡片 → `xdg-open` 打开 `html_url`
+3. 在「GitHub username」里填用户名，输入停止 0.7 秒后自动拉取
+
+### 卡片显示的信息
+
+- 仓库名（私有仓库带锁图标）
+- `fork` / `archived` 徽标
+- 描述（最多 3 行，超出省略）
+- 语言（带色点）、Star 数、Fork 数、最后更新时间（相对时间：today / N days ago / …）
+- 点击卡片 → `xdg-open` 打开 `html_url`
 
 页面上的其它控件：
 
