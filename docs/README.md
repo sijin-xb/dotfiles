@@ -14,4 +14,5 @@
 | [widgets-layout.md](widgets-layout.md) | 桌面小部件可视化布局编辑（右键拖动） |
 | [integrations.md](integrations.md) | SPlayer WebSocket 歌词联动、fcitx5-rime × matugen 取色联动 |
 | [keycap-display.md](keycap-display.md) | 键盘按键显示：evdev 读取守护、浮层、权限与测试 |
+| [refactor-prompt.md](refactor-prompt.md) | 项目体检结果、可直接交给 AI 的重构提示词、AI 助手推荐、背景发脏的成因与改进 |
 | [troubleshooting.md](troubleshooting.md) | 排障索引：症状 → 根因 → 修复 |

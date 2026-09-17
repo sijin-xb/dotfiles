@@ -180,6 +180,7 @@ docs/                     设计说明与排障文档（见下）
   - [widgets-layout.md](docs/widgets-layout.md) — 桌面小部件布局
   - [integrations.md](docs/integrations.md) — SPlayer / fcitx5-rime 联动
   - [keycap-display.md](docs/keycap-display.md) — 键盘按键显示
+  - [refactor-prompt.md](docs/refactor-prompt.md) — 项目体检、重构提示词、AI 助手推荐、背景观感改进
   - [troubleshooting.md](docs/troubleshooting.md) — 排障索引
 
 ## 致谢与上游
