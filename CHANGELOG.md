@@ -4,6 +4,23 @@
 
 ## 2026-09-18
 
+### 图标主题：WhiteSur-dark → Papirus-Dark
+
+原来的 `WhiteSur-dark` 是 macOS 图标移植，很多 Linux 原生应用（包括本仓库的
+quickshell 组件）没有专属图标，会 fallback 到通用图形——表现为「很多图标不
+匹配 / 缺图标」。换成 **Papirus-Dark**（Arch `extra` 仓库），覆盖率是 Linux
+图标主题里最全的一档，Material 扁平风格与桌面 M3 配色协调。
+
+- 新增依赖：`papirus-icon-theme`（extra）+ `papirus-folders`（AUR，可选，用于
+  改文件夹颜色）。
+- 5 处配置同步改名：`gtk-3.0/settings.ini`、`gtk-4.0/settings.ini`、`qt5ct/qt5ct.conf`、
+  `qt6ct/qt6ct.conf`、`fuzzel/fuzzel.ini`。
+- 切换通过已有的 `scripts/theming/set-icon-theme.sh` 完成（gsettings + gtk2/3/4 +
+  xsettingsd + rofi 一把写全）。
+- 文件夹颜色：跑一次 `papirus-folders -C violet -t Papirus-Dark` 把默认蓝换成
+  紫（当前壁纸主色 `#d4bbfc` 最接近 `violet` 预设）。该命令改 `/usr/share/icons/`，
+  需要 sudo，故未纳入自动流程。
+
 ### 时钟：默认关闭日历图标
 
 栏上居中时钟左侧的 `calendar_month` 图标默认关掉（`bar.clock.showIcon` 默认值
