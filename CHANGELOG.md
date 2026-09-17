@@ -4,6 +4,26 @@
 
 ## 2026-09-18
 
+### 系统更新检查：`pacman -Qu` 替代 `checkupdates`，2.8 倍提速
+
+`services/Updates.qml` 用于栏上的更新计数器。旧实现用 `checkupdates`（来自
+pacman-contrib）：它每次会拷贝一份临时库并重新 sync（访问网络镜像），实测 **2.15s**
+都花在这里，其中绝大部分是白等。改用 `pacman -Qu` 直接读本地 sync db，不发起网络
+请求（前提：用户自己 `pacman -Sy` 过；`pacman -Syu` 自会更新 db，所以 db 一更新，
+下次检查就是新结果）。
+
+- **方案对比**：旧 `checkupdates + paru -Qua` **6.13s** → 新 `pacman -Qu + paru -Qua`
+  **2.21s**，约 2.8 倍。AUR 侧的 `paru -Qua`（AUR RPC + 本地缓存，~2s）无法省，
+  但由新加的 15 分钟缓存节流，绝大多数检查走缓存瞬时返回。
+- **缓存带时间戳**：旧实现只存纯数字，命中锁文件分支后永远读旧值 —— 磁盘上留着
+  `39` 这个脏值，实际只有 `3`。现在缓存拆成 `updates-count` + `updates-count.ts`，
+  TTL 900s，过期自动重查。
+- **`refresh(force)` 参数**：默认走缓存；手动点「检查更新」/ 右键刷新 / 装包结束
+  传 `true` 绕过缓存，立刻拿准确值。旧签名 `refresh()` 仍然兼容。
+- **去掉 `checkupdates` 硬依赖**：可用性探测从 `which checkupdates` 改为
+  `which pacman`，不再要求 pacman-contrib。
+- 保留 db.lck 分支（pacman 装包时直接用缓存，不抢锁）。
+
 ### 仪表盘：概览页改版 · 媒体页增强 · 系统页加进程列表
 
 居中时钟仪表盘本轮做了一次较大的内容调整，并补齐了交互与动效。
