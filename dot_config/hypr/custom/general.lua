@@ -5,9 +5,6 @@
 --         / 内部间距 / 外部间距 / 活动 & 非活动窗口不透明度）
 -- 请直接在 quickshell 设置面板 → "配置文件" → "Hyprland"
 -- 中用滑条调节，那里的修改会写入 shellOverrides 并最终生效。
---
--- 本文件只放 quickshell 面板里【调不到】的高级参数，
--- 用来增强玻璃质感（vibrancy 染色、噪点、阴影细项等）。
 -- ============================================================
 
 hl.config({
@@ -70,3 +67,28 @@ hl.config({
         no_warps = true,
     },
 })
+
+
+
+
+-- 自定义曲线
+hl.curve("myDecel", { type = "bezier", points = { {0.05, 0.7}, {0.1, 1} } })
+hl.curve("myAccel", { type = "bezier", points = { {0.3, 0}, {0.8, 0.15} } })
+hl.curve("myStandard", { type = "bezier", points = { {0.2, 0}, {0, 1} } })
+
+-- 窗口动画
+hl.animation({ leaf = "windowsIn",  enabled = true, speed = 5, bezier = "myDecel" })
+hl.animation({ leaf = "windowsOut", enabled = true, speed = 3, bezier = "myAccel" })
+hl.animation({ leaf = "windowsMove", enabled = true, speed = 6, bezier = "myStandard", style = "slide" })
+
+-- 工作区
+hl.animation({ leaf = "workspaces", enabled = true, speed = 5, bezier = "myStandard", style = "slide" })
+
+-- 层（Quickshell 的 Bar、通知、侧边栏）
+hl.animation({ leaf = "layersIn",  enabled = true, speed = 5, bezier = "myDecel", style = "slide" })
+hl.animation({ leaf = "layersOut", enabled = true, speed = 4, bezier = "myAccel", style = "slide" })
+hl.animation({ leaf = "fadeLayers", enabled = true, speed = 5, bezier = "myStandard" })
+
+-- 全局淡入淡出
+hl.animation({ leaf = "fade", enabled = true, speed = 6, bezier = "myStandard" })
+hl.animation({ leaf = "border", enabled = true, speed = 6, bezier = "myStandard" })
