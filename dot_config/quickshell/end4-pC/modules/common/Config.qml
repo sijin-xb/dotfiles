@@ -533,6 +533,18 @@ Singleton {
                     property int maxWidth: 280
                     property int minWidth: 100
                 }
+                // 居中时钟（对齐 caelestia bar.clock 的显示项 + 自身交互）
+                property JsonObject clock: JsonObject {
+                    property bool background: false // 药丸底色
+                    property bool showIcon: true    // 日历图标
+                    property bool showDate: true    // 日期（周几 / 日）
+                    property bool showSeconds: true  // 秒（默认沿用旧的 hh:mm:ss 显示）
+                    property bool showAmPm: true    // 12 小时制时显示 AM/PM
+                    // 左键行为: "dashboard" | "sidebarRight" | "wallpaperSelector" | "none"
+                    property string clickAction: "dashboard"
+                    property bool wheelSwitchSeconds: true // 滚轮切换秒显示
+                    property bool middleClickCopy: true    // 中键复制时间
+                }
             }
 
             property JsonObject battery: JsonObject {

@@ -24,9 +24,31 @@ StyledClippingRect {
         return (u && u !== "") ? u : ""
     }
 
-    implicitHeight: Math.max(180, layout.implicitHeight + 32)
+    readonly property real progress: {
+        if (!player || !player.length || player.length <= 0) return 0
+        return Math.max(0, Math.min(1, player.position / player.length))
+    }
+
+    function fmtTime(s: real): string {
+        const totalSec = Math.max(0, Math.floor(s || 0));
+        const m = Math.floor(totalSec / 60);
+        const sec = totalSec % 60;
+        return m + ":" + (sec < 10 ? "0" : "") + sec;
+    }
+
+    Timer {
+        interval: 1000
+        running: root.isPlaying && root.player !== null
+        repeat: true
+        onTriggered: if (root.player) root.player.positionChanged()
+    }
+
+    implicitHeight: Math.max(220, layout.implicitHeight + 32)
     radius: Appearance.rounding.large
     color: Appearance.m3colors.m3surfaceContainer
+
+    border.width: 1
+    border.color: Qt.alpha(Appearance.m3colors.m3outlineVariant, 0.35)
 
     FadeImage {
         anchors.fill: parent
@@ -40,8 +62,8 @@ StyledClippingRect {
 
         StyledRect {
             anchors.fill: parent
-            color: Appearance.m3colors.m3surface
-            opacity: 0.72
+            color: Appearance.m3colors.m3surfaceContainer
+            opacity: 0.82
         }
 
         Behavior on opacity { Anim { type: Anim.StandardLarge } }
@@ -49,11 +71,11 @@ StyledClippingRect {
 
     ColumnLayout {
         id: layout
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
-        anchors.margins: 18
+        anchors.fill: parent
+        anchors.margins: 16
         spacing: 4
+
+        Item { Layout.fillHeight: true }
 
         CoverArt {
             Layout.alignment: Qt.AlignHCenter
@@ -61,7 +83,6 @@ StyledClippingRect {
             Layout.preferredHeight: 96
             artSource: root.artUrl
             isPlaying: root.isPlaying
-            visible: root.artUrl !== ""
         }
 
         StyledText {
@@ -69,10 +90,10 @@ StyledClippingRect {
             Layout.topMargin: 8
             animate: true
             text: root.player?.trackTitle || Translation.tr("Nothing playing")
-            color: Appearance.m3colors.m3primary
+            color: Appearance.m3colors.m3onSurface
             horizontalAlignment: Text.AlignHCenter
             font.pixelSize: Appearance.font.pixelSize.normal
-            font.weight: Font.DemiBold
+            font.weight: Font.Bold
             elide: Text.ElideRight
         }
 
@@ -86,58 +107,117 @@ StyledClippingRect {
             elide: Text.ElideRight
         }
 
+        // 进度条
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.topMargin: 6
+            spacing: 8
+            visible: root.player !== null && (root.player.length ?? 0) > 0
+
+            StyledText {
+                text: root.fmtTime(root.player?.position ?? 0)
+                color: Appearance.m3colors.m3onSurfaceVariant
+                font.pixelSize: Appearance.font.pixelSize.smallest
+            }
+
+            StyledRect {
+                id: trackBar
+                Layout.fillWidth: true
+                implicitHeight: 4
+                radius: 2
+                color: Appearance.m3colors.m3surfaceContainerHighest
+
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    width: parent.width * root.progress
+                    radius: 2
+                    color: Appearance.m3colors.m3primary
+                    Behavior on width { Anim { type: Anim.FastEffects } }
+                }
+            }
+
+            StyledText {
+                text: root.fmtTime(root.player?.length ?? 0)
+                color: Appearance.m3colors.m3onSurfaceVariant
+                font.pixelSize: Appearance.font.pixelSize.smallest
+            }
+        }
+
+        // 控制按钮
         RowLayout {
             Layout.alignment: Qt.AlignHCenter
-            Layout.topMargin: 10
-            spacing: 8
+            Layout.topMargin: 8
+            spacing: 12
 
-            component CtrlBtn: MaterialShape {
-                id: btn
+            component SecondaryBtn: MaterialShape {
+                id: sBtn
                 required property string glyph
                 required property bool interactable
                 property var onActivate
 
-                implicitSize: 36
+                implicitSize: 38
                 shape: MaterialShape.Circle
-                color: ma.pressed ? Appearance.m3colors.m3surfaceContainerHighest
-                     : ma.containsMouse ? Appearance.m3colors.m3surfaceContainerHigh
-                     : Appearance.m3colors.m3surfaceContainerLow
-                opacity: btn.interactable ? 1 : 0.35
+                color: Appearance.m3colors.m3surfaceContainerHigh
+                opacity: sBtn.interactable ? 1 : 0.35
 
                 Behavior on color { CAnim {} }
 
                 MaterialIcon {
                     anchors.centerIn: parent
-                    text: btn.glyph
-                    color: Appearance.m3colors.m3onSurfaceVariant
-                    font.pixelSize: Appearance.font.pixelSize.normal
+                    text: sBtn.glyph
+                    color: Appearance.m3colors.m3onSurface
+                    font.pixelSize: Appearance.font.pixelSize.large
                 }
 
-                MouseArea {
-                    id: ma
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    enabled: btn.interactable
-                    cursorShape: btn.interactable ? Qt.PointingHandCursor : Qt.ArrowCursor
-                    onClicked: if (btn.onActivate) btn.onActivate()
+                StateLayer {
+                    disabled: !sBtn.interactable
+                    radius: Appearance.rounding.full
+                    onClicked: if (sBtn.onActivate) sBtn.onActivate()
                 }
             }
 
-            CtrlBtn {
+            SecondaryBtn {
                 glyph: "skip_previous"
                 interactable: root.player?.canGoPrevious ?? false
                 onActivate: root.player?.previous()
             }
-            CtrlBtn {
-                glyph: root.isPlaying ? "pause" : "play_arrow"
-                interactable: root.player?.canTogglePlaying ?? false
-                onActivate: root.player?.togglePlaying()
+
+            // 主播放按钮
+            MaterialShape {
+                id: playBtn
+                readonly property bool interactable: root.player?.canTogglePlaying ?? false
+
+                implicitSize: 48
+                shape: MaterialShape.Circle
+                color: Appearance.m3colors.m3primary
+                opacity: playBtn.interactable ? 1 : 0.35
+
+                Behavior on color { CAnim {} }
+
+                MaterialIcon {
+                    anchors.centerIn: parent
+                    text: root.isPlaying ? "pause" : "play_arrow"
+                    color: Appearance.m3colors.m3onPrimary
+                    font.pixelSize: Appearance.font.pixelSize.larger
+                    fill: 1
+                }
+
+                StateLayer {
+                    disabled: !playBtn.interactable
+                    radius: Appearance.rounding.full
+                    onClicked: root.player?.togglePlaying()
+                }
             }
-            CtrlBtn {
+
+            SecondaryBtn {
                 glyph: "skip_next"
                 interactable: root.player?.canGoNext ?? false
                 onActivate: root.player?.next()
             }
         }
+
+        Item { Layout.fillHeight: true }
     }
 }

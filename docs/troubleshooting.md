@@ -49,3 +49,41 @@
 `~/.config/matugen/config.toml` 曾丢失 `post_hook`（光标主题重渲染钩子）以及
 `[templates.yazi]`、`[templates.obs]`、`[templates.vscode]` 三块模板。完整内容
 备份在 `config.toml.orig`。若发现光标不再随壁纸主色变化，先比对这两个文件。
+
+## 栏里某个组件凭空消失 / 后面元素整体左移
+
+**症状**：栏上某一组组件（典型是 `resources` 的环形指示器）不渲染了，
+它后面的元素整体前移；日志里**没有 ERROR**。
+
+**根因**：某个被它依赖的 QML 组件编译失败，变成了 `unavailable`。
+最常见的写法错误是**在同一个对象上写两个 `Component.onCompleted`**
+（QML 不允许同一属性重复赋值），日志里只有一行很容易被忽略的：
+
+```
+WARN scene: @modules/common/widgets/StyledPopup.qml[163:13]: Property value set multiple times
+```
+
+`StyledPopup` 一旦 unavailable，所有继承它的弹层（`ResourcesPopup` /
+`ClockWidgetPopup` / `WeatherPopup` / `BatteryPopup` / `BluetoothPopup` /
+`NetworkSpeedPopup`）会连锁失效，声明这些弹层的栏组件连带构建失败。
+
+**排查**：这类问题的关键字是 `unavailable` 与 `Property value set multiple times`，
+**不是** `ERROR`。只 grep `ERROR|ReferenceError|TypeError` 会完全漏掉。
+
+```bash
+killall qs
+timeout 15 qs -c end4-pC > /tmp/qs-check.log 2>&1
+grep -nE "unavailable|Property value set multiple times|Failed to load|Syntax error" /tmp/qs-check.log
+```
+
+另外可以用像素定位辅助判断：沿栏中线扫一行，比较改动前后各「药丸」色块的
+起止 x 坐标，就能立刻看出是哪个组件变窄/消失了。
+
+## 玻璃面板糊不起来（能看到壁纸但没模糊）
+
+Hyprland 的 `ignore_alpha` 是「alpha 低于该值的像素直接跳过、不参与模糊采样」。
+通用规则里 `quickshell:.*` 设的是 `ignore_alpha = 0.79`，而 `LiquidGlass`
+底板的 alpha 在 0.55~0.78，正好全部被跳过。
+
+**修复**：对需要玻璃质感的面板单独把阈值降下来（见 `hyprland/rules.lua` 末尾
+「液态玻璃」一节），完全透明的空白段依然不会被模糊。

@@ -10,10 +10,10 @@ Item {
     id: root
 
     required property real centerScale
-
-    readonly property int timeSize: Math.round(64 * Math.max(0.8, centerScale))
-
     property date now: new Date()
+
+    readonly property int timeSize: Math.round(72 * Math.max(0.85, centerScale))
+
     Timer {
         interval: 1000
         repeat: true
@@ -21,26 +21,37 @@ Item {
         onTriggered: root.now = new Date()
     }
 
-    implicitWidth: hours.implicitWidth + minutes.implicitWidth + 2
-    implicitHeight: hours.implicitHeight
+    implicitWidth: clockRow.implicitWidth
+    implicitHeight: clockRow.implicitHeight
 
-    StyledText {
-        id: hours
-        text: Qt.formatDateTime(root.now, "hh")
-        color: Appearance.m3colors.m3primary
-        font.pixelSize: root.timeSize
-        font.weight: Font.DemiBold
-        font.letterSpacing: -2
-    }
+    Row {
+        id: clockRow
+        anchors.centerIn: parent
+        spacing: 4
 
-    StyledText {
-        id: minutes
-        anchors.left: hours.right
-        anchors.baseline: hours.baseline
-        text: Qt.formatDateTime(root.now, "mm")
-        color: Appearance.m3colors.m3secondary
-        font.pixelSize: root.timeSize
-        font.weight: Font.DemiBold
-        font.letterSpacing: -2
+        StyledText {
+            text: Qt.formatDateTime(root.now, "HH")
+            color: Appearance.m3colors.m3primary
+            font.pixelSize: root.timeSize
+            font.weight: Font.Bold
+            font.letterSpacing: -1.5
+        }
+
+        StyledText {
+            text: ":"
+            color: Qt.alpha(Appearance.m3colors.m3outlineVariant, 0.7)
+            font.pixelSize: root.timeSize
+            font.weight: Font.Normal
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.verticalCenterOffset: -Math.round(root.timeSize * 0.05)
+        }
+
+        StyledText {
+            text: Qt.formatDateTime(root.now, "mm")
+            color: Appearance.m3colors.m3secondary
+            font.pixelSize: root.timeSize
+            font.weight: Font.Bold
+            font.letterSpacing: -1.5
+        }
     }
 }

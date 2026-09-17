@@ -19,7 +19,7 @@ Item {
     property string buffer
     property bool showPassword
 
-    readonly property int charSize: Math.round(Appearance.font.pixelSize.small * Math.max(0.9, centerScale))
+    readonly property int charSize: Math.round(Appearance.font.pixelSize.normal * Math.max(0.9, centerScale))
 
     readonly property list<int> shapeQueue: {
         const shapes = [MaterialShape.Slanted, MaterialShape.Arch, MaterialShape.Fan, MaterialShape.Arrow, MaterialShape.SemiCircle, MaterialShape.Triangle, MaterialShape.Diamond, MaterialShape.ClamShell, MaterialShape.Pentagon, MaterialShape.Gem, MaterialShape.Sunny, MaterialShape.VerySunny, MaterialShape.Cookie4Sided, MaterialShape.Ghostish, MaterialShape.SoftBurst];
@@ -58,9 +58,9 @@ Item {
         anchors.centerIn: parent
         text: nonAnimPlaceholder.text
         animate: true
-        color: root.lock.unlockInProgress ? Appearance.m3colors.m3secondary : Appearance.m3colors.m3outline
+        color: root.lock.unlockInProgress ? Appearance.m3colors.m3primary : Appearance.m3colors.m3onSurfaceVariant
         font.pixelSize: root.charSize
-        opacity: root.buffer ? 0 : 1
+        opacity: root.buffer ? 0 : 0.75
         Behavior on opacity { Anim { type: Anim.DefaultEffects } }
     }
 

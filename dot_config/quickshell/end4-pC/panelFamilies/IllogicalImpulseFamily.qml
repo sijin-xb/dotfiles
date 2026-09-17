@@ -52,6 +52,8 @@ Scope {
     PanelLoader { component: DropShelfPanel {} }
     PanelLoader { component: NiriBackdrop {} }
     PanelLoader { component: ScreenFrame {} }
+    // 居中时钟的仪表盘：常驻挂载，避免栏隐藏时连同 IPC 一起被销毁
+    PanelLoader { component: ClockDashboard {} }
     // 按键显示浮层：只在开启时创建，关掉就不占一个常驻的 layer surface
     PanelLoader { extraCondition: Config.options.keycapDisplay.enable; component: KeycapOverlay {} }
 }

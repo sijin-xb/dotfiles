@@ -185,7 +185,7 @@ Item {
         Rectangle {
             anchors.fill: parent
             color: Appearance.m3colors.m3scrim
-            opacity: 0.25
+            opacity: 0.28
         }
     }
 
@@ -206,15 +206,19 @@ Item {
         StyledRect {
             id: lockBg
             anchors.fill: parent
-            color: Appearance.m3colors.m3surface
+            color: Appearance.m3colors.m3surfaceContainerLow
             radius: parent.radius
-            opacity: 0.92
+            opacity: 0.94
+
+            border.width: 1
+            border.color: Qt.alpha(Appearance.m3colors.m3outlineVariant, 0.35)
 
             layer.enabled: true
             layer.effect: MultiEffect {
                 shadowEnabled: true
-                blurMax: 15
-                shadowColor: Qt.alpha(Appearance.m3colors.m3shadow, 0.7)
+                blurMax: 24
+                shadowColor: Qt.alpha(Appearance.m3colors.m3shadow, 0.45)
+                shadowVerticalOffset: 6
             }
         }
 
@@ -232,8 +236,8 @@ Item {
         Loader {
             id: content
             anchors.centerIn: parent
-            width: Math.max(1, root.expandedWidth - 24)
-            height: Math.max(1, root.expandedHeight - 24)
+            width: Math.max(1, root.expandedWidth - 48)
+            height: Math.max(1, root.expandedHeight - 48)
 
             opacity: 0
             scale: 0

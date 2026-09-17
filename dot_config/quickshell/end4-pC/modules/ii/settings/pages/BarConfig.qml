@@ -680,6 +680,67 @@ ContentPage {
         }
 
         ContentSection {
+            shape: MaterialShape.Shape.Cookie7Sided
+            icon: "schedule"; title: Translation.tr("Clock")
+
+            GroupedList {
+                ConfigRow {
+                    uniform: true
+                    ConfigSwitch {
+                        buttonIcon: "calendar_month"; text: Translation.tr("Show icon")
+                        checked: Config.options.bar.clock.showIcon
+                        onCheckedChanged: { Config.options.bar.clock.showIcon = checked; }
+                    }
+                    ConfigSwitch {
+                        buttonIcon: "event"; text: Translation.tr("Show date")
+                        checked: Config.options.bar.clock.showDate
+                        onCheckedChanged: { Config.options.bar.clock.showDate = checked; }
+                    }
+                }
+                ConfigRow {
+                    uniform: true
+                    ConfigSwitch {
+                        buttonIcon: "timer"; text: Translation.tr("Show seconds")
+                        checked: Config.options.bar.clock.showSeconds
+                        onCheckedChanged: { Config.options.bar.clock.showSeconds = checked; }
+                    }
+                    ConfigSwitch {
+                        buttonIcon: "schedule"; text: Translation.tr("Show AM/PM")
+                        checked: Config.options.bar.clock.showAmPm
+                        onCheckedChanged: { Config.options.bar.clock.showAmPm = checked; }
+                    }
+                }
+                ConfigSwitch {
+                    buttonIcon: "rounded_corner"; text: Translation.tr("Background")
+                    checked: Config.options.bar.clock.background
+                    onCheckedChanged: { Config.options.bar.clock.background = checked; }
+                }
+                ConfigSelectionArray {
+                    text: Translation.tr("Left click action")
+                    icon: "ads_click"
+                    currentValue: Config.options.bar.clock.clickAction
+                    onSelected: newValue => { Config.options.bar.clock.clickAction = newValue; }
+                    options: [
+                        { displayName: Translation.tr("Dashboard"),  icon: "dashboard",        value: "dashboard" },
+                        { displayName: Translation.tr("Right sidebar"), icon: "side_navigation", value: "sidebarRight" },
+                        { displayName: Translation.tr("Wallpapers"), icon: "wallpaper",        value: "wallpaperSelector" },
+                        { displayName: Translation.tr("Nothing"),    icon: "block",            value: "none" }
+                    ]
+                }
+                ConfigSwitch {
+                    buttonIcon: "mouse"; text: Translation.tr("Scroll to toggle seconds")
+                    checked: Config.options.bar.clock.wheelSwitchSeconds
+                    onCheckedChanged: { Config.options.bar.clock.wheelSwitchSeconds = checked; }
+                }
+                ConfigSwitch {
+                    buttonIcon: "content_copy"; text: Translation.tr("Middle click copies time")
+                    checked: Config.options.bar.clock.middleClickCopy
+                    onCheckedChanged: { Config.options.bar.clock.middleClickCopy = checked; }
+                }
+            }
+        }
+
+        ContentSection {
             shape: MaterialShape.Shape.Puffy
             icon: "tooltip"; title: Translation.tr("Tooltips")
             GroupedList {

@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import qs.modules.common
+import qs.services
 import "../../components"
 
 // 移植自 caelestia-dots/shell（GPL-3.0）modules/lock/Center.qml。
@@ -18,7 +19,7 @@ ColumnLayout {
     Layout.preferredWidth: centerWidth
     Layout.fillWidth: false
     Layout.fillHeight: true
-    spacing: 12
+    spacing: 8
 
     property date now: new Date()
     Timer {
@@ -28,26 +29,37 @@ ColumnLayout {
         onTriggered: root.now = new Date()
     }
 
+    Item { Layout.fillHeight: true }
+
     Clock {
         Layout.alignment: Qt.AlignHCenter
-        Layout.topMargin: 8
         centerScale: root.centerScale
+        now: root.now
     }
 
     StyledText {
         Layout.alignment: Qt.AlignHCenter
-        text: Qt.formatDateTime(root.now, "dddd • d MMM").toUpperCase()
+        text: Qt.formatDateTime(root.now, "dddd • d MMM")
         color: Appearance.m3colors.m3onSurfaceVariant
-        font.pixelSize: Appearance.font.pixelSize.smallie
-        font.weight: Font.DemiBold
-        font.letterSpacing: 1.2
+        font.pixelSize: Appearance.font.pixelSize.small
+        font.weight: Font.Medium
+        font.letterSpacing: 0.8
     }
 
     ProfilePic {
         Layout.alignment: Qt.AlignHCenter
-        Layout.topMargin: 12
-        Layout.bottomMargin: 12
+        Layout.topMargin: 8
+        Layout.bottomMargin: 2
         centerWidth: root.centerWidth
+    }
+
+    StyledText {
+        Layout.alignment: Qt.AlignHCenter
+        Layout.bottomMargin: 8
+        text: SystemInfo.username
+        color: Appearance.m3colors.m3onSurface
+        font.pixelSize: Appearance.font.pixelSize.normal
+        font.weight: Font.DemiBold
     }
 
     PasswordInput {

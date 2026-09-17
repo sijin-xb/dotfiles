@@ -17,16 +17,22 @@ StyledRect {
     required property var lock
 
     readonly property bool hasInput: lock.currentText.length > 0
-    readonly property int fieldHeight: Math.round(40 * Math.max(0.9, centerScale))
+    readonly property int fieldHeight: Math.round(48 * Math.max(0.9, centerScale))
 
     implicitWidth: {
-        const w = centerWidth * 0.9;
-        return hasInput ? w : Math.min(w, inputField.placeholderWidth + iconWrapper.implicitWidth + enterButton.implicitWidth + input.spacing * 2 + 20)
+        const w = centerWidth * 0.92;
+        return hasInput ? w : Math.min(w, inputField.placeholderWidth + iconWrapper.implicitWidth + enterButton.implicitWidth + input.spacing * 2 + 28)
     }
     implicitHeight: fieldHeight
 
     color: Appearance.m3colors.m3surfaceContainerHigh
     radius: Appearance.rounding.full
+
+    border.width: 1
+    border.color: root.lock.showFailure
+        ? Appearance.m3colors.m3error
+        : (root.hasInput ? Appearance.m3colors.m3primary : Qt.alpha(Appearance.m3colors.m3outlineVariant, 0.45))
+    Behavior on border.color { CAnim {} }
 
     focus: true
     onActiveFocusChanged: {
@@ -76,8 +82,8 @@ StyledRect {
     RowLayout {
         id: input
         anchors.fill: parent
-        anchors.leftMargin: 6
-        anchors.rightMargin: 6
+        anchors.leftMargin: 8
+        anchors.rightMargin: 8
         spacing: 8
 
         Item {
@@ -88,9 +94,9 @@ StyledRect {
             MaterialIcon {
                 anchors.centerIn: parent
                 text: inputField.showPassword ? "visibility" : "lock"
-                color: Appearance.m3colors.m3onSurfaceVariant
+                color: inputField.showPassword ? Appearance.m3colors.m3primary : Appearance.m3colors.m3onSurfaceVariant
                 font.pixelSize: Math.round(Appearance.font.pixelSize.large * Math.max(0.9, centerScale))
-                fill: text === "visibility"
+                fill: inputField.showPassword ? 1 : 0
 
                 StateLayer {
                     anchors.fill: undefined
@@ -114,16 +120,17 @@ StyledRect {
         Item {
             id: enterButton
             implicitWidth: implicitHeight
-            implicitHeight: Math.round(30 * Math.max(0.9, centerScale))
+            implicitHeight: Math.round(34 * Math.max(0.9, centerScale))
 
             MaterialShape {
                 anchors.fill: parent
                 color: root.hasInput ? Appearance.m3colors.m3primary : Appearance.m3colors.m3surfaceContainerHighest
-                shape: root.hasInput ? MaterialShape.Arrow : MaterialShape.Circle
-                scale: !root.hasInput ? 1 : mouse.pressed ? 0.6 : mouse.containsMouse ? 0.8 : 0.7
-                rotation: 90
+                shape: MaterialShape.Circle
+                scale: !root.hasInput ? 0.88 : (mouse.pressed ? 0.92 : (mouse.containsMouse ? 1.06 : 1.0))
+                opacity: root.hasInput ? 1 : 0.45
 
                 Behavior on scale { Anim { type: Anim.FastSpatial } }
+                Behavior on opacity { Anim { type: Anim.DefaultEffects } }
                 Behavior on color { CAnim {} }
 
                 MouseArea {
@@ -144,7 +151,7 @@ StyledRect {
                 text: "arrow_forward"
                 color: root.hasInput ? Appearance.m3colors.m3onPrimary : Appearance.m3colors.m3onSurfaceVariant
                 font.pixelSize: Math.round(Appearance.font.pixelSize.normal * Math.max(0.9, centerScale))
-                opacity: root.hasInput ? 1 : 0
+                opacity: root.hasInput ? 1 : 0.45
                 Behavior on opacity { Anim { type: Anim.DefaultEffects } }
             }
         }

@@ -239,10 +239,13 @@ Item {
                             }
                         }
 
-                        MouseArea {
-                            anchors.fill: parent
+                        // 点击整行切换资料卡展开。
+                        // 这里原本是 `MouseArea { anchors.fill: parent }`：它作为 RowLayout 的
+                        // 子项却用锚定定位，属于未定义行为（Qt 会告警，位置/尺寸也不受控）。
+                        // TapHandler 不是 Item，不参与布局，但覆盖父项整块区域，正好是想要的语义。
+                        TapHandler {
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: root.showingProfile = !root.showingProfile
+                            onTapped: root.showingProfile = !root.showingProfile
                         }
                     }
 

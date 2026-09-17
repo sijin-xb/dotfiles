@@ -11,7 +11,7 @@ Item {
     id: root
 
     required property int centerWidth
-    readonly property int avatarSize: Math.round(centerWidth * 0.55)
+    readonly property int avatarSize: Math.round(centerWidth * 0.40)
     readonly property color bgColour: Appearance.m3colors.m3surfaceContainerHighest
 
     readonly property string avatarSource: {
@@ -21,12 +21,23 @@ Item {
         return Qt.resolvedUrl(`file:///home/${Quickshell.env("USER") ?? "user"}/.face`)
     }
 
-    implicitWidth: avatarSize
-    implicitHeight: avatarSize
+    implicitWidth: avatarSize + 12
+    implicitHeight: avatarSize + 12
+
+    // 外层微妙光晕描边
+    MaterialShape {
+        id: halo
+        anchors.centerIn: parent
+        implicitSize: root.avatarSize + 8
+        shape: MaterialShape.ClamShell
+        color: Qt.alpha(Appearance.m3colors.m3primaryContainer, 0.5)
+        layer.enabled: true
+    }
 
     MaterialShape {
         id: shape
-        anchors.fill: parent
+        anchors.centerIn: parent
+        implicitSize: root.avatarSize
         shape: MaterialShape.ClamShell
         color: root.bgColour
         layer.enabled: true
@@ -36,7 +47,7 @@ Item {
         anchors.centerIn: parent
         text: "person"
         color: Appearance.m3colors.m3onSurfaceVariant
-        font.pixelSize: Math.round(root.avatarSize * 0.4)
+        font.pixelSize: Math.round(root.avatarSize * 0.42)
         visible: pfp.status !== Image.Ready
     }
 

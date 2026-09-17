@@ -276,10 +276,16 @@ Singleton {
     }
 
     animationCurves: QtObject {
+        // 曲线取值与 caelestia-dots/shell 的 Tokens.anim 逐条对齐（M3 Expressive）
         readonly property list<real> expressiveFastSpatial: [0.42, 1.67, 0.21, 0.90, 1, 1] // Default, 350ms
         readonly property list<real> expressiveDefaultSpatial: [0.38, 1.21, 0.22, 1.00, 1, 1] // Default, 500ms
         readonly property list<real> expressiveSlowSpatial: [0.39, 1.29, 0.35, 0.98, 1, 1] // Default, 650ms
-        readonly property list<real> expressiveEffects: [0.34, 0.80, 0.34, 1.00, 1, 1] // Default, 200ms
+        // effects 家族只管透明度/颜色，不带空间位移，所以曲线不做过冲
+        readonly property list<real> expressiveFastEffects: [0.31, 0.94, 0.34, 1, 1, 1] // 150ms
+        readonly property list<real> expressiveDefaultEffects: [0.34, 0.80, 0.34, 1, 1, 1] // 200ms
+        readonly property list<real> expressiveSlowEffects: [0.34, 0.88, 0.34, 1, 1, 1] // 300ms
+        // 兼容旧名字（等价于 expressiveDefaultEffects）
+        readonly property list<real> expressiveEffects: [0.34, 0.80, 0.34, 1, 1, 1] // Default, 200ms
         readonly property list<real> emphasized: [0.05, 0, 2 / 15, 0.06, 1 / 6, 0.4, 5 / 24, 0.82, 0.25, 1, 1, 1]
         readonly property list<real> emphasizedFirstHalf: [0.05, 0, 2 / 15, 0.06, 1 / 6, 0.4, 5 / 24, 0.82]
         readonly property list<real> emphasizedLastHalf: [5 / 24, 0.82, 0.25, 1, 1, 1]
@@ -288,9 +294,17 @@ Singleton {
         readonly property list<real> standard: [0.2, 0, 0, 1, 1, 1]
         readonly property list<real> standardAccel: [0.3, 0, 1, 1, 1, 1]
         readonly property list<real> standardDecel: [0, 0, 0, 1, 1, 1]
+        // 时长同样取自 caelestia 的 AnimDurationTokens 默认值
+        readonly property real durationSmall: 200
+        readonly property real durationNormal: 400
+        readonly property real durationLarge: 600
+        readonly property real durationExtraLarge: 1000
         readonly property real expressiveFastSpatialDuration: 350
         readonly property real expressiveDefaultSpatialDuration: 500
         readonly property real expressiveSlowSpatialDuration: 650
+        readonly property real expressiveFastEffectsDuration: 150
+        readonly property real expressiveDefaultEffectsDuration: 200
+        readonly property real expressiveSlowEffectsDuration: 300
         readonly property real expressiveEffectsDuration: 200
     }
 
@@ -403,6 +417,100 @@ Singleton {
             property int duration: 200
             property int type: Easing.BezierSpline
             property list<real> bezierCurve: root.animationCurves.standardDecel
+        }
+
+        // ── caelestia 同名令牌 ──────────────────────────────────────────
+        // 纯透明度/颜色过渡用它，不做空间位移，因此曲线不带过冲。
+        property QtObject expressiveFastEffects: QtObject {
+            property int duration: animationCurves.expressiveFastEffectsDuration
+            property int type: Easing.BezierSpline
+            property list<real> bezierCurve: animationCurves.expressiveFastEffects
+            property Component numberAnimation: Component {
+                NumberAnimation {
+                    alwaysRunToEnd: true
+                    duration: root.animation.expressiveFastEffects.duration
+                    easing.type: root.animation.expressiveFastEffects.type
+                    easing.bezierCurve: root.animation.expressiveFastEffects.bezierCurve
+                }
+            }
+            property Component colorAnimation: Component {
+                ColorAnimation {
+                    duration: root.animation.expressiveFastEffects.duration
+                    easing.type: root.animation.expressiveFastEffects.type
+                    easing.bezierCurve: root.animation.expressiveFastEffects.bezierCurve
+                }
+            }
+        }
+
+        property QtObject expressiveDefaultEffects: QtObject {
+            property int duration: animationCurves.expressiveDefaultEffectsDuration
+            property int type: Easing.BezierSpline
+            property list<real> bezierCurve: animationCurves.expressiveDefaultEffects
+            property Component numberAnimation: Component {
+                NumberAnimation {
+                    alwaysRunToEnd: true
+                    duration: root.animation.expressiveDefaultEffects.duration
+                    easing.type: root.animation.expressiveDefaultEffects.type
+                    easing.bezierCurve: root.animation.expressiveDefaultEffects.bezierCurve
+                }
+            }
+            property Component colorAnimation: Component {
+                ColorAnimation {
+                    duration: root.animation.expressiveDefaultEffects.duration
+                    easing.type: root.animation.expressiveDefaultEffects.type
+                    easing.bezierCurve: root.animation.expressiveDefaultEffects.bezierCurve
+                }
+            }
+        }
+
+        property QtObject expressiveSlowEffects: QtObject {
+            property int duration: animationCurves.expressiveSlowEffectsDuration
+            property int type: Easing.BezierSpline
+            property list<real> bezierCurve: animationCurves.expressiveSlowEffects
+            property Component numberAnimation: Component {
+                NumberAnimation {
+                    alwaysRunToEnd: true
+                    duration: root.animation.expressiveSlowEffects.duration
+                    easing.type: root.animation.expressiveSlowEffects.type
+                    easing.bezierCurve: root.animation.expressiveSlowEffects.bezierCurve
+                }
+            }
+            property Component colorAnimation: Component {
+                ColorAnimation {
+                    duration: root.animation.expressiveSlowEffects.duration
+                    easing.type: root.animation.expressiveSlowEffects.type
+                    easing.bezierCurve: root.animation.expressiveSlowEffects.bezierCurve
+                }
+            }
+        }
+
+        // 标准家族（不带过冲，用于尺寸/位置微调）
+        property QtObject standardSmall: QtObject {
+            property int duration: animationCurves.durationSmall
+            property int type: Easing.BezierSpline
+            property list<real> bezierCurve: animationCurves.standard
+        }
+        property QtObject standardNormal: QtObject {
+            property int duration: animationCurves.durationNormal
+            property int type: Easing.BezierSpline
+            property list<real> bezierCurve: animationCurves.standard
+        }
+        property QtObject standardLarge: QtObject {
+            property int duration: animationCurves.durationLarge
+            property int type: Easing.BezierSpline
+            property list<real> bezierCurve: animationCurves.standard
+        }
+
+        // 弹层「从锚点长出来」用的空间曲线（caelestia 的 popout 就这个节奏）
+        property QtObject popout: QtObject {
+            property int duration: animationCurves.expressiveDefaultSpatialDuration
+            property int type: Easing.BezierSpline
+            property list<real> bezierCurve: animationCurves.expressiveDefaultSpatial
+        }
+        property QtObject popoutExit: QtObject {
+            property int duration: animationCurves.expressiveFastEffectsDuration
+            property int type: Easing.BezierSpline
+            property list<real> bezierCurve: animationCurves.expressiveFastEffects
         }
 
         property QtObject menuDecel: QtObject {

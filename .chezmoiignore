@@ -37,3 +37,7 @@ README.md
 LICENSE
 install.sh
 Pictures/
+
+# ---- Python 字节码缓存（scripts 下有多个 __pycache__）----
+**/__pycache__
+**/*.pyc

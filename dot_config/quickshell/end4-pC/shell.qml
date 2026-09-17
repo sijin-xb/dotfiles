@@ -6,7 +6,6 @@
 ////@ pragma Env QT_SCALE_FACTOR=1
 import "modules/common"
 import "modules/ii/desktopLyrics"
-import "modules/ii/pet"
 import "modules/ii/dynamicIsland"
 import "services"
 import "panelFamilies"
@@ -62,9 +61,9 @@ ShellRoot {
     DesktopLyrics { id: desktopLyrics }
 
     // 灵动岛：统一承载音乐 / 音量 / 录屏等活动
-    // 歌词页复用桌面歌词的数据源（酷狗 KRC）
+    // 歌词页与桌面歌词浮层共用同一份数据源（LyricsService = 通用桌面歌词源）
     DynamicIslandHost {
-        lyricsProvider: desktopLyrics
+        lyricsProvider: LyricsService
     }
 
     component PanelFamilyLoader: LazyLoader {

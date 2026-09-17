@@ -1,821 +1,35 @@
 import QtQuick
-import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
-import Quickshell.Services.Mpris
 import qs.modules.common
-import qs.modules.common.functions as CF
 import qs.services
 
 /**
- * Universal Desktop Lyrics Overlay with Multi-Player Offset Compensation.
+ * 通用桌面歌词浮层（视图）。
  *
- * Automatically adapts to any active MPRIS player (KA Music, Spotify, MoeKoe,
- * browsers, etc.) via MprisController.activePlayer.
+ * 数据全部来自 LyricsService —— 也就是那条唯一的「通用桌面歌词源」
+ * （SPlayer WebSocket 桥接，退路是 MPRIS + kugou）。这个文件只负责画，
+ * 不再自己维护取词、时间补偿、播放器选择等逻辑。
  *
- * Fetches high-precision Kugou KRC lyrics via python3 scripts/lyrics/kugou_lyrics.py
- * with local caching and lrclib fallback.
+ * 显示：当前行逐字高亮，下面依次是翻译、音译。
  *
- * Features automatic per-player latency compensation (Spotify +450ms, browsers +300ms,
- * KA Music +150ms) plus runtime manual fine-tuning via IPC commands.
- *
- * Song-switch latency: a "♪ title — artist" placeholder line appears the moment
- * the track changes (no stale lyrics from the previous song), metadata updates
- * are debounced so title+artist trigger a single fetch, and every fetch carries
- * a generation id echoed back by the script (@@KRCGEN) so output from a
- * superseded fetch can never flash on screen.
- *
- * IPC commands:
+ * IPC 命令：
  *   qs -c end4-pC ipc call desktoplyrics toggle
- *   qs -c end4-pC ipc call desktoplyrics refetch       (force re-fetch, skip cache)
- *   qs -c end4-pC ipc call desktoplyrics offset_faster   (advance lyrics +0.1s)
- *   qs -c end4-pC ipc call desktoplyrics offset_slower   (delay lyrics -0.1s)
- *   qs -c end4-pC ipc call desktoplyrics set_offset 0.3  (set manual offset in seconds)
- *   qs -c end4-pC ipc call desktoplyrics offset_reset    (reset manual offset)
- *   qs -c end4-pC ipc call desktoplyrics get_offset      (print current offset info)
+ *   qs -c end4-pC ipc call desktoplyrics refetch        (强制重新取词，跳过缓存)
+ *   qs -c end4-pC ipc call desktoplyrics offset_faster  (歌词提前 0.1s)
+ *   qs -c end4-pC ipc call desktoplyrics offset_slower  (歌词延后 0.1s)
+ *   qs -c end4-pC ipc call desktoplyrics set_offset 0.3 (设置当前播放器偏移)
+ *   qs -c end4-pC ipc call desktoplyrics offset_reset   (重置当前播放器偏移)
+ *   qs -c end4-pC ipc call desktoplyrics get_offset     (打印当前偏移信息)
+ *   qs -c end4-pC ipc call desktoplyrics list_offsets   (列出各播放器偏移)
  */
 PanelWindow {
     id: root
 
     readonly property bool enabled: Config.options.desktopLyricsEnabled
-    // Sticky lyrics player: follow whoever is PLAYING and don't get stolen by
-    // a paused browser session (Electron players like MoeKoeMusic expose a
-    // chromium.* bus name, so they used to fight with real browsers over
-    // MprisController.activePlayer). Honours the pinned preferredPlayer when set.
-    property MprisPlayer lyricPlayer: null
-    readonly property MprisPlayer activePlayer: lyricPlayer ?? MprisController.activePlayer
-
-    function pickPlayer() {
-        const pool = MprisController.players ?? [];
-        if (lyricPlayer) {
-            if (pool.indexOf(lyricPlayer) === -1) {
-                lyricPlayer = null;
-            } else if (lyricPlayer.isPlaying) {
-                return; // sticky: keep the current player while it plays
-            }
-        }
-        const preferred = (Config.options.bar?.media?.preferredPlayer ?? "").trim().toLowerCase();
-        let candidates = pool;
-        if (preferred.length > 0) {
-            const m = pool.filter(p =>
-                ((p.identity ?? "") + " " + (p.desktopEntry ?? "")).toLowerCase().includes(preferred));
-            if (m.length > 0)
-                candidates = m;
-        }
-        const playing = candidates.filter(p => p.isPlaying);
-        if (playing.length > 0) {
-            if (playing.indexOf(lyricPlayer) === -1)
-                lyricPlayer = playing[0];
-        } else if (!lyricPlayer && candidates.length > 0) {
-            lyricPlayer = candidates[0];
-        }
-    }
-    // SPlayer WS 数据源：连上后以它为准（见下方 splayerBridge）
-    readonly property bool splayerEnable: Config.options.desktopLyricsSplayerEnable ?? false
-    property bool splayerConnected: false
-    property bool splayerPlaying: false
-    property string splayerSongLabel: ""
-    // SPlayer 只在换歌/加载歌词时才推 lyric-change，所以刚连上时可能还没有歌词。
-    // 必须等真的收到歌词才接管，否则会把 MPRIS + kugou 流程掐掉导致歌词空白。
-    property bool splayerHasLyrics: false
-    readonly property bool splayerActive: root.splayerEnable && root.splayerConnected
-        && root.splayerHasLyrics
-
-    // 当前这首歌的身份是不是来自音频指纹（MPRIS 拿不到元数据时的兜底）。
-    // 这种情况下没有播放器可问「在不在播 / 放到哪了」：
-    //   · 在不在播 → 问系统音频（AudioActivity）
-    //   · 放到哪了 → 完全靠下面那个 100ms 本地插值定时器自己走，
-    //                350ms 的 MPRIS 漂移校正对这条路径不生效（也没得校正）
-    property bool usingFingerprint: false
-
-    readonly property bool isPlaying: root.splayerActive
-        ? root.splayerPlaying
-        : (root.usingFingerprint
-            ? AudioActivity.playing
-            : ((activePlayer?.isPlaying ?? false) && (activePlayer?.playbackState === MprisPlaybackState.Playing || activePlayer?.playbackState === 1 || activePlayer?.isPlaying === true)))
-
-    property bool connected: true // Kept for backwards compatibility
-
-    // Base playback progress (seconds) from MPRIS
-    property real currentTime: 0
-
-    // Song-level offset from [offset:ms] tag in lyric file
-    property real rawLyricOffset: 0
-
-    // Player-specific automatic latency compensation (in seconds, positive = lead/earlier)
-    readonly property real playerOffset: {
-        if (!activePlayer) return 0.0;
-        const id = ((activePlayer.identity ?? "") + " " + (activePlayer.dbusName ?? "")).toLowerCase();
-        // Spotify (native Linux client). Empirical calibration: MPRIS position is
-        // accurate (rate 1.000), and the old +450ms guess over-advanced lyrics.
-        // Tuned to a small negative lead; re-tune per-player via IPC if needed.
-        if (id.includes("spotify")) return -0.05;
-        // MoeKoeMusic (Electron/Kugou client): must be matched BEFORE the generic
-        // Chromium rule — its MPRIS bus name contains "chromium" (Electron).
-        // Its built-in lyrics view renders the KRC timeline natively, so the
-        // desktop overlay should follow the raw timeline (+0) to stay in sync.
-        if (id.includes("moekoe")) return 0.0;
-        // go-musicfox (Netease TUI client, Go + beep engine). Empirical value:
-        // 150ms over-advanced, 50ms lands on the beat.
-        if (id.includes("musicfox")) return 0.05;
-        // Web browsers (Firefox, Chrome/Chromium) audio pipeline delay (~300ms)
-        if (id.includes("firefox") || id.includes("chromium") || id.includes("chrome")) return 0.30;
-        // KA Music (KugouAvaloniaPlayer) BASS audio engine buffer (~150ms)
-        if (id.includes("kugou") || id.includes("ka music")) return 0.15;
-        return 0.15; // General IPC/compositor latency compensation
-    }
-
-    // ---- Per-player manual offset (persisted) ----------------------------
-    // Keyed by a normalized player identity, so a correction tuned for one
-    // player neither leaks into another nor is lost on reload/restart.
-    property var perPlayerOffsets: ({})
-
-    // Stable key for a player. Prefer the human-readable identity; fall back to
-    // the bus name with its volatile ".instanceNNNN" suffix (Electron/Chromium
-    // apps embed the PID there) stripped, so a player restart keeps its offset.
-    function playerKey(p) {
-        if (!p) return "";
-        const idPart = ((p.identity ?? "") + "").trim().toLowerCase();
-        const dbusPart = ((p.dbusName ?? "") + "").trim().toLowerCase().replace(/\.instance\d+$/, "");
-        if (idPart.length > 0) return idPart;
-        return dbusPart;
-    }
-
-    readonly property string currentPlayerKey: playerKey(activePlayer)
-
-    readonly property real manualOffset: {
-        const k = currentPlayerKey;
-        if (!k) return 0.0;
-        const v = perPlayerOffsets[k];
-        return (typeof v === "number" && isFinite(v)) ? v : 0.0;
-    }
-
-    function loadOffsets(txt) {
-        try {
-            const parsed = JSON.parse(txt);
-            perPlayerOffsets = (parsed && typeof parsed === "object") ? parsed : ({});
-        } catch (e) {
-            perPlayerOffsets = ({});
-        }
-    }
-
-    function saveOffsets() {
-        offsetsFile.setText(JSON.stringify(perPlayerOffsets, null, 2));
-    }
-
-    function adjustManualOffset(delta) {
-        const k = currentPlayerKey;
-        if (!k) return 0.0;
-        const next = Math.round((manualOffset + delta) * 1000) / 1000;
-        const copy = Object.assign({}, perPlayerOffsets);
-        copy[k] = next;
-        perPlayerOffsets = copy;
-        saveOffsets();
-        updateCurrentLine();
-        return next;
-    }
-
-    function setManualOffsetForCurrent(seconds) {
-        const k = currentPlayerKey;
-        if (!k) return 0.0;
-        const copy = Object.assign({}, perPlayerOffsets);
-        copy[k] = seconds;
-        perPlayerOffsets = copy;
-        saveOffsets();
-        updateCurrentLine();
-        return seconds;
-    }
-
-    FileView {
-        id: offsetsFile
-        path: `${Directories.state}/user/lyrics_offsets.json`
-        watchChanges: false
-        onLoaded: root.loadOffsets(text())
-        onLoadFailed: error => {
-            root.perPlayerOffsets = ({});
-            if (error === FileViewError.FileNotFound)
-                offsetsFile.setText("{}");
-        }
-    }
-
-    // Effective total offset (positive = lyrics show earlier, negative = lyrics show later)
-    readonly property real effectiveOffset: rawLyricOffset + playerOffset + (Config.options.desktopLyricsOffset ?? 0.0) + manualOffset
-
-    // Backwards-compatible alias for Pet.qml
-    readonly property real lyricOffset: effectiveOffset
-
-    property string songName: ""
-    property string lastSongKey: ""
-    property string lastRawLyrics: ""
-    property var lyricLines: [] // [{ start: seconds, text: string, trans: string, words: [...] }]
-    property int currentLineIndex: -1
-    // Bumped on every fetch; the script echoes it back (@@KRCGEN) so output
-    // from a killed (superseded) fetch is discarded instead of applied.
-    property int fetchGeneration: 0
-
-    readonly property string currentText: (currentLineIndex >= 0 && currentLineIndex < lyricLines.length) ? lyricLines[currentLineIndex].text : ""
-    readonly property string currentTrans: (currentLineIndex >= 0 && currentLineIndex < lyricLines.length) ? lyricLines[currentLineIndex].trans : ""
-    readonly property string nextText: (currentLineIndex + 1 >= 0 && currentLineIndex + 1 < lyricLines.length) ? lyricLines[currentLineIndex + 1].text : ""
-    readonly property bool shouldShow: enabled && isPlaying && currentText.length > 0
-
-    function base64Decode(input) {
-        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-        const bytes = [];
-        let buffer = 0;
-        let bits = 0;
-        for (let i = 0; i < input.length; i++) {
-            const c = chars.indexOf(input[i]);
-            if (c === -1)
-                continue;
-            buffer = (buffer << 6) | c;
-            bits += 6;
-            if (bits >= 8) {
-                bits -= 8;
-                bytes.push((buffer >> bits) & 0xFF);
-            }
-        }
-        return bytes;
-    }
-
-    function utf8Decode(bytes) {
-        let out = "";
-        let i = 0;
-        while (i < bytes.length) {
-            const b = bytes[i];
-            if (b < 0x80) {
-                out += String.fromCharCode(b);
-                i += 1;
-            } else if (b < 0xE0) {
-                out += String.fromCharCode(((b & 0x1F) << 6) | (bytes[i + 1] & 0x3F));
-                i += 2;
-            } else if (b < 0xF0) {
-                out += String.fromCharCode(((b & 0x0F) << 12) | ((bytes[i + 1] & 0x3F) << 6) | (bytes[i + 2] & 0x3F));
-                i += 3;
-            } else {
-                const cp = ((b & 0x07) << 18) | ((bytes[i + 1] & 0x3F) << 12) | ((bytes[i + 2] & 0x3F) << 6) | (bytes[i + 3] & 0x3F);
-                const c = cp - 0x10000;
-                out += String.fromCharCode(0xD800 + (c >> 10), 0xDC00 + (c & 0x3FF));
-                i += 4;
-            }
-        }
-        return out;
-    }
-
-    // Romaji (phonetic) detection. Kugou ships a transliteration block
-    // (mora tokens like "wa ta ku shi") alongside the semantic translation
-    // for Japanese songs. Romaji tokens fully decompose into Japanese
-    // syllables; Chinese/English sentences do not.
-    function isRomajiToken(raw) {
-        let t = raw.replace(/^'+|'+$/g, "");
-        if (t.length === 0)
-            return true;
-        t = t.replace(/^([kstcbgdpfhjz])\1/, "$1");
-        const syl = /^(she|chi|tsu|[kgstnhmyrwgzdbpfcjv]y[auo]|[kgstnhmyrwgzdbpfcjv]h?[aiueo]|[aiueo]|n)/;
-        let rest = t;
-        while (rest.length > 0) {
-            const m = rest.match(syl);
-            if (!m)
-                return false;
-            rest = rest.slice(m[0].length);
-        }
-        return true;
-    }
-
-    function isRomajiText(s) {
-        if (!s || /[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/.test(s))
-            return false;
-        const tokens = s.toLowerCase().match(/[a-z]+(?:'[a-z]+)?/g);
-        if (!tokens || tokens.length === 0)
-            return false;
-        let ok = 0;
-        for (const t of tokens) {
-            if (isRomajiToken(t))
-                ok += 1;
-        }
-        return ok / tokens.length >= 0.85;
-    }
-
-    function parseTranslations(lrcText) {
-        const result = [];
-        const match = lrcText.match(/\[language:([A-Za-z0-9+/=]*)\]/);
-        if (!match)
-            return result;
-        try {
-            let b64 = match[1];
-            while (b64.length % 4 !== 0) b64 += "=";
-            const bytes = base64Decode(b64);
-            const json = JSON.parse(utf8Decode(bytes));
-            const contents = json?.content ?? [];
-            for (const block of contents) {
-                const lines = [];
-                for (const line of (block?.lyricContent ?? []))
-                    lines.push(Array.isArray(line) ? line.join("") : String(line));
-                if (lines.length === 0)
-                    continue;
-                // Skip the phonetic/transliteration block; keep the first
-                // semantic translation block only (1:1 line alignment).
-                const sample = lines.slice(0, 8).filter(l => l.trim().length > 0);
-                if (sample.length > 0 && isRomajiText(sample.join(" ")))
-                    continue;
-                if (result.length === 0) {
-                    for (const l of lines)
-                        result.push(l);
-                    break;
-                }
-            }
-        } catch (e) {
-            console.log("[DesktopLyrics] translation parse failed:", e);
-        }
-        return result;
-    }
-
-    function parseLyrics(lrcText) {
-        const lines = [];
-        if (!lrcText || typeof lrcText !== "string")
-            return lines;
-        const translations = parseTranslations(lrcText);
-        const krcRe = /^\[(\d+),(\d+)(?:,\d+)?\]/;
-        const lrcRe = /^\[(\d{1,3}):(\d{1,2})(?:[.:](\d{1,3}))?\]/;
-        let transIndex = 0;
-        for (let raw of lrcText.split("\n")) {
-            raw = raw.replace(/\r/g, "").trim();
-            if (raw.length === 0)
-                continue;
-            let start = -1;
-            let text = "";
-            let words = null;
-            const krc = raw.match(krcRe);
-            const lrc = raw.match(lrcRe);
-            if (krc) {
-                start = Number(krc[1]) / 1000;
-                const body = raw.slice(krc[0].length);
-                words = [];
-                const wordRe = /<(\d+),(\d+),\d+>([^<]*)/g;
-                let word;
-                while ((word = wordRe.exec(body)) !== null) {
-                    if (word[3].length === 0)
-                        continue;
-                    // KRC 词偏移相对行首（首个字为 0），直接累加。
-                    // 旧的 rawStart>=krc[1] 三目判断会把行内偏移较大的字误当绝对时间，
-                    // 造成同一行时间戳非单调、高亮忽前忽后。
-                    const rawStart = Number(word[1]);
-                    const wordStart = start + rawStart / 1000;
-                    words.push({
-                        text: word[3],
-                        start: wordStart,
-                        dur: Number(word[2]) / 1000
-                    });
-                    text += word[3];
-                }
-                text = text.trim();
-            } else if (lrc) {
-                const frac = lrc[3] !== undefined ? Number("0." + lrc[3]) : 0;
-                start = Number(lrc[1]) * 60 + Number(lrc[2]) + frac;
-                text = raw.slice(lrc[0].length).trim();
-            } else {
-                continue;
-            }
-            if (text.length === 0)
-                continue;
-            const trans = translations.length > 0 ? (translations[transIndex] ?? "") : "";
-            transIndex += 1;
-            // 音译（romaji）与语义翻译分开存：原来是「看起来像音译就丢掉」，
-            // 现在保留到 roman 字段，由视图决定怎么显示。
-            const looksRomaji = isRomajiText(trans);
-            lines.push({
-                start: start,
-                text: text,
-                trans: (trans !== text && !looksRomaji) ? trans.trim() : "",
-                roman: (trans !== text && looksRomaji) ? trans.trim() : "",
-                words: (words && words.length > 0) ? words : null
-            });
-        }
-        lines.sort((a, b) => a.start - b.start);
-        return lines;
-    }
-
-    function updateCurrentLine() {
-        const t = currentTime + effectiveOffset;
-        let index = -1;
-        for (let i = 0; i < lyricLines.length; i++) {
-            if (lyricLines[i].start <= t + 0.05)
-                index = i;
-            else
-                break;
-        }
-        currentLineIndex = index;
-    }
-
-    // ─── SPlayer WebSocket 歌词源 ────────────────────────────────────
-    // SPlayer 打开「WebSocket 服务」后（默认 25885）会推送 song-change /
-    // lyric-change / progress-change，直接复用，省掉 kugou 抓取。
-    // 脚本断开后会自动重连，所以这里不需要重启逻辑。
-    Process {
-        id: splayerBridge
-        running: root.enabled && root.splayerEnable
-        command: ["python3", Quickshell.shellPath("scripts/desktopLyrics/splayer-ws.py"),
-            "--port", String(Config.options.desktopLyricsSplayerPort ?? 25885)]
-        stdout: SplitParser {
-            onRead: line => root.handleSplayerMessage(line)
-        }
-        onExited: {
-            root.splayerConnected = false;
-            root.splayerPlaying = false;
-        }
-    }
-
-    function handleSplayerMessage(line) {
-        let msg;
-        try {
-            msg = JSON.parse(line);
-        } catch (e) {
-            return;
-        }
-        switch (msg.type) {
-        case "hello":
-            root.splayerConnected = true;
-            break;
-        case "disconnected":
-            root.splayerConnected = false;
-            root.splayerPlaying = false;
-            root.splayerHasLyrics = false;
-            break;
-        case "song":
-            root.splayerSongLabel = `${msg.title ?? ""}${msg.artist ? " - " + msg.artist : ""}`;
-            // 换歌后旧歌词作废，等新的 lyric-change 到达前先让 MPRIS 流程兜底
-            root.splayerHasLyrics = false;
-            break;
-        case "lyric":
-            // 脚本给的是毫秒，这里换算成秒，和 MPRIS 路径的 lyricLines 保持一致
-            root.lyricLines = (msg.lines ?? []).map(l => ({
-                start: (l.start ?? 0) / 1000,
-                text: l.text ?? "",
-                trans: l.translation ?? "",
-                roman: l.roman ?? "",
-            }));
-            root.rawLyricOffset = 0;
-            root.currentLineIndex = -1;
-            root.splayerHasLyrics = root.lyricLines.length > 0;
-            root.updateCurrentLine();
-            break;
-        case "progress":
-            if (typeof msg.position === "number")
-                root.currentTime = msg.position / 1000;
-            break;
-        case "state":
-            root.splayerPlaying = !!msg.playing;
-            break;
-        }
-    }
-
-    // Coalesces rapid metadata changes (trackTitle/trackArtist usually fire
-    // together on song switch) into a single fetch.
-    property bool pendingRefresh: false
-    Timer {
-        id: fetchDebounce
-        interval: 50
-        onTriggered: root.doFetch(root.pendingRefresh)
-    }
-
-    function requestFetch(refresh) {
-        if (refresh)
-            pendingRefresh = true;
-        if (enabled)
-            fetchDebounce.restart();
-    }
-
-    function normalizeTitleArtist(title, artist) {
-        // Some players pack "artist - title" into the title field (or leave artist empty)
-        const m = title.match(/^(.{1,60}?)\s+[-–—]\s+(.+)$/);
-        if (m) {
-            const left = m[1].trim();
-            const right = m[2].trim();
-            if (artist.length === 0)
-                return { title: right, artist: left };
-            if (left.toLowerCase() === artist.toLowerCase())
-                return { title: right, artist: artist };
-        }
-        return { title: title, artist: artist };
-    }
-
-    function doFetch(refresh) {
-        pendingRefresh = false;
-        if (!enabled)
-            return;
-        // SPlayer 已经给了歌词，不要再抓一遍（会覆盖掉 WS 的数据）
-        if (root.splayerActive)
-            return;
-
-        const rawTitle = (activePlayer?.trackTitle ?? "").trim();
-        const rawArtist = (activePlayer?.trackArtist ?? "").trim();
-        const norm = normalizeTitleArtist(rawTitle, rawArtist);
-        let title = norm.title;
-        let artist = norm.artist;
-        let duration = activePlayer?.length ?? 0;
-        let fromFingerprint = false;
-
-        // MPRIS 给不出可用元数据 —— 浏览器网页播放器、游戏、视频播放器都会走到这里。
-        // 这是「逐个软件适配」永远补不完的窟窿，所以改成用音频指纹认歌：
-        // recognize-music.sh 抓的是默认输出的 monitor 源，谁在出声都能录到。
-        if (!title && LyricsIdentifier.enabled && AudioActivity.playing) {
-            LyricsIdentifier.requestIdentify();
-            if (LyricsIdentifier.hasIdentity) {
-                title = LyricsIdentifier.title;
-                artist = LyricsIdentifier.artist;
-                // 指纹认不出时长，交给 kugou 用「歌名 + 艺人」去匹配
-                duration = 0;
-                fromFingerprint = true;
-            }
-        }
-
-        if (!title) {
-            lyricLines = [];
-            lastRawLyrics = "";
-            lastSongKey = "";
-            currentLineIndex = -1;
-            usingFingerprint = false;
-            return;
-        }
-
-        const songKey = `${title} - ${artist}`;
-        if (!refresh && songKey === lastSongKey && lyricLines.length > 0) {
-            usingFingerprint = fromFingerprint;
-            return;
-        }
-
-        lastSongKey = songKey;
-        songName = title;
-        usingFingerprint = fromFingerprint;
-
-        // 指纹来源没有播放器可问进度，从 0 开始自己走表。
-        // 识别是在歌已经放了一会儿之后才成功的，所以起点天然偏后一段；
-        // 用 设置里的歌词偏移（或 IPC 的 offset_faster/slower）对齐即可。
-        if (fromFingerprint)
-            currentTime = 0;
-
-        // Show the new song instantly instead of stale lyrics from the
-        // previous track; replaced as soon as the fetch returns.
-        lyricLines = [{
-            start: 0,
-            text: "♪ " + title + (artist.length > 0 ? " — " + artist : ""),
-            trans: "",
-            words: null
-        }];
-
-        fetchGeneration += 1;
-        const cmd = ["python3", `${Directories.scriptPath}/lyrics/kugou_lyrics.py`];
-        if (refresh)
-            cmd.push("--refresh");
-        cmd.push(title, artist, String(Math.floor(duration)), String(fetchGeneration));
-        lyricsProc.running = false;
-        lyricsProc.command = cmd;
-        lyricsProc.running = true;
-    }
-
-    function escapeHtml(s) {
-        return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    }
-
-    // 供外部（灵动岛）复用逐字进度
-    readonly property real adjustedTime: currentTime + effectiveOffset
-
-    function buildLineHtml(line) {
-        if (!line.words)
-            return escapeHtml(line.text);
-        const t = adjustedTime;
-        let html = "";
-        for (const w of line.words) {
-            // 开始唱（含正在唱）即高亮 —— 唱完才亮会滞后整整一个字长
-            const started = t >= w.start;
-            const color = started ? Appearance.colors.colPrimary : Appearance.colors.colSecondary;
-            html += `<font color="${color}">${escapeHtml(w.text)}</font>`;
-        }
-        return html;
-    }
-
-    Process {
-        id: lyricsProc
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                const out = text;
-                let lyrics = "";
-                const genMatch = out.match(/^@@KRCGEN (\d+)\n/);
-                if (genMatch) {
-                    // Output from a fetch that was superseded by a newer song: discard.
-                    if (Number(genMatch[1]) !== root.fetchGeneration)
-                        return;
-                    lyrics = out.slice(genMatch[0].length).trim();
-                } else {
-                    lyrics = out.trim();
-                }
-                // No lyrics found: keep showing the "♪ song — artist" placeholder.
-                if (lyrics.length === 0)
-                    return;
-                root.lastRawLyrics = lyrics;
-                root.lyricLines = root.parseLyrics(lyrics);
-                const offsetMatch = lyrics.match(/\[offset:(-?\d+)\]/);
-                root.rawLyricOffset = offsetMatch ? -Number(offsetMatch[1]) / 1000 : 0;
-                root.updateCurrentLine();
-            }
-        }
-    }
-
-    Connections {
-        target: root.activePlayer
-        function onTrackTitleChanged() {
-            root.currentTime = root.activePlayer?.position ?? 0;
-            root.requestFetch();
-        }
-        function onTrackArtistChanged() {
-            root.requestFetch();
-        }
-        function onPlaybackStateChanged() {
-            const pos = root.activePlayer?.position ?? 0;
-            if (pos > 0) root.currentTime = pos;
-            root.updateCurrentLine();
-        }
-        function onPositionChanged() {
-            const pos = root.activePlayer?.position ?? 0;
-            if (Math.abs(root.currentTime - pos) > 0.25) {
-                root.currentTime = pos;
-                root.updateCurrentLine();
-            }
-        }
-    }
-
-    onActivePlayerChanged: {
-        if (activePlayer) {
-            currentTime = activePlayer.position ?? 0;
-            requestFetch();
-        } else if (!root.splayerActive) {
-            lyricLines = [];
-            currentLineIndex = -1;
-        }
-    }
-
-    onEnabledChanged: {
-        if (enabled) {
-            requestFetch();
-        } else {
-            fetchDebounce.stop();
-            lyricsProc.running = false;
-            lyricLines = [];
-            currentLineIndex = -1;
-        }
-    }
-
-    Component.onCompleted: {
-        pickPlayer();
-        if (enabled && activePlayer) {
-            currentTime = activePlayer.position ?? 0;
-            requestFetch();
-        }
-    }
-
-    // Player set / activity changes re-run the sticky player selection
-    Connections {
-        target: MprisController
-        function onPlayersChanged() {
-            root.pickPlayer();
-        }
-        function onActivePlayerChanged() {
-            root.pickPlayer();
-        }
-    }
-
-    // Safety net for missed signals while the overlay is enabled
-    Timer {
-        interval: 2000
-        running: root.enabled
-        repeat: true
-        onTriggered: root.pickPlayer()
-    }
-
-    // ─── 音频指纹兜底（MPRIS 覆盖不到的音源） ──────────────────────────
-    // 指纹认出歌之后重新取一次词。识别本身由 LyricsIdentifier 自己做冷却控制，
-    // 这里只负责在「认出来了」和「该再认一次了」两个时机推它一把。
-    Connections {
-        target: LyricsIdentifier
-        function onIdentified() {
-            if (root.enabled && !root.splayerActive)
-                root.doFetch(false);
-        }
-    }
-
-    Timer {
-        // 指纹身份过期（或一直没认出来）时重试。间隔比识别自身的冷却长，
-        // 真正的限流判断在 LyricsIdentifier 里。
-        interval: 15000
-        running: root.enabled && root.usingFingerprint && AudioActivity.playing
-        repeat: true
-        onTriggered: {
-            if (!LyricsIdentifier.hasIdentity)
-                LyricsIdentifier.requestIdentify();
-        }
-    }
-
-    onCurrentTimeChanged: updateCurrentLine()
-    onLyricLinesChanged: updateCurrentLine()
-    onEffectiveOffsetChanged: updateCurrentLine()
-
-    // 1. High-precision MPRIS poll timer: actively pulls updated position from D-Bus every 350ms
-    Timer {
-        id: mprisSyncTimer
-        interval: 350
-        repeat: true
-        running: root.shouldShow && root.isPlaying && root.activePlayer !== null
-            && !root.splayerActive
-        onTriggered: {
-            if (root.activePlayer) {
-                root.activePlayer.positionChanged();
-                const realPos = root.activePlayer.position ?? 0;
-                if (realPos > 0) {
-                    const diff = realPos - root.currentTime;
-                    // Smoothly pull currentTime towards real position if minor drift
-                    if (Math.abs(diff) > 0.05 && Math.abs(diff) <= 0.5) {
-                        root.currentTime += diff * 0.4;
-                    } else if (Math.abs(diff) > 0.5) {
-                        root.currentTime = realPos;
-                    }
-                    root.updateCurrentLine();
-                }
-            }
-        }
-    }
-
-    // 2. Fluid 100ms local interpolation timer: smooth character-by-character color fill
-    Timer {
-        interval: 100
-        running: root.shouldShow && root.isPlaying
-        repeat: true
-        onTriggered: {
-            if (root.lyricLines.length > 0) {
-                root.currentTime += 0.1;
-            }
-        }
-    }
-
-    IpcHandler {
-        target: "desktoplyrics"
-        function toggle(): void {
-            Config.options.desktopLyricsEnabled = !Config.options.desktopLyricsEnabled;
-        }
-        function show(): void {
-            Config.options.desktopLyricsEnabled = true;
-            root.requestFetch();
-        }
-        function hide(): void {
-            Config.options.desktopLyricsEnabled = false;
-        }
-        function open(): void {
-            Config.options.desktopLyricsEnabled = true;
-            root.requestFetch();
-        }
-        function refetch(): string {
-            root.requestFetch(true);
-            return "正在重新获取歌词（跳过缓存，仅缓存校验匹配的结果）…";
-        }
-
-        // 偏移微调命令：正数提前（快），负数延后（慢）。
-        // 改动只作用于「当前播放器」，并立即持久化，互不干扰。
-        function offset_faster(): string {
-            const v = root.adjustManualOffset(0.1);
-            const totalMs = (root.effectiveOffset * 1000).toFixed(0);
-            return `歌词已提前 +100ms（仅当前播放器）| 播放器: ${root.activePlayer?.identity ?? "未知"} | 本播放器偏移: ${(v * 1000).toFixed(0)}ms | 总时间补偿: ${totalMs}ms`;
-        }
-        function offset_slower(): string {
-            const v = root.adjustManualOffset(-0.1);
-            const totalMs = (root.effectiveOffset * 1000).toFixed(0);
-            return `歌词已延后 -100ms（仅当前播放器）| 播放器: ${root.activePlayer?.identity ?? "未知"} | 本播放器偏移: ${(v * 1000).toFixed(0)}ms | 总时间补偿: ${totalMs}ms`;
-        }
-        function set_offset(seconds: real): string {
-            const v = root.setManualOffsetForCurrent(seconds);
-            const totalMs = (root.effectiveOffset * 1000).toFixed(0);
-            return `当前播放器偏移已设为: ${v}s | 播放器: ${root.activePlayer?.identity ?? "未知"} | 总时间补偿: ${totalMs}ms`;
-        }
-        function offset_reset(): string {
-            root.setManualOffsetForCurrent(0.0);
-            const totalMs = (root.effectiveOffset * 1000).toFixed(0);
-            return `当前播放器偏移已重置为 0s | 播放器: ${root.activePlayer?.identity ?? "未知"} | 自动补偿: ${(root.playerOffset * 1000).toFixed(0)}ms | 总时间补偿: ${totalMs}ms`;
-        }
-        function get_offset(): string {
-            const pName = root.activePlayer?.identity ?? (root.activePlayer?.dbusName ?? "无播放器");
-            const pComp = (root.playerOffset * 1000).toFixed(0);
-            const mComp = (root.manualOffset * 1000).toFixed(0);
-            const gComp = ((Config.options.desktopLyricsOffset ?? 0.0) * 1000).toFixed(0);
-            const tagComp = (root.rawLyricOffset * 1000).toFixed(0);
-            const totalMs = (root.effectiveOffset * 1000).toFixed(0);
-            return `[歌词时间信息] 播放器: ${pName} | 自动补偿: ${pComp}ms | 本播放器手动偏移: ${mComp}ms | 全局设置: ${gComp}ms | 歌曲标签偏移: ${tagComp}ms | 总提前量: ${totalMs}ms`;
-        }
-        function list_offsets(): string {
-            const keys = Object.keys(root.perPlayerOffsets);
-            if (keys.length === 0)
-                return "尚无按播放器保存的偏移。";
-            return "按播放器保存的偏移:\n" + keys.map(k => `  ${k}: ${(root.perPlayerOffsets[k] * 1000).toFixed(0)}ms`).join("\n");
-        }
-    }
+    readonly property bool shouldShow: root.enabled && LyricsService.isPlaying
+        && LyricsService.currentText.length > 0
 
     anchors {
         bottom: true
@@ -843,8 +57,9 @@ PanelWindow {
         opacity: root.shouldShow ? 1 : 0
         Behavior on opacity {
             NumberAnimation {
-                duration: 350
-                easing.type: Easing.InOutQuad
+                duration: Appearance.animation.elementMove.duration
+                easing.type: Appearance.animation.elementMove.type
+                easing.bezierCurve: Appearance.animation.elementMove.bezierCurve
             }
         }
 
@@ -853,13 +68,13 @@ PanelWindow {
             anchors.fill: parent
             clip: true
             interactive: false
-            model: root.lyricLines
-            currentIndex: root.currentLineIndex
+            model: LyricsService.lyricLines
+            currentIndex: LyricsService.currentLineIndex
             spacing: 7
             highlightRangeMode: ListView.StrictlyEnforceRange
             preferredHighlightBegin: height / 2 - 20
             preferredHighlightEnd: height / 2 + 20
-            highlightMoveDuration: 420
+            highlightMoveDuration: Appearance.animation.elementMove.duration
             highlightMoveVelocity: -1
             snapMode: ListView.SnapToItem
 
@@ -873,7 +88,7 @@ PanelWindow {
 
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: parent.isCurrent ? root.buildLineHtml(parent.modelData) : root.escapeHtml(parent.modelData.text)
+                    text: parent.isCurrent ? LyricsService.buildLineHtml(parent.modelData) : LyricsService.escapeHtml(parent.modelData.text)
                     textFormat: Text.RichText
                     font.family: Appearance.font.family.expressive
                     font.pixelSize: parent.isCurrent ? 21 : 14
@@ -887,13 +102,14 @@ PanelWindow {
 
                     Behavior on opacity {
                         NumberAnimation {
-                            duration: 300
-                            easing.type: Easing.OutCubic
+                            duration: Appearance.animation.elementMoveFast.duration
+                            easing.type: Appearance.animation.elementMoveFast.type
+                            easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve
                         }
                     }
                     Behavior on color {
                         ColorAnimation {
-                            duration: 300
+                            duration: Appearance.animation.elementMoveFast.duration
                         }
                     }
                 }
@@ -922,6 +138,56 @@ PanelWindow {
                     horizontalAlignment: Text.AlignHCenter
                 }
             }
+        }
+    }
+
+    IpcHandler {
+        target: "desktoplyrics"
+
+        function toggle(): void {
+            Config.options.desktopLyricsEnabled = !Config.options.desktopLyricsEnabled;
+        }
+        function show(): void {
+            Config.options.desktopLyricsEnabled = true;
+        }
+        function hide(): void {
+            Config.options.desktopLyricsEnabled = false;
+        }
+        function open(): void {
+            Config.options.desktopLyricsEnabled = true;
+        }
+        function refetch(): string {
+            LyricsService.restartLyrics();
+            return "正在重新获取歌词（跳过缓存，仅缓存校验匹配的结果）…";
+        }
+
+        // 偏移微调：正数提前（快），负数延后（慢）。
+        // 只作用于当前播放器，并立即持久化。
+        function offset_faster(): string {
+            const v = LyricsService.adjustManualOffset(0.1);
+            return `歌词已提前 +100ms（仅当前播放器）| 播放器: ${LyricsService.activePlayer?.identity ?? "未知"} | 本播放器偏移: ${(v * 1000).toFixed(0)}ms | 总时间补偿: ${(LyricsService.effectiveOffset * 1000).toFixed(0)}ms`;
+        }
+        function offset_slower(): string {
+            const v = LyricsService.adjustManualOffset(-0.1);
+            return `歌词已延后 -100ms（仅当前播放器）| 播放器: ${LyricsService.activePlayer?.identity ?? "未知"} | 本播放器偏移: ${(v * 1000).toFixed(0)}ms | 总时间补偿: ${(LyricsService.effectiveOffset * 1000).toFixed(0)}ms`;
+        }
+        function set_offset(seconds: real): string {
+            const v = LyricsService.setManualOffsetForCurrent(seconds);
+            return `当前播放器偏移已设为: ${v}s | 播放器: ${LyricsService.activePlayer?.identity ?? "未知"} | 总时间补偿: ${(LyricsService.effectiveOffset * 1000).toFixed(0)}ms`;
+        }
+        function offset_reset(): string {
+            LyricsService.setManualOffsetForCurrent(0.0);
+            return `当前播放器偏移已重置为 0s | 播放器: ${LyricsService.activePlayer?.identity ?? "未知"} | 自动补偿: ${(LyricsService.playerOffset * 1000).toFixed(0)}ms | 总时间补偿: ${(LyricsService.effectiveOffset * 1000).toFixed(0)}ms`;
+        }
+        function get_offset(): string {
+            const pName = LyricsService.activePlayer?.identity ?? (LyricsService.activePlayer?.dbusName ?? "无播放器");
+            return `[歌词时间信息] 来源: ${LyricsService.source} | 播放器: ${pName} | 自动补偿: ${(LyricsService.playerOffset * 1000).toFixed(0)}ms | 本播放器手动偏移: ${(LyricsService.manualOffset * 1000).toFixed(0)}ms | 全局设置: ${((Config.options.desktopLyricsOffset ?? 0.0) * 1000).toFixed(0)}ms | 歌曲标签偏移: ${(LyricsService.rawLyricOffset * 1000).toFixed(0)}ms | 总提前量: ${(LyricsService.effectiveOffset * 1000).toFixed(0)}ms`;
+        }
+        function list_offsets(): string {
+            const keys = Object.keys(LyricsService.perPlayerOffsets);
+            if (keys.length === 0)
+                return "尚无按播放器保存的偏移。";
+            return "按播放器保存的偏移:\n" + keys.map(k => `  ${k}: ${(LyricsService.perPlayerOffsets[k] * 1000).toFixed(0)}ms`).join("\n");
         }
     }
 }

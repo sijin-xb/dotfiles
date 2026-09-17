@@ -121,15 +121,17 @@ Item {
             anchors.bottom: parent.bottom
             width: root.isMaterial ? leftMaterialPill.implicitWidth : leftRow.implicitWidth
 
-            // Material pill wrapper
-            Rectangle {
+            // Material pill wrapper —— 液态玻璃表面
+
+
+            LiquidGlass {
                 id: leftMaterialPill
                 visible: root.isMaterial
                 anchors.centerIn: parent
                 implicitWidth: leftMaterialRow.implicitWidth + 10
                 implicitHeight: leftMaterialRow.implicitHeight
                 radius: Appearance.rounding.full
-                color: Appearance.colors.colLayer0
+                level: 0
 
                 RowLayout {
                     id: leftMaterialRow
@@ -214,15 +216,17 @@ Item {
             width: root.isMaterial ? centerMaterialPill.implicitWidth : middleRow.implicitWidth
             height: parent.height
 
-            // Material pill wrapper
-            Rectangle {
+            // Material pill wrapper —— 液态玻璃表面
+
+
+            LiquidGlass {
                 id: centerMaterialPill
                 visible: root.isMaterial
                 anchors.centerIn: parent
                 implicitWidth: centerMaterialRow.implicitWidth + 10
-                implicitHeight: centerMaterialRow.implicitHeight 
+                implicitHeight: centerMaterialRow.implicitHeight
                 radius: Appearance.rounding.full
-                color: Appearance.colors.colLayer0
+                level: 0
 
                 RowLayout {
                     id: centerMaterialRow
@@ -421,15 +425,17 @@ Item {
             anchors.bottom: parent.bottom
             width: root.isMaterial ? rightMaterialPill.implicitWidth : rightRow.implicitWidth
 
-            // Material pill wrapper
-            Rectangle {
+            // Material pill wrapper —— 液态玻璃表面
+
+
+            LiquidGlass {
                 id: rightMaterialPill
                 visible: root.isMaterial
                 anchors.centerIn: parent
                 implicitWidth: rightMaterialRow.implicitWidth + 10
-                implicitHeight: rightMaterialRow.implicitHeight 
+                implicitHeight: rightMaterialRow.implicitHeight
                 radius: Appearance.rounding.full
-                color: Appearance.colors.colLayer0
+                level: 0
 
                 RowLayout {
                     id: rightMaterialRow

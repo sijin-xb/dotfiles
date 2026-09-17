@@ -199,6 +199,17 @@ hl.layer_rule({ match = { namespace = "quickshell:sidebarLeft" }, animation = "f
 hl.layer_rule({ match = { namespace = "quickshell:verticalBar" }, animation = "slide"})             -- 竖排任务栏：滑入
 hl.layer_rule({ match = { namespace = "quickshell:osk" }, order = -1})                              -- 屏幕键盘层级下移
 
+-- ---- 液态玻璃（Liquid Glass）----
+-- LiquidGlass 底板的 alpha 大约在 0.55~0.78，而上面 quickshell:* 的通用规则是
+-- ignore_alpha = 0.79 —— 比这个阈值更透明的像素会被直接跳过、不参与模糊采样，
+-- 玻璃就会「糊不起来」。这里对需要玻璃质感的面板单独把阈值降下来：
+-- 低于阈值的像素（例如栏上完全透明的空白段）依然不会被模糊，只有玻璃块会被采样。
+hl.layer_rule({ match = { namespace = "quickshell:bar" }, ignore_alpha = 0.2})
+hl.layer_rule({ match = { namespace = "quickshell:popup" }, ignore_alpha = 0.2})
+hl.layer_rule({ match = { namespace = "quickshell:clockDashboard" }, blur = true})
+hl.layer_rule({ match = { namespace = "quickshell:clockDashboard" }, ignore_alpha = 0.2})
+hl.layer_rule({ match = { namespace = "quickshell:clockDashboard" }, animation = "fade"})
+
 -- Quickshell: waffles 主题（另一套/额外组件）
 hl.layer_rule({ match = { namespace = "quickshell:wallpaperSelector" }, no_anim = true})            -- 壁纸选择器：开合动画交给 QML（自底滑入）
 hl.layer_rule({ match = { namespace = "quickshell:wNotificationCenter" }, no_anim = true})

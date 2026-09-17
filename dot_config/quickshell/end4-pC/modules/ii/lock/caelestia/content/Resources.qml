@@ -8,112 +8,159 @@ import qs.services
 import "../components"
 
 // 移植自 caelestia-dots/shell（GPL-3.0）modules/lock/Resources.qml。
-StyledRect {
+ColumnLayout {
     id: root
 
-    implicitHeight: 96
-    radius: Appearance.rounding.large
-    color: Appearance.m3colors.m3surfaceContainer
+    spacing: 16
 
-    RowLayout {
-        id: layout
-        anchors.fill: parent
-        anchors.margins: 10
-        spacing: 8
-
-        Resource {
-            icon: "memory"
-            value: `${Math.round(ResourceUsage.cpuUsage * 100)}%`
-            fillValue: ResourceUsage.cpuUsage
-            colour: Appearance.m3colors.m3primary
-            shapeColour: Appearance.m3colors.m3primaryContainer
-            fillColour: Qt.alpha(Appearance.m3colors.m3secondary, 0.3)
-            shape: MaterialShape.Pentagon
-        }
-        Resource {
-            icon: "memory_alt"
-            value: `${Math.round(ResourceUsage.memoryUsedPercentage * 100)}%`
-            fillValue: ResourceUsage.memoryUsedPercentage
-            colour: Appearance.m3colors.m3tertiary
-            shapeColour: Appearance.m3colors.m3onTertiary
-            fillColour: Qt.alpha(Appearance.m3colors.m3tertiary, 0.3)
-            shape: MaterialShape.Slanted
-        }
-        Resource {
-            icon: "hard_disk"
-            value: `${Math.round(ResourceUsage.diskUsedPercentage * 100)}%`
-            fillValue: ResourceUsage.diskUsedPercentage
-            colour: Appearance.m3colors.m3secondary
-            shapeColour: Appearance.m3colors.m3secondaryContainer
-            fillColour: Qt.alpha(Appearance.m3colors.m3secondary, 0.4)
-            shape: MaterialShape.Gem
-        }
+    ResourceCard {
+        label: Translation.tr("CPU")
+        icon: "memory"
+        value: `${Math.round(ResourceUsage.cpuUsage * 100)}%`
+        fillValue: ResourceUsage.cpuUsage
+        colour: Appearance.m3colors.m3primary
+        shapeColour: Appearance.m3colors.m3primaryContainer
+        fillColour: Qt.alpha(Appearance.m3colors.m3primary, 0.4)
+        iconColour: Appearance.m3colors.m3onPrimaryContainer
+        shape: MaterialShape.Pentagon
     }
 
-    component Resource: Item {
-        id: res
+    ResourceCard {
+        label: Translation.tr("RAM")
+        icon: "memory_alt"
+        value: `${Math.round(ResourceUsage.memoryUsedPercentage * 100)}%`
+        fillValue: ResourceUsage.memoryUsedPercentage
+        colour: Appearance.m3colors.m3tertiary
+        shapeColour: Appearance.m3colors.m3tertiaryContainer
+        fillColour: Qt.alpha(Appearance.m3colors.m3tertiary, 0.4)
+        iconColour: Appearance.m3colors.m3onTertiaryContainer
+        shape: MaterialShape.Slanted
+    }
 
+    ResourceCard {
+        label: Translation.tr("Disk")
+        icon: "storage"
+        value: `${Math.round(ResourceUsage.diskUsedPercentage * 100)}%`
+        fillValue: ResourceUsage.diskUsedPercentage
+        colour: Appearance.m3colors.m3secondary
+        shapeColour: Appearance.m3colors.m3secondaryContainer
+        fillColour: Qt.alpha(Appearance.m3colors.m3secondary, 0.4)
+        iconColour: Appearance.m3colors.m3onSecondaryContainer
+        shape: MaterialShape.Gem
+    }
+
+    component ResourceCard: StyledRect {
+        id: card
+
+        required property string label
         required property string icon
         required property string value
+        required property real fillValue
         required property color colour
         required property color shapeColour
-        property color fillColour
-        property real fillValue: -1
-        property alias shape: shape.shape
-        readonly property alias mShape: shape
+        required property color fillColour
+        required property color iconColour
+        required property int shape
 
         Layout.fillWidth: true
         Layout.fillHeight: true
 
-        // 三种 MaterialShape 视觉占比不同（Pentagon 内缩、Slanted/Gem 更满），
-        // 统一取较短边作为形状尺寸并居中，避免高低不齐。
-        readonly property real shapeSize: Math.min(width, height)
+        radius: Appearance.rounding.large
+        color: Appearance.m3colors.m3surfaceContainer
 
-        MaterialShape {
-            id: shape
-            anchors.centerIn: parent
-            implicitSize: res.shapeSize
-            color: Qt.alpha(res.shapeColour, 1)
-            opacity: res.shapeColour.a
-            layer.enabled: true
-        }
+        border.width: 1
+        border.color: Qt.alpha(Appearance.m3colors.m3outlineVariant, 0.35)
 
-        Loader {
-            id: fillLoader
-            anchors.fill: shape
-            active: res.fillValue >= 0
-            asynchronous: true
-            layer.enabled: active
-            layer.effect: Mask { maskSource: shape }
+        RowLayout {
+            anchors.fill: parent
+            anchors.margins: 16
+            spacing: 16
 
-            sourceComponent: Item {
-                WavyTopRect {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    implicitHeight: shape.height * Math.max(0, Math.min(1, res.fillValue))
-                    color: res.fillColour
+            // 左侧液态形状水波
+            Item {
+                id: shapeWrapper
+                readonly property real shapeSize: Math.min(56, Math.max(36, parent.height - 8))
+                implicitWidth: shapeSize
+                implicitHeight: shapeSize
+                Layout.alignment: Qt.AlignVCenter
+
+                MaterialShape {
+                    id: mShape
+                    anchors.fill: parent
+                    shape: card.shape
+                    color: card.shapeColour
+                    layer.enabled: true
+                }
+
+                Loader {
+                    anchors.fill: mShape
+                    active: card.fillValue >= 0
+                    asynchronous: true
+                    layer.enabled: active
+                    layer.effect: Mask { maskSource: mShape }
+
+                    sourceComponent: Item {
+                        WavyTopRect {
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            implicitHeight: mShape.height * Math.max(0, Math.min(1, card.fillValue))
+                            color: card.fillColour
+                        }
+                    }
+                }
+
+                MaterialIcon {
+                    anchors.centerIn: parent
+                    text: card.icon
+                    color: card.iconColour
+                    font.pixelSize: Appearance.font.pixelSize.normal
+                    fill: 1
                 }
             }
-        }
 
-        ColumnLayout {
-            anchors.centerIn: parent
-            spacing: -3
+            // 右侧指标与横向进度条
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignVCenter
+                spacing: 6
 
-            MaterialIcon {
-                Layout.alignment: Qt.AlignHCenter
-                text: res.icon
-                color: Appearance.m3colors.m3onSurfaceVariant
-                font.pixelSize: Appearance.font.pixelSize.smallie
-            }
+                RowLayout {
+                    Layout.fillWidth: true
 
-            StyledText {
-                Layout.alignment: Qt.AlignHCenter
-                text: res.value
-                color: res.colour
-                font.pixelSize: Appearance.font.pixelSize.small
-                font.weight: Font.DemiBold
+                    StyledText {
+                        text: card.label
+                        color: Appearance.m3colors.m3onSurfaceVariant
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        font.weight: Font.Medium
+                    }
+
+                    Item { Layout.fillWidth: true }
+
+                    StyledText {
+                        text: card.value
+                        color: card.colour
+                        font.pixelSize: Appearance.font.pixelSize.normal
+                        font.weight: Font.Bold
+                    }
+                }
+
+                StyledRect {
+                    Layout.fillWidth: true
+                    implicitHeight: 6
+                    radius: 3
+                    color: Appearance.m3colors.m3surfaceContainerHighest
+
+                    Rectangle {
+                        anchors.left: parent.left
+                        anchors.top: parent.top
+                        anchors.bottom: parent.bottom
+                        width: parent.width * Math.max(0, Math.min(1, card.fillValue))
+                        radius: 3
+                        color: card.colour
+                        Behavior on width { Anim { type: Anim.DefaultEffects } }
+                    }
+                }
             }
         }
 

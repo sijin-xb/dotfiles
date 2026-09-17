@@ -17,33 +17,40 @@ RowLayout {
 
     ColumnLayout {
         Layout.fillWidth: true
-        spacing: 12
+        Layout.fillHeight: true
+        Layout.preferredWidth: 1
+        spacing: 16
 
         Media {
             Layout.fillWidth: true
             Layout.fillHeight: true
+            Layout.preferredHeight: 3
             lock: root.lock
         }
 
         LockLyrics {
             Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.preferredHeight: 2
             lock: root.lock
         }
     }
 
     Center {
+        Layout.fillHeight: true
         lock: root.lock
         screenHeight: root.screenHeight
     }
 
     ColumnLayout {
         Layout.fillWidth: true
-        spacing: 12
+        Layout.fillHeight: true
+        Layout.preferredWidth: 1
+        spacing: 16
 
         Resources {
             Layout.fillWidth: true
+            Layout.fillHeight: true
         }
-
-        Item { Layout.fillWidth: true; Layout.fillHeight: true }
     }
 }
