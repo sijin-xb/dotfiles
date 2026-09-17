@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# sijin-xb's dotfiles（Rice 版本: v2.0 液态玻璃版）
+# sijin-xb's dotfiles（Rice 版本: v2.0）
 # 单体脚本：安装 / 卸载 / 回档 / 恢复 / 存档打包 / TUI
 # ------------------------------------------------------------
 # 不依赖 chezmoi，纯 bash 自部署：
@@ -26,7 +26,7 @@ set -euo pipefail
 # 0. 常量 / 路径
 # ============================================================
 REPO_URL="https://github.com/sijin-xb/dotfiles.git"
-RICE_VERSION="v2.0 液态玻璃版"
+RICE_VERSION="v2.0"
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_ROOT="$HOME/.local/state/dotfiles-backup"
 SNAP_ROOT="$BACKUP_ROOT/snapshots"
@@ -568,7 +568,7 @@ print_help() {
     cat <<EOF
 sijin-xb's dotfiles 自部署脚本 —— Rice 版本: ${RICE_VERSION}
 
-核心特性：液态玻璃毛玻璃效果 · 桌面歌词逐字卡拉OK ·
+核心特性：桌面歌词逐字卡拉OK ·
          拼音搜索启动器 · SUPER+T 终端召唤 · matugen Material 3 全局取色
 
 用法：
@@ -593,7 +593,7 @@ sijin-xb's dotfiles 自部署脚本 —— Rice 版本: ${RICE_VERSION}
 
 目录说明：
   · ~/.config/hypr/hyprland.lua     Hyprland 配置入口
-  ·     custom/general.lua          用户差异层（液态玻璃高级参数放这里）
+  ·     custom/general.lua          用户差异层（blur / 阴影等高级参数放这里）
   ·     hyprland/shellOverrides/    quickshell 设置面板写入的值（优先级最高）
   · ~/.config/quickshell/end4-pC/   quickshell 底盘 + 本仓库的差异层
   · ~/.local/state/dotfiles-backup/  回档 / 卸载存档 / 备份目录
@@ -601,7 +601,7 @@ sijin-xb's dotfiles 自部署脚本 —— Rice 版本: ${RICE_VERSION}
 FAQ：
   1) 回档后想回到 rice？ → 运行 $0 restore
   2) 存档默认位置？       → ~/dotfiles-archive-YYYYMMDD-HHMMSS.tar.gz
-  3) 液态玻璃太浓？       → quickshell 设置 → Hyprland：模糊半径 10→8，活动不透明度 82→88
+  3) 面板模糊太浓？       → quickshell 设置 → Hyprland：模糊半径 10→8，活动不透明度 82→88
 
 EOF
 }
@@ -650,12 +650,10 @@ show_splash() {
                                            _/ |
                                           |__/
 
-        Arch Linux · Hyprland · Quickshell · 液态玻璃 v2.0
+        Arch Linux · Hyprland · Quickshell
 
 EOF
     draw_header "✨ 核心特性"
-    printf '  %s%s%1s 液态玻璃毛玻璃效果%s   阴影代替边框，柔和光晕 + vibrancy 色彩染色\n'  "${TC_BOLD}" "${TC_CYAN}" "·" "${TC_RESET}"
-    printf '      (quickshell 面板推荐: 模糊半径 10 / 活动不透明度 82 / 非活动 68)\n'
     printf '  %s%s%1s 桌面歌词%s             逐字计时（酷狗 KRC），自动适配任意 MPRIS 播放器\n' "${TC_BOLD}" "${TC_GREEN}" "·" "${TC_RESET}"
     printf '  %s%s%1s 拼音搜索启动器%s     支持中文拼音搜索 + 窗口缩略图悬浮信息卡\n' "${TC_BOLD}" "${TC_YELLOW}" "·" "${TC_RESET}"
     printf '  %s%s%1s 终端召唤%s             SUPER+T 居中浮动，状态保留（kitty-quake）\n'   "${TC_BOLD}" "${TC_BLUE}" "·" "${TC_RESET}"
@@ -692,7 +690,7 @@ show_help() {
     echo "【③ 目录说明】"
     echo "  ~/.config/hypr/hyprland.lua            Hyprland 配置总入口"
     echo "    ├── hyprland/   默认模板层（由 quickshell/上游管理，建议只读）"
-    echo "    ├── custom/     用户差异层（液态玻璃 blur/shadow 细项在 custom/general.lua）"
+    echo "    ├── custom/     用户差异层（blur / shadow 细项在 custom/general.lua）"
     echo "    └── shellOverrides/main.lua    由 quickshell 设置面板写入，优先级最高"
     echo "  ~/.config/quickshell/end4-pC/         quickshell 底盘 + 差异层"
     echo "  ~/.local/state/dotfiles-backup/       备份根（snapshots/ + state/）"
@@ -702,7 +700,7 @@ show_help() {
     echo "  A: 执行 ./install.sh restore（rollback 前自动保存的 pre-rollback 快照会被还原）"
     echo "  Q: 卸载存档放在哪？"
     echo "  A: 默认 \$HOME/dotfiles-archive-时间戳.tar.gz；可用 -o 自定义"
-    echo "  Q: 液态玻璃效果太浓 / 太淡？"
+    echo "  Q: 面板模糊效果太浓 / 太淡？"
     echo "  A: quickshell 设置 → 配置文件 → Hyprland：模糊半径(10→8/12)，"
     echo "     活动不透明度(82→更高更清晰或更低更通透)；细项在 ~/.config/hypr/custom/general.lua"
     echo

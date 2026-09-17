@@ -174,6 +174,14 @@ Singleton {
 
             }
 
+            // GitHub 项目页（设置 → GitHub）。仓库列表用 gh CLI 拉，见 pages/GitHub.qml
+            property JsonObject github: JsonObject {
+                property string username: ""       // 要展示的 GitHub 用户名
+                property int repoLimit: 30         // 最多拉多少个仓库
+                property bool includeForks: false  // 是否把 fork 也列出来
+                property bool includeArchived: false
+            }
+
             property JsonObject hyprland: JsonObject {
                 property JsonObject animations: JsonObject {
                     property string animation: "normal"

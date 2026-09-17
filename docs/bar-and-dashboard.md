@@ -42,29 +42,56 @@
 而不是只靠悬停看一个小 tooltip。**常驻挂载在 `panelFamilies/IllogicalImpulseFamily.qml`**，
 不跟着栏一起销毁（否则栏自动隐藏时连 IPC 一起没了）。
 
-### 2.2 内容
+### 2.2 结构：固定状态栏 + 多页（参考 caelestia 的分页式 Dashboard）
 
-- 大时钟（时/分主色 + 秒 + 完整日期），排版参考 caelestia 锁屏 `center/Clock.qml` 的分色做法
-- 月历（复用 `modules/ii/sidebarRight/calendar/CalendarWidget.qml`，可翻月）
-- 世界时钟（`WorldClock.entries` 前 4 个时区，带昼夜图标）
-- 番茄钟（`TimerService`：剩余时间 + 开始/暂停 + 重置）
-- 待办（`Todo` 服务里未完成的条目）
-- 底部：系统运行时间
+```
+LiquidGlass 卡片
+├── 固定状态栏（切页时不变）
+│    左：工作区胶囊（当前高亮）
+│    中：日期 / 星期 + 大号 时:分
+│    右：音量 % · 亮度 % · 电量 %（没有电池的台式机整行隐藏）
+├── 分隔线
+├── SwipeView（4 页，左右滑动切换）
+│    页 0「概览」 月历 · 世界时钟 · 番茄钟 · 待办
+│    页 1「媒体」 封面 · 曲目 · 进度 · 上一首/播放/下一首 · 当前歌词
+│    页 2「系统」 CPU / 内存 / 交换 / 磁盘（进度条 + 百分比）· 用户名/发行版 · 运行时间
+│    页 3「天气」 当前天气 + 湿度/风/降水/能见度/气压/云量 · 刷新按钮
+└── 分隔线
+     页指示（图标 + 文字，可点）+ 切页提示 + 通知/壁纸/关闭
+```
+
+- 月历复用 `modules/ii/sidebarRight/calendar/CalendarWidget.qml`（可翻月）
+- 世界时钟取 `WorldClock.entries` 前 4 个时区，带昼夜图标
+- 番茄钟走 `TimerService`（开始/暂停 + 重置）
+- 待办取 `Todo` 服务里未完成的条目
+- 媒体页的歌词直接读 `LyricsService`（见第 3 节），和桌面歌词/灵动岛同一份数据
+- 天气页读 `Weather.data`，图标用 `Icons.getWeatherIcon(wCode)`
 
 ### 2.3 交互
 
-点击栏中央时钟开合；**点击浮层外任意位置**或按 **Esc** 关闭；右上角有通知 / 壁纸 / 关闭三个入口。
+| 操作 | 行为 |
+|---|---|
+| 左键栏中央时钟 | 开合仪表盘 |
+| 左右滑动 / 滚轮 / ← → | 切页 |
+| 点击页指示 | 跳到该页 |
+| 点浮层外任意位置 / Esc | 关闭 |
 
 打开时把 layer surface 的输入 mask 扩到整屏，垫一层透明捕获层实现「点空白关闭」——
 沿用 `modules/ii/overview/Overview.qml` 的做法，**故意不用 `HyprlandFocusGrab`**，
 它会打断 fcitx5 的输入法桥接。
 
+**页高踩过的坑**：概览页的月历 6 行固定占位较高，页高（`pageHeight`）要留够；
+另外概览页第一列必须显式写 `Layout.alignment: Qt.AlignTop` ——
+RowLayout 里默认会垂直居中，被撑高后月历会被往下推、最后一行超出页面被
+`SwipeView` 的 `clip` 裁掉（看起来像「月历缺了一行」）。
+
 ### 2.4 IPC
 
 ```bash
 qs -c end4-pC ipc call clockdashboard toggle
-qs -c end4-pC ipc call clockdashboard show
-qs -c end4-pC ipc call clockdashboard hide
+qs -c end4-pC ipc call clockdashboard page 2      # 跳到指定页（0-3）
+qs -c end4-pC ipc call clockdashboard nextPage
+qs -c end4-pC ipc call clockdashboard previousPage
 ```
 
 > 注意：`ipc call <target> show` 会被 `qs ipc show` 这个子命令名抢占，命令行下用 `toggle` 更稳。
