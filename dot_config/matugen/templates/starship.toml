@@ -27,11 +27,11 @@ error_symbol = "[ ](bold fg:{{colors.error.default.hex}})"
 disabled = true
 
 [git_branch]
-style = "bg:{{colors.on_primary.default.hex}}"
+style = "bg:{{colors.primary.default.hex}}"
 symbol = "󰘬"
 truncation_length = 12
 truncation_symbol = ""
-format = " 󰜥 [](bold fg:{{colors.on_primary.default.hex}})[$symbol $branch(:$remote_branch)](fg:{{colors.primary.default.hex}} bg:{{colors.on_primary.default.hex}})[ ](bold fg:{{colors.on_primary.default.hex}})"
+format = " 󰜥 [](bold fg:{{colors.primary.default.hex}})[$symbol $branch(:$remote_branch)](fg:{{colors.on_primary.default.hex}} bg:{{colors.primary.default.hex}})[ ](bold fg:{{colors.primary.default.hex}})"
 
 [git_commit]
 commit_hash_length = 4
@@ -55,7 +55,7 @@ deleted = " 🗑 "
 
 [hostname]
 ssh_only = false
-format =  "[•$hostname](bg:{{colors.on_primary.default.hex}} bold fg:{{colors.primary.default.hex}})[](bold fg:{{colors.on_primary.default.hex}})"
+format =  "[•$hostname](bg:{{colors.primary.default.hex}} bold fg:{{colors.on_primary.default.hex}})[](bold fg:{{colors.primary.default.hex}})"
 trim_at = ".companyname.com"
 disabled = false
 
@@ -74,7 +74,7 @@ format = '🕙[\[ $time \]]($style) '
 time_format = "%T"
 
 [username]
-style_user = "bold bg:{{colors.on_primary.default.hex}} fg:{{colors.primary.default.hex}}"
+style_user = "bold bg:{{colors.primary.default.hex}} fg:{{colors.on_primary.default.hex}}"
 style_root = "red bold"
 format = "[](bold fg:{{colors.primary.default.hex}})[$user]($style)"
 disabled = false
@@ -83,7 +83,7 @@ show_always = true
 [directory]
 home_symbol = " "
 read_only = "  "
-style = "bg:{{colors.on_primary.default.hex}} fg:{{colors.primary.default.hex}}"
+style = "bg:{{colors.primary.default.hex}} fg:{{colors.on_primary.default.hex}}"
 truncation_length = 2
 truncation_symbol = ".../"
 format = '[](bold fg:{{colors.primary.default.hex}})[󰉋 → $path]($style)[](bold fg:{{colors.primary.default.hex}})'
@@ -100,4 +100,4 @@ format = '[](bold fg:{{colors.primary.default.hex}})[󰉋 → $path]($style)[
 
 [cmd_duration]
 min_time = 0
-format = '[](bold fg:{{colors.on_tertiary.default.hex}})[󰪢 $duration](bold bg:{{colors.on_tertiary.default.hex}} fg:{{colors.tertiary.default.hex}})[](bold fg:{{colors.on_tertiary.default.hex}})'
+format = '[](bold fg:{{colors.primary.default.hex}})[󰪢 $duration](bold bg:{{colors.primary.default.hex}} fg:{{colors.on_primary.default.hex}})[](bold fg:{{colors.primary.default.hex}})'
