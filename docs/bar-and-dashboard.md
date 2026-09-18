@@ -63,7 +63,8 @@ end4-pC 的 Bar 是普通 `Rectangle`、没法只重绘中间一段，所以这�
 ```
 IslandHost（WlrLayer.Overlay 的 PanelWindow）
 └── surface    width: open ? 930 : 300   height: open ? 590 : 32   clip: true
-    ├── 背景        LiquidGlass（cornerStyle 3）/ 实底 Rectangle
+    ├── 背景        收起态 = 纯色 colPrimaryContainer（与 Bar 右侧胶囊同款）
+    │               展开态 = LiquidGlass（cornerStyle 3）/ 实底 Rectangle
     ├── header      height: 32，z: 1 —— Bar 中间那段 notch
     │    └── CenterContent   收起态轮播（clock / music / timer / stopwatch / recording）
     └── expandedArea   四周内缩 23px，opacity 0 → 1
@@ -75,6 +76,15 @@ IslandHost（WlrLayer.Overlay 的 PanelWindow）
 - **输入 mask 两态**：收起时只覆盖胶囊（其余位置穿透给 Bar），展开时铺满全屏用来
   捕获「点面板外关闭」—— 沿用同仓库 `DynamicIslandHost` 与 `ClockDashboard` 的做法；
 - `WlrLayershell.keyboardFocus` 展开时 `Exclusive`（Esc 才收得到）、收起时立刻 `None`。
+
+**底色为什么分两态**：收起态用 `Appearance.colors.colPrimaryContainer` —— 与 Bar 右侧
+那几颗 material 胶囊（`BarContent.getMaterialPillColor()` 的默认分支）是**同一颗
+token**，所以岛的紫和邻居逐像素一致（实测都是 `#513c73`），且随壁纸主色一起变，
+不是写死的紫。展开后回到 `colLayer1Base`：面板里是十几张卡片，紫底会跟卡片抢视线。
+
+收起态刻意**不用 `LiquidGlass`**（它在收起态会多一层顶部渐亮，和邻居并排就露馅），
+也**不画描边** —— BarGroup 的背景本来就是一个无边框的纯色 `Rectangle`。
+底色用 `ColorAnimation` 跟着生长动画一起过渡。
 
 ### 2.3 几何：为什么是 9px / 32px
 

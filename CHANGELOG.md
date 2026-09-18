@@ -4,6 +4,37 @@
 
 ## 2026-09-18
 
+### 岛屿：收起态换成主题紫底 + 时间左边加日期
+
+两处外观调整，都落在收起态那颗胶囊上。
+
+**底色改成 `colPrimaryContainer`**（`custom-island/IslandHost.qml`）
+
+Bar 右侧那几颗 material 胶囊（网络速度、工具按钮…）走的是
+`BarContent.getMaterialPillColor()` 的默认分支 —— `Appearance.colors.colPrimaryContainer`，
+当前壁纸下是 `#513c73`。岛屿收起态改用**同一颗 token**，于是：
+
+- 颜色与邻居完全一致（实测两者逐像素都是 `#513c73`）；
+- 随壁纸主色自动变，不是写死的紫；
+- 展开后仍回到 `colLayer1Base` —— 面板里是十几张卡片，紫底会跟卡片抢视线。
+  底色用 `ColorAnimation` 跟着生长动画一起过渡。
+
+为了真的「看不出是两套实现」，还改了三处画法：
+
+- **收起态不走 `LiquidGlass`，改用纯色 `Rectangle`**。BarGroup 的背景就是一个
+  `bgColor` 的 Rectangle，无渐变无描边；LiquidGlass 在收起态会多出一层顶部渐亮
+  （实测 y=10 是 `#5c487c`，邻居同位置是 `#513c73`），并排就露馅。
+- **收起态去掉描边**（`border.width: root.open ? 1 : 0`）：展开成面板时才需要一圈
+  边界把面板和背后的窗口分开。
+- hover 叠加色从 `colPrimary` 换成 `colOnPrimaryContainer`。底色已经是
+  primaryContainer，再叠 primary（同色系、亮度也接近）hover 几乎看不出变化。
+
+**时间左边加日期**（`custom-island/CenterContent.qml`）
+
+收起态时钟从 `HH:MM:SS` 变成 `2026年9月18日  11:19:06`。日期取秒级 `SystemClock`
+的 `date`，跨零点自动跳到新的一天；格式串写 `"yyyy年M月d日"` —— 汉字不在 Qt 的格式
+字符集（`y/M/d/H…`）里，直接写在格式串中会原样输出，不需要单引号转义。
+
 ### 岛屿 + 仪表盘：移植 Brain_Shell 的顶部交互岛，取代居中时钟仪表盘
 
 栏中央的「时钟 + 点击弹仪表盘」换成 Brain_Shell 那颗**会生长的岛**：收起时是一颗

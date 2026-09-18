@@ -60,6 +60,15 @@ PanelWindow {
         ? IslandState.panelRadius
         : Math.min(surface.height / 2, IslandState.panelRadius)
 
+    // ── 表面底色 ────────────────────────────────────────────────────────
+    // 收起态用 colPrimaryContainer —— 与 Bar 右侧那几颗胶囊（网络速度、工具按钮…）
+    // **同一颗 token**（见 modules/ii/bar/BarContent.qml 的 getMaterialPillColor），
+    // 所以岛的紫色和它们完全一致，而且随壁纸主色一起变，不是写死的紫。
+    // 展开后回到 colLayer1Base：面板里是十几张卡片，紫底会跟卡片抢视线。
+    readonly property color surfaceColor: root.open
+        ? Appearance.colors.colLayer1Base
+        : Appearance.colors.colPrimaryContainer
+
     // 是否挂在 Bar 的中间区。
     // 岛屿已经进了 设置 → Bar 的组件列表（见 modules/ii/bar/Island.qml），
     // 从那里删掉 "island" 这一项，整座岛屿（胶囊 + 面板）就一起隐藏。
@@ -137,40 +146,54 @@ PanelWindow {
         // 颜色穿透卡片」—— 同一块屏幕上，半透明玻璃会让背后的代码/网页文字
         // 直接透进面板，可读性很差。
         //
-        // material 模式（cornerStyle 3）用 LiquidGlass 的实体档（specular 关掉，
-        // 只留高光边），其它模式用同色实底。
+        // 展开态：material 模式（cornerStyle 3）用 LiquidGlass 的实体档
+        // （specular 关掉，只留高光边），其它模式用同色实底。
         LiquidGlass {
             id: glassBg
             anchors.fill: parent
-            visible: root.glassy
+            visible: root.glassy && root.open
             level: 1
             radius: root.surfaceRadius
-            tint: Qt.rgba(Appearance.colors.colLayer1Base.r,
-                          Appearance.colors.colLayer1Base.g,
-                          Appearance.colors.colLayer1Base.b, 1.0)
+            tint: Qt.rgba(root.surfaceColor.r,
+                          root.surfaceColor.g,
+                          root.surfaceColor.b, 1.0)
             // 大面板上斜向高光带会横跨整个宽度，视觉太抢；只保留边缘高光
             specular: false
             edgeHighlight: true
         }
 
+        // 收起态（以及非材质模式）：纯色块。
+        // 画法刻意跟 Bar 右侧那几颗胶囊保持一致 —— BarGroup 的背景就是一个
+        // bgColor 的 Rectangle，无渐变、无描边；LiquidGlass 在收起态会多出
+        // 一层顶部渐亮，并排看就露馅了（实测 y=10 是 #5c487c 而邻居是 #513c73）。
         Rectangle {
             id: flatBg
             anchors.fill: parent
-            visible: !root.glassy
+            visible: !root.glassy || !root.open
             radius: root.surfaceRadius
-            color: Appearance.colors.colLayer1Base
-            border.width: 1
+            color: root.surfaceColor
+            // 展开成面板时才需要一圈边界，把它和背后的窗口分开
+            border.width: root.open ? 1 : 0
             border.color: Appearance.colors.colLayer0Border
+            // 收起 ↔ 展开时底色从紫渐变回深色（时长跟生长动画一致）
+            Behavior on color {
+                ColorAnimation {
+                    duration: IslandState.animDuration
+                    easing.type: Easing.InOutCubic
+                }
+            }
         }
 
         // 收起态的悬停暗示：整块底色不能变（要保证不透明），
-        // 所以在上面叠一层极淡的主题色
+        // 所以在上面叠一层极淡的前景色。
+        // 用 onPrimaryContainer 而不是 colPrimary —— 底色已经是 primaryContainer，
+        // 再叠 primary（同一色系、亮度也接近）hover 几乎看不出变化。
         Rectangle {
             anchors.fill: parent
             radius: root.surfaceRadius
             visible: !root.open
-            color: Appearance.colors.colPrimary
-            opacity: surfaceHover.hovered ? 0.10 : 0
+            color: Appearance.colors.colOnPrimaryContainer
+            opacity: surfaceHover.hovered ? 0.12 : 0
             Behavior on opacity { NumberAnimation { duration: 150 } }
         }
 

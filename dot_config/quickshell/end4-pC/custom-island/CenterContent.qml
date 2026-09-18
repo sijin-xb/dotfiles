@@ -253,13 +253,17 @@ Item {
 				height: 30
 
 				// ── Clock ──────────────────────────────────────────────────────
-				// 默认项：纯时间 HH:MM。**不带日历图标、不带日期**（按需求）。
+				// 默认项：日期 + 时间（HH:MM:SS）。**不带日历图标**（按需求）。
 				// 上游这里是"当前窗口标题"，换成时间是因为 Bar 左侧的
 				// activeWindow 组件已经在显示窗口标题了。
 				Text {
 					anchors.fill: parent
 					visible:      modelData === "clock"
-					text:         DateTime.hourStr + ":" + DateTime.minuteStr + ":" + root.secondStr
+					// 日期取秒级 SystemClock 的 date —— 跨零点会自动跳到新的一天。
+					// 格式按需求用中文「年月日」；汉字不是 Qt 的格式字符（y/M/d/H…），
+					// 所以直接写在格式串里就会原样输出，不需要单引号转义。
+					text:         Qt.locale().toString(secondClock.date, "yyyy年M月d日")
+					              + "  " + DateTime.hourStr + ":" + DateTime.minuteStr + ":" + root.secondStr
 					color:        Theme.text
 					font.pixelSize: 14
 					// 用主题的数字字体（appearance.fonts.numbers），不是等宽字体：
