@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
+import Quickshell.Hyprland
 import qs.modules.common
 import qs.modules.common.widgets
 import qs.services
@@ -76,8 +77,40 @@ PanelWindow {
     readonly property bool inBarLayout:
         (Config.options.bar.layouts.middleLayout ?? []).includes("island")
 
+    // ── 可见性 ────────────────────────────────────────────────────────
+    // 收起态的胶囊已经交给 Bar 绘制（见 modules/ii/bar/Island.qml），
+    // 这里只负责展开后的面板。
+    //
+    // ⚠ 但**不能**直接写 visible: open —— 那样一收起窗口就瞬间消失，
+    // 收缩动画完全看不到。所以收起后要再留一个动画时长再隐藏。
+    property bool closing: false
+
+    // 全屏判定：与 Bar.qml 同一套写法（Top 层会被全屏窗口压掉，但本窗口是
+    // Overlay 层，全屏时照样悬在画面上 —— 这正是「打游戏时岛一直杵着」的原因）
+    readonly property var thisMonitorData: HyprlandData.monitors.find(m => m.name === root.screen?.name)
+    readonly property bool monitorHasFullscreen: HyprlandData.workspaceById[thisMonitorData?.activeWorkspace?.id]?.hasfullscreen ?? false
+
+    onOpenChanged: {
+        if (root.open) {
+            root.closing = false;
+        } else {
+            root.closing = true;
+            closeGraceTimer.restart();
+        }
+    }
+
+    // 进入全屏时立刻收掉面板，别等 grace 计时器
+    onMonitorHasFullscreenChanged: if (root.monitorHasFullscreen) IslandState.close()
+
+    Timer {
+        id: closeGraceTimer
+        interval: IslandState.animDuration + 60
+        repeat: false
+        onTriggered: root.closing = false
+    }
+
     color: "transparent"
-    visible: root.inBarLayout
+    visible: root.inBarLayout && !root.monitorHasFullscreen && (root.open || root.closing)
 
     // 被移出组件列表时顺手把展开态收掉，
     // 否则下次加回来会直接是一个敞着的面板
@@ -216,22 +249,18 @@ PanelWindow {
         }
 
         // 吸收面板内部的点击，避免穿透到 outsideArea 把面板关掉。
-        // ⚠ 必须让开顶部条带：那里是 CenterContent 的地盘，它自带 TapHandler
-        // 负责开合；被这层 MouseArea 盖住的话点击会被吞掉，胶囊就点不开了。
-        // 收起态下 header.height == surface.height，这层高度为 0，不会拦事件。
+        // 收起时 Bar 那个胶囊（Island.qml）才是交互入口；这里全铺满不会影响它。
         MouseArea {
             anchors.fill: parent
-            // 收起态让开顶部条带（header.height == surface.height，这层高度为 0），
-            // 让 CenterContent 的 TapHandler 能收到点击开合；
-            // 展开态 header 已淡出，吸收层铺满整个面板吸收点击。
-            anchors.topMargin: root.open ? 0 : header.height
+            anchors.topMargin: 0
             onClicked: {}
         }
 
         // ── 顶部条带 = Bar 中间那段 notch ────────────────────────────────
-        // 内容用 Brain_Shell 原版的 CenterContent（窗口标题 / 音乐 / 计时器 /
-        // 秒表 / 录屏 的滚轮轮播）。它内部自带 TapHandler 负责开合面板，
-        // 所以这里**不能**再叠一层 MouseArea，否则一次点击会被切换两次。
+// 收起态胶囊已交给 Bar 自己绘制（modules/ii/bar/Island.qml），这里再画一份
+// 就会出现「展开后被面板背景盖住、收起时飞出屏幕」的幻影。
+// 留一个空 Item 占位以保持 expandedArea 的锚点引用不变（topMargin 已改为
+// 0，见 MouseArea），但 visible:false 让 CenterContent 完全不渲染。
         Item {
             id: header
             anchors {
@@ -240,24 +269,11 @@ PanelWindow {
                 right: parent.right
             }
             height: IslandState.capsuleHeight
-            // 展开时淡出：Caelestia 上游 dashboard 是独立浮层盖住 Bar 的 notch，
-            // 本仓库把胶囊和面板合并进同一个 surface —— 如果 header 不消失，
-            // 那串「日期 + HH:MM:SS」就会压在面板顶部，观感穿模。
-            // 挂 Behavior 让淡出跟面板展开同步，收 / 放都对称。
-            opacity: root.open ? 0 : 1
-            visible: opacity > 0
-            Behavior on opacity {
-                NumberAnimation {
-                    duration: root.open ? IslandState.fadeOutDuration : IslandState.fadeInDuration
-                    easing.type: Easing.OutCubic
-                }
-            }
-            // 和 Brain_Shell 一样，notch 画在面板之上：那边 notch 由 TopBar 这条
-            // 更上层的 layer surface 绘制。这里用 z 达到同样效果。
-            z: 1
+            visible: false
 
             CenterContent {
                 anchors.centerIn: parent
+                visible: false
             }
         }
 
