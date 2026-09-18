@@ -28,19 +28,22 @@ bash 脚本完成，不需要 chezmoi 二进制。
   （同名文件在模板之后加载并覆盖模板）
 - Quickshell（end4-pC fork）差异层：栏、侧边栏、启动器、总览、设置面板
 - **岛屿 + 仪表盘**：栏中央一颗胶囊（时间 / 音乐 / 计时器 / 秒表 / 录屏 轮播），
-  点击从 Bar 里生长成面板，再点缩回。四页：
-  - **Home**：头像 · 时钟卡片（时钟/计时器/闹钟/秒表）· 月历 · 音乐卡
-    （封面 + 5 行歌词 + 可拖动进度条）· 亮度 + 快速设置开关
-  - **System**：CPU / 内存 / 磁盘 / 网络 / 温度 / 风扇 · 进程列表
-    （搜索 + CPU/MEM/名称排序 + kill）
-  - **Weather**：当前天气 + 湿度/风/降水/能见度/气压/云量 + 日出日落/紫外线
-  - **GitHub**：用户名 → 仓库卡片
+  点击从 Bar 里生长成面板，再点缩回。五页（页签由 Caelestia 的 `Content` 提供）：
+  - **仪表盘**：头像 / 主机 · 天气小卡 · 日期时间 · 月历 · 系统资源 · 媒体卡
+  - **媒体**：封面 + 曲目 + 进度 + 控制 + 歌词（含翻译 / 音译副标题），
+    与桌面歌词浮层**同源**
+  - **Performance**：CPU / GPU / 内存 / 磁盘 / 网络 / 电池
+  - **进程**：进程列表，支持搜索、按 CPU / 内存 / GPU / 名称排序、kill
+    （左键 TERM / 右键 KILL），可点行改键
+  - **天气**：当前天气 + 逐时 + 多日
 
   可在 设置 → 栏 的组件列表里增删（组件名 `Island`），删掉即整座岛隐藏。
   详见 [docs/bar-and-dashboard.md](docs/bar-and-dashboard.md)
+- **快捷键管理器**：`Super + /` 弹出速查表，列出配置里真实存在的快捷键，
+  可搜索、**可点行改键**（按下后先预览，按 Enter 才写入）。详见
+  [docs/keybind-manager.md](docs/keybind-manager.md)
 - GitHub 项目页：填用户名列出该用户仓库（名称 / 描述 / 语言 / Star / 更新时间），
-  点击跳转。两个入口：仪表盘第 5 页 + 设置 → GitHub。详见
-  [docs/github-page.md](docs/github-page.md)
+  点击跳转。入口：设置 → GitHub。详见 [docs/github-page.md](docs/github-page.md)
 - 锁屏：Caelestia 风格三栏布局（居中圆角方块 → 点击展开成横条，Material 3
   形状 morph 动画），按屏幕高度自适应并支持密码框自动 / 唤醒重聚焦；quickshell
   未运行时回退 hyprlock。依赖 `qt6-m3shapes-git`（AUR）与 Caelestia QML 插件。
@@ -115,6 +118,7 @@ cd dotfiles
 |---|---|
 | Super | 启动器（拼音搜索） |
 | Super+T | 终端召唤（quake 风格 kitty） |
+| Super+/ | 快捷键管理器（速查表；点行可改键，Enter 确认） |
 | Super+S | 临时工作区 scratchpad |
 | Super+L | 锁屏（quickshell 锁屏界面） |
 | Super+Q | 关闭窗口 |
@@ -188,6 +192,7 @@ docs/                     设计说明与排障文档（见下）
   - [widgets-layout.md](docs/widgets-layout.md) — 桌面小部件布局
   - [integrations.md](docs/integrations.md) — SPlayer / fcitx5-rime 联动
   - [keycap-display.md](docs/keycap-display.md) — 键盘按键显示
+  - [keybind-manager.md](docs/keybind-manager.md) — 快捷键管理器：速查表、点行改键、写回策略
   - [troubleshooting.md](docs/troubleshooting.md) — 排障索引
 
 ## 致谢与上游

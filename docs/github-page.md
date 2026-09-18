@@ -4,8 +4,16 @@
 
 | 入口 | 位置 | 用途 |
 |---|---|---|
-| **岛屿「GitHub」页** | 点栏中央的岛 → 切到「GitHub」页（`custom-island/DashGitHub.qml`） | 日常快速查看 |
+| 岛屿「GitHub」页 | `custom-island/DashGitHub.qml` | 日常快速查看 |
 | 设置页 | 设置 → **GitHub**（`modules/ii/settings/pages/GitHub.qml`） | 完整的配置项（fork / 归档 / 上限） |
+
+> **当前状态**：岛屿改用 Caelestia 的 `Content`（5 个页签：仪表盘 / 媒体 /
+> Performance / 进程 / 天气）之后，**岛屿那一路已不再挂载**，`DashGitHub.qml`
+> 保留但未引用。现在实际可用的入口是**设置 → GitHub**。
+> 若以后想把它挂回岛屿，需要在 `dashboard-caelestia/dashboard/Content.qml` 的
+> `dashboardTabs` 里追加一项（注意 `enabled` 要写 `true`，不能写
+> `Config.dashboard.showXxx` —— 那是 Caelestia 的 C++ 配置，本仓库没有该属性，
+> 写上去读出来是 `undefined`，页签会被整个过滤掉）。
 
 填一个 GitHub 用户名，页面会列出该用户的公开仓库；点任意仓库在浏览器打开对应页面。
 

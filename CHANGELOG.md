@@ -2,6 +2,98 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+## 2026-09-19
+
+### 新增：快捷键管理器（Super + /）
+
+底部面板列出配置里**真实存在**的快捷键（来自 `scripts/hyprland/get_keybinds.py`
+解析 `hyprland/keybinds.lua` + `custom/keybinds.lua`），支持搜索、**点行改键**。
+
+**这个入口此前一直是坏的**，两个前提都不成立：
+
+- `hl.bind("SUPER + Slash", hl.dsp.global("quickshell:cheatsheetToggle"))` 早就写
+  在官方 `hyprland/keybinds.lua` 里，但 qs 侧**从未注册过**这个全局快捷键 ——
+  `hyprctl globalshortcuts` 里查不到 `cheatsheetToggle`，绑定指向不存在的处理器，
+  按下去毫无反应。现在由面板根上的 `CompositorGlobalShortcut` 注册
+  `cheatsheetToggle` / `Open` / `Close`（必须注册在常驻的 `Scope` 根上，写进面板
+  的话面板一收起注册就没了）。
+- `custom/keybinds.lua` 又拿同一键位覆盖了 quick terminal。现在删掉这条覆盖 ——
+  **不要**在 custom 里补一条同样的绑定，同键位两条会同时触发，速查表会
+  「开一次又关一次」，看起来像没反应。
+
+**改键**采用「原地改源码那一行」，而不是往 custom 追加覆盖：
+`hyprctl binds -j` 对这类绑定只给 `dispatcher = "__lua"` + `arg = "<序号>"`，
+还原不出可写回的 Lua 表达式；配置里大量绑定是内联 `function`，重建必然失真。
+`scripts/hyprland/rebind_keybind.py` 只替换 `hl.bind(` 之后第一个引号字符串，带
+`--expect` 过期校验、自动备份、写回复核、失败回滚。
+
+**改键流程是两步**：按下组合键只产生预览，`Enter` 才写盘。早期是「按下即写」，
+误进入改键态后下一个杂散按键就直接改了 `keybinds.lua`（实测踩过两次，把 `Print`
+和 `SUPER + V` 改坏了，均已从 git 还原）。
+
+其它修复：
+
+- 键名映射补齐 **PrtSc / ScrollLock / Pause** 与 Shift 组合符号（`!@#$…`）。
+  这几个键原先未映射，`keyName()` 返回空串被当成未识别直接忽略 —— 报的
+  「PrtSc / Scroll / Pause 改不了」就是这个原因。
+- 冲突检测比较前先归一化：`comboText()` 产出 `Super + V`（展示形式），待写入的是
+  `SUPER + V`，直接比永远不相等，冲突从来没提示过。
+- 鼠标键显示成人话：`mouse:272/273/274/275/276` → 左键 / 右键 / 中键 / 后退侧键 /
+  前进侧键。
+- **关键修复**：改键的状态、函数与 `Process` 全部移到**面板组件内部**。QML 的 id
+  作用域是单向的，外层 `Scope` 看不到 `Loader` 内层 `PanelWindow` 的 id
+  （`searchField` / `card` / `rebindProc`），放外层一调用就抛 `ReferenceError` ——
+  症状却是「点了行、按了键什么都没发生」，排查成本很高。
+
+`Super + E/T/S/C` 改过去「没效果」不是 bug 而是冲突：这 4 个键本来就分别被
+文件管理器 / 终端召唤 / 暂存区 / 代码编辑器占用，Hyprland 对同键位的多条绑定会
+全部触发。现在会检测并提示占用者。
+
+### 新增：仪表盘「进程」页
+
+岛屿第 4 个页签（页签现在共 5 个：仪表盘 / 媒体 / Performance / 进程 / 天气）。
+
+- 后端 `scripts/processes/process_sampler.py`：**长驻单进程**直读 `/proc` 做增量
+  差值，取代每轮 spawn 一次 `ps`。per-process GPU 取自 `/proc/<pid>/fdinfo` 的
+  `drm-engine-*`（只扫 CPU 前 40 个 pid —— 全量扫 620 个进程的 9000+ 条 fdinfo
+  要 ~100ms）。限流后单轮 JSON ~33KB，开销 ~1.2% 单核，**且只在页面可见时运行**。
+- `services/ProcessList.qml` 重写但**保留旧 API**（`bar/ClockDashboard.qml` 在用）；
+  排序挪到 QML 侧，切排序键不用重启脚本。
+
+### 修复：岛屿歌词与桌面歌词没打通
+
+`modules/ii/dashboard-caelestia/` 里，`Caelestia.Services` 导出的 **C++ 单例也叫
+`Lyrics`**，会盖掉 `shim/Lyrics.qml` 的同名 QML 单例 —— 媒体页读的是 Caelestia
+自己的取词后端，跟 `LyricsService` 完全是两回事。更糟的是 `CUtils.enumToString()`
+**带默认参数（= 多重载）**，把 QML 单例喂进去会在
+`QV4::QObjectMethod::resolveOverloaded` 踩空 → **段错误，切到 Media 页必崩**。
+
+去掉 `LyricList.qml` / `LyricsInfo.qml` 的 `import Caelestia.Services`，改用 shim
+新增的 `Lyrics.sourceName`；媒体页歌词现在与桌面歌词浮层同源，并显示翻译 / 音译
+副标题。
+
+### 修复：页签高度写死导致底栏被裁
+
+进程页原先写死 `implicitHeight: 460`，比真实可用高度大几像素，超出的部分被外层
+`ClippingRectangle` 切掉 —— 表现为底栏「N processes」只剩上半截字。改为由宿主
+（`Content.paneHeight`）注入可视高度。
+
+列表同时改为**按可用高度自适应行高**（先算能放几行，再平分行高），避免两种极端：
+直接裁会切掉最后一行；把余量留白又会在底栏上方留一条和行等高的空带。
+
+### i18n
+
+`translations/zh_CN.json` 补充：速查表自身文案、**65 条快捷键说明**、小节名。
+补充方式是追加到文件末尾 —— 该文件不是全序的，全量重写会把上千个键重排。
+
+### 已知欠账
+
+- `modules/ii/dashboard-caelestia/` 是 vendor 目录，此前在 chezmoi 与 end4-PC 两个
+  仓库里都未跟踪；本次只纳入**被改过的 12 个文件**，不是整目录。
+- `custom-island/` 下的 `DashHome` / `DashStats` / `DashWeather` / `DashGitHub` /
+  `TabSwitcher` 已不再挂载（岛屿现在用 Caelestia 的 `Content`），文件保留待清理。
+  文档已标注，改岛屿时不要照着它们改。
+
 ## 2026-09-18
 
 ### 性能：把几处无条件轮询门控到「看得见的时候」

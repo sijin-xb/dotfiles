@@ -87,3 +87,68 @@ Hyprland 的 `ignore_alpha` 是「alpha 低于该值的像素直接跳过、不�
 
 **修复**：对需要玻璃质感的面板单独把阈值降下来（见 `hyprland/rules.lua` 末尾
 「液态玻璃」一节），完全透明的空白段依然不会被模糊。
+
+## 一切到仪表盘的「媒体」页就崩溃（段错误）
+
+**症状**：打开岛屿 → 切到媒体页，qs 立刻 SIGSEGV。堆栈落在
+
+```
+QV4::QObjectMethod::resolveOverloaded
+QMetaObject::inherits
+```
+
+**根因**：本机装了 Caelestia 的 C++ 插件
+（`…/libcaelestia-services.so`），`Caelestia.Services` 导出的 **C++ 单例也叫
+`Lyrics`**，会盖掉 `dashboard-caelestia/shim/Lyrics.qml` 的同名 QML 单例。于是
+`LyricList.qml` 里的 `Lyrics` 解析到的是 Caelestia 的实现，而
+`CUtils.enumToString()` **带默认参数（在 MOC 里等于多个重载）**，把 QML 单例喂给
+重载方法会让 Qt 在 `resolveOverloaded` 里踩空 → 段错误。
+
+**修复**：删除 `LyricList.qml` / `LyricsInfo.qml` 里的 `import Caelestia.Services`，
+让 `Lyrics` 落到 shim 上；`LyricsInfo` 里改读 shim 新增的 `Lyrics.sourceName`
+字符串，不再走 C++ 枚举转换。
+
+**排查手法**：给 shim 加一个只有它才有的方法/属性，若报
+`is not a function` 或 `Cannot read property … of undefined`，就说明解析到了 C++
+那边。
+
+> 通用教训：给 C++ 的 `Q_INVOKABLE` 传参时，**带默认参数 = 多重载**。传错类型不会
+> 报错，而是直接段错误。堆栈落在 `resolveOverloaded` 时，先怀疑「有重载的 C++
+> 方法收到了它不认识的 QML 对象」。
+
+## 按 Super + / 没有反应
+
+**根因一**：全局快捷键**在 qs 侧没注册**。`hyprctl globalshortcuts` 里查不到
+`cheatsheetToggle` —— Hyprland 那条 `hl.dsp.global("quickshell:cheatsheetToggle")`
+指向了一个不存在的处理器。
+
+```bash
+hyprctl globalshortcuts | grep -i cheat
+```
+
+若为空，说明 qs 没注册。注册必须放在 `Scope` **根**上常驻，写进面板内部的话
+面板一收起注册就没了。
+
+**根因二**：键位被覆盖。`custom/keybinds.lua` 若也绑了 `SUPER + Slash`，会顶掉
+官方那条。注意**不要**在 custom 里补一条同样的绑定：同键位两条会同时触发，面板
+会「开一次又关一次」，看起来仍然像没反应。
+
+**根因三**（这类问题的通用排查）：确认按键到底有没有到达面板。
+
+```bash
+hyprctl dispatch 'hl.dsp.global("quickshell:cheatsheetToggle")'
+```
+
+这条会直接执行绑定指向的 dispatcher。若它能打开面板，说明键位与 dispatcher 都
+没问题，只是物理按键没被合成器识别（`wtype` 注入的按键**到不了** Hyprland 的
+全局快捷键层，测不出来，别据此判断功能坏了）。
+
+## 改键改不动 / 改了没效果
+
+- **PrtSc / ScrollLock / Pause 改不了**：这几个键曾未加入 `keyName()` 映射，按下
+  后返回空串被当成「未识别的键」忽略。见 [keybind-manager.md](keybind-manager.md)。
+- **R / E / T / S / C 改了没效果**：不是没写进去，是**目标键已被占用**（Hyprland
+  对同键位的多条绑定会全部触发）。`SUPER + E/T/S/C` 分别被文件管理器 / 终端召唤 /
+  暂存区 / 代码编辑器占用。面板会提示占用者，换个键或先改掉占用者。
+- **改键时底下几行一起变了**：多行 `hl.bind(...)` 只改起始行即可，key 字符串总在
+  第一行；不要试图重建 dispatcher。

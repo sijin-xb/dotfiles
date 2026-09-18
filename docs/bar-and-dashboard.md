@@ -68,8 +68,15 @@ IslandHost（WlrLayer.Overlay 的 PanelWindow）
     ├── header      height: 32，z: 1 —— Bar 中间那段 notch
     │    └── CenterContent   收起态轮播（clock / music / timer / stopwatch / recording）
     └── expandedArea   四周内缩 23px，opacity 0 → 1
-         └── TabSwitcher + 四页（Home / System / Weather / GitHub）
+         └── dashboard-caelestia 的 Content（页签条在 Content 内部）→ 5 页
+             仪表盘 / 媒体 / Performance / 进程 / 天气
 ```
+
+> **注意**：早期版本这里挂的是 `TabSwitcher` + 自研四页（Home / System /
+> Weather / GitHub，对应 `DashHome` / `DashStats` / `DashWeather` /
+> `DashGitHub`）。现在改成 Caelestia 上游的 `Content`（vendor 在
+> `modules/ii/dashboard-caelestia/`），那几个 `Dash*.qml` 与 `TabSwitcher.qml`
+> **文件还在但已不再挂载**，属于待清理的死代码 —— 改岛屿时不要照着它们改。
 
 - `modules/ii/bar/Island.qml` 是 Bar 里那段等宽（300px）纯透明占位，
   `implicitHeight` 取 `Appearance.sizes.baseBarHeight`；
@@ -113,20 +120,33 @@ property bool shouldUseNumberFont: /^\d+$/.test(root.text)   // 整串都是数�
 > Bar 中间区是 `anchors.centerIn`（`BarContent.qml` 的 `absoluteCenter`），中间组件
 > 变宽不推动左右两组 —— 这是「岛撑开时左右胶囊纹丝不动」的原因，不是 bug。
 
-### 2.4 四页
+### 2.4 五页
+
+页签由 `modules/ii/dashboard-caelestia/dashboard/Content.qml` 的 `dashboardTabs`
+定义，页签条（`Tabs.qml`）包含在 Content 内部，不再是外层的 `TabSwitcher`。
 
 | 页 | 内容 | 数据源 |
 |---|---|---|
-| Home | 头像 / 主机 / 运行时间 · 时钟卡片（时钟·计时器·闹钟·秒表）· 月历 · 音乐卡（封面 + 5 行歌词 + 可拖动进度）· 亮度 + 快速设置开关网格 | `ClockState` · `LyricsService` · `MprisController` · `ScreenRecService` |
-| System | CPU / 内存 / 磁盘 / 网络 / 温度 / 风扇 · 进程列表（搜索 + 排序 + kill） | `CpuService` 等 · `ProcessList` |
-| Weather | 当前天气 + 湿度/风/降水/能见度/气压/云量 + 日出日落/紫外线/更新时间 | `Weather` |
-| GitHub | 用户名 → 仓库卡片 | `services/GitHub.qml` |
+| 仪表盘（Dashboard） | 头像 / 主机 · 天气小卡 · 日期时间 · 月历 · 系统资源 · 媒体卡 | Caelestia `shim/*`（转发到 end4-pC 的服务） |
+| 媒体（Media） | 封面 + 曲目 + 进度 + 控制 + **歌词**（含翻译 / 音译副标题） | `MprisController` · `LyricsService`（经 `shim/Lyrics`） |
+| Performance | CPU / GPU / 内存 / 磁盘 / 网络 / 电池 | Caelestia `Gpu` 等 · shim |
+| **进程（Processes）** | 进程列表：搜索、按 CPU/内存/GPU/名称排序、kill（左键 TERM / 右键 KILL）、可点行改键 | `HyprlandKeybinds` · `ProcessList` |
+| 天气（Weather） | 当前天气 + 逐时 + 多日 | `Weather`（shim） |
 
-上游 Brain_Shell 是 5 页，这里去掉「通知」页 —— 通知在侧边栏和灵动岛已各有入口。
+要点：
 
-- **Home / System** 是 Brain_Shell 原版实现逐字移植（`DashHome` / `DashStats`），
-  只删相对 import、补 Nerd Font 字体、把数据源接回 end4-pC 的服务；
-- **Weather / GitHub** 是按岛屿视觉重做的两页，数据源同样是 end4-pC 的。
+- **歌词同源**：媒体页歌词走 `shim/Lyrics.qml` → `LyricsService`，与桌面歌词
+  浮层同一份数据。注意 `LyricList.qml` / `LyricsInfo.qml` 里**不能**
+  `import Caelestia.Services` —— 那个 C++ 模块导出的单例也叫 `Lyrics`，会盖掉
+  shim 的 QML 单例，于是读的是 Caelestia 自己的后端。更糟的是
+  `CUtils.enumToString()` 带默认参数（= 多重载），喂进 QML 单例会直接段错误。
+- **进程页**是本仓库新增的页（不在 Caelestia 上游），通过 `Content.qml` 的
+  `dashboardTabs` 追加。它的数据来自 `scripts/hyprland/get_keybinds.py` 与
+  `scripts/processes/process_sampler.py`，详见
+  [keybind-manager.md](keybind-manager.md)。
+- 页签的 `enabled` **不能**写 `Config.dashboard.showXxx` —— 那是 Caelestia 的
+  C++ 配置，本仓库没有对应属性，读出来是 `undefined`，页签会被整个过滤掉。
+  新增页签直接写 `enabled: true`。
 
 ### 2.5 在栏上的增删
 
