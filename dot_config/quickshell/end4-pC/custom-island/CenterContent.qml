@@ -605,7 +605,7 @@ Item {
 											Behavior on color { ColorAnimation { duration: 100 } }
 										}
 										Text {
-											text: ScreenRecService.captureLabel
+											text: ScreenRecService.captureLabel()
 											font.pixelSize: 11
 											color: ScreenRecService.openStrip === "capture"
 											? Theme.active : Qt.rgba(1,1,1,0.7)
@@ -617,6 +617,15 @@ Item {
 											color: Qt.rgba(1,1,1,0.35)
 											anchors.verticalCenter: parent.verticalCenter
 										}
+									}
+									// 点击循环切换录制目标。
+									// 上游这里挂的是一个 hover 展开的下拉弹层，移植时弹层没做，
+									// 所以按钮悬停只会变色、点下去毫无反应（见 ScreenRecService 的
+									// _captureOrder 注释）。循环切换在只有三项时更快，也不需要浮层定位。
+									MouseArea {
+										anchors.fill: parent
+										cursorShape: Qt.PointingHandCursor
+										onClicked: ScreenRecService.cycleCaptureTarget()
 									}
 									HoverHandler {
 										id: csH
@@ -663,7 +672,7 @@ Item {
 											anchors.verticalCenter: parent.verticalCenter
 										}
 										Text {
-											text: ScreenRecService.audioLabel
+											text: ScreenRecService.audioLabel()
 											font.pixelSize: 11
 											color: ScreenRecService.openStrip === "audio"
 											? Theme.active : Qt.rgba(1,1,1,0.7)
@@ -675,6 +684,13 @@ Item {
 											color: Qt.rgba(1,1,1,0.35)
 											anchors.verticalCenter: parent.verticalCenter
 										}
+									}
+									// 点击循环切换音频：无 → 系统声 → 麦克风 → 无
+									// （同上，上游的下拉弹层没有移植）
+									MouseArea {
+										anchors.fill: parent
+										cursorShape: Qt.PointingHandCursor
+										onClicked: ScreenRecService.cycleAudio()
 									}
 									HoverHandler {
 										id: asH
@@ -724,7 +740,7 @@ Item {
 										}
 										Text {
 											id: recBtnLabel
-											text: "Record"
+											text: Translation.tr("Record")
 											font.pixelSize: 11; font.weight: Font.Medium
 											color: "#ffffff"
 											anchors.verticalCenter: parent.verticalCenter

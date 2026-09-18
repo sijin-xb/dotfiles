@@ -829,7 +829,7 @@
   "Recognize music": "识别音乐",
   "Recognize music | Right-click to toggle source": "识别音乐 | 右键以切换源",
   "Recognize text": "识别文字",
-  "Record": "屏幕录制",
+  "Record": "录制",
   "Record Screen": "录屏",
   "Record region": "录制区域",
   "Rect": "矩形",
@@ -1301,5 +1301,16 @@
   "Alarms": "闹钟",
   "remaining": "剩余",
   "Stop": "停止",
-  "No alarms set\nTap + to add one": "还没有闹钟\n点 + 添加一个"
+  "No alarms set\nTap + to add one": "还没有闹钟\n点 + 添加一个",
+  "Screen": "屏幕",
+  "Window": "窗口",
+  "Region": "区域",
+  "Microphone + System": "麦克风+系统声",
+  "System Audio": "系统声",
+  "No Audio": "无音频",
+  "Screen Recording": "录屏",
+  "Capture": "捕获",
+  "Quality": "画质",
+  "Capture target": "捕获目标",
+  "Audio source": "音频来源"
 }

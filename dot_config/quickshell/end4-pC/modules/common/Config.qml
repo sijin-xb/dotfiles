@@ -858,6 +858,25 @@ Singleton {
 
             property JsonObject screenRecord: JsonObject {
                 property string savePath: Directories.videos.replace("file://","") // strip "file://"
+                // ── 以下三项由灵动岛的「录屏」设置区读写 ────────────────────────
+                // 写入方：custom-island/QuickSettings.qml（设置面板）与
+                //         custom-island/CenterContent.qml（收起态捕获条上的循环切换）
+                // 读取方：custom-island/ScreenRecService.qml（拼 wf-recorder 参数）
+                //         scripts/videos/record.sh（用 jq 读同一个 config.json）
+                // captureTarget: screen | window | region
+                //   screen → record.sh 加 --fullscreen
+                //   region → record.sh 的 slurp 区域选择（也是不带参数时的默认行为）
+                //   window → record.sh 没有窗口录制模式，退化为区域选择（诚实降级）
+                property string captureTarget: "screen"
+                // 音频：分别对应 record.sh 的 --mic / --sound
+                //   --sound 录系统输出（pactl 默认 sink 的 .monitor）
+                //   --mic   录麦克风（pactl 默认 source）
+                // 两个都开时 record.sh 优先系统声 —— wf-recorder 只接受一个 --audio，
+                // 想要混音得先建虚拟 sink，不在当前范围内。
+                property bool audioMic: false
+                property bool audioSystem: false
+                // quality: high | medium | low → libx264 的 crf / preset
+                property string quality: "medium"
             }
 
             property JsonObject screenSnip: JsonObject {

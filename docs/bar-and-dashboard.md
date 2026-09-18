@@ -152,7 +152,24 @@ qs -c end4-pC ipc call islanddashboard status
 > target 用 `islanddashboard` 是为了避开灵动岛的 `island`；
 > `openPanel` / `closePanel` 不能叫 `show` / `hide` —— 会和 `qs ipc` CLI 的保留字冲突。
 
-### 2.7 踩坑
+### 2.7 录屏设置
+
+收起态捕获条（`CenterContent.qml` 的 `record_setup` 页）和 Quickshell 设置应用
+（设置 → 服务 → 屏幕录制）共用同一组开关，状态存在 `config.json` 的 `screenRecord` 下，
+字段定义在 `modules/common/Config.qml`：
+
+| 项 | 取值 | 说明 |
+| --- | --- | --- |
+| `captureTarget` | `screen` / `region` / `window` | `screen` 走 `--fullscreen`；`window` 在 record.sh 里没有对应模式，退化为区域选择 |
+| `audioMic` / `audioSystem` | bool | 分别对应 record.sh 的 `--mic` / `--sound`；同时开启时系统声优先 |
+| `quality` | `low` / `medium` / `high` | 映射到 libx264 的 `crf` / `preset`，**数值只在 record.sh 里定义** |
+
+`record.sh` 用 jq 读同一份配置，所以改完不需要重启 quickshell。
+
+捕获条上那两个按钮是**点击循环切换**，不是下拉 —— 上游的 hover 弹层没有移植过来，
+原因见下。
+
+### 2.8 踩坑
 
 - **Nerd Font 私有区字形（U+E000–F8FF）必须显式写 `font.family`**：end4-pC 主字体
   不含这些码位，漏写就渲染成豆腐块。移植时给每个用图标的 `Text` 都补了
@@ -163,6 +180,15 @@ qs -c end4-pC ipc call islanddashboard status
 - 面板**必须是不透明实体材质**（沿用 `ClockDashboard` 的结论）：同一块屏幕上，
   半透明玻璃会让背后的代码/网页文字直接透进面板，可读性很差。`LiquidGlass` 只留
   边缘高光、关掉斜向高光带（大面板上它会横跨整个宽度，太抢）。
+- **单例里用 `Translation` 必须 `import qs.services`**。`Translation` 住在
+  `services/` 下，不在 `qs.modules.common` 里；漏了这行不会编译报错，而是在
+  **属性初始化阶段**抛 `ReferenceError: Translation is not defined`，值静默退化成
+  空字符串 —— 界面上只表现为「捕获条里只剩图标和 ▾，文字整段消失」，既不崩也不弹
+  错误框。所以遇到「文字凭空不见」先去看 `qs` 启动日志里的 `WARN scene:`。
+- 上游 Brain_Shell 在捕获条上给「捕获目标」「音频」配的是 **hover 展开的下拉弹层**
+  （`openStrip` + `popupTargetX/popupTargetWidth` + `keepStripOpen/scheduleStripClose`），
+  移植时只搬了按钮没搬弹层，那几个属性一直没有消费者。判断一个移植组件的功能是否
+  真的完整，可以反查它的 API 有没有人调用 —— 零消费者的属性通常意味着配套 UI 没搬。
 
 ---
 

@@ -4,6 +4,63 @@
 
 ## 2026-09-18
 
+### 录屏：设置项进 Quickshell 设置应用，并修好捕获条上两个死按钮
+
+**新增设置**（设置 → 服务 → 屏幕录制）
+
+- **录制目标**：屏幕 / 区域 / 窗口 → `screenRecord.captureTarget`
+- **音频来源**：无 / 系统声 / 麦克风 → `screenRecord.audioSystem` / `.audioMic`
+- **画质**：低 / 适中 / 高 → `screenRecord.quality`
+
+三项都写在 `config.json` 的 `screenRecord` 下（字段定义见
+`modules/common/Config.qml`），而 `scripts/videos/record.sh` 用 jq 读**同一份配置** ——
+所以改完不必重启 quickshell，下一次录制就生效。
+
+**修复：捕获条上「捕获目标」「音频」两个按钮是死的**
+
+上游 Brain_Shell 给这两个按钮挂的是 hover 展开的下拉弹层（`openStrip` +
+`popupTargetX/popupTargetWidth`），移植时弹层没有实现，于是悬停只会变个色、
+点下去什么都不发生 —— `captureTarget` / `audioMic` / `audioSystem` 三项因此在界面上
+**完全没有入口**。现在改成点击循环切换（`ScreenRecService.cycleCaptureTarget()` /
+`cycleAudio()` / `cycleQuality()`），和设置面板共享同一份状态，改哪边都算数。
+
+**修复：`ScreenRecService.qml` 少了一行 import**
+
+```qml
+import qs.services   // ← Translation 住在这里，不在 qs.modules.common
+```
+
+少了它，`Translation.tr()` 会抛 `ReferenceError: Translation is not defined`。
+因为发生在**属性初始化阶段**，报错之后值会静默变成空字符串 —— 界面上只表现为
+「捕获条里只剩图标和 ▾，文字整段消失」，既不崩、也不弹错误框，只能从启动日志里
+看到那条 WARN。顺带把几个 label 从属性改成函数：`Translation.tr()` 读的是单例的
+`translations` 属性，放在函数体里同样能被依赖追踪覆盖，语言热切换时会跟着刷新。
+
+**record.sh**
+
+- 新增 `--mic`（录 `pactl get-default-source`，即麦克风）。`--sound` 仍是系统声
+  （默认 sink 的 `.monitor`）。两者同时开启时系统声优先 —— wf-recorder 只接受一个
+  `--audio`，想混音得先建虚拟 sink，不在本次范围内。
+- 画质映射到 libx264 参数：low `crf=28 preset=veryfast`、medium `crf=20
+  preset=superfast`（即原先的默认值）、high `crf=16 preset=fast`。数值只在 record.sh
+  一处定义，`ScreenRecService` 只负责显示「低 / 适中 / 高」，避免两处漂移。
+- 去掉原命令里无效的 `-t`（wf-recorder 启动时报 `invalid option -- 't'`，一直是被
+  忽略的，去掉后行为不变）。
+
+### 字体：改用已安装的 Google Sans
+
+`appearance.fonts` 的 `main` / `numbers` / `title` 从 `Google Sans Flex` 改为
+`Google Sans`（静态版）。
+
+原先那三个令牌指向的 `Google Sans Flex` **本机没有安装**，`fc-match` 一直回退到
+`Noto Sans CJK SC` —— 也就是说界面上显示的根本不是配置里写的字体。AUR 里只有静态版
+（`ttf-google-sans`，已装）和 `Google Sans Code`，没有 Flex（Flex 是 Google 在
+2025-11 才开源到 Google Fonts 的可变版本，AUR 尚未打包）。
+
+> 想用 Flex 的话：从 fonts.google.com 下载 `Google Sans Flex`，解压到
+> `~/.local/share/fonts/` 后 `fc-cache -f`，再把这三个令牌改回去。注意 Flex 不含
+> 中文字形，中文仍会回退到 Noto Sans CJK SC。
+
 ### 岛屿收起态时钟：字体改用界面主字体
 
 收起态时钟从 `appearance.fonts.numbers` 换成 `appearance.fonts.main`

@@ -23,11 +23,11 @@
     "fonts": {
       "expressive": "Space Grotesk",
       "iconNerd": "JetBrains Mono NF",
-      "main": "Google Sans Flex",
+      "main": "Google Sans",
       "monospace": "JetBrains Mono NF",
-      "numbers": "Google Sans Flex",
+      "numbers": "Google Sans",
       "reading": "Readex Pro",
-      "title": "Google Sans Flex"
+      "title": "Google Sans"
     },
     "palette": {
       "accentColor": "#9B351B",
@@ -123,7 +123,7 @@
           "adaptiveAlignment": true,
           "animateChange": true,
           "font": {
-            "family": "Google Sans Flex",
+            "family": "Google Sans",
             "roundness": 0,
             "size": 90,
             "weight": 350,
