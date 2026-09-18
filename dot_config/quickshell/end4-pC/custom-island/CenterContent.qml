@@ -2,7 +2,7 @@
 // 从 Brain_Shell 移植：src/modules/Center/CenterContent.qml
 //
 // 这是 Bar 中间那段 notch 的**收起态内容** —— 一个可滚轮切换的轮播：
-//   clock（纯时间 HH:MM:SS，默认） / music / timer / stopwatch / recording
+//   clock（纯时间 HH:MM:SS，默认） / music / timer / stopwatch / record_setup
 //
 // 改动：
 //   1. 删掉相对 import（"../../"、"../../services/home/."），
@@ -14,7 +14,10 @@
 //   4. 去掉展开仪表盘时整层淡出（岛屿的胶囊宽度固定，内容应保持可见）；
 //   5. MPRIS 改走 MprisController.activePlayer，过滤浏览器播放；
 //   6. 时间精确到秒，用自起的秒级 SystemClock 驱动（不依赖全局秒精度开关），
-//      字体从等宽换成主题的数字字体（appearance.fonts.numbers）。
+//      字体从等宽换成主题的数字字体（appearance.fonts.numbers）；
+//   7. 移除收起态的「录制中」状态（record_active：秒数计时 / 丢弃 / 停止）：
+//      录制中不再劫持收起态轮播。录屏设置条（record_setup）与录屏功能本身
+//      保留，供其它灵动岛共用。
 // ─────────────────────────────────────────────────────────────────────────────
 
 import QtQuick
@@ -49,8 +52,7 @@ Item {
 	height: 30
 
 	// ── Required notch width for the current carousel item ────────────────────
-	// TopBar.cWidth reads this so the notch always matches what is visible,
-	// even if the user scrolls away from record_active while recording.
+	// TopBar.cWidth reads this so the notch always matches what is visible.
 	readonly property int fw: Theme.notchRadius
 	readonly property int requiredWidth: Theme.cNotchMinWidth
 
@@ -106,7 +108,6 @@ Item {
 		if (ClockState.timerStarted)                   list.push("timer")
 		if (ClockState.swStarted)                      list.push("stopwatch")
 		if (ShellState.screenRecord && !ScreenRecService.recording) list.push("record_setup")
-		if (ScreenRecService.recording)           list.push("record_active")
 
 		root._items = list
 
@@ -116,11 +117,9 @@ Item {
 		if (autoScrollType) {
 			var nIdx = list.indexOf(autoScrollType)
 			if (nIdx >= 0) {
-				// Screen rec always takes priority — scroll regardless of where we are.
-				// Other items only auto-scroll when coming from "clock".
-				var isScreenRec = (autoScrollType === "record_setup" ||
-				autoScrollType === "record_active")
-				if (isScreenRec || currentType === "clock")
+				// 录屏设置条（record_setup）总是抢占滚动；
+				// 其它项只在当前项是 clock（默认项）时才自动滚过去。
+				if (autoScrollType === "record_setup" || currentType === "clock")
 				idx = nIdx
 			}
 		}
@@ -176,12 +175,11 @@ Item {
 		}
 	}
 
+	// 录制开始/结束时刷新列表：record_setup 只在「未录制」时出现，
+	// 录制中收起态不显示任何录屏内容（原来的 record_active 已移除）。
 	Connections {
 		target: ScreenRecService
 		function onRecordingChanged() {
-			if (ScreenRecService.recording)
-			root._rebuildItems("record_active")
-			else
 			root._rebuildItems(null)
 		}
 	}
@@ -752,146 +750,14 @@ Item {
 							}
 						}
 
-						// ── Record active — ● (Left) | Timer + Cava (Center) | Trash + Stop (Right) ──
-						Item {
-							anchors{
-								fill: parent
-								leftMargin: root.fw/2
-								rightMargin: root.fw/2
-							}
-							visible:      modelData === "record_active"
-
-							// Left: dot + timer, anchored left
-							Row {
-								anchors {
-									left:           parent.left
-									leftMargin:    10
-									verticalCenter: parent.verticalCenter
-								}
-								spacing: 7
-
-								// Pulsing red dot
-								Rectangle {
-									width:  8; height: 8; radius: 4
-									color:  "#ff4444"
-									anchors.verticalCenter: parent.verticalCenter
-									SequentialAnimation on opacity {
-										running: ScreenRecService.recording
-										loops:   Animation.Infinite
-										NumberAnimation { to: 0.25; duration: 600; easing.type: Easing.InOutSine }
-										NumberAnimation { to: 1.0;  duration: 600; easing.type: Easing.InOutSine }
-									}
-								}
-
-								// Elapsed time
-								Text {
-									anchors.verticalCenter: parent.verticalCenter
-									text:           ScreenRecService.elapsedDisplay
-									font.pixelSize: 13; font.weight: Font.Bold
-									font.family: Theme.monoFontFamily
-									color:          Theme.text
-								}
-							}
-
-							// Center: cava
-							Item {
-								id: recCava
-								anchors.centerIn: parent
-								width:  44
-								height: 20
-
-								readonly property real _bw:   4
-								readonly property real _sp:   Math.max(1, (width - _bw * 12) / 5)
-								readonly property real _maxH: height / 2
-
-								Row {
-									anchors.fill: parent
-									spacing:      recCava._sp
-
-									Repeater {
-										model: ScreenRecService.audioBars
-										delegate: Item {
-											required property int modelData
-											width:  recCava._bw
-											height: recCava.height
-											readonly property real _amp: modelData / 100.0
-											Rectangle {
-												anchors.centerIn: parent
-												width:  recCava._bw
-												height: Math.max(2, _amp * recCava._maxH * 2)
-												radius: width / 2
-												color: ScreenRecService.audioMic || ScreenRecService.audioSystem
-												? Qt.rgba(0.95, 0.3, 0.3, 0.30 + _amp * 0.70)
-												: Qt.rgba(1, 1, 1, 0.10)
-												Behavior on height {
-													NumberAnimation { duration: 50; easing.type: Easing.OutCubic }
-												}
-											}
-										}
-									}
-								}
-							}
-
-							// Right: trash + stop, anchored right
-							Row {
-								anchors {
-									right:          parent.right
-									rightMargin:    10
-									verticalCenter: parent.verticalCenter
-								}
-								spacing: root.fw/2
-
-								// Discard button
-								Rectangle {
-									anchors.verticalCenter: parent.verticalCenter
-									width: 22; height: 22; radius: 5
-									color: recDiscardH.hovered
-									? Qt.rgba(1, 1, 1, 0.12)
-									: Qt.rgba(1, 1, 1, 0.05)
-									Behavior on color { ColorAnimation { duration: 100 } }
-									Text {
-										anchors.centerIn: parent
-										text:           "󰩺"
-										font.family:    Theme.nerdFontFamily
-										font.pixelSize: 11
-										color:          recDiscardH.hovered
-										? Qt.rgba(1, 0.4, 0.4, 1.0)
-										: Qt.rgba(1, 1, 1, 0.4)
-										Behavior on color { ColorAnimation { duration: 100 } }
-									}
-									HoverHandler { id: recDiscardH }
-									MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: ScreenRecService.discardRecording() }
-								}
-
-								// Stop button
-								Rectangle {
-									anchors.verticalCenter: parent.verticalCenter
-									width: 22; height: 22; radius: 5
-									color: recStopH.hovered
-									? Qt.rgba(0.9, 0.2, 0.2, 0.55)
-									: Qt.rgba(0.8, 0.1, 0.1, 0.32)
-									Behavior on color { ColorAnimation { duration: 100 } }
-									Text {
-										anchors.centerIn: parent
-										text:           "⏹"
-										font.family:    Theme.nerdFontFamily
-										font.pixelSize: 10
-										color:          "#ff9999"
-									}
-									HoverHandler { id: recStopH }
-									MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: ScreenRecService.stopRecording() }
-								}
-							}
-						}
-
 					} // delegate
 				}
 			}
 
 			// ── Click to toggle dashboard ─────────────────────────────────────────────
-			// TapHandler has lower implicit grab priority than child MouseAreas.
-			// Clicks on Stop / Discard buttons are handled by their own MouseAreas
-			// first and never reach here. Tapping empty notch space opens dashboard.
+			// TapHandler has lower implicit grab priority than child MouseAreas
+			// (record_setup / timer / stopwatch 的按钮会先吃掉点击)，
+			// 落在胶囊空白处才开面板。
 			TapHandler {
 				onTapped: {
 					// Do nothing during screen rec setup — ESC / cancel button handles it
