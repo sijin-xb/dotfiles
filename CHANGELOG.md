@@ -4,6 +4,33 @@
 
 ## 2026-09-18
 
+### 性能：把几处无条件轮询门控到「看得见的时候」
+
+背景是实测 `qs` 常驻 CPU 40% 上下。逐项排除后确认大头不在岛屿（见下），但顺手
+修掉了三处「组件不可见时仍在后台干活」的地方：
+
+- **`custom-island/QuickSettings.qml`** —— 所有轮询（亮度每秒一次
+  `brightnessctl`、每 5 秒 `nmcli`×2 + `bluetoothctl`×2，外加若干一次性探测）
+  统一门控到 `IslandState.open && IslandState.page === "home"`。上游 Brain_Shell
+  的 notch 是常驻组件所以无条件开跑，移植成面板后这些值在面板关着时**没有任何
+  消费者**。重新打开时会立刻补刷一次（`onPollingChanged`），不会看到过期状态。
+- **`custom-island/IslandHost.qml`** —— 给 `DashStats` 显式传
+  `visible: IslandState.page === "stats"`。它的 `ProcessPanel` 是用
+  `active: root.visible` 判断要不要轮询的，而 `root` 指 `DashStats` 自己，外层
+  `Item` 的 `visible` 管不到 —— 不传的话它恒为 `true`，停在首页也每 3 秒跑一次
+  `ps aux` 解析 200 个进程。
+- **`modules/ii/background/widgets/visualizer/VisualizerWidget.qml`** —— 采样
+  Timer 从 `running: true` 改为 `running: root.visible &&
+  GlobalStates.visualizerPoints.length > 0`。没有播放器时 cava 根本不跑，
+  `visualizerPoints` 恒为空数组，原来那趟 33ms 一次的拷贝会连带触发两趟 JS
+  重采样，纯属空转。
+
+> **卡顿归因结论**（对照实验，非这三处）：`qs` 约 40% 的基线里，**约 16 个百分点**
+> 来自 `background.widgets.visualizer.enable` + `desktopLyricsEnabled`，
+> **约 8 个百分点**来自灵动岛，剩下 **约 41% 是 end4-pC 原生基线**（完全移除岛屿后
+> 仍测得 40.9%）。上面三处门控实测收益在噪声范围内（33.3% vs 32.3%），属于正确的
+> 工程实践而非特效药。想进一步降 CPU，优先动桌面可视化。
+
 ### 录屏：设置项进 Quickshell 设置应用，并修好捕获条上两个死按钮
 
 **新增设置**（设置 → 服务 → 屏幕录制）

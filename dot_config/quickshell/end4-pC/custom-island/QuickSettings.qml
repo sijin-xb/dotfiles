@@ -58,7 +58,9 @@ StatCard {
     }
     Timer { id: brightDebounce; interval: 50; repeat: false
         onTriggered: { root._brightBusy = true; brightWrite.running = true } }
-    Timer { interval: 1000; running: true; repeat: true
+    // 亮度轮询也只在面板打开时跑 —— 上游是无条件每秒一次，
+    // 见文件下方 polling 那段说明
+    Timer { interval: 1000; running: root.polling; repeat: true
         onTriggered: if (!root._brightBusy) brightRead.running = true }
     function _setBright(v) {
         root._brightVal = Math.max(0.0, Math.min(1.0, v))
@@ -603,22 +605,19 @@ StatCard {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    //  Polling timer
+    //  Polling
     // ─────────────────────────────────────────────────────────────────────────
-    Timer {
-        interval: 5000; running: true; repeat: true
-        onTriggered: {
-            _wifiPoll(); _btPoll()
-            hsActiveCheckProc.running = false; hsActiveCheckProc.running = true
-            airplaneCheck.running = false; airplaneCheck.running = true
-            // Monitor ethernet while hotspot is active
-            if (root.hotspotOn && !root.hotspotBusy) {
-                hsEthernetLiveCheck.running = false; hsEthernetLiveCheck.running = true
-            }
-        }
-    }
+    // ⚠ 与上游的差异（性能）：所有轮询都门控在「面板打开 **且** 停在首页」上。
+    //
+    // 上游 Brain_Shell 的 notch 是常驻组件，这些 Process 一创建就无条件开跑，
+    // 移植过来后它们在后台一直空转 —— 亮度那条每秒 spawn 一次 brightnessctl，
+    // 下面这条每 5 秒 spawn nmcli×2 + bluetoothctl×2，加上几个一次性探测，
+    // 全都要 qs 主线程去 fork/解析。实测 qs 常驻 CPU 40% 上下，其中很大一部分
+    // 就是这些没人看的轮询。面板关着时没有任何人消费这些值，停掉不影响观感；
+    // 重新打开时会立刻补一次（见 onPollingChanged），不会显示过期状态。
+    readonly property bool polling: IslandState.open && IslandState.page === "home"
 
-    Component.onCompleted: {
+    function _refreshAll() {
         brightRead.running      = true
         _wifiPoll(); _btPoll()
         nlCheck.running         = true
@@ -630,6 +629,24 @@ StatCard {
         hsIfaceProc.running     = true
         hsActiveCheckProc.running = true
     }
+
+    onPollingChanged: if (root.polling) root._refreshAll()
+
+    Timer {
+        interval: 5000; running: root.polling; repeat: true
+        onTriggered: {
+            _wifiPoll(); _btPoll()
+            hsActiveCheckProc.running = false; hsActiveCheckProc.running = true
+            airplaneCheck.running = false; airplaneCheck.running = true
+            // Monitor ethernet while hotspot is active
+            if (root.hotspotOn && !root.hotspotBusy) {
+                hsEthernetLiveCheck.running = false; hsEthernetLiveCheck.running = true
+            }
+        }
+    }
+
+    // 启动时如果面板正好是开着的（比如 qs 重载），也补一次
+    Component.onCompleted: if (root.polling) root._refreshAll()
 
     // ─────────────────────────────────────────────────────────────────────────
     //  UI

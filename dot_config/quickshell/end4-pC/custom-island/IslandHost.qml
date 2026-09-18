@@ -299,7 +299,16 @@ PanelWindow {
                     Item {
                         anchors.fill: parent
                         visible: IslandState.page === "stats"
-                        DashStats { anchors.fill: parent }
+
+                        // ⚠ visible 必须**同时**传给 DashStats 自己。
+                        // 它的 ProcessPanel 是用 `active: root.visible` 决定要不要
+                        // 轮询进程表的（root 指的是 DashStats），外层这个 Item 的
+                        // visible 管不到它 —— 不传的话它恒为 true，哪怕停在首页，
+                        // 也在后台每 3 秒跑一次 `ps aux` 解析 200 个进程。
+                        DashStats {
+                            anchors.fill: parent
+                            visible: IslandState.page === "stats"
+                        }
                     }
 
                     Item {

@@ -25,7 +25,14 @@ AbstractBackgroundWidget {
     Timer {
         interval: 33
         repeat: true
-        running: true
+        // ⚠ 与上游的差异（性能）：上游这里是 running: true，也就是不管有没有
+        // 音频都在每 33ms 拷一次 GlobalStates.visualizerPoints —— 而这个拷贝会
+        // 连带触发下面 resampleAndSmooth() 的两趟 JS 重采样（160 点 + 64 点）。
+        // cava 进程本身只在「有播放器 **且** 有地方要用波形」时才跑（见
+        // mediaControls/MediaControls.qml 的 cavaProc.running），没有播放器时
+        // visualizerPoints 恒为空数组，这条链就纯属空转。
+        // 用 length > 0 当开关：cava 起停时长度在 0 / N 之间跳变，正好是边界事件。
+        running: root.visible && GlobalStates.visualizerPoints.length > 0
         onTriggered: root.sampledPoints = GlobalStates.visualizerPoints
     }
     readonly property list<real> points: root.sampledPoints
