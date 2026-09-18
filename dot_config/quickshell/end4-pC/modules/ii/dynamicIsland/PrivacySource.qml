@@ -19,12 +19,39 @@ Item {
     // 而 revision 变化又回调 publish()。这个守卫切断那条环。
     property bool publishing: false
 
-    readonly property bool micActive: Pipewire.linkGroups.values.some(pwlg =>
-        pwlg.source.type === PwNodeType.AudioSource
-        && pwlg.target.type === PwNodeType.AudioInStream)
+    // ──「麦克风状态不会消失」的根源 ────────────────────────────────────────
+    // 之前的实现只看 linkGroup 是否存在（pwlg.source/target.type 匹配），
+    // 但 Pipewire 拆掉 app → 销毁目标节点 → 销毁链接之后，Quickshell 的
+    // linkGroups 聚合常常滞后：旧的条目连同里头的 source/target PwNodeIface
+    // 一并被当成僵尸保留下来，`.some()` 继续返回 true → 灵动岛一直显示。
+    //
+    // Quickshell 的 pw API 没暴露节点的 Pipewire `state`（running/idle/
+    // suspended），只有 `ready` 与链接的 `state`（PwLinkState::Enum），
+    // 所以这里双层过滤：
+    //   1) pwlg.state === 6 (PwLinkState::Active) —— 排除 Paused/Unlinked/
+    //      Error 等残态（pw 拆链接会经过这些中间态；聚合滞后时它们会留住）
+    //   2) pwlg.target.ready === true —— app 端的输入流节点还活着
+    //
+    // 注释里的数字 6 对应 PwLinkState 枚举里的 Active 位置
+    // （Error Unlinked Init Negotiating Allocating Paused Active）。
+    // 若日后 Quickshell 改枚举顺序要相应调整。
+    readonly property bool micActive: Pipewire.linkGroups.values.some(pwlg => {
+        if (!pwlg || !pwlg.source || !pwlg.target)
+            return false;
+        if (pwlg.source.type !== PwNodeType.AudioSource)
+            return false;
+        if (pwlg.target.type !== PwNodeType.AudioInStream)
+            return false;
+        return pwlg.state === 6 && pwlg.target.ready === true;
+    })
 
-    readonly property bool cameraActive: Pipewire.linkGroups.values.some(pwlg =>
-        pwlg.source.type === PwNodeType.VideoSource)
+    readonly property bool cameraActive: Pipewire.linkGroups.values.some(pwlg => {
+        if (!pwlg || !pwlg.source || !pwlg.target)
+            return false;
+        if (pwlg.source.type !== PwNodeType.VideoSource)
+            return false;
+        return pwlg.target.ready === true;
+    })
 
     readonly property bool inUse: micActive || cameraActive
 
