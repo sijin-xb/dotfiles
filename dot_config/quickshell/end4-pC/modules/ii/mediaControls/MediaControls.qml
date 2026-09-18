@@ -48,18 +48,53 @@ Scope {
     readonly property bool cornerStyleReducesGap: Config.options.bar.cornerStyle === 1 || Config.options.bar.cornerStyle === 2
     readonly property real barThickness: barVertical ? Appearance.sizes.verticalBarWidth : Appearance.sizes.barHeight
 
+    // ── 频谱数据源 ────────────────────────────────────────────────────────────
+    // 以前这里直接挂着一个常驻的 `cava` 子进程。现在优先走 Caelestia 的 C++
+    // cava 插件（说明见 services/CaelestiaCava.qml 开头），只有插件不可用时才
+    // 退回子进程。
+    //
+    // 用 Loader 而不是直接 import，是因为 `import Caelestia.Services` 在插件
+    // 缺失（没编译 / QML2_IMPORT_PATH 没指对）时会让**整个文件**加载失败 ——
+    // 那样连 Bar 上的媒体控件都会一起没掉。挂到 Loader 上，失败只表现为
+    // cavaBridge.status 变成 Error，下面的 Process 自然会接手。
+    readonly property bool cavaWanted: (GlobalStates.mediaControlsOpen ||
+        GlobalStates.sidebarRightOpen ||
+        (GlobalStates.sidebarLeftOpen && !GlobalStates.mediaLyricsVisible) ||
+        Config.options.bar.layouts.leftLayout.includes("visualizer") ||
+        Config.options.bar.layouts.middleLayout.includes("visualizer") ||
+        Config.options.bar.layouts.rightLayout.includes("visualizer") ||
+        Config.options.background.widgets.visualizer.enable)
+        && MprisController.activePlayer !== null
+
+    Loader {
+        id: cavaBridge
+        active: true
+        source: Qt.resolvedUrl("../../../services/CaelestiaCava.qml")
+
+        readonly property bool ready: status === Loader.Ready && item !== null
+
+        Binding {
+            target: cavaBridge.item
+            property: "active"
+            value: root.cavaWanted
+            when: cavaBridge.ready
+        }
+    }
+
+    // 桥就绪后由它接管 visualizerPoints；cavaProc 那边会因为 ready 而自动停掉
+    Binding {
+        target: GlobalStates
+        property: "visualizerPoints"
+        value: cavaBridge.ready ? cavaBridge.item.points : []
+        when: cavaBridge.ready
+    }
+
+    // 插件不可用时的兜底：原来的实现原样保留
     Process {
         id: cavaProc
-        running: (GlobalStates.mediaControlsOpen ||
-            GlobalStates.sidebarRightOpen ||
-            (GlobalStates.sidebarLeftOpen && !GlobalStates.mediaLyricsVisible) ||
-            Config.options.bar.layouts.leftLayout.includes("visualizer") ||
-            Config.options.bar.layouts.middleLayout.includes("visualizer") ||
-            Config.options.bar.layouts.rightLayout.includes("visualizer") ||
-            Config.options.background.widgets.visualizer.enable)
-            && MprisController.activePlayer !== null
+        running: !cavaBridge.ready && root.cavaWanted
         onRunningChanged: {
-            if (!cavaProc.running) {
+            if (!cavaProc.running && !cavaBridge.ready) {
                 GlobalStates.visualizerPoints = [];
             }
         }
