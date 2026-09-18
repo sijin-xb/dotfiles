@@ -73,10 +73,17 @@ Singleton {
     property bool splayerConnected: false
     property bool splayerPlaying: false
     property string splayerSongLabel: ""
+    // SPlayer 自报的歌名/歌手：MPRIS 拿不到元数据时用它去 kugou 取词
+    property string splayerTitle: ""
+    property string splayerArtist: ""
     // SPlayer 只在换歌/加载歌词时才推 lyric-change，刚连上时可能还没有歌词。
     // 必须等真的收到歌词才接管，否则会把 MPRIS + kugou 流程掐掉导致歌词空白。
     property bool splayerHasLyrics: false
     readonly property bool splayerActive: root.splayerEnable && root.splayerConnected && root.splayerHasLyrics
+
+    // 歌词归属：kugou 优先（它同时带翻译和音译两组），SPlayer 只在 kugou
+    // 取不到词时兜底。空串表示本首歌还没定。
+    property string lyricOwner: ""
 
     // ─── 状态 ───────────────────────────────────────────────────────────
     property string source: "none" // "splayer" | "kugou" | "none"
@@ -286,28 +293,41 @@ Singleton {
             break;
         case "song":
             root.splayerSongLabel = `${msg.title ?? ""}${msg.artist ? " - " + msg.artist : ""}`;
-            root.songTitle = msg.title ?? "";
-            root.songArtist = msg.artist ?? "";
+            root.splayerTitle = msg.title ?? "";
+            root.splayerArtist = msg.artist ?? "";
+            root.songTitle = root.splayerTitle;
+            root.songArtist = root.splayerArtist;
             root.duration = (msg.duration ?? 0) / 1000;
-            // 换歌后旧歌词作废，等新的 lyric-change 到达前先让 MPRIS 流程兜底
+            // 换歌：旧歌词和旧归属一起作废，主动让 kugou 重新取一次
             root.splayerHasLyrics = false;
+            root.lyricOwner = "";
+            root.requestFetch();
             break;
-        case "lyric":
+        case "lyric": {
+            // kugou 优先：本首歌已由 kugou 供词（带完整翻译 + 音译）时不覆盖，
+            // SPlayer 只在 kugou 取不到词时兜底。
+            if (root.lyricOwner === "kugou")
+                break;
             // 脚本给的是毫秒，换算成秒，和 MPRIS 路径的 lyricLines 保持一致
-            root.lyricLines = (msg.lines ?? []).map(l => ({
+            const lines = (msg.lines ?? []).map(l => ({
                 start: (l.start ?? 0) / 1000,
                 text: l.text ?? "",
                 trans: l.translation ?? "",
                 roman: l.roman ?? "",
                 words: null
             }));
+            root.splayerHasLyrics = lines.length > 0;
+            if (!root.splayerHasLyrics)
+                break;
+            root.lyricLines = lines;
             root.rawLyricOffset = 0;
             root.currentLineIndex = -1;
-            root.splayerHasLyrics = root.lyricLines.length > 0;
-            root.source = root.splayerHasLyrics ? "splayer" : "none";
-            root.status = root.splayerHasLyrics ? "ok" : "loading";
+            root.lyricOwner = "splayer";
+            root.source = "splayer";
+            root.status = "ok";
             root.updateCurrentLine();
             break;
+        }
         case "progress":
             if (typeof msg.position === "number")
                 root.currentTime = msg.position / 1000;
@@ -351,12 +371,12 @@ Singleton {
 
     function doFetch(refresh) {
         root.pendingRefresh = false;
-        // SPlayer 已经给了歌词，不要再抓一遍（会覆盖掉 WS 的数据）
-        if (root.splayerActive)
-            return;
 
-        const rawTitle = (root.activePlayer?.trackTitle ?? "").trim();
-        const rawArtist = (root.activePlayer?.trackArtist ?? "").trim();
+        // kugou 是主源（同时带翻译 + 音译），SPlayer 只兜底，所以不再因为
+        // SPlayer 已连上就跳过取词。MPRIS 没有元数据时退回 SPlayer 自报的
+        // 歌名/歌手（SPlayer 未必注册 MPRIS）。
+        const rawTitle = (root.activePlayer?.trackTitle ?? "").trim() || root.splayerTitle;
+        const rawArtist = (root.activePlayer?.trackArtist ?? "").trim() || root.splayerArtist;
         const norm = root.normalizeTitleArtist(rawTitle, rawArtist);
         let title = norm.title;
         let artist = norm.artist;
@@ -377,6 +397,9 @@ Singleton {
         }
 
         if (!title) {
+            // 取不到任何元数据。若 SPlayer 正在供词，别把它抹掉。
+            if (root.lyricOwner === "splayer")
+                return;
             root.lyricLines = [];
             root.lastRawLyrics = "";
             root.lastSongKey = "";
@@ -395,6 +418,7 @@ Singleton {
         }
 
         root.lastSongKey = songKey;
+        root.lyricOwner = "";
         root.songTitle = title;
         root.songArtist = artist;
         root.duration = dur;
@@ -442,18 +466,30 @@ Singleton {
                 } else {
                     lyrics = out.trim();
                 }
-                // 没取到词：保留「♪ 歌名 — 艺人」占位
+                // 没取到词：保留「♪ 歌名 — 艺人」占位。
+                // SPlayer 正在供词时不要改 source/status，让归属留在 splayer。
                 if (lyrics.length === 0) {
-                    root.source = "none";
-                    root.status = "not_found";
+                    if (root.lyricOwner !== "splayer") {
+                        root.source = "none";
+                        root.status = "not_found";
+                    }
                     return;
                 }
                 root.lastRawLyrics = lyrics;
                 root.lyricLines = root.parseLyrics(lyrics);
                 const offsetMatch = lyrics.match(/\[offset:(-?\d+)\]/);
                 root.rawLyricOffset = offsetMatch ? -Number(offsetMatch[1]) / 1000 : 0;
-                root.source = root.lyricLines.length > 0 ? "kugou" : "none";
-                root.status = root.lyricLines.length > 0 ? "ok" : "not_found";
+                if (root.lyricLines.length > 0) {
+                    root.source = "kugou";
+                    root.status = "ok";
+                    root.lyricOwner = "kugou";
+                } else if (root.lyricOwner === "splayer") {
+                    root.source = "splayer";
+                    root.status = "ok";
+                } else {
+                    root.source = "none";
+                    root.status = "not_found";
+                }
                 root.updateCurrentLine();
             }
         }
@@ -503,76 +539,51 @@ Singleton {
         return out;
     }
 
-    // 音译（romaji）判定：Kugou 对日文歌会同时给「音译块」和「语义翻译块」。
-    // 音译 token（wa ta ku shi 这类）能完全拆成日语音节，中英文句子不能。
-    function isRomajiToken(raw) {
-        let t = raw.replace(/^'+|'+$/g, "");
-        if (t.length === 0)
-            return true;
-        t = t.replace(/^([kstcbgdpfhjz])\1/, "$1");
-        const syl = /^(she|chi|tsu|[kgstnhmyrwgzdbpfcjv]y[auo]|[kgstnhmyrwgzdbpfcjv]h?[aiueo]|[aiueo]|n)/;
-        let rest = t;
-        while (rest.length > 0) {
-            const m = rest.match(syl);
-            if (!m)
-                return false;
-            rest = rest.slice(m[0].length);
-        }
-        return true;
-    }
-
-    function isRomajiText(s) {
-        if (!s || /[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/.test(s))
-            return false;
-        const tokens = s.toLowerCase().match(/[a-z]+(?:'[a-z]+)?/g);
-        if (!tokens || tokens.length === 0)
-            return false;
-        let ok = 0;
-        for (const t of tokens) {
-            if (root.isRomajiToken(t))
-                ok += 1;
-        }
-        return ok / tokens.length >= 0.85;
-    }
-
-    function parseTranslations(lrcText) {
-        const result = [];
+    // 解析 KRC 的 [language:] 载荷，按块 type 分流成「翻译」和「音译」两组。
+    //
+    // Kugou 每个 [language:] 块带 type 字段：
+    //   type = 0 → 音译（拉丁 romaji 或汉字谐音，如「可尼嘎 都那嘎哟」）
+    //   type = 1 → 语义翻译（如「她离我远去」）
+    // 旧实现靠「看起来像不像拉丁 romaji」猜，汉字谐音含 CJK 就被误判成
+    // 翻译，翻译位被音译占满、音译位恒空 —— 桌面歌词只剩两行。
+    // 两组都按原文行序 1:1 对齐（非歌词行的位置是空串）。
+    function parseLanguageBlocks(lrcText) {
+        const trans = [];
+        const roman = [];
         const match = lrcText.match(/\[language:([A-Za-z0-9+/=]*)\]/);
         if (!match)
-            return result;
+            return { trans, roman };
         try {
             let b64 = match[1];
             while (b64.length % 4 !== 0) b64 += "=";
-            const bytes = root.base64Decode(b64);
-            const json = JSON.parse(root.utf8Decode(bytes));
-            const contents = json?.content ?? [];
-            for (const block of contents) {
+            const json = JSON.parse(root.utf8Decode(root.base64Decode(b64)));
+            for (const block of (json?.content ?? [])) {
                 const lines = [];
                 for (const line of (block?.lyricContent ?? []))
                     lines.push(Array.isArray(line) ? line.join("") : String(line));
-                if (lines.length === 0)
+                if (!lines.some(l => l.trim().length > 0))
                     continue;
-                // 跳过音译块，只留第一个语义翻译块（与原文 1:1 对齐）
-                const sample = lines.slice(0, 8).filter(l => l.trim().length > 0);
-                if (sample.length > 0 && root.isRomajiText(sample.join(" ")))
-                    continue;
-                if (result.length === 0) {
+                const type = block?.type;
+                // type 缺失时兜底：含 CJK 视为翻译，否则视为音译
+                const isTranslation = (type === 1)
+                    || (type === undefined && /[\u3400-\u9fff]/.test(lines.join(" ")));
+                const target = isTranslation ? trans : roman;
+                if (target.length === 0) {
                     for (const l of lines)
-                        result.push(l);
-                    break;
+                        target.push(l);
                 }
             }
         } catch (e) {
-            console.log("[LyricsService] translation parse failed:", e);
+            console.log("[LyricsService] language block parse failed:", e);
         }
-        return result;
+        return { trans, roman };
     }
 
     function parseLyrics(lrcText) {
         const lines = [];
         if (!lrcText || typeof lrcText !== "string")
             return lines;
-        const translations = root.parseTranslations(lrcText);
+        const lang = root.parseLanguageBlocks(lrcText);
         const krcRe = /^\[(\d+),(\d+)(?:,\d+)?\]/;
         const lrcRe = /^\[(\d{1,3}):(\d{1,2})(?:[.:](\d{1,3}))?\]/;
         let transIndex = 0;
@@ -613,14 +624,15 @@ Singleton {
             }
             if (text.length === 0)
                 continue;
-            const trans = translations.length > 0 ? (translations[transIndex] ?? "") : "";
+            // 翻译 / 音译各自按行序取（两个数组都与原文 1:1 对齐）
+            const trans = lang.trans.length > 0 ? (lang.trans[transIndex] ?? "") : "";
+            const roman = lang.roman.length > 0 ? (lang.roman[transIndex] ?? "") : "";
             transIndex += 1;
-            const looksRomaji = root.isRomajiText(trans);
             lines.push({
                 start: start,
                 text: text,
-                trans: (trans !== text && !looksRomaji) ? trans.trim() : "",
-                roman: (trans !== text && looksRomaji) ? trans.trim() : "",
+                trans: (trans !== text) ? trans.trim() : "",
+                roman: (roman !== text) ? roman.trim() : "",
                 words: (words && words.length > 0) ? words : null
             });
         }
@@ -680,7 +692,7 @@ Singleton {
         if (activePlayer) {
             root.currentTime = activePlayer.position ?? 0;
             root.requestFetch();
-        } else if (!root.splayerActive) {
+        } else if (root.lyricOwner !== "splayer") {
             root.lyricLines = [];
             root.currentLineIndex = -1;
             root.source = "none";
@@ -707,8 +719,9 @@ Singleton {
     Connections {
         target: LyricsIdentifier
         function onIdentified() {
-            if (!root.splayerActive)
-                root.doFetch(false);
+            // kugou 是主源：认歌后总是重新取一次，让它优先接管；
+            // 取不到时 doFetch / onStreamFinished 会保留 SPlayer 的归属。
+            root.doFetch(false);
         }
     }
 
