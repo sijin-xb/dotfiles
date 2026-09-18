@@ -1,0 +1,44 @@
+singleton Theme 1.0 Theme.qml
+singleton IslandState 1.0 IslandState.qml
+singleton ShellState 1.0 ShellState.qml
+singleton Popups 1.0 Popups.qml
+singleton ClockState 1.0 ClockState.qml
+singleton ScreenRecService 1.0 ScreenRecService.qml
+singleton WallpaperService 1.0 WallpaperService.qml
+singleton CavaService 1.0 CavaService.qml
+
+CpuService 1.0 CpuService.qml
+MemService 1.0 MemService.qml
+DiskService 1.0 DiskService.qml
+NetService 1.0 NetService.qml
+ThermalService 1.0 ThermalService.qml
+CpuFreqService 1.0 CpuFreqService.qml
+GpuService 1.0 GpuService.qml
+
+Speedometer 1.0 Speedometer.qml
+StatCard 1.0 StatCard.qml
+StatRow 1.0 StatRow.qml
+DiskBar 1.0 DiskBar.qml
+TabSwitcher 1.0 TabSwitcher.qml
+TimeInput 1.0 TimeInput.qml
+
+DashStats 1.0 DashStats.qml
+DiskPanel 1.0 DiskPanel.qml
+TempPanel 1.0 TempPanel.qml
+NetStatsPanel 1.0 NetStatsPanel.qml
+PowerPanel 1.0 PowerPanel.qml
+FanPanel 1.0 FanPanel.qml
+ProcessPanel 1.0 ProcessPanel.qml
+
+DashHome 1.0 DashHome.qml
+ClockCard 1.0 ClockCard.qml
+PlayerCard 1.0 PlayerCard.qml
+CalendarCard 1.0 CalendarCard.qml
+QuickSettings 1.0 QuickSettings.qml
+ProfileCard 1.0 ProfileCard.qml
+
+DashWeather 1.0 DashWeather.qml
+DashGitHub 1.0 DashGitHub.qml
+
+IslandHost 1.0 IslandHost.qml
+CenterContent 1.0 CenterContent.qml

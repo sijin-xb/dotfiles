@@ -27,18 +27,17 @@ bash 脚本完成，不需要 chezmoi 二进制。
 - Hyprland 配置（Lua）。`hyprland/` 为模板层，`custom/` 为个人覆盖层
   （同名文件在模板之后加载并覆盖模板）
 - Quickshell（end4-pC fork）差异层：栏、侧边栏、启动器、总览、设置面板
-- 居中时钟仪表盘：固定状态栏（工作区 · 日期时间 · 音量/亮度/电量）+ 5 页
-  （概览 / 媒体 / 系统 / 天气 / GitHub），支持滑动、滚轮、`←` `→` 切页。
-  - **概览**：月历 · 世界时钟 · 最近通知（应用图标 + 一键清空 + 单条删除）
-  - **媒体**：圆形封面 · 曲目 · 可拖动进度条 · 控制键 · 5 行歌词窗口
-    （播放时卡片左侧滑出音频可视化）
-  - **系统**：资源条 · 主机信息 · 进程列表（搜索 + CPU/MEM/名称排序 + kill）
-  - **天气**：当前天气 + 湿度/风/降水/能见度/气压/云量 + 刷新
+- **岛屿 + 仪表盘**：栏中央一颗胶囊（时间 / 音乐 / 计时器 / 秒表 / 录屏 轮播），
+  点击从 Bar 里生长成面板，再点缩回。四页：
+  - **Home**：头像 · 时钟卡片（时钟/计时器/闹钟/秒表）· 月历 · 音乐卡
+    （封面 + 5 行歌词 + 可拖动进度条）· 亮度 + 快速设置开关
+  - **System**：CPU / 内存 / 磁盘 / 网络 / 温度 / 风扇 · 进程列表
+    （搜索 + CPU/MEM/名称排序 + kill）
+  - **Weather**：当前天气 + 湿度/风/降水/能见度/气压/云量 + 日出日落/紫外线
   - **GitHub**：用户名 → 仓库卡片
 
-  背景模糊为 **QML 自绘**（抓屏 → 高斯模糊 → 面板内裁剪），不依赖 Hyprland 全局模糊。
-  详见 [docs/bar-and-dashboard.md](docs/bar-and-dashboard.md) 与
-  [docs/backdrop-blur.md](docs/backdrop-blur.md)
+  可在 设置 → 栏 的组件列表里增删（组件名 `Island`），删掉即整座岛隐藏。
+  详见 [docs/bar-and-dashboard.md](docs/bar-and-dashboard.md)
 - GitHub 项目页：填用户名列出该用户仓库（名称 / 描述 / 语言 / Star / 更新时间），
   点击跳转。两个入口：仪表盘第 5 页 + 设置 → GitHub。详见
   [docs/github-page.md](docs/github-page.md)
@@ -147,6 +146,8 @@ dot_config/
     hyprlock.conf         回退锁屏配置
     hyprlock/             配色与辅助脚本
   quickshell/end4-pC/     shell 差异层（modules、services、scripts）
+    custom-island/        岛屿 + 仪表盘（独立于 modules/，见 docs/bar-and-dashboard.md）
+    modules/ii/bar/Island.qml    栏里那段等宽透明占位（岛真身是 custom-island/IslandHost.qml）
     modules/ii/lock/      锁屏：Lock.qml 入口
       caelestia/          Caelestia 风格锁屏（内容、组件、形变动画）
       SerpantinumLockSurface.qml  旧版锁屏（保留可切回）
@@ -177,7 +178,7 @@ docs/                     设计说明与排障文档（见下）
 
 - [CHANGELOG.md](CHANGELOG.md) — 全部历史变更
 - [docs/](docs/README.md) — 设计说明、实现笔记与排障
-  - [bar-and-dashboard.md](docs/bar-and-dashboard.md) — 居中时钟、多页仪表盘、统一歌词源、液态玻璃、悬停动效范围
+  - [bar-and-dashboard.md](docs/bar-and-dashboard.md) — 岛屿 + 仪表盘、栏组件、统一歌词源、液态玻璃、悬停动效范围
   - [backdrop-blur.md](docs/backdrop-blur.md) — 限定范围的背景模糊（QML 自绘，不依赖合成器）
   - [github-page.md](docs/github-page.md) — GitHub 项目页
   - [i18n.md](docs/i18n.md) — 国际化：机制、切换与扩展语言、硬编码审计

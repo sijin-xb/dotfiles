@@ -4,17 +4,17 @@
 
 | 入口 | 位置 | 用途 |
 |---|---|---|
-| **仪表盘第 5 页** | 栏中央时钟 → 左键开仪表盘 → 切到「GitHub」页（`modules/ii/bar/ClockDashboard.qml`） | 日常快速查看 |
+| **岛屿「GitHub」页** | 点栏中央的岛 → 切到「GitHub」页（`custom-island/DashGitHub.qml`） | 日常快速查看 |
 | 设置页 | 设置 → **GitHub**（`modules/ii/settings/pages/GitHub.qml`） | 完整的配置项（fork / 归档 / 上限） |
 
 填一个 GitHub 用户名，页面会列出该用户的公开仓库；点任意仓库在浏览器打开对应页面。
 
 ## 1. 使用方式
 
-### 仪表盘第 5 页
+### 岛屿「GitHub」页
 
-1. 左键点栏中央的时钟 → 打开仪表盘
-2. 底部切到 **GitHub**（或按 `←` `→` / 滚轮 / 左右滑动）
+1. 左键点栏中央的岛 → 打开面板
+2. 顶部切到 **GitHub**（或 `qs -c end4-pC ipc call islanddashboard page github`）
 3. 在输入框里填用户名（例如 `torvalds`），**按回车提交**（避免每敲一个字母就发一次请求）
 4. 卡片网格支持页内滚动
 

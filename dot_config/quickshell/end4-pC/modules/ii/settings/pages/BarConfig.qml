@@ -56,6 +56,10 @@ ContentPage {
         { id: "hyprlandXkbIndicator",   name: Translation.tr("Keyboard Layout"), icon: "keyboard" },
         { id: "divisor",            name: Translation.tr("Divider"),             icon: "horizontal_distribute" },
         { id: "launcherButton",     name: Translation.tr("Launcher Button"),     icon: "search" },
+        // 岛屿：真身是 custom-island/IslandHost.qml 那个独立 PanelWindow
+        // （展开后的面板要长出 Bar 之外），Bar 里只有一段等宽槽位。
+        // 加进来是为了能在设置里自由增删；删掉后整座岛屿一起隐藏。
+        { id: "island",             name: Translation.tr("Island"),              icon: "smart_display" },
     ]
 
     function availableFor() {

@@ -412,6 +412,10 @@ cmd_install() {
   8. 图标主题：文件夹图标由 matugen 自动着色（换壁纸时重渲），
      主题名为 Adwaita-Matugen-A / Adwaita-Matugen-B（交替）。
      想手动换：设置 → 外观 → 图标主题。
+  9. 岛屿 + 仪表盘：栏中央那颗胶囊，点一下从 Bar 里生长成面板，
+     Home / System / Weather / GitHub 四页。
+     想增删：设置 → 栏 → 组件列表里的「Island」（删掉即整座岛隐藏）。
+     命令行：qs -c end4-pC ipc call islanddashboard toggle
 EOF
 }
 

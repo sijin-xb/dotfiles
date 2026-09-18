@@ -1,8 +1,13 @@
 # 限定范围内的背景模糊（不依赖 Hyprland 全局模糊）
 
 > 组件：`modules/common/widgets/GlassBackdrop.qml`
-> 应用：仪表盘卡片（`modules/ii/bar/ClockDashboard.qml`）
+> 应用：旧时钟仪表盘卡片（`modules/ii/bar/ClockDashboard.qml`）
 > 配置：`Config.options.appearance.transparency.qmlBackdropBlur` / `qmlBackdropBlurRadius`
+>
+> **现状**：栏中央已改为**岛屿**（`custom-island/IslandHost.qml`），它的面板是
+> **不透明实体材质**、不依赖这套模糊，所以本机制目前**没有活跃消费者**（`GlassBackdrop`
+> 只剩停用的 `ClockDashboard` 在用）。文档与组件都保留：切回 `ClockDashboard`
+> （`panelFamilies/IllogicalImpulseFamily.qml` 里取消注释那一行）即恢复生效。
 
 ## 1. 为什么要自己做
 

@@ -43,7 +43,10 @@ Item {
 
     function shouldPaintMaterialPill(name) {
         if (Config.options.bar.cornerStyle !== 3) return false;
-        const blacklist = ["workspaces", "divisor", "powerButton", "docktoPanel", "leftSidebarButton", "activeWindow"];
+        // island：岛屿胶囊由 custom-island/IslandHost.qml 那个独立 PanelWindow
+        // 自己画（它要长到 Bar 外面去），Bar 里只是一段等宽槽位。
+        // 这里再画一层材质胶囊就会和它叠成双层、还多出 5px 的 padding。
+        const blacklist = ["workspaces", "divisor", "powerButton", "docktoPanel", "leftSidebarButton", "activeWindow", "island"];
         if (blacklist.includes(name)) {
             return false;
         }

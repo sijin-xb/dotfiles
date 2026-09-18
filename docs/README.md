@@ -4,8 +4,8 @@
 
 | 文档 | 内容 |
 |---|---|
-| [bar-and-dashboard.md](bar-and-dashboard.md) | 居中时钟与多页仪表盘（含进程列表、媒体页歌词窗口、左侧音频可视化）、统一歌词源、液态玻璃、动画令牌、悬停动效处理范围 |
-| [backdrop-blur.md](backdrop-blur.md) | 限定范围的背景模糊：QML 自绘抓屏+模糊，与依赖合成器全局模糊的取舍 |
+| [bar-and-dashboard.md](bar-and-dashboard.md) | 岛屿 + 仪表盘（生长动画、几何对齐、四页、栏上增删）、栏组件与居中时钟、统一歌词源、液态玻璃、动画令牌、悬停动效处理范围 |
+| [backdrop-blur.md](backdrop-blur.md) | 限定范围的背景模糊：QML 自绘抓屏+模糊，与依赖合成器全局模糊的取舍（岛屿已改为不透明材质，目前无活跃消费者） |
 | [github-page.md](github-page.md) | GitHub 项目页：用户名 → 仓库列表、状态处理、实现要点 |
 | [i18n.md](i18n.md) | 国际化：机制、切换语言、扩展新语言、新增文案姿势、硬编码审计、已知欠账 |
 | [dynamic-island-roadmap.md](dynamic-island-roadmap.md) | 灵动岛架构、联动机制、阶段进度 |

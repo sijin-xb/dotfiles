@@ -26,6 +26,8 @@ import qs.modules.ii.desktopMenu
 import qs.modules.ii.dropover
 import qs.modules.ii.frame
 import qs.modules.ii.keycapDisplay
+// 岛屿 + 仪表盘（Brain_Shell 风格，见 custom-island/）
+import "../custom-island"
 
 Scope {
     PanelLoader { extraCondition: !Config.options.bar.vertical; component: Bar {} }
@@ -53,7 +55,11 @@ Scope {
     PanelLoader { component: NiriBackdrop {} }
     PanelLoader { component: ScreenFrame {} }
     // 居中时钟的仪表盘：常驻挂载，避免栏隐藏时连同 IPC 一起被销毁
-    PanelLoader { component: ClockDashboard {} }
+    // 已被 custom-island 的 IslandHost 取代（见下），如需回退取消注释即可
+    // PanelLoader { component: ClockDashboard {} }
+
+    // 岛屿 + 仪表盘：常驻挂载，收起时只有一颗胶囊占位
+    PanelLoader { component: IslandHost {} }
     // 按键显示浮层：只在开启时创建，关掉就不占一个常驻的 layer surface
     PanelLoader { extraCondition: Config.options.keycapDisplay.enable; component: KeycapOverlay {} }
 }

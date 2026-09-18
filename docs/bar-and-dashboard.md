@@ -1,11 +1,14 @@
-# 栏组件 · 居中时钟仪表盘 · 液态玻璃
+# 栏组件 · 岛屿仪表盘 · 液态玻璃
 
-本文记录 `end4-pC`（Quickshell）栏侧的三块改动：**居中时钟与其仪表盘**、**统一歌词源**、
+本文记录 `end4-pC`（Quickshell）栏侧的三块改动：**栏中央的岛屿与仪表盘**、**统一歌词源**、
 以及**液态玻璃表面 + 动画令牌**。同时说明本轮对「悬停交互动效」的处理范围。
 
 ---
 
 ## 1. 居中时钟（`modules/ii/bar/ClockWidget.qml`）
+
+> 岛屿上线后栏中间区默认是 `island`（见第 2 节），`clockWidget` 不再显示。本节描述的
+> 组件仍在，可在 设置 → 栏 里加回中间区。
 
 ### 1.1 显示项：对齐 caelestia 的 `bar.clock`
 
@@ -34,71 +37,111 @@
 
 ---
 
-## 2. 时钟仪表盘（`modules/ii/bar/ClockDashboard.qml`）
+## 2. 岛屿 + 仪表盘（`custom-island/IslandHost.qml`）
 
 ### 2.1 定位
 
-对齐 caelestia 的 Dashboard：把和时间相关的信息集中到一个从栏中央拉开的浮层，
-而不是只靠悬停看一个小 tooltip。**常驻挂载在 `panelFamilies/IllogicalImpulseFamily.qml`**，
-不跟着栏一起销毁（否则栏自动隐藏时连 IPC 一起没了）。
+栏中央的交互岛：收起时是一颗胶囊（与左右两组胶囊同一条水平线），点一下从 Bar 中间
+往下长成 930×590 的面板，再点缩回去。**常驻挂载在
+`panelFamilies/IllogicalImpulseFamily.qml`**，不跟着栏一起销毁（否则栏自动隐藏时连
+IPC 一起没了）—— 沿用旧 `ClockDashboard` 的结论。
 
-### 2.2 结构：固定状态栏 + 多页（参考 caelestia 的分页式 Dashboard）
+视觉与动效来自 [Brain_Shell](https://github.com/Brainitech/Brain_Shell)，数据源换成
+end4-pC 自己的服务。旧的 `ClockDashboard` 不再挂载（同一处 `PanelLoader` 注释保留，
+一行可切回）。
+
+### 2.2 架构：Bar 里只有一段透明槽位
+
+Brain_Shell 的「从 Bar 里长出来」是两件事合成的：TopBar 的 `centerNotch` 宽度从 300
+动画到 900（`SeamlessBarShape` 重绘整条 Bar 让中间无缝变宽），外加一个独立的
+`Dashboard.qml` 面板窗口。
+
+end4-pC 的 Bar 是普通 `Rectangle`、没法只重绘中间一段，所以这里把两件事合并进同一个
+窗口（`custom-island/IslandHost.qml`）：**胶囊和面板是同一个 Item，宽高一起动画** ——
+视觉结果一致，且完全不碰 Bar 的绘制代码。
 
 ```
-LiquidGlass 卡片
-├── 固定状态栏（切页时不变）
-│    左：工作区胶囊（当前高亮）
-│    中：日期 / 星期 + 大号 时:分
-│    右：音量 % · 亮度 % · 电量 %（没有电池的台式机整行隐藏）
-├── 分隔线
-├── SwipeView（5 页，左右滑动切换）
-│    页 0「概览」 月历 · 世界时钟 · 最近通知
-│    页 1「媒体」 圆形封面 · 曲目 · 可拖动进度 · 控制 · 5 行歌词
-│    页 2「系统」 CPU / 内存 / 交换 / 磁盘 · 用户名/发行版 · 运行时间 · 进程列表
-│    页 3「天气」 当前天气 + 湿度/风/降水/能见度/气压/云量 · 刷新按钮
-│    页 4「GitHub」 用户名 → 仓库卡片
-└── 分隔线
-     页指示（图标 + 文字，可点）+ 切页提示 + 通知/壁纸/关闭
+IslandHost（WlrLayer.Overlay 的 PanelWindow）
+└── surface    width: open ? 930 : 300   height: open ? 590 : 32   clip: true
+    ├── 背景        LiquidGlass（cornerStyle 3）/ 实底 Rectangle
+    ├── header      height: 32，z: 1 —— Bar 中间那段 notch
+    │    └── CenterContent   收起态轮播（clock / music / timer / stopwatch / recording）
+    └── expandedArea   四周内缩 23px，opacity 0 → 1
+         └── TabSwitcher + 四页（Home / System / Weather / GitHub）
 ```
 
-- 月历复用 `modules/ii/sidebarRight/calendar/CalendarWidget.qml`（可翻月）
-- 世界时钟取 `WorldClock.entries` 前 4 个时区，带昼夜图标；卡片进入时错峰淡入上移
-- 概览页最近通知复用全局 `NotificationAppIcon` 组件显示应用图标，支持一键清空与单条删除
-- 媒体页的歌词直接读 `LyricsService`（见第 3 节），和桌面歌词/灵动岛同一份数据；
-  渲染成 5 行窗口（上 2 + 当前 + 下 2），当前行主色加粗，其余按距离衰减透明度
-- 媒体页进度条可拖动 seek，播放时卡片左侧滑出音频可视化（cava 输出同源）
-- 系统页进程列表走 `services/ProcessList.qml`，`ListView { reuseItems: true }` 渲染，
-  支持搜索、排序、hover kill；只在停留系统页时轮询
-- 天气页读 `Weather.data`，图标用 `Icons.getWeatherIcon(wCode)`
+- `modules/ii/bar/Island.qml` 是 Bar 里那段等宽（300px）纯透明占位，
+  `implicitHeight` 取 `Appearance.sizes.baseBarHeight`；
+- **输入 mask 两态**：收起时只覆盖胶囊（其余位置穿透给 Bar），展开时铺满全屏用来
+  捕获「点面板外关闭」—— 沿用同仓库 `DynamicIslandHost` 与 `ClockDashboard` 的做法；
+- `WlrLayershell.keyboardFocus` 展开时 `Exclusive`（Esc 才收得到）、收起时立刻 `None`。
 
-### 2.3 交互
+### 2.3 几何：为什么是 9px / 32px
 
-| 操作 | 行为 |
+| 值 | 来源 |
 |---|---|
-| 左键栏中央时钟 | 开合仪表盘 |
-| 左右滑动 / 滚轮 / ← → | 切页 |
-| 点击页指示 | 跳到该页 |
-| 点浮层外任意位置 / Esc | 关闭 |
+| `capsuleOffset = 9` | Bar 窗口距屏幕边 5px + `BarGroup` 背景上下各内缩 4px |
+| `capsuleHeight = 32` | 邻居胶囊的可见高度（`y = 9..41`） |
+| `capsuleWidth = 300` | `Theme.cNotchMinWidth` |
+| `panelWidth = 930` | `dashboardWidth(900) + notchRadius(15) × 2` |
+| `panelHeight = 590` | `dashboardHeight(520) + 70` |
 
-打开时把 layer surface 的输入 mask 扩到整屏，垫一层透明捕获层实现「点空白关闭」——
-沿用 `modules/ii/overview/Overview.qml` 的做法，**故意不用 `HyprlandFocusGrab`**，
-它会打断 fcitx5 的输入法桥接。
+生长动画 320ms `InOutCubic`（与上游同参）；圆角收起时是正圆（`height / 2`），展开后
+收敛到 `cornerRadius(17)`。
 
-**页高踩过的坑**：概览页的月历 6 行固定占位较高，页高（`pageHeight`）要留够；
-另外概览页第一列必须显式写 `Layout.alignment: Qt.AlignTop` ——
-RowLayout 里默认会垂直居中，被撑高后月历会被往下推、最后一行超出页面被
-`SwipeView` 的 `clip` 裁掉（看起来像「月历缺了一行」）。
+> Bar 中间区是 `anchors.centerIn`（`BarContent.qml` 的 `absoluteCenter`），中间组件
+> 变宽不推动左右两组 —— 这是「岛撑开时左右胶囊纹丝不动」的原因，不是 bug。
 
-### 2.4 IPC
+### 2.4 四页
+
+| 页 | 内容 | 数据源 |
+|---|---|---|
+| Home | 头像 / 主机 / 运行时间 · 时钟卡片（时钟·计时器·闹钟·秒表）· 月历 · 音乐卡（封面 + 5 行歌词 + 可拖动进度）· 亮度 + 快速设置开关网格 | `ClockState` · `LyricsService` · `MprisController` · `ScreenRecService` |
+| System | CPU / 内存 / 磁盘 / 网络 / 温度 / 风扇 · 进程列表（搜索 + 排序 + kill） | `CpuService` 等 · `ProcessList` |
+| Weather | 当前天气 + 湿度/风/降水/能见度/气压/云量 + 日出日落/紫外线/更新时间 | `Weather` |
+| GitHub | 用户名 → 仓库卡片 | `services/GitHub.qml` |
+
+上游 Brain_Shell 是 5 页，这里去掉「通知」页 —— 通知在侧边栏和灵动岛已各有入口。
+
+- **Home / System** 是 Brain_Shell 原版实现逐字移植（`DashHome` / `DashStats`），
+  只删相对 import、补 Nerd Font 字体、把数据源接回 end4-pC 的服务；
+- **Weather / GitHub** 是按岛屿视觉重做的两页，数据源同样是 end4-pC 的。
+
+### 2.5 在栏上的增删
+
+`BarConfig.qml` 的 `allWidgets` 注册了
+`{ id: "island", name: "Island", icon: "smart_display" }`，可在 设置 → 栏 里自由增删。
+从中间区删掉 `island` 后整座岛（胶囊 + 面板）一起隐藏，并自动收掉展开态
+（否则加回来时是个敞着的面板）。
+
+**材质胶囊黑名单**：`BarContent.shouldPaintMaterialPill()` 与 `VerticalBarContent` 的
+同名函数把 `"island"` 加进黑名单 —— 岛自己画表面（它要长到 Bar 外面去），Bar 再画
+一层材质胶囊会叠成双层、还多出 5px padding。
+
+### 2.6 IPC
 
 ```bash
-qs -c end4-pC ipc call clockdashboard toggle
-qs -c end4-pC ipc call clockdashboard page 2      # 跳到指定页（0-3）
-qs -c end4-pC ipc call clockdashboard nextPage
-qs -c end4-pC ipc call clockdashboard previousPage
+qs -c end4-pC ipc call islanddashboard toggle
+qs -c end4-pC ipc call islanddashboard page home   # home / stats / weather / github
+qs -c end4-pC ipc call islanddashboard openPanel
+qs -c end4-pC ipc call islanddashboard closePanel
+qs -c end4-pC ipc call islanddashboard status
 ```
 
-> 注意：`ipc call <target> show` 会被 `qs ipc show` 这个子命令名抢占，命令行下用 `toggle` 更稳。
+> target 用 `islanddashboard` 是为了避开灵动岛的 `island`；
+> `openPanel` / `closePanel` 不能叫 `show` / `hide` —— 会和 `qs ipc` CLI 的保留字冲突。
+
+### 2.7 踩坑
+
+- **Nerd Font 私有区字形（U+E000–F8FF）必须显式写 `font.family`**：end4-pC 主字体
+  不含这些码位，漏写就渲染成豆腐块。移植时给每个用图标的 `Text` 都补了
+  `Theme.nerdFontFamily`（= `appearance.fonts.iconNerd`）。
+- 顶部条带 `header` 的 `z` 要高于展开内容（上游 notch 由更上层的 layer surface
+  绘制），但它自身透明且无 handler，只有中间 300px 的 `CenterContent`（自带
+  `TapHandler`）吃事件 —— 否则会把下面页签的点击一起吞掉。
+- 面板**必须是不透明实体材质**（沿用 `ClockDashboard` 的结论）：同一块屏幕上，
+  半透明玻璃会让背后的代码/网页文字直接透进面板，可读性很差。`LiquidGlass` 只留
+  边缘高光、关掉斜向高光带（大面板上它会横跨整个宽度，太抢）。
 
 ---
 
@@ -188,14 +231,18 @@ QML 只负责玻璃本身的质感；**背景模糊由 Hyprland 的 layer rule �
 |---|---|
 | 栏上的三个 material 药丸（`modules/ii/bar/BarContent.qml`） | `quickshell:bar` |
 | 栏上小部件弹层（`modules/common/widgets/StyledPopup.qml`） | `quickshell:popup` |
-| 时钟仪表盘卡片 | `quickshell:clockDashboard` |
 | 时钟容器（`bar.clock.background` 打开时） | `quickshell:bar` |
+
+> **岛屿（`quickshell:island`）不在列**：它的面板是不透明实体材质、不依赖合成器模糊
+> （见第 2.7 节）。旧 `quickshell:clockDashboard` 的两条规则随 `ClockDashboard` 停用
+> 一并失效，留着无害。
 
 对应 `~/.config/hypr/hyprland/rules.lua`：
 
 ```lua
 hl.layer_rule({ match = { namespace = "quickshell:bar" }, ignore_alpha = 0.2})
 hl.layer_rule({ match = { namespace = "quickshell:popup" }, ignore_alpha = 0.2})
+-- 旧时钟仪表盘（已由岛屿取代）
 hl.layer_rule({ match = { namespace = "quickshell:clockDashboard" }, blur = true})
 hl.layer_rule({ match = { namespace = "quickshell:clockDashboard" }, ignore_alpha = 0.2})
 ```

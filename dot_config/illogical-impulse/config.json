@@ -274,8 +274,7 @@
         "media"
       ],
       "middleLayout": [
-        "clockWidget",
-        "visualizer"
+        "island"
       ],
       "rightLayout": [
         "sysTray",

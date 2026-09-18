@@ -4,6 +4,138 @@
 
 ## 2026-09-18
 
+### 岛屿 + 仪表盘：移植 Brain_Shell 的顶部交互岛，取代居中时钟仪表盘
+
+栏中央的「时钟 + 点击弹仪表盘」换成 Brain_Shell 那颗**会生长的岛**：收起时是一颗
+胶囊，点一下从 Bar 中间往下长成面板，再点缩回去。旧的 `ClockDashboard` 不再挂载
+（`panelFamilies/IllogicalImpulseFamily.qml` 里 `PanelLoader` 注释保留，一行可切回）。
+
+新增 `custom-island/`（39 个 QML，独立于 `modules/`）：视觉与动效照搬 Brain_Shell，
+数据源换成 end4-pC 自己的服务（`MprisController` / `LyricsService` / `ProcessList` /
+`Weather` / `GitHub`）。详见 [docs/bar-and-dashboard.md](docs/bar-and-dashboard.md)。
+
+**架构：Bar 里只有一段透明槽位，真身是独立浮层**
+
+Brain_Shell 的「从 Bar 里长出来」是两件事合成的：TopBar 的 `centerNotch` 宽度从 300
+动画到 900（`SeamlessBarShape` 重绘整条 Bar 让中间无缝变宽），外加一个独立的
+`Dashboard.qml` 面板窗口。end4-pC 的 Bar 是普通 `Rectangle`、没法只重绘中间一段，
+所以这里把两件事合并进同一个窗口（`custom-island/IslandHost.qml`）：**胶囊和面板是
+同一个 Item，宽高一起动画** —— 视觉结果一致，且完全不碰 Bar 的绘制代码。
+
+- `modules/ii/bar/Island.qml` 是 Bar 里那段等宽（300px）纯透明占位，
+  `implicitHeight` 取 `Appearance.sizes.baseBarHeight`；
+- 真身 `IslandHost.qml` 是 `WlrLayer.Overlay` 的 `PanelWindow`：收起时 mask 只覆盖
+  胶囊（其余位置穿透给 Bar），展开时 mask 铺满全屏用来捕获「点面板外关闭」；
+- **几何对齐**：收起态距屏幕边 `capsuleOffset = 9px`（Bar 窗口的 5px 外边距 +
+  `BarGroup` 背景上下各内缩 4px），高度 32px = 邻居胶囊的可见高度，所以岛和左右
+  两组胶囊在同一条水平线上；
+- 展开 930×590（`panelWidth = dashboardWidth(900) + notchRadius*2`，
+  `panelHeight = dashboardHeight(520) + 70`），生长动画 320ms `InOutCubic`，与上游同参。
+
+**Bar 材质胶囊黑名单**：`BarContent.shouldPaintMaterialPill()` 与
+`VerticalBarContent` 的同名函数把 `"island"` 加进黑名单。岛自己画表面（它要长到 Bar
+外面去），Bar 再画一层材质胶囊会叠成双层、还多出 5px padding。
+
+**进 Bar 组件列表**：`BarConfig.qml` 的 `allWidgets` 加
+`{ id: "island", name: "Island", icon: "smart_display" }`，可在设置里自由增删；
+从中间区删掉 `island` 后整座岛（胶囊 + 面板）一起隐藏，并自动收掉展开态
+（否则加回来时是个敞着的面板）。
+
+**四页**（上游是 5 页，去掉「通知」页 —— 通知在侧边栏和灵动岛已各有入口）：
+
+| 页 | 内容 | 数据源 |
+|---|---|---|
+| Home | 头像 / 主机 / 运行时间 · 时钟卡片（时钟·计时器·闹钟·秒表）· 月历 · 音乐卡（封面 + 5 行歌词 + 可拖动进度）· 亮度 + 快速设置开关网格 | `ClockState` · `LyricsService` · `MprisController` · `ScreenRecService` |
+| System | CPU / 内存 / 磁盘 / 网络 / 温度 / 风扇 · 进程列表（搜索 + 排序 + kill） | `CpuService` 等 · `ProcessList` |
+| Weather | 当前天气 + 湿度/风/降水/能见度/气压/云量 + 日出日落/紫外线/更新时间 | `Weather` |
+| GitHub | 用户名 → 仓库卡片 | `services/GitHub.qml` |
+
+**IPC**（target 用 `islanddashboard`，避开灵动岛的 `island`）：
+
+```bash
+qs -c end4-pC ipc call islanddashboard toggle
+qs -c end4-pC ipc call islanddashboard page home   # home / stats / weather / github
+qs -c end4-pC ipc call islanddashboard openPanel
+qs -c end4-pC ipc call islanddashboard closePanel
+qs -c end4-pC ipc call islanddashboard status
+```
+
+> `openPanel` / `closePanel` 不能叫 `show` / `hide` —— 会和 `qs ipc` CLI 的保留字
+> 冲突（`ClockDashboard` 踩过的同一个坑）。
+
+**踩坑**
+
+- **Bar 中间区是 `anchors.centerIn`**（`BarContent.qml` 的 `absoluteCenter`），
+  中间组件变宽不推动左右两组 —— 这是「岛撑开时左右胶囊纹丝不动」的原因，不是 bug。
+- **Nerd Font 私有区字形（U+E000–F8FF）必须显式写 `font.family`**：end4-pC 主字体
+  不含这些码位，漏写就渲染成豆腐块。移植时给每个用图标的 `Text` 都补了
+  `Theme.nerdFontFamily`（= `appearance.fonts.iconNerd`）。
+- 顶部条带 `header` 的 `z` 要高于展开内容（上游 notch 由更上层的 layer surface 绘制），
+  但它自身透明且无 handler，只有中间 300px 的 `CenterContent`（自带 `TapHandler`）
+  吃事件 —— 否则会把下面页签的点击一起吞掉。
+
+### 收起态时钟：去掉窗口标题与日期图标、精确到秒、换数字字体
+
+Bar 中间那段 notch 的收起态内容（`custom-island/CenterContent.qml`，Brain_Shell 原版
+的可滚轮轮播：clock / music / timer / stopwatch / recording）做了四件事：
+
+- **默认项 `title`（窗口标题）→ `clock`**，并删掉配套的 `hyprctl` 标题抓取 `Process`
+  与 Hyprland `RawEvent` 监听。窗口标题占着一个轮播位却几乎不看，还常驻一个子进程。
+- **时间不带图标、不带日期**，就是纯 `HH:MM:SS`。
+- **精确到秒**：`DateTime.clock` 的 precision 由 `Config.options.time.secondPrecision`
+  决定，没开时是分钟级 —— 直接拿它取秒会得到一个**静止不动**的数字。这里自起一个
+  秒级 `SystemClock` 专供收起态，既保证秒一定在走，又不必为一个胶囊去打开全局秒精度
+  开关（那会连带 Bar / 侧栏的时钟一起变秒级）。
+- **字体从等宽换成主题的数字字体**：`monospace` 是给计时器/表格那种需要严格对齐的
+  场景准备的，单颗时钟用等宽字体会显得又瘦又硬。新增 `Theme.numbersFontFamily`
+  （= `appearance.fonts.numbers`）并保留 `font.features: { "tnum": 1 }`，
+  秒数跳动时数字宽度不抖。
+
+### i18n：补齐岛屿相关文案
+
+`custom-island/` 的 Home 页此前**整页硬编码英文**（`QuickSettings.qml` /
+`ClockCard.qml` / `CalendarCard.qml` 里 `Translation.tr` 出现次数为 0），中文界面下会
+漏出 `QUICK SETTINGS` / `Night Light` / `SEP 2026` / `Su Mo Tu We` 等一整屏英文。
+
+- `QuickSettings.qml` 15 处、`ClockCard.qml` 9 处包上 `Translation.tr`；
+- `CalendarCard.qml` 的月份 / 星期名从**硬编码英文数组**改为走 `Qt.locale()`
+  （`Qt.locale().toString(date, "MMMM"/"ddd")`），中文环境下自然是「九月」「周日」，
+  换任何语言都不用再维护数组；
+- 翻译表新增 30 条 en / 23 条 zh_CN（`Quick Settings` / `Airplane Mode` / `Hotspot` /
+  `Caffeine` / `Focus Mode` / `Do Not Disturb` / `Screen Capture` / `Recording` /
+  `Filter` / `Shader` / `Off` / `Alarm(s)` / `remaining` / `Stop` / `No alarms set…`
+  以及天气页的 `Low`~`Extreme` 五档、`UV Index` / `Updated` / `Processes` /
+  `Filter processes…` / `No matching process` / `No process` / `Name`）。
+- **翻译热重载的坑**：`Translation.qml` 的 `TranslationReader` 是 `FileView` 但没开
+  `watchChanges`，只在 `languageCode` 变化时 `reread()` —— 改完翻译文件**不会自动
+  生效**。手动触发办法：把 `config.json` 的 `language.ui` 从 `"auto"` 改成 `"en_US"`，
+  隔一秒再改回 `"auto"`（`Config` 开了 `watchChanges`，两次改动都会触发 reread）。
+  注意「改成 `zh_CN`」不算变化 —— `auto` 下算出来本来就是 `zh_CN`。
+
+### 差异层：补齐岛屿全套改动
+
+上面这些改动**一开始一个文件都没进差异层** —— `custom-island/`（39 个 QML）、
+`modules/ii/bar/Island.qml`、`modules/ii/verticalBar/VerticalBarContent.qml` 全部只存在于
+本机工作树，chezmoi 未跟踪；`config.json` 的 `bar.layouts.middleLayout` 也还是
+`["clockWidget", "visualizer"]`。
+
+**后果是 install.sh 装完岛根本不会出现**，而且不会有任何报错（同 09-16 那次审计的
+问题）。已全部补入 `dot_config/`：
+
+| 补入 | 说明 |
+|---|---|
+| `dot_config/quickshell/end4-pC/custom-island/` | 39 个 QML（新增目录） |
+| `modules/ii/bar/Island.qml` | Bar 里的透明占位 |
+| `modules/ii/verticalBar/VerticalBarContent.qml` | 竖栏的材质胶囊黑名单 |
+| `modules/ii/bar/BarContent.qml` | 横栏的材质胶囊黑名单（更新） |
+| `modules/ii/settings/pages/BarConfig.qml` | `allWidgets` 注册 island（更新） |
+| `panelFamilies/IllogicalImpulseFamily.qml` | `import "../custom-island"` + `IslandHost` 替换 `ClockDashboard`（更新） |
+| `translations/{en_US,zh_CN}.json` | 新增词条（更新） |
+| `dot_config/illogical-impulse/config.json` | `middleLayout` → `["island"]` |
+
+> `config.json` 其余 84 处与本机的差异（壁纸路径、widget 坐标、dock pinned apps、
+> GitHub 用户名等）属于本机运行状态，**未**纳入同步。
+
 ### 文件夹图标：恢复 matugen 自动着色（撤销 Papirus）
 
 之前把图标主题切到 Papirus-Dark，失去了文件夹跟随壁纸主色的效果。本轮恢复，
