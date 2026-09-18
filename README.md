@@ -48,7 +48,7 @@ bash 脚本完成，不需要 chezmoi 二进制。
 - 桌面歌词：逐字计时（酷狗 KRC），适配任意 MPRIS 播放器；SPlayer 可走
   WebSocket 直推。详见 [docs/integrations.md](docs/integrations.md)
 - 灵动岛：音乐 / 音量 / 录屏活动的顶部动态胶囊，详见
-  [docs/dynamic-island-roadmap.md](docs/dynamic-island-roadmap.md)
+  [docs/dynamic-island.md](docs/dynamic-island.md)
 - 壁纸视差与多后端视频壁纸，详见 [docs/appearance.md](docs/appearance.md)
 - matugen 壁纸取色：kitty / alacritty / foot / fastfetch / fcitx5（含 fcitx5-rime
   候选框）/ mako / Hyprland 联动配色
@@ -184,7 +184,7 @@ docs/                     设计说明与排障文档（见下）
   - [i18n.md](docs/i18n.md) — 国际化：机制、切换与扩展语言、硬编码审计
   - [appearance.md](docs/appearance.md) — 视频壁纸后端与视差
   - [lockscreen.md](docs/lockscreen.md) — 锁屏
-  - [dynamic-island-roadmap.md](docs/dynamic-island-roadmap.md) — 灵动岛
+  - [dynamic-island.md](docs/dynamic-island.md) — 灵动岛
   - [widgets-layout.md](docs/widgets-layout.md) — 桌面小部件布局
   - [integrations.md](docs/integrations.md) — SPlayer / fcitx5-rime 联动
   - [keycap-display.md](docs/keycap-display.md) — 键盘按键显示
