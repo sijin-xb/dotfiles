@@ -266,10 +266,12 @@ Item {
 					              + "  " + DateTime.hourStr + ":" + DateTime.minuteStr + ":" + root.secondStr
 					color:        Theme.text
 					font.pixelSize: 14
-					// 用主题的数字字体（appearance.fonts.numbers），不是等宽字体：
-					// 等宽那份是给计时器/表格对齐用的，单颗时钟用它太硬。
+					// 用界面主字体（appearance.fonts.main）—— 跟 Bar 上其它组件是
+					// 同一套字形：StyledText 对「非纯数字」文本取的就是 main。
+					// 不用等宽那份（monospace 是给计时器/表格对齐准备的，单颗时钟
+					// 用它太硬），也不用 numbers（那是留给纯数字文本的）。
 					// tnum 保证秒数跳动时数字宽度不抖。
-					font.family:  Theme.numbersFontFamily
+					font.family:  Theme.mainFontFamily
 					font.features: { "tnum": 1 }
 					verticalAlignment:   Text.AlignVCenter
 					horizontalAlignment: Text.AlignHCenter

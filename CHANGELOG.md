@@ -4,6 +4,28 @@
 
 ## 2026-09-18
 
+### 岛屿收起态时钟：字体改用界面主字体
+
+收起态时钟从 `appearance.fonts.numbers` 换成 `appearance.fonts.main`
+（`custom-island/Theme.qml` 新增 `mainFontFamily` 令牌，`numbersFontFamily` 保留但
+暂无消费者）。
+
+依据是同仓库 `StyledText` 的规则：
+
+```qml
+property bool shouldUseNumberFont: /^\d+$/.test(root.text)
+property var defaultFont: shouldUseNumberFont ? ...numbers : ...main
+```
+
+**只有整串都是数字**时才切到 numbers，否则用 main。Bar 上的网络速度文本是
+`"1.2 MB/s"`，所以走的是 main。收起态时钟在加了日期之后已经是混合文本
+（`2026年9月18日 11:19:06`），按同一条规则就该用 main。
+
+> 本机 `appearance.fonts.main` 与 `.numbers` 的值**相同**（都是 `Google Sans Flex`，
+> 而该字体未安装、`fc-match` 回退到 `Noto Sans CJK SC`），所以这次改动**像素级无
+> 变化** —— 实测文字宽度改前改后都是 156px。改的是语义：以后两者分开配置时，
+> 时钟会跟 Bar 上其它组件走同一套。
+
 ### 岛屿：收起态换成主题紫底 + 时间左边加日期
 
 两处外观调整，都落在收起态那颗胶囊上。

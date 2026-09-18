@@ -59,10 +59,17 @@ Singleton {
     // 所以映射过去，而不是写死上游那个字体名。
     property string monoFontFamily: Appearance.font.family.monospace
 
-    // 专门给"大字号数字"用的字体（主题里的 appearance.fonts.numbers）。
-    // 收起态时钟用它：monospace 是给计时器/表格那种需要严格对齐的场景准备的，
-    // 单独一颗时钟用等宽字体会显得又瘦又硬。numbers 跟界面主字体是一套，
-    // 观感统一，配合 font.features 的 tnum 同样不会在秒数跳动时抖宽度。
+    // 界面主字体（appearance.fonts.main）。Bar 上其它组件用的就是它 ——
+    // StyledText 的 defaultFont 在「文本不是纯数字」时取 main
+    // （见 modules/common/widgets/StyledText.qml 的 shouldUseNumberFont），
+    // 所以收起态时钟也用它，跟旁边那几颗胶囊保持同一套字形。
+    property string mainFontFamily: Appearance.font.family.main
+
+    // 纯数字文本用的字体（appearance.fonts.numbers）。StyledText 的规则是
+    // `shouldUseNumberFont = /^\d+$/` —— 只有整串都是数字时才切到 numbers。
+    // 收起态时钟加了日期之后是混合文本（「2026年9月18日 11:19:06」），
+    // 按同一条规则应该走 main，所以这里暂时没有消费者；
+    // 保留是为了跟 Appearance.font.family 的映射保持完整。
     property string numbersFontFamily: Appearance.font.family.numbers
 
     // ── 尺寸（逐字照搬 Metrics.qml）──────────────────────────────────────

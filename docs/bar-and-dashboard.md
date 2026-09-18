@@ -86,6 +86,17 @@ token**，所以岛的紫和邻居逐像素一致（实测都是 `#513c73`），
 也**不画描边** —— BarGroup 的背景本来就是一个无边框的纯色 `Rectangle`。
 底色用 `ColorAnimation` 跟着生长动画一起过渡。
 
+**收起态时钟的字体**用 `Theme.mainFontFamily`（= `appearance.fonts.main`），理由是复用
+`StyledText` 的判定规则：
+
+```qml
+property bool shouldUseNumberFont: /^\d+$/.test(root.text)   // 整串都是数字才用 numbers
+```
+
+时钟文本在加了日期之后是混合文本（`2026年9月18日 11:19:06`），按同一条规则走 `main`，
+于是跟 Bar 上其它组件（网络速度那种 `"1.2 MB/s"`）是同一套字形。计时器 / 秒表仍用
+`monoFontFamily` —— 等宽是它们对齐数字的功能需求，不是审美选择。
+
 ### 2.3 几何：为什么是 9px / 32px
 
 | 值 | 来源 |
