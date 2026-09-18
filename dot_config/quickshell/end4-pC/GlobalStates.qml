@@ -13,6 +13,8 @@ Singleton {
     property bool barOpen: true
     // 居中时钟的仪表盘弹窗（ClockDashboard），由 ClockWidget 左键切换
     property bool clockDashboardOpen: false
+    // 快捷键管理器（速查表），SUPER + / 切换
+    property bool cheatsheetOpen: false
     property bool crosshairOpen: false
     property bool sidebarLeftOpen: false
     property bool sidebarRightOpen: false

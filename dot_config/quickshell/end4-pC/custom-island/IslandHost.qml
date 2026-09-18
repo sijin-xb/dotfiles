@@ -6,6 +6,10 @@ import Quickshell.Wayland
 import qs.modules.common
 import qs.modules.common.widgets
 import qs.services
+// Caelestia dashboard 原版（vendor 于 modules/ii/dashboard-caelestia/）
+import "../modules/ii/dashboard-caelestia/dashboard"
+import "../modules/ii/dashboard-caelestia/components/filedialog"
+import "../modules/ii/dashboard-caelestia/shim"
 
 /**
  * 岛屿 + 仪表盘的宿主窗口。
@@ -38,10 +42,18 @@ PanelWindow {
     // 收起 = Bar 中间那段 notch 本身（高度与左右胶囊一致）；
     // 展开 = 同一块表面向下长成面板，总高度就是 Brain_Shell 的 dashboardHeight
     // （那边 sizer 从 notch 顶部开始算 520，内容再内缩，见 IslandState）
-    readonly property real surfaceWidth: root.open ? IslandState.panelWidth : IslandState.capsuleWidth
-    readonly property real surfaceHeight: root.open
-        ? IslandState.panelHeight
-        : IslandState.capsuleHeight
+    //
+    // 宽度不再固定：Caelestia 每个 tab 内容宽不同（Media 1000 / Performance ~950
+    // / Weather ≥840 / Dashboard ~800），固定值要么裁切要么空。
+    // 跟 Caelestia 原版 Wrapper 一致：面板宽度 = 当前 tab 内容的 implicitWidth。
+    // Content.implicitWidth 会随 tab 切换实时变化（见 Content.qml 的 nonAnimWidth）。
+    // 800 是兜底最小值：首次加载时 currentItem 还是 null（implicitWidth=0）。
+    readonly property real contentIntrinsicWidth: Math.max(caelestiaContent.implicitWidth, 800)
+
+    readonly property real surfaceWidth: root.open
+        ? root.contentIntrinsicWidth + root.contentMargin * 2
+        : IslandState.targetWidth
+    readonly property real surfaceHeight: IslandState.targetHeight
 
     // 收起时距离屏幕边 9px（Bar 的 5px 外边距 + BarGroup 的 4px 内缩），
     // 与左右邻居的胶囊完全对齐；展开时也从这个位置往下长
@@ -55,19 +67,8 @@ PanelWindow {
     // 是否跟随 Bar 的液态玻璃材质（BarContent 里 isMaterial 的判定条件）
     readonly property bool glassy: Config.options.bar.cornerStyle === 3
 
-    // 收起时是正圆胶囊（height/2），展开后收敛到 Brain_Shell 的 cornerRadius(17)
-    readonly property real surfaceRadius: root.open
-        ? IslandState.panelRadius
-        : Math.min(surface.height / 2, IslandState.panelRadius)
-
-    // ── 表面底色 ────────────────────────────────────────────────────────
-    // 收起态用 colPrimaryContainer —— 与 Bar 右侧那几颗胶囊（网络速度、工具按钮…）
-    // **同一颗 token**（见 modules/ii/bar/BarContent.qml 的 getMaterialPillColor），
-    // 所以岛的紫色和它们完全一致，而且随壁纸主色一起变，不是写死的紫。
-    // 展开后回到 colLayer1Base：面板里是十几张卡片，紫底会跟卡片抢视线。
-    readonly property color surfaceColor: root.open
-        ? Appearance.colors.colLayer1Base
-        : Appearance.colors.colPrimaryContainer
+    readonly property real surfaceRadius: IslandState.targetRadius
+    readonly property color surfaceColor: IslandState.targetColor
 
     // 是否挂在 Bar 的中间区。
     // 岛屿已经进了 设置 → Bar 的组件列表（见 modules/ii/bar/Island.qml），
@@ -126,17 +127,17 @@ PanelWindow {
         // 展开时把还没长出来的部分裁掉，形成「从 Bar 里推出来」的观感
         clip: true
 
-        // 生长动画：时长/曲线对齐 Brain_Shell 的 320ms InOutCubic
+        // 状态驱动生长动画：400ms OutQuint
         Behavior on width {
             NumberAnimation {
                 duration: IslandState.animDuration
-                easing.type: Easing.InOutCubic
+                easing.type: IslandState.animEasing
             }
         }
         Behavior on height {
             NumberAnimation {
                 duration: IslandState.animDuration
-                easing.type: Easing.InOutCubic
+                easing.type: IslandState.animEasing
             }
         }
 
@@ -160,6 +161,12 @@ PanelWindow {
             // 大面板上斜向高光带会横跨整个宽度，视觉太抢；只保留边缘高光
             specular: false
             edgeHighlight: true
+            Behavior on radius {
+                NumberAnimation {
+                    duration: IslandState.animDuration
+                    easing.type: IslandState.animEasing
+                }
+            }
         }
 
         // 收起态（以及非材质模式）：纯色块。
@@ -175,11 +182,16 @@ PanelWindow {
             // 展开成面板时才需要一圈边界，把它和背后的窗口分开
             border.width: root.open ? 1 : 0
             border.color: Appearance.colors.colLayer0Border
-            // 收起 ↔ 展开时底色从紫渐变回深色（时长跟生长动画一致）
+            Behavior on radius {
+                NumberAnimation {
+                    duration: IslandState.animDuration
+                    easing.type: IslandState.animEasing
+                }
+            }
             Behavior on color {
                 ColorAnimation {
                     duration: IslandState.animDuration
-                    easing.type: Easing.InOutCubic
+                    easing.type: IslandState.animEasing
                 }
             }
         }
@@ -209,7 +221,10 @@ PanelWindow {
         // 收起态下 header.height == surface.height，这层高度为 0，不会拦事件。
         MouseArea {
             anchors.fill: parent
-            anchors.topMargin: header.height
+            // 收起态让开顶部条带（header.height == surface.height，这层高度为 0），
+            // 让 CenterContent 的 TapHandler 能收到点击开合；
+            // 展开态 header 已淡出，吸收层铺满整个面板吸收点击。
+            anchors.topMargin: root.open ? 0 : header.height
             onClicked: {}
         }
 
@@ -225,10 +240,20 @@ PanelWindow {
                 right: parent.right
             }
             height: IslandState.capsuleHeight
+            // 展开时淡出：Caelestia 上游 dashboard 是独立浮层盖住 Bar 的 notch，
+            // 本仓库把胶囊和面板合并进同一个 surface —— 如果 header 不消失，
+            // 那串「日期 + HH:MM:SS」就会压在面板顶部，观感穿模。
+            // 挂 Behavior 让淡出跟面板展开同步，收 / 放都对称。
+            opacity: root.open ? 0 : 1
+            visible: opacity > 0
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: root.open ? IslandState.fadeOutDuration : IslandState.fadeInDuration
+                    easing.type: Easing.OutCubic
+                }
+            }
             // 和 Brain_Shell 一样，notch 画在面板之上：那边 notch 由 TopBar 这条
             // 更上层的 layer surface 绘制。这里用 z 达到同样效果。
-            // 注意这个 Item 本身透明且没有 handler，不会挡住下面页签的点击，
-            // 只有中间 300px 的 CenterContent（自带 TapHandler）会吃事件。
             z: 1
 
             CenterContent {
@@ -244,7 +269,7 @@ PanelWindow {
 
             x: root.contentMargin
             y: root.contentMargin
-            width: IslandState.panelWidth - root.contentMargin * 2
+            width: root.contentIntrinsicWidth
             height: IslandState.panelHeight - root.contentMargin - root.contentBottomMargin
 
             opacity: root.open ? 1 : 0
@@ -260,68 +285,35 @@ PanelWindow {
             focus: root.open
             Keys.onEscapePressed: IslandState.close()
 
-            ColumnLayout {
-                anchors.fill: parent
-                spacing: 0
+            // ── 展开内容 —— Caelestia dashboard 原版 ────────────────────
+            // 页签 / Flickable 滑动 / Loader 懒加载全部由 Content 内部
+            // 实现（vendor 于 modules/ii/dashboard-caelestia/dashboard/
+            // Content.qml）。这里是集成点，不再自己组装 TabSwitcher +
+            // Flickable。
+            //
+            // FileDialog 是 Content 的 required 依赖（点用户头像时弹出
+            // 换头像的文件选择器），必须在这里实例化后传进去。
+            FileDialog {
+                id: facePicker
+            }
 
-                // 页签：直接用 Brain_Shell 原版的 TabSwitcher（横向模式）。
-                // 图标沿用上游的 Nerd Font 字形，保持和 Brain_Shell 一致的观感。
-                // 上游是 5 个页签，这里去掉「通知」页，保留
-                // Home / System / Weather / GitHub 四页。
-                TabSwitcher {
-                    id: tabBar
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 40
-                    orientation: "horizontal"
-                    currentPage: IslandState.page
-                    iconFont: Theme.nerdFontFamily
-                    model: [
-                        { key: "home",    icon: "󰋜", label: Translation.tr("Home") },
-                        { key: "stats",   icon: "󰻠", label: Translation.tr("System") },
-                        { key: "weather", icon: "󰖐", label: Translation.tr("Weather") },
-                        { key: "github",  icon: "󰊤", label: Translation.tr("GitHub") }
-                    ]
-                    onPageChanged: (key) => { IslandState.page = key; }
-                }
+            Content {
+                id: caelestiaContent
+                // 用自身 implicitWidth 而非 anchors.fill：面板宽度要跟着它走，
+                // 不能反过来被容器锁定。高度仍跟随容器。
+                width: implicitWidth
+                height: parent.height
+                facePicker: facePicker
+                // 面板开合状态透给页签（进程页据此决定是否开启采样）
+                panelOpen: root.open
+            }
 
-                Item {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-
-                    // Home / System 两页是 Brain_Shell 的原版实现，逐字移植；
-                    // Weather / GitHub 两页见各自文件头，数据源换成 end4-pC 的服务。
-                    Item {
-                        anchors.fill: parent
-                        visible: IslandState.page === "home"
-                        DashHome { anchors.fill: parent }
-                    }
-
-                    Item {
-                        anchors.fill: parent
-                        visible: IslandState.page === "stats"
-
-                        // ⚠ visible 必须**同时**传给 DashStats 自己。
-                        // 它的 ProcessPanel 是用 `active: root.visible` 决定要不要
-                        // 轮询进程表的（root 指的是 DashStats），外层这个 Item 的
-                        // visible 管不到它 —— 不传的话它恒为 true，哪怕停在首页，
-                        // 也在后台每 3 秒跑一次 `ps aux` 解析 200 个进程。
-                        DashStats {
-                            anchors.fill: parent
-                            visible: IslandState.page === "stats"
-                        }
-                    }
-
-                    Item {
-                        anchors.fill: parent
-                        visible: IslandState.page === "weather"
-                        DashWeather { anchors.fill: parent }
-                    }
-
-                    Item {
-                        anchors.fill: parent
-                        visible: IslandState.page === "github"
-                        DashGitHub { anchors.fill: parent }
-                    }
+            // 点头像 → shim.Dashboard.closeRequested → 收起面板，然后
+            // facePicker 已经在 User.qml 内部被 open()。
+            Connections {
+                target: Dashboard
+                function onCloseRequested() {
+                    IslandState.close();
                 }
             }
         }
