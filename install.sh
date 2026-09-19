@@ -219,6 +219,10 @@ cmd_install() {
         # 中文 / emoji 由 Noto 兜底；pacman 装字体包会自动触发 fc-cache
         ttf-jetbrains-mono-nerd ttf-nerd-fonts-symbols
         noto-fonts noto-fonts-cjk noto-fonts-emoji
+        # 思源黑体（Source Han Sans CN）：UI / 正文的中文字体。
+        # 1080p 下 11px 依然清晰，中性专业；Latin 部分源自 Source Sans。
+        # 注意 Google Sans 不含中文字形，中文必须靠它（或霞鹜文楷）兜底。
+        adobe-source-han-sans-cn-fonts
         # quickshell 源码编译工具链（三级回退时使用，平时不碍事）
         cmake ninja
         qt6-base qt6-declarative qt6-wayland qt6-5compat qt6-shadertools qt6-svg
@@ -247,7 +251,10 @@ cmd_install() {
     fi
     # libcava 供 Caelestia QML 插件编译；qt6-m3shapes-git 是 Caelestia 锁屏
     # 形变动画（MaterialShape）的运行时依赖，两者都只有 AUR 有。
-    for p in matugen mpvpaper libcava qt6-m3shapes-git; do
+    # ttf-lxgw-wenkai（霞鹜文楷）：阅读 / 文档字体（serif 别名指向它），
+    # 它的等宽版本同时是「代码里的中文」字体 —— 实测 Noto Sans Mono CJK SC
+    # 不含中文字形，带中文的等宽只有霞鹜文楷等宽和文泉驿等宽正黑。
+    for p in matugen mpvpaper libcava qt6-m3shapes-git ttf-lxgw-wenkai; do
         if pacman -Q "$p" >/dev/null 2>&1; then
             echo "    已安装: $p"
         elif aur_install "$p"; then
@@ -371,6 +378,19 @@ cmd_install() {
     if have fc-cache; then
         fc-cache -f >/dev/null 2>&1 || true
         echo "    字体缓存已刷新（fc-cache -f）"
+    fi
+    # 文泉驿的系统级配置（65-wqy-zenhei.conf）编号 65，晚于用户配置的
+    # 50-user.conf 加载，会用 <prefer> 把文泉驿 / DejaVu 顶到
+    # serif / sans-serif / monospace 最前面，压制 ~/.config/fontconfig 的设置。
+    # 现在已有思源黑体 + 霞鹜文楷，文泉驿属于更低质量的兜底，去掉它。
+    # 失败不影响安装。
+    if [[ -e /etc/fonts/conf.d/65-wqy-zenhei.conf ]]; then
+        if "${SUDO:-sudo}" rm -f /etc/fonts/conf.d/65-wqy-zenhei.conf 2>/dev/null; then
+            have fc-cache && fc-cache -f >/dev/null 2>&1 || true
+            echo "    已移除 /etc/fonts/conf.d/65-wqy-zenhei.conf（避免劫持 serif/中文字体）"
+        else
+            warn "未能移除 65-wqy-zenhei.conf（需要 root）；serif 别名可能仍被文泉驿占用"
+        fi
     fi
     mkdir -p "$HOME/.cache/quickshell/kugou_lyrics"
     VENV="$HOME/.local/state/quickshell/.venv"
