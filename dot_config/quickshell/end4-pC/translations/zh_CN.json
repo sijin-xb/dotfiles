@@ -1391,5 +1391,6 @@
   "Zoom in": "放大",
   "Zoom out": "缩小",
   "next window (scrolling) / next workspace": "下一个窗口（滚动布局）/ 下一个工作区",
-  "previous window (scrolling) / previous workspace": "上一个窗口（滚动布局）/ 上一个工作区"
+  "previous window (scrolling) / previous workspace": "上一个窗口（滚动布局）/ 上一个工作区",
+  "Set a username in Settings to get started": "请先在设置里填写 GitHub 用户名"
 }

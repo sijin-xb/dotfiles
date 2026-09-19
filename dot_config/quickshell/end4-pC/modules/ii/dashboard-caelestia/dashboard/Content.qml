@@ -9,9 +9,6 @@ import Caelestia.Config
 import "../components"
 import "../components/filedialog"
 import "../shim"
-// GitHub 页复用 custom-island/DashGitHub.qml（与「设置 → GitHub」共用
-// services/GitHub.qml 取数）。与 modules/ii/bar/Island.qml 同样的相对路径写法。
-import "../../../../custom-island"
 
 Item {
     id: root
@@ -286,21 +283,19 @@ Item {
                 }
             }
 
-            // GitHub 页：复用 custom-island/DashGitHub.qml。
-            // 它**自带 Flickable** 做纵向滚动（内部 contentHeight = 仓库网格高），
-            // 所以这里不再包一层滚动容器，只负责给尺寸：
-            //   · implicitHeight = paneHeight（与 Process 页一致，贴合可用高度）
-            //   · implicitWidth 同时决定面板宽度（面板宽 = 当前页签 implicitWidth）
+            // GitHub 页：dashboard/GitHubTab.qml。
+            // 它与 Weather / Performance / Processes 用同一套视觉语言
+            // （StyledRect / StyledText / MaterialIcon / Tokens / Colours），
+            // 数据走 qs.services 的 GitHub 单例 —— 与「设置 → GitHub」共用。
+            //
+            // 命名为 GitHubTab 而非 GitHub：避免与 GitHub 服务单例撞名。
+            // 它自带 Flickable 滚动、且用 availableHeight 贴合可用高度（同
+            // Process 页），所以这里直接实例化即可，无需再包一层容器。
             Component {
                 id: githubComponent
 
-                Item {
-                    implicitWidth: 860
-                    implicitHeight: root.paneHeight
-
-                    DashGitHub {
-                        anchors.fill: parent
-                    }
+                GitHubTab {
+                    availableHeight: root.paneHeight
                 }
             }
 
