@@ -1,0 +1,50 @@
+#!/bin/bash
+
+# 检测系统语言环境变量，如果包含 "zh_" 则使用中文，否则使用默认的英文
+if [[ "$LANG" == zh_* ]]; then
+    OPT_LOCK="锁屏"
+    OPT_SCREEN_OFF="关闭屏幕"
+    OPT_QUIT="退出"
+    OPT_SUSPEND="挂起"
+    OPT_REBOOT="重启"
+    OPT_POWEROFF="关机"
+else
+    OPT_LOCK="Lock"
+    OPT_SCREEN_OFF="Screen Off"
+    OPT_QUIT="Logout"
+    OPT_SUSPEND="Suspend"
+    OPT_REBOOT="Reboot"
+    OPT_POWEROFF="Shutdown"
+fi
+
+# 定义菜单项内容（使用换行符分隔）
+OPTIONS="${OPT_LOCK}\n${OPT_SCREEN_OFF}\n${OPT_QUIT}\n${OPT_SUSPEND}\n${OPT_REBOOT}\n${OPT_POWEROFF}"
+
+# 使用 fuzzel 以 dmenu 模式显示，宽度为 12 足够容纳英文如 "Screen Off" 等
+CHOICE=$(echo -e "$OPTIONS" | fuzzel --dmenu --width 12 --lines 6)
+
+# 根据用户的选择执行相应的命令
+case "$CHOICE" in
+    "$OPT_LOCK")
+        hyprlock -c ~/.config/niri/hyprlock.conf || swaylock
+    ;;
+    "$OPT_SCREEN_OFF")
+        niri msg action power-off-monitors
+    ;;
+    "$OPT_QUIT")
+        niri msg action quit
+    ;;
+    "$OPT_SUSPEND")
+        niri msg action power-off-monitors && hyprlock -c ~/.config/niri/hyprlock.conf && systemctl suspend
+    ;;
+    "$OPT_REBOOT")
+        systemctl reboot
+    ;;
+    "$OPT_POWEROFF")
+        systemctl poweroff
+    ;;
+    *)
+        # 如果用户按 Esc 或关闭窗口，则无事发生直接退出
+        exit 0
+    ;;
+esac

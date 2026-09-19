@@ -1,0 +1,190 @@
+#!/usr/bin/env bash
+#
+# niri-force-kill-window
+# 通过鼠标点击强制结束 (SIGKILL) 任意窗口。支持单体强杀与进程树强杀。
+
+# ==========================================
+# 0. 参数解析
+# ==========================================
+KILL_FAMILY=false
+SHOW_HELP=false
+
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        -f|--family) KILL_FAMILY=true ;;
+        -h|--help) SHOW_HELP=true ;;
+        *) echo "Unknown option: $1"; exit 1 ;;
+    esac
+    shift
+done
+
+# ==========================================
+# 1. 多语言 (Locale) 自适应支持与帮助信息
+# ==========================================
+if [[ "${LANG}" == zh_* ]]; then
+    STR_HELP="用法: niri-force-kill-window [选项]
+
+通过鼠标点击，使用 SIGKILL 强制结束无响应的窗口。
+自动兼容 Wayland 原生应用与 XWayland 代理应用。
+
+选项:
+  -f, --family   结束该窗口及其关联的整个进程树 (适用于会不断自动重启窗口的程序)
+  -h, --help     显示此帮助信息并退出"
+
+    STR_ERR_DEP_TITLE="依赖缺失"
+    STR_ERR_DEP_MSG="缺少必需命令: %s\n请尝试安装: %s"
+    STR_ERR_INFO_TITLE="获取信息失败"
+    STR_ERR_INFO_MSG="无法获取窗口或进程信息。"
+    STR_ERR_KILL_TITLE="结束失败"
+    STR_ERR_KILL_MSG="无法提取目标真实 PID。"
+    
+    STR_SUCC_TITLE="强制结束 (%s)"
+    STR_SUCC_MSG_SINGLE="应用: %s\n已终止目标窗口进程 (PID: %s)。"
+    STR_SUCC_MSG_FAMILY="应用: %s\n进程树已清理: 成功终止 %s 个相关进程。"
+    STR_UNKNOWN_APP="未知应用"
+else
+    STR_HELP="Usage: niri-force-kill-window [OPTIONS]
+
+Force kill (SIGKILL) an unresponsive window via mouse click.
+Automatically compatible with native Wayland and XWayland apps.
+
+Options:
+  -f, --family   Kill the entire process tree associated with the window
+  -h, --help     Show this help message and exit"
+
+    STR_ERR_DEP_TITLE="Missing Dependency"
+    STR_ERR_DEP_MSG="Command not found: %s\nPlease install: %s"
+    STR_ERR_INFO_TITLE="Info Error"
+    STR_ERR_INFO_MSG="Could not determine window or process information."
+    STR_ERR_KILL_TITLE="Kill Failed"
+    STR_ERR_KILL_MSG="Could not extract target real PID."
+    
+    STR_SUCC_TITLE="Force Killed (%s)"
+    STR_SUCC_MSG_SINGLE="App: %s\nTarget window process (PID: %s) terminated."
+    STR_SUCC_MSG_FAMILY="App: %s\nProcess tree cleaned: %s processes terminated."
+    STR_UNKNOWN_APP="Unknown App"
+fi
+
+if [[ "$SHOW_HELP" == true ]]; then
+    echo -e "$STR_HELP"
+    exit 0
+fi
+
+# ==========================================
+# 2. 环境与依赖检查
+# ==========================================
+check_dependency() {
+    local cmd="$1" pkg="$2"
+    if ! command -v "$cmd" &> /dev/null; then
+        local msg; printf -v msg "$STR_ERR_DEP_MSG" "$cmd" "$pkg"
+        if command -v notify-send &> /dev/null; then
+            notify-send "$STR_ERR_DEP_TITLE" "$msg" -u critical -i dialog-error
+        else
+            echo -e "[${STR_ERR_DEP_TITLE}]\n${msg}" >&2
+        fi
+        exit 1
+    fi
+}
+
+check_dependency "niri" "niri"
+check_dependency "notify-send" "libnotify"
+check_dependency "xprop" "xorg-xprop"
+
+notify_and_play() {
+    local title="$1" msg="$2"
+    notify-send "$title" "$msg" -a "Window Killer" -i application-exit
+    if command -v pw-play &> /dev/null; then
+        pw-play /usr/share/sounds/freedesktop/stereo/dialog-error.oga >/dev/null 2>&1 &
+    fi
+}
+
+# ==========================================
+# 3. 抓取目标窗口与协议鉴定
+# ==========================================
+if ! output=$(niri msg pick-window 2>/dev/null); then exit 0; fi
+if [[ -z "$output" ]]; then exit 0; fi
+
+pid=$(grep -oP 'PID:\s*\K\d+' <<< "$output")
+app_id=$(grep -oP 'App ID:\s*"\K[^"]+' <<< "$output")
+app_name="${app_id:-$STR_UNKNOWN_APP}"
+
+if [[ -z "$pid" ]]; then exit 0; fi
+if [[ ! -f "/proc/$pid/comm" ]]; then
+    notify-send "$STR_ERR_INFO_TITLE" "$STR_ERR_INFO_MSG" -a "Window Killer" -i dialog-error
+    exit 1
+fi
+
+process_name=$(<"/proc/$pid/comm")
+process_name_lower="${process_name,,}"
+
+if [[ "$process_name_lower" == *"xwayland"* ]]; then
+    proto_str="XWayland"
+    sleep 0.05
+    active_wid=$(xprop -root -notype _NET_ACTIVE_WINDOW 2>/dev/null | grep -o '0x[0-9a-fA-F]\+')
+    real_pid=$(xprop -id "$active_wid" -notype _NET_WM_PID 2>/dev/null | grep -oP '\d+')
+else
+    proto_str="Wayland"
+    real_pid="$pid"
+fi
+
+if [[ -z "$real_pid" ]]; then
+    notify-send "$STR_ERR_KILL_TITLE" "$STR_ERR_KILL_MSG" -a "Window Killer" -i dialog-error
+    exit 1
+fi
+
+# ==========================================
+# 4. 执行击杀逻辑 (单体 / 进程树)
+# ==========================================
+if [[ "$KILL_FAMILY" == true ]]; then
+    # --- 进程树连根拔起模式 ---
+    app_root=$real_pid
+    current=$real_pid
+
+    # 极速解析 stat 文件向上溯源
+    while true; do
+        stat_file="/proc/$current/stat"
+        if [[ ! -r "$stat_file" ]]; then break; fi
+        
+        stat_content=$(<"$stat_file")
+        pname="${stat_content#*(}"
+        pname="${pname%)*}"
+        
+        rest="${stat_content##*) }"
+        read -r _ ppid _ <<< "$rest"
+        
+        if [[ -z "$ppid" || "$ppid" == "1" || "$ppid" == "0" ]]; then break; fi
+        if [[ "$pname" =~ ^(systemd|niri|bash|zsh|fish|tmux|screen|dms|xwayland.*|sshd|login|init|sway|hyprland)$ ]]; then
+            break
+        fi
+        
+        app_root=$ppid
+        current=$ppid
+    done
+
+    # 向下递归收集进程
+    get_descendants() {
+        local p=$1
+        echo "$p"
+        for c in $(pgrep -P "$p" 2>/dev/null); do
+            get_descendants "$c"
+        done
+    }
+
+    family_pids=$(get_descendants "$app_root")
+    pid_count=$(echo "$family_pids" | wc -w)
+
+    kill -9 $family_pids 2>/dev/null
+    
+    printf -v final_title "$STR_SUCC_TITLE" "$proto_str"
+    printf -v final_msg "$STR_SUCC_MSG_FAMILY" "$app_name" "$pid_count"
+
+else
+    # --- 单一窗口进程精准击杀模式 (默认) ---
+    kill -9 "$real_pid" 2>/dev/null
+    
+    printf -v final_title "$STR_SUCC_TITLE" "$proto_str"
+    printf -v final_msg "$STR_SUCC_MSG_SINGLE" "$app_name" "$real_pid"
+fi
+
+# 战果汇报
+notify_and_play "$final_title" "$final_msg"
