@@ -18,12 +18,14 @@ layer-rule{
     match namespace="^quickshell$"
      place-within-backdrop true
 }
-// 旧 awww 方案（DMS 没接管 backdrop 时用）：现在不需要了，注释备查
-//layer-rule{
-//    match namespace="awww-daemonoverview"
-//    match namespace="swww-daemonoverview"
-//     place-within-backdrop true
-//}
+// awww 方案（当前生效）：awww-daemon -n overview 的命名空间是
+// "awww-daemon" + "overview" = "awww-daemonoverview"，它在 background 层，
+// backdrop 能接受。这是目前唯一确定可用的做法。
+layer-rule{
+    match namespace="awww-daemonoverview"
+    match namespace="swww-daemonoverview"
+     place-within-backdrop true
+}
 // 全局窗口规则
 window-rule {
     // 这一行规则可以让niri变成传统桌面那样的堆叠式桌面。

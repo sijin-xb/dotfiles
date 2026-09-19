@@ -199,6 +199,13 @@ overview {
 // 不再起 awww / swaybg / swww，也不需要外加同步脚本。DMS 用 DMS IPC
 // 换壁纸时 backdrop 自动跟着变（同一张图，只是被 Blur Layer 模糊）。
 //
+// 兜底（当前实际生效的方案）：DMS 1.7 的命名空间全是 dms: 前缀，官方文档
+// 里那条 ^quickshell$ 与 dms:blurwallpaper 都不在官方 namespace 列表里，
+// 没法确定。awww 默认 -l background（backdrop 唯一接受的层），确定可用。
+// 图的来源仍是 DMS（下面这行读 dms ipc call wallpaper get），awww 只负责画。
+spawn-at-startup "awww-daemon" "-n" "overview"
+spawn-sh-at-startup r#"for i in 1 2 3 4 5 6 7 8; do W=$(dms ipc call wallpaper get 2>/dev/null | tail -1); if [ -n "$W" ]; then awww img -n overview "$W"; break; fi; sleep 2; done"#
+
 // 此前试过的几个错路（已废弃，注释备查以防再踩）：
 //   · awww-daemon -n overview  + 同步脚本：让 awww 接管了 backdrop 画图，
 //     不是"纯 DMS"。
