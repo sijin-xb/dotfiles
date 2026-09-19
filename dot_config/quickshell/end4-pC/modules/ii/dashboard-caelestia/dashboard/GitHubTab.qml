@@ -110,7 +110,7 @@ Item {
 
                     MaterialIcon {
                         text: "open_in_new"
-                        font: Tokens.font.icon.builders.small.build
+                        fontStyle: Tokens.font.icon.small
                         color: Colours.palette.m3onSurface
                     }
                     StyledText {
@@ -146,7 +146,7 @@ Item {
 
                     MaterialIcon {
                         text: "refresh"
-                        font: Tokens.font.icon.builders.small.build
+                        fontStyle: Tokens.font.icon.small
                         color: Colours.palette.m3onSurface
                     }
                     StyledText {
@@ -253,7 +253,7 @@ Item {
                                 MaterialIcon {
                                     visible: card.modelData.private ?? false
                                     text: "lock"
-                                    font: Tokens.font.icon.builders.small.build
+                                    fontStyle: Tokens.font.icon.small
                                     color: Colours.palette.m3onSurfaceVariant
                                 }
                             }
@@ -262,7 +262,10 @@ Item {
                             StyledText {
                                 Layout.fillWidth: true
                                 Layout.topMargin: 2
-                                text: card.modelData.description ?? "—"
+                                // 空/null 描述直接不渲染这一行：留一个「—」占位
+                                // 容易被误读成重复内容。
+                                visible: (card.modelData.description ?? "").length > 0
+                                text: card.modelData.description ?? ""
                                 elide: Text.ElideRight
                                 maximumLineCount: 2
                                 wrapMode: Text.WordWrap
@@ -300,7 +303,7 @@ Item {
 
                                     MaterialIcon {
                                         text: "star"
-                                        font: Tokens.font.icon.builders.small.build
+                                        fontStyle: Tokens.font.icon.small
                                         color: Colours.palette.m3onSurfaceVariant
                                     }
                                     StyledText {
@@ -315,7 +318,7 @@ Item {
 
                                     MaterialIcon {
                                         text: "fork_right"
-                                        font: Tokens.font.icon.builders.small.build
+                                        fontStyle: Tokens.font.icon.small
                                         color: Colours.palette.m3onSurfaceVariant
                                     }
                                     StyledText {
