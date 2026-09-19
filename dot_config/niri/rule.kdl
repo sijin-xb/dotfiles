@@ -3,20 +3,21 @@
 // https://yalter.github.io/niri/Configuration:-Window-Rules
 
 
-// 放进overview里的壁纸程序
-// 按 DMS 官方 niri 配置（danklinux.com/docs/.../compositors）：
-//   match namespace="^quickshell$"       → DMS 自己的壁纸层
-//   match namespace="dms:blurwallpaper"  → 开了 Blur Layer 时的模糊壁纸
-// 同时 layout.kdl 必须 background-color "transparent"，否则壁纸盖不进 backdrop。
-layer-rule{
-    match namespace="^quickshell$"
-     place-within-backdrop true
-}
+// 放进overview里的壁纸程序 —— 完全交给 DMS（不开 awww）：
+//   · dms:blurwallpaper：Blur Layer 启用时 DMS 额外渲染的模糊壁纸层
+//     （settings.json 里 blurEnabled = true），可以放进 backdrop 而不影响主壁纸
+//   · ^quickshell$ 留着作为兜底；DMS 的主壁纸（quickshell:background）有
+//     niri 默认 zoom 行为（DMS 单层壁纸放进 backdrop 会让 desktop 没壁纸，
+//     所以 ^quickshell$ 不 place-within-backdrop；上面 dms:blurwallpaper 才是
+//     真正的 backdrop 来源）
 layer-rule{
     match namespace="dms:blurwallpaper"
      place-within-backdrop true
 }
-// 旧的 awww/swww 方案：DMS 接管后已不需要（awww 启动项也一并去掉了），保留备查
+layer-rule{
+    match namespace="^quickshell$"
+}
+// 旧 awww 方案（DMS 没接管 backdrop 时用）：现在不需要了，注释备查
 //layer-rule{
 //    match namespace="awww-daemonoverview"
 //    match namespace="swww-daemonoverview"
