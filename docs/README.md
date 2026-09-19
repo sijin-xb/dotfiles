@@ -7,6 +7,7 @@
 | [bar-and-dashboard.md](bar-and-dashboard.md) | 岛屿 + 仪表盘（生长动画、几何对齐、五页、栏上增删）、栏组件与居中时钟、统一歌词源、液态玻璃、动画令牌、悬停动效处理范围 |
 | [backdrop-blur.md](backdrop-blur.md) | 限定范围的背景模糊：QML 自绘抓屏+模糊，与依赖合成器全局模糊的取舍（岛屿已改为不透明材质，目前无活跃消费者） |
 | [compositor-effects.md](compositor-effects.md) | **合成器层**模糊与窗口透明度：niri ↔ Hyprland 参数对照表、以 niri 为准的移植、offset≠半径 / saturation 无对应项等坑、SUPER+A 的删除原因 |
+| [login-screen.md](login-screen.md) | 登录界面：SDDM + Catppuccin Mocha 主题与壁纸设置、从 plasmalogin 切换与回退、Wayland 注意事项 |
 | [github-page.md](github-page.md) | GitHub 项目页：用户名 → 仓库列表、状态处理、实现要点 |
 | [i18n.md](i18n.md) | 国际化：机制、切换语言、扩展新语言、新增文案姿势、硬编码审计、已知欠账 |
 | [dynamic-island.md](dynamic-island.md) | 灵动岛：文件职责、活动优先级、联动机制（场景门控 / 分组渲染 / 全局取色） |

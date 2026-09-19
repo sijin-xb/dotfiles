@@ -185,6 +185,7 @@ docs/                     设计说明与排障文档（见下）
   - [bar-and-dashboard.md](docs/bar-and-dashboard.md) — 岛屿 + 仪表盘、栏组件、统一歌词源、液态玻璃、悬停动效范围
   - [backdrop-blur.md](docs/backdrop-blur.md) — 限定范围的背景模糊（QML 自绘，不依赖合成器）
   - [compositor-effects.md](docs/compositor-effects.md) — 合成器层模糊与窗口透明度（niri ↔ Hyprland 参数对照与移植）
+  - [login-screen.md](docs/login-screen.md) — 登录界面：SDDM + Catppuccin Mocha、壁纸、与 plasmalogin 的切换/回退
   - [github-page.md](docs/github-page.md) — GitHub 项目页
   - [i18n.md](docs/i18n.md) — 国际化：机制、切换与扩展语言、硬编码审计
   - [appearance.md](docs/appearance.md) — 视频壁纸后端与视差

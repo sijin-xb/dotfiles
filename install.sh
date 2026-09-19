@@ -250,6 +250,10 @@ cmd_install() {
         # procps-ng 提供 ps 命令，仪表盘系统页的进程列表依赖它
         # （base 组已含，这里显式声明以防万一被精简掉）
         procps-ng
+        # 登录管理器：SDDM（主题用 Catppuccin Mocha，见 docs/login-screen.md）
+        # 注意：若机器上用的是 plasmalogin（KDE 新版 DM），两者可共存，
+        # 切换只需 systemctl disable/enable，见文档。
+        sddm
         # 字体：kitty 终端用 JetBrains Mono Nerd Font（含 Nerd 图标），
         # 中文 / emoji 由 Noto 兜底；pacman 装字体包会自动触发 fc-cache
         ttf-jetbrains-mono-nerd ttf-nerd-fonts-symbols
@@ -293,7 +297,9 @@ cmd_install() {
     # ttf-lxgw-wenkai（霞鹜文楷）：阅读 / 文档字体（serif 别名指向它），
     # 它的等宽版本同时是「代码里的中文」字体 —— 实测 Noto Sans Mono CJK SC
     # 不含中文字形，带中文的等宽只有霞鹜文楷等宽和文泉驿等宽正黑。
-    for p in matugen mpvpaper libcava qt6-m3shapes-git ttf-lxgw-wenkai; do
+    # catppuccin-sddm-theme-mocha：SDDM 登录界面主题（Qt6，需 SDDM 走 Wayland）
+    # qt6-svg / qt6-declarative / qt5-quickcontrols2 是它的依赖，AUR 包会带入。
+    for p in matugen mpvpaper libcava qt6-m3shapes-git ttf-lxgw-wenkai catppuccin-sddm-theme-mocha; do
         if pacman -Q "$p" >/dev/null 2>&1; then
             echo "    已安装: $p"
         elif aur_install "$p"; then
