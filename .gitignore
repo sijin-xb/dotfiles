@@ -1,0 +1,4 @@
+# DMS 插件商店 clone 下来的 git 元数据
+# （chezmoi 把 .git 存成 dot_git；这些是商店更新用的，不该进 dotfiles）
+# 对应 .chezmoiignore 里的同名规则：那边管 chezmoi，这边管 git。
+dot_config/DankMaterialShell/plugins/**/dot_git/

@@ -41,3 +41,9 @@ Pictures/
 # ---- Python 字节码缓存（scripts 下有多个 __pycache__）----
 **/__pycache__
 **/*.pyc
+
+# ---- DMS 插件自带的 git 元数据 ----
+# 插件是 DMS 插件商店 clone 下来的，目录里带 .git（chezmoi 存成 dot_git）。
+# 这是商店用来更新插件的，不该进 dotfiles —— 否则插件目录变嵌套 git 仓库，
+# 还会把商店的远端 URL 带进来。
+.config/DankMaterialShell/plugins/**/dot_git
