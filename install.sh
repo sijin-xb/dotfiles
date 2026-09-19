@@ -34,11 +34,15 @@ STATE_DIR="$BACKUP_ROOT/state"
 PRE_INSTALL_PREFIX="pre-install"
 PRE_ROLLBACK_PREFIX="pre-rollback"
 
-# 快照 / 存档涉及的源路径清单（SNAP_PATHS 16 项 + EXTRA_ARCHIVE_PATHS 3 项）
+# 快照 / 存档涉及的源路径清单（SNAP_PATHS 17 项 + EXTRA_ARCHIVE_PATHS 3 项）
 # 缺失的路径在 tar 时会跳过，不报错
 SNAP_PATHS=(
     ".config/hypr"
     ".config/niri"
+    # DMS 插件（wallpaperCarousel 静态壁纸轮播 / mpvpaper 视频壁纸 /
+    # cavaVisualizer）。只含 plugins 子目录，不含 settings.json ——
+    # 后者有机型相关配置（显示器、栏布局），跨机还原会出问题。
+    ".config/DankMaterialShell/plugins"
     ".config/quickshell/end4-pC"
     ".config/fish"
     ".config/kitty"
@@ -250,6 +254,8 @@ cmd_install() {
         # procps-ng 提供 ps 命令，仪表盘系统页的进程列表依赖它
         # （base 组已含，这里显式声明以防万一被精简掉）
         procps-ng
+        # ffmpeg：DMS 的 mpvpaper 视频壁纸插件要用它生成缩略图和动态取色
+        ffmpeg
         # 登录管理器：SDDM（主题用 Catppuccin Mocha，见 docs/login-screen.md）
         # 注意：若机器上用的是 plasmalogin（KDE 新版 DM），两者可共存，
         # 切换只需 systemctl disable/enable，见文档。
