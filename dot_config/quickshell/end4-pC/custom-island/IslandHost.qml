@@ -61,9 +61,18 @@ PanelWindow {
     readonly property real surfaceWidth: (root.open || root.closing)
         ? root.contentIntrinsicWidth + root.contentMargin * 2
         : IslandState.targetWidth
-    readonly property real surfaceHeight: (root.open || root.closing)
+
+    // 收起时的形变：高度收到 0（纵向收拢回 Bar），宽度保持面板宽度。
+    //
+    // 旧版是「同时缩回 capsuleWidth×capsuleHeight」—— 那个形变过程好看，
+    // 但终点正好等于 Bar 胶囊的几何，于是会在胶囊位置多出一颗无时钟的同形
+    // 胶囊（幻影 bug 的根因）。
+    // 改成只收高度、不收宽度后：任何时刻宽度都 ≥800，形状始终是一块宽面板
+    // 在纵向收拢，**永远不可能呈现胶囊形状**，幻影不复现，同时保住了
+    // 「从 Bar 里推出来 / 收回去」的动感。
+    readonly property real surfaceHeight: root.open
         ? IslandState.panelHeight
-        : IslandState.targetHeight
+        : (root.closing ? 0 : IslandState.targetHeight)
 
     // 收起时距离屏幕边 9px（Bar 的 5px 外边距 + BarGroup 的 4px 内缩），
     // 与左右邻居的胶囊完全对齐；展开时也从这个位置往下长
@@ -98,12 +107,31 @@ PanelWindow {
     // 防止刚展开那一帧 hovered 还没置位，被误判成「移出」而立刻收起。
     property bool panelHoverArmed: false
 
+    // ── 几何动画开关 ────────────────────────────────────────────────────
+    // surfaceWidth 绑定 contentIntrinsicWidth（= Content.implicitWidth），
+    // 而它**每次切页签都会变**（Media 1000 / Performance ~950 / Weather ≥840）。
+    // 若 width 一直套 400ms Behavior，切页时内容已经换了、面板却要 400ms 才
+    // 跟上 —— 就是「画面滞后于状态变化」。Content.qml 里那个属性特意叫
+    // nonAnimWidth，本意也是宽度不该参与动画。
+    // 所以：只在**开合**期间放开动画，其余情况（切页签）duration 归零，即时生效。
+    property bool geometryAnimating: false
+    Timer {
+        id: geometryAnimTimer
+        interval: IslandState.animDuration + 50
+        repeat: false
+        onTriggered: root.geometryAnimating = false
+    }
+
     // 全屏判定：与 Bar.qml 同一套写法（Top 层会被全屏窗口压掉，但本窗口是
     // Overlay 层，全屏时照样悬在画面上 —— 这正是「打游戏时岛一直杵着」的原因）
     readonly property var thisMonitorData: HyprlandData.monitors.find(m => m.name === root.screen?.name)
     readonly property bool monitorHasFullscreen: HyprlandData.workspaceById[thisMonitorData?.activeWorkspace?.id]?.hasfullscreen ?? false
 
     onOpenChanged: {
+        // 开合期间放开几何动画（切页签时不放开，见 geometryAnimating 注释）
+        root.geometryAnimating = true;
+        geometryAnimTimer.restart();
+
         if (root.open) {
             root.closing = false;
         } else {
@@ -183,27 +211,20 @@ PanelWindow {
             }
         }
 
-        // 补一点「往回缩」的动感：只缩放 3%，且从顶边中点缩，
-        // 观感是面板朝 Bar 方向收回去。绝不变回胶囊几何（那是之前幻影的根因）。
-        scale: root.open ? 1 : 0.97
-        transformOrigin: Item.Top
-        Behavior on scale {
-            NumberAnimation {
-                duration: IslandState.animDuration
-                easing.type: IslandState.animEasing
-            }
-        }
+        // 形变交给 width/height 的 Behavior（纵向收拢），这里不再叠 scale，
+        // 避免两套动画互相打架。
 
-        // 状态驱动生长动画：400ms OutQuint
+        // 生长动画：仅开合时 400ms OutQuint；切页签导致的宽度变化走 0ms，
+        // 立即贴合内容（见 geometryAnimating 注释）。
         Behavior on width {
             NumberAnimation {
-                duration: IslandState.animDuration
+                duration: root.geometryAnimating ? IslandState.animDuration : 0
                 easing.type: IslandState.animEasing
             }
         }
         Behavior on height {
             NumberAnimation {
-                duration: IslandState.animDuration
+                duration: root.geometryAnimating ? IslandState.animDuration : 0
                 easing.type: IslandState.animEasing
             }
         }
