@@ -10,12 +10,14 @@
 // ============================================================================
 
 binds {
-    // 启动器：Super+Space
+    // 启动器 —— 轻触 Super（与 Hyprland 的 Super 单击一致）
     //
-    // ⚠ 这里**不要**再绑裸 `Mod`（轻触 Super）—— 那是 niri 的原生行为，
-    // 官方默认配置里绑的是 `toggle-grid-overview`，binds.kdl 已恢复该行为。
-    // 之前在 DMS 这边也绑了裸 Mod，结果两条互相覆盖（后加载者赢），
-    // 轻触 Super 变成只开启动器、网格总览失效。轻触 Super 归网格总览。
+    // 前置条件：config.kdl 的 grid-overview 块里必须写
+    //   default-mod-action false
+    // 否则 niri 的内建行为（轻触 Mod 开网格总览）会和这里一起触发。
+    Mod repeat=false hotkey-overlay-title="启动器 Launcher" { spawn "dms" "ipc" "call" "launcher" "toggle"; }
+
+    // 备用：Super+Space 同开启动器
     Mod+Space hotkey-overlay-title="启动器 Launcher" { spawn "dms" "ipc" "call" "launcher" "toggle"; }
 
     // 总览 —— 与 Hyprland 的 Super+Tab 同键

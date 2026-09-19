@@ -49,6 +49,9 @@ binds {
     // // 浮动/平铺切换（原 Super+Alt+Space）
     // 浮动/平铺（与 Hyprland 的 Super+Alt+Space 一致）
     Mod+Alt+Space hotkey-overlay-title="浮动/平铺 Toggle floating" { toggle-window-floating; }
+
+    // 网格总览：轻触 Super 已给 DMS 启动器，这里留个显式入口
+    Mod+Shift+Space hotkey-overlay-title="网格总览 Grid overview" { toggle-grid-overview; }
     //
     // // 列宽：Hyprland 用 splitratio 微调，niri 没有该概念。
     // // 最接近的替代是预设列宽循环 / 按百分比调宽。

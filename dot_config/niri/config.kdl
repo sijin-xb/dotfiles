@@ -270,6 +270,10 @@ grid-overview {
     padding 80
     focused-column-scale 1.04
     grid-all-monitors true
+    // 关掉「轻触 Mod 自动开网格总览」这个内建行为：这条即使不写也默认生效，
+    // 会和 dms/binds.kdl 里「轻触 Mod → 启动器」冲突（两个一起触发）。
+    // 关掉之后轻触 Super 只开启动器。
+    default-mod-action false
 }
 
 debug {
