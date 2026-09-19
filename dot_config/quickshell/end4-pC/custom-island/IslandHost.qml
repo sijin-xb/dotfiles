@@ -235,7 +235,12 @@ PanelWindow {
         LiquidGlass {
             id: glassBg
             anchors.fill: parent
-            visible: root.glassy && root.open
+            // ⚠ 不要写成 (root.glassy && root.open)：
+            // 那样开合瞬间会和 flatBg 同帧互换，LiquidGlass 首帧还在初始化
+            // （着色器 / 底图采样没就绪），会露出异常底色 —— 就是「背景闪一下」。
+            // 本窗口本来就只在 (open || closing) 时才 visible，常驻显示玻璃层
+            // 没有任何代价，还能避免互换。
+            visible: root.glassy
             level: 1
             radius: root.surfaceRadius
             tint: Qt.rgba(root.surfaceColor.r,
@@ -259,7 +264,9 @@ PanelWindow {
         Rectangle {
             id: flatBg
             anchors.fill: parent
-            visible: !root.glassy || !root.open
+            // 与 glassBg 二选一：非材质模式才用纯色块。同样不跟 open 挂钩，
+            // 避免开合时两层互换导致闪动（见 glassBg 的注释）。
+            visible: !root.glassy
             radius: root.surfaceRadius
             color: root.surfaceColor
             // 展开成面板时才需要一圈边界，把它和背后的窗口分开

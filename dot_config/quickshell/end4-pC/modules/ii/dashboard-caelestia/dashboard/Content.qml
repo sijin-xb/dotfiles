@@ -175,24 +175,94 @@ Item {
                 }
             }
 
+            // ⚠ 页签容器：贴合可用高度 + 内容超出可纵向滚动。
+            //
+            // 只有 Process.qml 自己声明了 `required property real availableHeight`
+            // 并写 `implicitHeight: availableHeight`（主动贴合）；Dash / Media /
+            // Performance / WeatherTab 都用固有高度，一旦超过 viewWrapper 的
+            // 可用高度，底部就会被 ClippingRectangle + 宿主 clip 直接裁掉
+            // （症状：所有页面下面都被切一截）。
+            //
+            // 这里统一包一层：implicitHeight 固定为 paneHeight（与 Process 页
+            // 一致），内容更高时放进纵向 Flickable 里滚动，不再硬裁。
+            // 横向切页签的 Flickable 在外层(view)，方向不同，不冲突。
             Component {
                 id: dashComponent
 
-                Dash {
-                    facePicker: root.facePicker
+                Item {
+                    implicitWidth: dashFlick.contentWidth
+                    implicitHeight: root.paneHeight
+                    clip: true
+
+                    Flickable {
+                        id: dashFlick
+                        anchors.fill: parent
+                        contentWidth: dashPage.implicitWidth
+                        contentHeight: dashPage.implicitHeight
+                        flickableDirection: Flickable.VerticalFlick
+                        boundsBehavior: Flickable.StopAtBounds
+                        clip: true
+
+                        Dash {
+                            id: dashPage
+                            width: Math.max(dashFlick.width, implicitWidth)
+                            height: implicitHeight
+                            facePicker: root.facePicker
+                        }
+                    }
                 }
             }
 
             Component {
                 id: mediaComponent
 
-                Media {}
+                Item {
+                    implicitWidth: mediaFlick.contentWidth
+                    implicitHeight: root.paneHeight
+                    clip: true
+
+                    Flickable {
+                        id: mediaFlick
+                        anchors.fill: parent
+                        contentWidth: mediaPage.implicitWidth
+                        contentHeight: mediaPage.implicitHeight
+                        flickableDirection: Flickable.VerticalFlick
+                        boundsBehavior: Flickable.StopAtBounds
+                        clip: true
+
+                        Media {
+                            id: mediaPage
+                            width: Math.max(mediaFlick.width, implicitWidth)
+                            height: implicitHeight
+                        }
+                    }
+                }
             }
 
             Component {
                 id: performanceComponent
 
-                Performance {}
+                Item {
+                    implicitWidth: perfFlick.contentWidth
+                    implicitHeight: root.paneHeight
+                    clip: true
+
+                    Flickable {
+                        id: perfFlick
+                        anchors.fill: parent
+                        contentWidth: perfPage.implicitWidth
+                        contentHeight: perfPage.implicitHeight
+                        flickableDirection: Flickable.VerticalFlick
+                        boundsBehavior: Flickable.StopAtBounds
+                        clip: true
+
+                        Performance {
+                            id: perfPage
+                            width: Math.max(perfFlick.width, implicitWidth)
+                            height: implicitHeight
+                        }
+                    }
+                }
             }
 
             Component {
@@ -207,7 +277,27 @@ Item {
             Component {
                 id: weatherComponent
 
-                WeatherTab {}
+                Item {
+                    implicitWidth: weatherFlick.contentWidth
+                    implicitHeight: root.paneHeight
+                    clip: true
+
+                    Flickable {
+                        id: weatherFlick
+                        anchors.fill: parent
+                        contentWidth: weatherPage.implicitWidth
+                        contentHeight: weatherPage.implicitHeight
+                        flickableDirection: Flickable.VerticalFlick
+                        boundsBehavior: Flickable.StopAtBounds
+                        clip: true
+
+                        WeatherTab {
+                            id: weatherPage
+                            width: Math.max(weatherFlick.width, implicitWidth)
+                            height: implicitHeight
+                        }
+                    }
+                }
             }
 
             Behavior on contentX {
