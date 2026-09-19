@@ -192,9 +192,18 @@ overview {
 
 // 自动启动设置
 //
-// 壁纸：已完全交给 DMS 接管，下面两个 awww-daemon 都停掉。
-// `-n overview` 那个是总览背后的模糊壁纸 —— 就是它导致总览背景还是老的
-// niri 壁纸，与 DMS 的壁纸不一致。现在统一由 DMS 提供。
+// 壁纸分工：
+//   · 主桌面壁纸 → DMS 接管（Quickshell 层，无外部进程）
+//   · 总览(overview)背景 → 仍需要 awww，因为 niri 的 backdrop 只接受
+//     layer-shell 的 background 层表面（见 rule.kdl 的
+//     place-within-backdrop true，匹配 namespace "awww-daemonoverview"）。
+//     DMS 走的是 Quickshell，没法塞进 backdrop，所以这条必须留着。
+// 全部交给 DMS：主壁纸和 overview 背景都是 DMS 那层（namespace "quickshell"），
+// 由 rule.kdl 的 place-within-backdrop true 放进 backdrop。
+// 前置条件已在两处配好：
+//   · layout.kdl → background-color "transparent"
+//   · rule.kdl   → layer-rule match namespace="^quickshell$"
+// 原来那套 awww（awww-daemon -n overview + 同步脚本）已移除，不再需要。
 //spawn-at-startup "awww-daemon"
 //spawn-at-startup "awww-daemon" "-n" "overview"
 

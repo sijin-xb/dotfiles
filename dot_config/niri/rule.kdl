@@ -4,11 +4,24 @@
 
 
 // 放进overview里的壁纸程序
+// 按 DMS 官方 niri 配置（danklinux.com/docs/.../compositors）：
+//   match namespace="^quickshell$"       → DMS 自己的壁纸层
+//   match namespace="dms:blurwallpaper"  → 开了 Blur Layer 时的模糊壁纸
+// 同时 layout.kdl 必须 background-color "transparent"，否则壁纸盖不进 backdrop。
 layer-rule{
-    match namespace="awww-daemonoverview"
-    match namespace="swww-daemonoverview"
+    match namespace="^quickshell$"
      place-within-backdrop true
 }
+layer-rule{
+    match namespace="dms:blurwallpaper"
+     place-within-backdrop true
+}
+// 旧的 awww/swww 方案：DMS 接管后已不需要（awww 启动项也一并去掉了），保留备查
+//layer-rule{
+//    match namespace="awww-daemonoverview"
+//    match namespace="swww-daemonoverview"
+//     place-within-backdrop true
+//}
 // 全局窗口规则
 window-rule {
     // 这一行规则可以让niri变成传统桌面那样的堆叠式桌面。
