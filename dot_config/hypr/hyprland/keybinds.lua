@@ -24,16 +24,11 @@ hl.bind("SUPER + V", hl.dsp.global("quickshell:overviewClipboardToggle"))
 hl.bind("SUPER + Period", hl.dsp.global("quickshell:overviewEmojiToggle"))
 -- NOTE: hl.dsp.exec_cmd is broken in this Hyprland build (spawns nothing),
 -- so exec-style binds use a Lua callback + hl.exec_cmd instead
--- setprop is broken too, so we toggle opacity via hl.config directly
-local _opacity_state = 0.65
-hl.bind("SUPER + A", function()
-    if _opacity_state == 0.65 then
-        _opacity_state = 1.0
-    else
-        _opacity_state = 0.65
-    end
-    hl.config({ decoration = { active_opacity = _opacity_state } })
-end, { description = "Shell: Toggle active window opacity" })
+-- ⚠ 原「SUPER + A = 切换活跃窗口透明度（0.65 ↔ 1.0）」已移除。
+-- 原因：窗口透明度已与 niri 对齐（全局 0.97，见 custom/general.lua 与
+-- shellOverrides），这个切换键一按就会把 active_opacity 覆盖成 0.65/1.0，
+-- 破坏对齐。需要临时改透明度请用 hyprctl 或在设置面板里调。
+-- （原实现用 hl.config 直接写 active_opacity，因为 setprop 对该属性无效。）
 hl.bind("SUPER + ALT + A", hl.dsp.global("quickshell:sidebarLeftToggleDetach"))
 hl.bind("SUPER + B", hl.dsp.global("quickshell:sidebarLeftToggle"))
 hl.bind("SUPER + O", hl.dsp.global("quickshell:sidebarLeftToggle"))

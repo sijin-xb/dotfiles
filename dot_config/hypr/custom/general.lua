@@ -5,8 +5,6 @@
 -- 中用滑条调节，那里的修改会写入 shellOverrides 并最终生效。
 -- ============================================================
 
-
-
 hl.config({
     decoration = {
         -- -------- 圆角曲线 --------
@@ -27,7 +25,8 @@ hl.config({
             contrast   = 1.03,
 
             -- 微噪点：消除色带 + 模拟玻璃表面的细微颗粒
-            noise = 0.025,
+            -- 与 niri 的 blur.noise (0.02) 对齐
+            noise = 0.02,
 
             -- Vibrancy 染色：把背景颜色"染"到窗口上 → 真实玻璃色散感
             vibrancy          = 0.55,
@@ -92,3 +91,4 @@ hl.animation({ leaf = "fadeLayers", enabled = true, speed = 5, bezier = "myStand
 -- 全局淡入淡出
 hl.animation({ leaf = "fade", enabled = true, speed = 6, bezier = "myStandard" })
 hl.animation({ leaf = "border", enabled = true, speed = 6, bezier = "myStandard" })
+
