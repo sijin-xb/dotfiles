@@ -309,7 +309,10 @@ binds {
     Mod+Alt+Ctrl+A  hotkey-overlay-title="截取聚焦窗口 Focus-window screenshot" { spawn-sh "niri msg action screenshot-window && pkill -f -USR1 screenshot-sound.sh"; }
     Mod+Alt+Ctrl+Shift+A  hotkey-overlay-title="截取显示器 Monitor screenshot" { spawn-sh "niri msg action screenshot-screen --show-pointer false && pkill -f -USR1 screenshot-sound.sh"; }
     Print  hotkey-overlay-title=null {spawn-sh "niri msg action screenshot --show-pointer false && pkill -f -USR1 screenshot-sound.sh";}
-    Ctrl+Print  hotkey-overlay-title=null { spawn-sh "niri msg action screenshot-window --show-pointer false && pkill -f -USR1 screenshot-sound.sh"; }
+    // 原来是 screenshot-window（截取聚焦窗口）；Hyprland 的 CTRL+Print 是
+    // fullScreenshot（整个显示器），按「同键同功能」改成整屏截图。
+    // 截取聚焦窗口仍可用 Mod+Alt+Ctrl+A。
+    Ctrl+Print  hotkey-overlay-title="截取整个显示器 Monitor screenshot" { spawn-sh "niri msg action screenshot-screen --show-pointer false && pkill -f -USR1 screenshot-sound.sh"; }
     Shift+Print  hotkey-overlay-title=null { spawn-sh "niri msg action screenshot-screen --show-pointer false && pkill -f -USR1 screenshot-sound.sh"; }
 
     //Mod+Shift+S { spawn "~/.config/niri/scripts/satty-screenshot.sh";}
