@@ -10,13 +10,12 @@
 // ============================================================================
 
 binds {
-    // 启动器 —— 与 Hyprland 完全一致：轻触 Super 即可
-    // niri 原生支持「tap Mod」（按下并松开 Super，中间没按别的键），
-    // 见官方默认配置 `Mod repeat=false { toggle-grid-overview; }` 那段。
-    // 这样不会干扰 Super+Q 这类组合键，和 Hyprland 的行为等价。
-    Mod repeat=false hotkey-overlay-title="启动器 Launcher" { spawn "dms" "ipc" "call" "launcher" "toggle"; }
-
-    // 备用：Super+Space 同开启动器（有些键盘/输入法下轻触不太好按）
+    // 启动器：Super+Space
+    //
+    // ⚠ 这里**不要**再绑裸 `Mod`（轻触 Super）—— 那是 niri 的原生行为，
+    // 官方默认配置里绑的是 `toggle-grid-overview`，binds.kdl 已恢复该行为。
+    // 之前在 DMS 这边也绑了裸 Mod，结果两条互相覆盖（后加载者赢），
+    // 轻触 Super 变成只开启动器、网格总览失效。轻触 Super 归网格总览。
     Mod+Space hotkey-overlay-title="启动器 Launcher" { spawn "dms" "ipc" "call" "launcher" "toggle"; }
 
     // 总览 —— 与 Hyprland 的 Super+Tab 同键
