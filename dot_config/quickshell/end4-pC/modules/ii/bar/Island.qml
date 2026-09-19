@@ -26,7 +26,71 @@ import "../../../custom-island"
 Item {
     id: root
 
-    // 与 IslandHost 收起态胶囊同宽，保证槽位和胶囊严丝合缝
-    implicitWidth:  IslandState.capsuleWidth
+    // 展开为 dashboard 浮层时维持基准槽位宽度，非展开态跟随目标尺寸动态撑开槽位
+    implicitWidth: IslandState.islandState === "dashboard"
+        ? IslandState.capsuleWidth
+        : IslandState.targetWidth
     implicitHeight: Appearance.sizes.baseBarHeight
+
+    // ── 收起态胶囊：现在真的画在 Bar 里 ────────────────────────────────
+    // 以前这里是纯透明占位，真正的胶囊由 IslandHost 那个 Overlay 层窗口绘制
+    // —— 后果是「连收起态都是一层独立浮层」，而 Overlay 层不会被全屏窗口压掉，
+    // 打游戏时那颗胶囊就一直杵在画面上。
+    //
+    // 改成由 Bar 自己画之后：胶囊就是 Bar 的一个普通组件，Bar 隐藏（含被全屏
+    // 压掉）它跟着消失；点它会弹出 IslandHost 的仪表盘面板 —— 展开态仍然要
+    // 独立窗口，因为 Bar 这条 layer surface 只有 40px 高，装不下 930×590。
+    Rectangle {
+        id: capsule
+
+        anchors.centerIn: parent
+        width: root.width
+        // 与左右邻居胶囊同高（baseBarHeight - BarGroup 上下各 4px）
+        height: IslandState.capsuleHeight
+        radius: IslandState.targetRadius
+        color: IslandState.targetColor
+
+        // hover 反馈 —— 与原先 IslandHost 收起态一致
+        Rectangle {
+            anchors.fill: parent
+            radius: parent.radius
+            color: Appearance.colors.colOnPrimaryContainer
+            opacity: capsuleHover.hovered ? 0.12 : 0
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: 150
+                }
+            }
+        }
+    }
+
+    // 胶囊内容（时间 / 音乐 / 计时器 / 秒表 / 录屏 轮播）。
+    // 它自带 TapHandler 负责开合面板，写的是 Popups.dashboardOpen；
+    // Popups.qml 里有与 IslandState.open 的双向桥接，所以能带动 IslandHost。
+    CenterContent {
+        anchors.centerIn: capsule
+    }
+
+    HoverHandler {
+        id: capsuleHover
+        enabled: !IslandState.open
+        cursorShape: Qt.PointingHandCursor
+
+        // ── 悬停触发展开 ──────────────────────────────────────────────
+        // 触发方式由「点击」改为「悬停」：鼠标移入胶囊即展开面板，
+        // 移出面板即收起（收起逻辑在 IslandHost 的 panelHover）。
+        // 写 Popups.dashboardOpen 而不是 IslandState.open：Popups.qml
+        // 里有两者的双向桥接，写哪边都会同步到另一边。
+        onHoveredChanged: {
+            if (hovered && !IslandState.open)
+                Popups.dashboardOpen = true
+        }
+    }
+
+    Behavior on implicitWidth {
+        NumberAnimation {
+            duration: IslandState.animDuration
+            easing.type: IslandState.animEasing
+        }
+    }
 }

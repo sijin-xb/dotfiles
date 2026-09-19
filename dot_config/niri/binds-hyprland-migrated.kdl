@@ -126,7 +126,9 @@ binds {
         spawn "~/.config/hypr/hyprland/scripts/launch_first_available.sh" "google-chrome-stable" "zen-browser" "firefox" "brave" "chromium" "microsoft-edge-stable" "opera" "librewolf";
     }
     Mod+C hotkey-overlay-title="代码编辑器 Code editor" {
-        spawn "~/.config/hypr/hyprland/scripts/launch_first_available.sh" "windsurf" "antigravity" "code" "codium" "cursor" "zed" "zedit" "zeditor" "kate" "gnome-text-editor" "emacs";
+        // 顺序即优先级：code(VSCode) 放最前 —— 原先 antigravity 在 code 前面，
+        // 导致 Super+C 打开 antigravity 而不是 VSCode（与 Hyprland 同一份优先级）。
+        spawn "~/.config/hypr/hyprland/scripts/launch_first_available.sh" "code" "windsurf" "antigravity" "codium" "cursor" "zed" "zedit" "zeditor" "kate" "gnome-text-editor" "emacs";
     }
     Mod+X hotkey-overlay-title="文本编辑器 Text editor" {
         spawn "~/.config/hypr/hyprland/scripts/launch_first_available.sh" "kate" "gnome-text-editor" "emacs";

@@ -51,10 +51,19 @@ PanelWindow {
     // 800 是兜底最小值：首次加载时 currentItem 还是 null（implicitWidth=0）。
     readonly property real contentIntrinsicWidth: Math.max(caelestiaContent.implicitWidth, 800)
 
-    readonly property real surfaceWidth: root.open
+    // ⚠ 这里必须用 (open || closing) 而不是只判 open：
+    // 收起态的胶囊已经交给 Bar 绘制（modules/ii/bar/Island.qml），本窗口
+    // 一旦在 closing 期间缩回 capsuleWidth×capsuleHeight，就会在 Bar 那颗
+    // 胶囊的正上方（同一个 y=capsuleOffset）再画一颗「没有时钟」的同形胶囊
+    // —— 因为 header/CenterContent 是 visible:false 的。closing 又让它多留
+    // 460ms，于是看起来像「展开/关闭时冒出一颗幻影胶囊，然后飞走」。
+    // 所以：可见期间一律保持面板尺寸，由 opacity 淡出，绝不变回胶囊几何。
+    readonly property real surfaceWidth: (root.open || root.closing)
         ? root.contentIntrinsicWidth + root.contentMargin * 2
         : IslandState.targetWidth
-    readonly property real surfaceHeight: IslandState.targetHeight
+    readonly property real surfaceHeight: (root.open || root.closing)
+        ? IslandState.panelHeight
+        : IslandState.targetHeight
 
     // 收起时距离屏幕边 9px（Bar 的 5px 外边距 + BarGroup 的 4px 内缩），
     // 与左右邻居的胶囊完全对齐；展开时也从这个位置往下长
@@ -84,6 +93,10 @@ PanelWindow {
     // ⚠ 但**不能**直接写 visible: open —— 那样一收起窗口就瞬间消失，
     // 收缩动画完全看不到。所以收起后要再留一个动画时长再隐藏。
     property bool closing: false
+
+    // 悬停展开后，是否已经确认「鼠标确实在面板内」。
+    // 防止刚展开那一帧 hovered 还没置位，被误判成「移出」而立刻收起。
+    property bool panelHoverArmed: false
 
     // 全屏判定：与 Bar.qml 同一套写法（Top 层会被全屏窗口压掉，但本窗口是
     // Overlay 层，全屏时照样悬在画面上 —— 这正是「打游戏时岛一直杵着」的原因）
@@ -159,6 +172,27 @@ PanelWindow {
         height: root.surfaceHeight
         // 展开时把还没长出来的部分裁掉，形成「从 Bar 里推出来」的观感
         clip: true
+
+        // 收起时整块淡出（而不是缩回胶囊 —— 见 surfaceWidth 的注释）。
+        // 淡出走完整 animDuration，和上面尺寸动画同时结束。
+        opacity: root.open ? 1 : 0
+        Behavior on opacity {
+            NumberAnimation {
+                duration: root.open ? IslandState.fadeInDuration : IslandState.animDuration
+                easing.type: Easing.InOutQuad
+            }
+        }
+
+        // 补一点「往回缩」的动感：只缩放 3%，且从顶边中点缩，
+        // 观感是面板朝 Bar 方向收回去。绝不变回胶囊几何（那是之前幻影的根因）。
+        scale: root.open ? 1 : 0.97
+        transformOrigin: Item.Top
+        Behavior on scale {
+            NumberAnimation {
+                duration: IslandState.animDuration
+                easing.type: IslandState.animEasing
+            }
+        }
 
         // 状态驱动生长动画：400ms OutQuint
         Behavior on width {
@@ -254,6 +288,25 @@ PanelWindow {
             anchors.fill: parent
             anchors.topMargin: 0
             onClicked: {}
+        }
+
+        // ── 悬停触发：移出面板即收起 ──────────────────────────────────
+        // 展开由 Bar 胶囊的 hover 触发（见 modules/ii/bar/Island.qml），
+        // 这里只负责「移出即收起」。
+        // 面板区域完全覆盖胶囊（胶囊 300 宽居中，面板 ≥846 宽；
+        // 纵向 y=9..41 也落在面板 9..599 内），所以移出面板时必然也离开了
+        // 胶囊，不会出现「收起→又被胶囊 hover 打开」的抖动。
+        HoverHandler {
+            id: panelHover
+            enabled: root.open
+            onHoveredChanged: {
+                if (hovered) {
+                    root.panelHoverArmed = true
+                } else if (root.panelHoverArmed && root.open) {
+                    root.panelHoverArmed = false
+                    IslandState.close()
+                }
+            }
         }
 
         // ── 顶部条带 = Bar 中间那段 notch ────────────────────────────────

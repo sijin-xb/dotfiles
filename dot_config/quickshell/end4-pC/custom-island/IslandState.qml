@@ -17,9 +17,27 @@ import qs.modules.common
 Singleton {
     id: root
 
-    // ── 开合状态 ────────────────────────────────────────────────────────
-    // 点击岛屿胶囊时切换；Esc / 点面板外也会置 false
-    property bool open: false
+    // ── 单一核心状态驱动 ────────────────────────────────────────────────
+    // 支持 "compact"（收起态）, "media"（播控态）, "osd"（提示态）, "dashboard"（仪表盘展开态）
+    property string islandState: "compact"
+
+    // 兼容现有代码的双向绑定
+    property bool open: islandState === "dashboard"
+    onOpenChanged: {
+        if (open && islandState !== "dashboard") {
+            islandState = "dashboard";
+        } else if (!open && islandState === "dashboard") {
+            islandState = "compact";
+        }
+    }
+    onIslandStateChanged: {
+        if (islandState === "dashboard" && !open) {
+            open = true;
+        } else if (islandState !== "dashboard" && open) {
+            open = false;
+            root.page = "home";
+        }
+    }
 
     // ── 当前页 ──────────────────────────────────────────────────────────
     property string page: "home"
@@ -32,7 +50,11 @@ Singleton {
     //   → 内容区 884 x 489，扣掉 40px 页签后页面区 884 x 449
     // 面板高度就保持 520：System 页的 Disks 列表超出时 DiskPanel 自带滚动条，
     // 不需要为了塞下多几行挂载点把面板撑高。
-    readonly property int panelWidth: Theme.dashboardWidth + Theme.notchRadius * 2   // 930
+    //
+    // 面板宽度不再由这里固定：Caelestia dashboard 每个 tab 的内容宽度不同
+    // （Media 1000 / Performance ~950 / Weather ≥840 / Dashboard ~800），
+    // 固定值要么裁切要么留空。面板宽度改为跟随当前 tab 内容自适应，
+    // 见 IslandHost.qml 的 contentIntrinsicWidth（读 Content.implicitWidth）。
     // ⚠ 与上游的差异：Brain_Shell 的 dashboardHeight 是 520，那边 Home 页
     // 没有歌词窗。岛屿的 PlayerCard 多了「可拖拽进度条 + 5 行歌词」（约 278px），
     // 520 下 PlayerCard 只剩 213px 放不下，所以在**上游令牌之上**加 70。
@@ -42,6 +64,39 @@ Singleton {
     readonly property int panelBottomInset: 8
     // 展开后的圆角：Brain_Shell 用 Theme.cornerRadius(17)，不是 end4-pC 的 large(23)
     readonly property int panelRadius: Theme.cornerRadius
+
+    // ── 状态驱动的目标视觉映射 ──────────────────────────────────────────
+    readonly property real targetWidth: {
+        switch (root.islandState) {
+            case "dashboard": return root.panelWidth;
+            case "media":     return 380;
+            case "osd":       return 280;
+            default:          return root.capsuleWidth;
+        }
+    }
+
+    readonly property real targetHeight: {
+        switch (root.islandState) {
+            case "dashboard": return root.panelHeight;
+            default:          return root.capsuleHeight;
+        }
+    }
+
+    readonly property real targetRadius: {
+        switch (root.islandState) {
+            case "dashboard": return root.panelRadius;
+            default:          return root.capsuleHeight / 2;
+        }
+    }
+
+    readonly property color targetColor: {
+        switch (root.islandState) {
+            case "dashboard": return Appearance.colors.colLayer1Base;
+            case "media":     return Appearance.colors.colSecondaryContainer;
+            case "osd":       return Appearance.colors.colTertiaryContainer;
+            default:          return Appearance.colors.colPrimaryContainer;
+        }
+    }
 
     // ── 收起态几何 ──────────────────────────────────────────────────────
     // 收起态不是"一颗悬浮胶囊"，而是 Bar 中间那段 notch 本身。要和左右邻居
@@ -59,25 +114,21 @@ Singleton {
     readonly property int capsuleWidth: Theme.cNotchMinWidth    // 300
 
     // ── 动画 ────────────────────────────────────────────────────────────
-    // 时长取自主题（Appearance.animation.elementResize.duration = 300），
-    // 曲线沿用 Brain_Shell 的 InOutCubic，展开/收起对称
-    readonly property int animDuration: Appearance.animation.elementResize.duration
+    // 对齐 Caelestia 规范：400ms OutQuint 缓动
+    readonly property int animDuration: 400
+    readonly property int animEasing: Easing.OutQuint
     // 内容淡入比尺寸动画快一半，淡出更快（对齐 Brain_Shell Dashboard.qml 的 0.5 / 0.15 系数）
     readonly property int fadeInDuration: Math.round(root.animDuration * 0.5)
-    readonly property int fadeOutDuration: Math.round(root.animDuration * 0.15)
+    // 原来是 0.15（60ms）—— 面板改为「淡出而非缩回胶囊」后，内容 60ms 就没了、
+    // 只剩空壳在淡，观感很突兀。放到 0.5（200ms）与淡入对称，收起才看得清。
+    readonly property int fadeOutDuration: Math.round(root.animDuration * 0.5)
 
     // ── 操作 ────────────────────────────────────────────────────────────
     function toggle() {
-        root.open = !root.open
+        root.islandState = (root.islandState === "dashboard" ? "compact" : "dashboard")
     }
 
     function close() {
-        root.open = false
-    }
-
-    // 关闭后把页面复位，下次打开总是回到首页
-    onOpenChanged: {
-        if (!root.open)
-            root.page = "home"
+        root.islandState = "compact"
     }
 }
