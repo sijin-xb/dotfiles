@@ -24,6 +24,11 @@ screenshot-path "~/Pictures/Screenshots/Niri-screenshots/%Y-%m-%d %H-%M-%S.png"
 environment {
     LANGUAGE "zh_CN:en"
     LANG "zh_CN.UTF-8"
+    // 光标：与 dms/cursor.kdl 一致（Matugen-Cursors / 34）。
+    // 不设的话 Qt、Electron 等读环境变量的程序会回退默认光标，
+    // 与 Wayland 原生程序不一致（LinuxQQ 就是这个情况之一）。
+    XCURSOR_THEME "Matugen-Cursors"
+    XCURSOR_SIZE "34"
     // 输入法环境变量（与 Hyprland 的 hyprland/env.lua 保持一致，四个都要有。
     // 原先 niri 这边漏了 GTK_IM_MODULE / QT_IM_MODULE，GTK 与 Qt 程序不会走 fcitx）
     XMODIFIERS "@im=fcitx"
@@ -258,6 +263,9 @@ spawn-at-startup "flatpak" "run" "com.github.wwmm.easyeffects" "-w"
 //   原先这里是 `qs -c end4-pC` —— 那套是 Hyprland 用的 Quickshell 配置，
 //   在 niri 上会与 DMS 抢 layer surface，已移除。
 spawn-at-startup "dms" "run"
+// XSETTINGS 守护进程：XWayland 程序（LinuxQQ 等）靠它读图标/光标主题。
+// 之前两边都没启动它，所以 XWayland 程序一直用默认光标。
+spawn-at-startup "xsettingsd"
 // nirius
 spawn-at-startup "niriusd"
 
@@ -299,3 +307,5 @@ debug {
 include "dms/cursor.kdl"
 include "dms/binds.kdl"
 include "dms/layout.kdl"
+include "dms/windowrules.kdl"
+include "dms/input.kdl"
