@@ -16,6 +16,7 @@ layer-rule{
 }
 layer-rule{
     match namespace="^quickshell$"
+     place-within-backdrop true
 }
 // 旧 awww 方案（DMS 没接管 backdrop 时用）：现在不需要了，注释备查
 //layer-rule{
