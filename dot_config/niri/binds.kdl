@@ -79,7 +79,9 @@ binds {
     // 切换overview总览
     // 让位给 DMS：Hyprland 里 Super+O 是左侧栏（总览由 Super+Tab 承担，已绑）
     //Mod+O hotkey-overlay-title="切换总览界面 toggle overview" repeat=false { toggle-overview; }
-    Mod hotkey-overlay-title="切换网格总览界面 toggle grid overview" repeat=false { toggle-grid-overview; }
+    // 单按键 Super 已交给 DMS 启动器（见 dms/binds.kdl），
+    // 网格总览移到 Super+Alt+Space（binds-hyprland-migrated.kdl）
+    //Mod hotkey-overlay-title="切换网格总览界面 toggle grid overview" repeat=false { toggle-grid-overview; }
     // 关闭聚焦窗口
     Alt+Shift+F4  hotkey-overlay-title="强制杀死窗口以及关联进程 Force kill -9 a window tree" repeat=false { spawn "~/.config/niri/scripts/niri-force-kill-window" "-f"; }
 

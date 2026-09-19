@@ -24,8 +24,12 @@ screenshot-path "~/Pictures/Screenshots/Niri-screenshots/%Y-%m-%d %H-%M-%S.png"
 environment {
     LANGUAGE "zh_CN:en"
     LANG "zh_CN.UTF-8"
-    // 输入法环境变量
+    // 输入法环境变量（与 Hyprland 的 hyprland/env.lua 保持一致，四个都要有。
+    // 原先 niri 这边漏了 GTK_IM_MODULE / QT_IM_MODULE，GTK 与 Qt 程序不会走 fcitx）
     XMODIFIERS "@im=fcitx"
+    GTK_IM_MODULE "fcitx"
+    QT_IM_MODULE "fcitx"
+    // Qt 优先 Wayland 文本输入、回退 fcitx；只强制 fcitx 后端会在 QtQuick 里吞按键
     QT_IM_MODULES "wayland;fcitx"
     // qt主题
     QT_QPA_PLATFORMTHEME "gtk3"
@@ -211,7 +215,11 @@ spawn-sh-at-startup "systemctl --user set-environment XDG_SESSION_CLASS=user"
 // 想换回 waybar：把下面 quickshell 那行注释掉、把这行取消注释即可。
 //spawn-at-startup "waybar"
 // 输入法
-spawn-at-startup "fcitx5" 
+// 输入法：与 Hyprland 的 execs.lua 同逻辑 —— 守护启动 → 等就绪 → 激活并切到 rime
+// → 把变量推进 dbus/systemd（否则后面拉起的应用拿不到，等于没配）。
+// 原来只有一行 `fcitx5`，既没 -d 也没切 rime，所以 niri 下打不出中文。
+spawn-at-startup "fcitx5" "-d"
+spawn-sh-at-startup "while ! fcitx5-remote --check >/dev/null 2>&1; do sleep 0.1; done; fcitx5-remote -o; fcitx5-remote -s rime; dbus-update-activation-environment --systemd XMODIFIERS GTK_IM_MODULE QT_IM_MODULE QT_IM_MODULES LANG LANGUAGE"
 // 剪贴板守护进程
 	//cliphist
 spawn-at-startup "wl-paste" "--watch" "cliphist" "store"
@@ -274,3 +282,4 @@ debug {
 // DMS Include Configs
 include "dms/cursor.kdl"
 include "dms/binds.kdl"
+include "dms/layout.kdl"

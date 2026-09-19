@@ -47,7 +47,13 @@ binds {
     Mod+F hotkey-overlay-title="全屏 Fullscreen" { fullscreen-window; }
     //
     // // 浮动/平铺切换（原 Super+Alt+Space）
-    Mod+Alt+Space hotkey-overlay-title="浮动/平铺 Toggle floating" { toggle-window-floating; }
+    // 原为「浮动/平铺」。改绑到网格总览：对应 Hyprland 里按住/轻触 Super
+    // 显示工作区编号的那个模式（quickshell:workspaceNumber）—— niri 官方默认
+    // 配置中「轻触 Super」绑的也是 toggle-grid-overview。
+    Mod+Alt+Space hotkey-overlay-title="工作区总览 Workspace overview" { toggle-grid-overview; }
+
+    // 浮动/平铺改用 Super+Shift+Space（原 Super+Alt+Space 已让给上面的总览）
+    Mod+Shift+Space hotkey-overlay-title="浮动/平铺 Toggle floating" { toggle-window-floating; }
     //
     // // 列宽：Hyprland 用 splitratio 微调，niri 没有该概念。
     // // 最接近的替代是预设列宽循环 / 按百分比调宽。
