@@ -86,8 +86,17 @@ PanelWindow {
     // 是否跟随 Bar 的液态玻璃材质（BarContent 里 isMaterial 的判定条件）
     readonly property bool glassy: Config.options.bar.cornerStyle === 3
 
-    readonly property real surfaceRadius: IslandState.targetRadius
-    readonly property color surfaceColor: IslandState.targetColor
+    // ⚠ 可见期间一律用**面板**的圆角与底色，不跟 IslandState.target* 走。
+    // targetColor 收起态是 colPrimaryContainer（主题紫）、展开态才是
+    // colLayer1Base（深色）；而本窗口收起时并不画胶囊（胶囊归 Bar），
+    // 所以若沿用 target*，打开瞬间颜色会从紫色渐变到深色 —— 就是那一下
+    // 「以紫色为主色的彩色闪动」。锁成面板色后可见期间颜色恒定，不再闪。
+    readonly property real surfaceRadius: (root.open || root.closing)
+        ? IslandState.panelRadius
+        : IslandState.targetRadius
+    readonly property color surfaceColor: (root.open || root.closing)
+        ? Appearance.colors.colLayer1Base
+        : IslandState.targetColor
 
     // 是否挂在 Bar 的中间区。
     // 岛屿已经进了 设置 → Bar 的组件列表（见 modules/ii/bar/Island.qml），
@@ -107,20 +116,8 @@ PanelWindow {
     // 防止刚展开那一帧 hovered 还没置位，被误判成「移出」而立刻收起。
     property bool panelHoverArmed: false
 
-    // ── 几何动画开关 ────────────────────────────────────────────────────
-    // surfaceWidth 绑定 contentIntrinsicWidth（= Content.implicitWidth），
-    // 而它**每次切页签都会变**（Media 1000 / Performance ~950 / Weather ≥840）。
-    // 若 width 一直套 400ms Behavior，切页时内容已经换了、面板却要 400ms 才
-    // 跟上 —— 就是「画面滞后于状态变化」。Content.qml 里那个属性特意叫
-    // nonAnimWidth，本意也是宽度不该参与动画。
-    // 所以：只在**开合**期间放开动画，其余情况（切页签）duration 归零，即时生效。
-    property bool geometryAnimating: false
-    Timer {
-        id: geometryAnimTimer
-        interval: IslandState.animDuration + 50
-        repeat: false
-        onTriggered: root.geometryAnimating = false
-    }
+    // 注：切页签导致的宽度变化同样走 400ms 动画（见 surface 的 Behavior），
+    // 这是刻意保留的视觉，不要为了"即时"改成 0ms。
 
     // 全屏判定：与 Bar.qml 同一套写法（Top 层会被全屏窗口压掉，但本窗口是
     // Overlay 层，全屏时照样悬在画面上 —— 这正是「打游戏时岛一直杵着」的原因）
@@ -128,10 +125,6 @@ PanelWindow {
     readonly property bool monitorHasFullscreen: HyprlandData.workspaceById[thisMonitorData?.activeWorkspace?.id]?.hasfullscreen ?? false
 
     onOpenChanged: {
-        // 开合期间放开几何动画（切页签时不放开，见 geometryAnimating 注释）
-        root.geometryAnimating = true;
-        geometryAnimTimer.restart();
-
         if (root.open) {
             root.closing = false;
         } else {
@@ -214,17 +207,19 @@ PanelWindow {
         // 形变交给 width/height 的 Behavior（纵向收拢），这里不再叠 scale，
         // 避免两套动画互相打架。
 
-        // 生长动画：仅开合时 400ms OutQuint；切页签导致的宽度变化走 0ms，
-        // 立即贴合内容（见 geometryAnimating 注释）。
+        // 生长动画：400ms OutQuint。
+        // ⚠ 切页签时宽度也会跟着动画（Media 1000 / Performance ~950 /
+        // Weather ≥840），这是**刻意保留的视觉效果**，不是延迟 bug —— 别再
+        // 为了"即时"把它改成 0ms。
         Behavior on width {
             NumberAnimation {
-                duration: root.geometryAnimating ? IslandState.animDuration : 0
+                duration: IslandState.animDuration
                 easing.type: IslandState.animEasing
             }
         }
         Behavior on height {
             NumberAnimation {
-                duration: root.geometryAnimating ? IslandState.animDuration : 0
+                duration: IslandState.animDuration
                 easing.type: IslandState.animEasing
             }
         }
@@ -276,12 +271,9 @@ PanelWindow {
                     easing.type: IslandState.animEasing
                 }
             }
-            Behavior on color {
-                ColorAnimation {
-                    duration: IslandState.animDuration
-                    easing.type: IslandState.animEasing
-                }
-            }
+            // ⚠ 不要给 color 加 ColorAnimation：surfaceColor 在可见期间已锁为
+            // 面板色（见该属性注释），加动画只会在开合时产生紫→深色的渐变，
+            // 表现为「紫色闪一下」。主题换色时直接切换即可。
         }
 
         // 收起态的悬停暗示：整块底色不能变（要保证不透明），
