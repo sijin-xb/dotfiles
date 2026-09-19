@@ -2,6 +2,117 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+## 2026-09-20
+
+### 岛屿：修「打开时背景闪一下」
+
+元凶是 `surface` 上的 `opacity: root.open ? 1 : 0` —— 面板从 0 透明度淡入时，
+头几帧是半透明的，透出来的是**它背后的 Bar 紫色胶囊 + 壁纸**，看着就是
+「以紫色为主色的彩色闪一下」。背景必须**从第 0 帧起就不透明**。
+
+此前两次误判（`targetColor` 紫→深渐变、glass/flat 两层互换）的修正本身是对的、
+予以保留，但都不是主因。排查手法：**对比改动前的提交**（`git diff 80dd40c HEAD`），
+看多出来的那一段是什么。
+
+顺带把收起动画改成**纵向收拢**（高度→0、宽度保持 ≥800），这样任何时刻都不可能
+呈现胶囊形状，幻影 bug 不会复现，同时保住了「往 Bar 里收回去」的动感。
+
+> ⚠ 教训：切页签时宽度走 400ms 动画**是刻意保留的视觉**，不要为了「即时」改 0ms。
+
+### 岛屿：修「所有页面底部被裁剪」
+
+只有 `Process.qml` 声明了 `availableHeight` 并写 `implicitHeight: availableHeight`；
+`Dash / Media / Performance / WeatherTab` 都用固有高度，超出 `viewWrapper`
+可用高度的部分被 `ClippingRectangle` 硬裁。已给这 4 个页签各包一层容器
+（贴合 `paneHeight` + 内容超出可纵向滚动）。
+
+### 仪表盘：新增 GitHub 页签
+
+数据层与页面早就存在（`services/GitHub.qml` + `custom-island/DashGitHub.qml`），
+只是没接线。第一版直接复用 `DashGitHub` 是**错的** —— 它用岛屿自家的
+`StatCard / Theme.*`，与仪表盘不是一套画风。重写为 `dashboard/GitHubTab.qml`，
+对齐 `StyledRect / StyledText / MaterialIcon / Tokens / Colours`。
+
+命名用 `GitHubTab` 而非 `GitHub`，避免与 `qs.services` 的同名单例撞名。
+
+踩坑：`MaterialIcon` 继承 `StyledText`，但要设 **`fontStyle`** 不是 `font` ——
+写 `font:` 会覆盖它算好的图标字体（含 Material Symbols 字族与 FILL/GRADE 变体轴），
+结果图标不渲染、退化成字面文本（`star` / `fork_right` 直接显示成英文）。
+
+### niri ↔ Hyprland：合成器层模糊与透明度对齐
+
+以 niri 的数值为准移植到 Hyprland，新增 [docs/compositor-effects.md](docs/compositor-effects.md)
+记录参数对照与三个坑：
+
+1. niri 的 `offset` 是 dual kawase 的**每 pass 偏移乘数**，不是模糊半径
+2. niri 的 `saturation` 在 Hyprland **没有对应项**（`vibrancy` 是渗透量，非饱和度倍率）
+3. niri **无 active/inactive 之分**（全局 0.97），Hyprland 两侧都设 0.97 才等价
+
+另外 `decoration.blur.size` / `active_opacity` 等在 `shellOverrides/main.lua`
+（DMS 生成、加载顺序最后）里，`custom/general.lua` 覆盖不掉。
+
+### 移除 SUPER + A
+
+原绑定在 0.65 ↔ 1.0 之间切换 `active_opacity`，会直接破坏刚对齐的 0.97。
+相邻的 `SUPER+ALT+A`、`SUPER+SHIFT+A` 未误删。
+
+### 字体方案：思源黑体 + 霞鹜文楷 + Maple Mono
+
+1080p 下选定（并用实际字号渲染对比图确认）：
+
+| 用途 | 字体 |
+|---|---|
+| UI / 正文 | 思源黑体（Source Han Sans CN） |
+| Latin | Google Sans（无中文字形，中文靠回退链） |
+| 阅读 / 文档 | 霞鹜文楷（走 serif 别名） |
+| 代码 | JetBrains Maple Mono + **霞鹜文楷等宽** |
+
+两处实测校正：
+- 原配的 `Noto Sans Mono CJK SC` **不含中文字形**（`fc-list ":charset=6c38"` 查不到），
+  带中文的等宽只有霞鹜文楷等宽和文泉驿等宽正黑 —— 否则代码里的中文是豆腐块
+- `/etc/fonts/conf.d/65-wqy-zenhei.conf`（编号 65，晚于用户配置的 50-user.conf）
+  会把文泉驿/DejaVu 顶到 serif/sans/mono 最前面，压制用户配置
+
+### install.sh
+
+- **`COMPOSITOR=niri|hyprland` 环境变量选合成器**（默认 `hyprland`）。
+  一键安装仍是纯 Hyprland，不会破坏这套「名义上是 Hyprland 配置」的定位
+- 字体依赖：`adobe-source-han-sans-cn-fonts`（pacman）、`ttf-lxgw-wenkai`（AUR）
+- `ffmpeg`：mpvpaper 视频壁纸插件要用它生成缩略图和动态取色
+- SNAP_PATHS 新增 `.config/DankMaterialShell/plugins`（仅 plugins，不含
+  机型相关的 `settings.json`）
+- fc-cache 之后移除劫持字体的 `65-wqy-zenhei.conf`
+
+### 登录界面：plasmalogin → SDDM + Catppuccin Mocha
+
+本机 DM 其实是 **plasmalogin**（KDE 新版，SDDM 的 fork），改登录分辨率是已知问题。
+改用 SDDM + Catppuccin Mocha，见 [docs/login-screen.md](docs/login-screen.md)。
+
+⚠️ **自定义壁纸没成功**（折腾三轮后按用户要求回退默认）。留下的两条经验：
+1. 主题目录名 ≠ AUR 包名（规则 `catppuccin-<flavour>-<accent>`）
+2. **给主题写配置前，先读它自带的 `theme.conf`** —— 值的格式（是否带引号）照抄它。
+   照抄 README 的语义描述写裸值 `true`，而 QML 判断是 `== "true"`，永远不成立
+
+### DMS 插件
+
+- **wallpaperCarousel**：静态壁纸轮播挑选器，`Ctrl+Alt+T` 打开，
+  `Ctrl+Alt+←/→` 切换（在 `dms/binds.kdl`；README 推荐的 `Mod+W` 已被「浏览器」占用）
+- **mpvpaper**：视频壁纸（v1.2.0，需 DMS ≥ 1.5.0，本机 1.6.2；依赖 mpvpaper + ffmpeg
+  已装）。⚠️ 与 carousel 是**两个独立插件**，carousel 只列图片，
+  视频必须在 mpvpaper 自己的设置页选；且它没有 IPC 接口，只能走界面或 DankBar 组件
+
+### 家目录清理
+
+131 → 90 个顶层条目。清掉 30 个 `.Xresources.backup<时间戳>`（换色工具残留）
+和 11 个空目录。用 `gio trash`（可还原）、分批处理、每批校验。
+XDG 目录（`Music` / `Public`）会被 `xdg-user-dirs-update` 重建，
+要禁需改 `~/.config/user-dirs.dirs`。
+
+### 仓库卫生
+
+新增 `.gitignore` + `.chezmoiignore` 规则，排除 DMS 插件自带的 `dot_git`
+（插件商店 clone 的元数据，会让插件目录变嵌套 git 仓库并带入远端 URL）。
+
 ## 2026-09-19
 
 ### 新增：快捷键管理器（Super + /）
