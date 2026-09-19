@@ -318,3 +318,129 @@ binds {
 
     // moving the mouse or pressing any other key.
 }
+
+    // ============================================================
+    // 以下为迁移前 niri 原有的绑定，现已停用，仅作备查
+    // （让位给 Hyprland 同键位 / 或组件已由 DMS 接管）
+    // 想恢复某条，把下面对应段落的注释去掉、并注释掉新绑定即可
+    // ============================================================
+    // [原 niri] Mod+Alt+M
+    // Mod+Alt+M hotkey-overlay-title="切换颜色策略 Change color strategy" {spawn "~/.config/scripts/matugen-select-type.sh";}
+    // Mod+Alt+T hotkey-overlay-title="切换颜色策略 Change color strategy" {spawn "~/.config/scripts/matugen-select-type.sh";}
+    // [原 niri] Mod+F3
+    // Mod+F3  hotkey-overlay-title=null {spawn-sh "pkill cava || true && pkill waybar || true &&  waybar -c $HOME/.config/waybar-niri-Win11Like/config.jsonc -s $HOME/.config/waybar-niri-Win11Like/style.css ";}
+    // // 这一行是用waybar自己支持的信号功能隐藏waybar，但进程没有退出，资源占用依旧有
+    // [原 niri] Mod+Shift+F4
+    // Mod+Shift+F4 hotkey-overlay-title="隐藏任务栏 Hide bar" {spawn-sh "killall -SIGUSR1 waybar";}
+    // // 这一行是关闭waybar进程，释放资源占用。在意资源占用的时候使用。
+    // [原 niri] Mod+F4
+    // Mod+F4 hotkey-overlay-title="开关任务栏 Toggle bar" {spawn-sh "pkill waybar && pkill cava || waybar ";}
+    // Mod+F5 hotkey-overlay-title="快速存档 Quick save" {spawn "quicksave";}
+    // [原 niri] Mod+Slash
+    // Mod+Slash hotkey-overlay-title="临时终端 Quick Terminal" {spawn "kitty" "--single-instance" "--class" "quickterminal";}
+    // //打开浏览器
+    // [原 niri] Mod+B
+    // Mod+B hotkey-overlay-title="浏览器 Browser" { spawn "firefox"; }
+    // //opencode ai助手
+    // [原 niri] Mod+E
+    // Mod+E hotkey-overlay-title="文档管理器 Filemanager" { spawn-sh "thunar || env GSK_RENDERER=gl nautilus --new-window"; }
+    // // 另一个打开nautilus的快捷键，主要是为了在同时安装thunar和nautilus的情况下打开naultilus
+    // [原 niri] XF86AudioRaiseVolume
+    // XF86AudioRaiseVolume allow-when-locked=true { spawn-sh "swayosd-client --output-volume +5||wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.05+"; }
+    // XF86AudioLowerVolume allow-when-locked=true { spawn-sh "swayosd-client --output-volume -5||wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.05-"; }
+    // [原 niri] XF86AudioMute
+    // XF86AudioMute        allow-when-locked=true { spawn-sh "swayosd-client --output-volume mute-toggle||wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"; }
+    // XF86AudioMicMute     allow-when-locked=true { spawn-sh "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"; }
+    // [原 niri] XF86MonBrightnessUp
+    // XF86MonBrightnessUp allow-when-locked=true { spawn "brightnessctl" "--class=backlight" "set" "+5%"; }
+    // XF86MonBrightnessDown allow-when-locked=true { spawn "brightnessctl" "--class=backlight" "set" "5%-"; }
+    // [原 niri] Mod+O
+    // Mod+O hotkey-overlay-title="切换总览界面 toggle overview" repeat=false { toggle-overview; }
+    // Mod+G hotkey-overlay-title="切换总览界面 toggle overview" repeat=false { toggle-overview; }
+    // [原 niri] Mod+Alt+G
+    // Mod+Alt+G hotkey-overlay-title="切换总览界面 toggle overview" repeat=false { toggle-overview; }
+    // Mod hotkey-overlay-title="切换网格总览界面 toggle grid overview" repeat=false { toggle-grid-overview; }
+    // [原 niri] Mod+Q
+    // Mod+Q hotkey-overlay-title="关闭聚焦窗口 Close focus window" repeat=false { close-window; }
+    // Alt+F4  hotkey-overlay-title="强制杀死窗口 Force kill -9 window" repeat=false { spawn "~/.config/niri/scripts/niri-force-kill-window"; }
+    // [原 niri] Mod+Left
+    // Mod+Left hotkey-overlay-title=null { focus-column-left; }
+    // Mod+Down  { focus-window-down; }
+    // [原 niri] Mod+Up
+    // Mod+Up    { focus-window-up; }
+    // Mod+Right { focus-column-right; }
+    // [原 niri] Mod+K
+    // Mod+K     { focus-window-up; }
+    // Mod+L     { focus-column-right; }
+    // [原 niri] Mod+Ctrl+Left
+    // Mod+Ctrl+Left hotkey-overlay-title=null { move-column-left; }
+    // Mod+Ctrl+Down  { move-window-down; }
+    // [原 niri] Mod+Shift+Left
+    // Mod+Shift+Left  { focus-monitor-left; }
+    // Mod+Shift+Down  { focus-monitor-down; }
+    // [原 niri] Mod+Shift+Up
+    // Mod+Shift+Up    { focus-monitor-up; }
+    // Mod+Shift+Right { focus-monitor-right; }
+    // [原 niri] Mod+Page_Down
+    // Mod+Page_Down hotkey-overlay-title=null     { focus-workspace-down; }
+    // Mod+Page_Up hotkey-overlay-title=null       { focus-workspace-up; }
+    // [原 niri] Mod+U
+    // Mod+U              { focus-workspace-down; }
+    // Mod+I              { focus-workspace-up; }
+    // [原 niri] Mod+Ctrl+U
+    // Mod+Ctrl+U         { move-column-to-workspace-down; }
+    // Mod+Ctrl+I         { move-column-to-workspace-up; }
+    // [原 niri] Mod+1
+    // Mod+1 { focus-workspace 1; }
+    // Mod+2 { focus-workspace 2; }
+    // [原 niri] Mod+3
+    // Mod+3 { focus-workspace 3; }
+    // Mod+4 { focus-workspace 4; }
+    // [原 niri] Mod+5
+    // Mod+5 { focus-workspace 5; }
+    // Mod+6 { focus-workspace 6; }
+    // [原 niri] Mod+7
+    // Mod+7 { focus-workspace 7; }
+    // Mod+8 { focus-workspace 8; }
+    // [原 niri] Mod+9
+    // Mod+9 { focus-workspace 9; }
+    // // 再加上ctrl移动colume
+    // [原 niri] Mod+W
+    // Mod+W     { focus-window-up; }
+    // Mod+S      { focus-window-down; }
+    // [原 niri] Mod+Ctrl+S
+    // Mod+Ctrl+S { move-window-down; }
+    // Mod+Ctrl+W { move-window-up; }
+    // [原 niri] Mod+Comma
+    // Mod+Comma  { consume-window-into-column; }
+    // Mod+Period { expel-window-from-column; }
+    // [原 niri] Mod+Shift+X
+    // Mod+Shift+X { toggle-column-tabbed-display; }
+    // Mod+X { toggle-column-tabbed-display; }
+    // [原 niri] Mod+Shift+R
+    // Mod+Shift+R  { switch-preset-window-height; }
+    // // 重置窗口高度
+    // [原 niri] Mod+F
+    // Mod+F  hotkey-overlay-title="最大化 maximize" { maximize-column; }
+    // Mod+Alt+F hotkey-overlay-title="全屏 fullscreen"  { fullscreen-window; }
+    // [原 niri] Mod+M
+    // Mod+M  hotkey-overlay-title="最小化 Minimize" { minimize-window; }
+    //
+    // [原 niri] Mod+C
+    // Mod+C { center-column; }
+    //
+    // [原 niri] Mod+Minus
+    // Mod+Minus { set-column-width "-5%"; }
+    // Mod+Equal { set-column-width "+5%"; }
+    // [原 niri] Mod+V
+    // Mod+V   hotkey-overlay-title="切换浮动 Toggle floating"    { toggle-window-floating; }
+    // // 在浮动模式和非浮动模式之间切换聚焦
+    // [原 niri] Alt+grave
+    // Alt+grave hotkey-overlay-title=null { switch-focus-between-floating-and-tiling; }
+    //
+    // [原 niri] Mod+Shift+S
+    // Mod+Shift+S  hotkey-overlay-title="截图后按下此键进行编辑 Edit the image after screenshot" { spawn-sh "wl-paste | satty -f -";}
+    //
+    // [原 niri] Mod+Shift+P
+    // Mod+Shift+P  hotkey-overlay-title="电源菜单 powermenu" { spawn "~/.config/niri/scripts/powermenu"; }
+    //
