@@ -1,0 +1,176 @@
+id = "yngwe/wallpaperCarousel"
+name = "Wallpaper Carousel"
+version = "0.8.4"
+plugin_api = 17
+author = "yngwe"
+license = "BSD-3-Clause"
+description = "Browse and pick wallpapers with a fullscreen skewed carousel overlay"
+icon = "carousel-horizontal"
+tags = [ "Wallpaper", "Theming" ]
+# Display-only: the overlay itself is a Quickshell/QML surface, so `qs` must be on
+# PATH. Noctalia v5 does not embed a QML runtime; the service starts one.
+dependencies = [ "quickshell" ]
+
+# Headless singleton that owns the Quickshell child process and applies picks.
+# Addressed over IPC as:
+#   noctalia msg plugin yngwe/wallpaperCarousel:service all <event> [payload]
+[[service]]
+id = "service"
+entry = "wallpaper-carousel.luau"
+
+# Control Center toggle button.
+[[shortcut]]
+id = "toggle"
+entry = "shortcut.luau"
+
+# ── Settings (plugin-level: services and shortcuts are singletons and have no
+# per-entry settings surface, so every field is declared once here) ────────────
+
+[[setting]]
+key = "wallpaperDirectory"
+label_key = "settings.wallpaper-directory.label"
+description_key = "settings.wallpaper-directory.description"
+type = "folder"
+default = ""
+
+[[setting]]
+key = "carouselMode"
+label_key = "settings.carousel-mode.label"
+description_key = "settings.carousel-mode.description"
+type = "select"
+default = "wrap"
+options = [
+  { value = "standard", label_key = "settings.carousel-mode.standard" },
+  { value = "wrap", label_key = "settings.carousel-mode.wrap" },
+  { value = "infinite", label_key = "settings.carousel-mode.infinite" },
+]
+
+[[setting]]
+key = "applyToAllMonitors"
+label_key = "settings.apply-to-all-monitors.label"
+description_key = "settings.apply-to-all-monitors.description"
+type = "bool"
+default = true
+
+[[setting]]
+key = "preload"
+label_key = "settings.preload.label"
+description_key = "settings.preload.description"
+type = "bool"
+default = false
+
+# ── Visual ────────────────────────────────────────────────────────────────────
+
+[[setting]]
+key = "overlayOpacity"
+label_key = "settings.overlay-opacity.label"
+description_key = "settings.overlay-opacity.description"
+type = "int"
+default = 80
+min = 0
+max = 100
+
+[[setting]]
+key = "borderWidth"
+label_key = "settings.border-width.label"
+description_key = "settings.border-width.description"
+type = "int"
+default = 3
+min = 0
+max = 20
+
+[[setting]]
+key = "cornerRadius"
+label_key = "settings.corner-radius.label"
+description_key = "settings.corner-radius.description"
+type = "int"
+default = 0
+min = 0
+max = 60
+
+# ── Size ──────────────────────────────────────────────────────────────────────
+
+[[setting]]
+key = "itemWidth"
+label_key = "settings.item-width.label"
+description_key = "settings.item-width.description"
+type = "int"
+default = 300
+min = 100
+max = 1000
+
+[[setting]]
+key = "itemHeight"
+label_key = "settings.item-height.label"
+description_key = "settings.item-height.description"
+type = "int"
+default = 420
+min = 100
+max = 1440
+
+[[setting]]
+key = "selectedScale"
+label_key = "settings.selected-scale.label"
+description_key = "settings.selected-scale.description"
+type = "int"
+default = 108
+min = 100
+max = 150
+
+# ── Expansion ─────────────────────────────────────────────────────────────────
+
+[[setting]]
+key = "expandSelected"
+label_key = "settings.expand-selected.label"
+description_key = "settings.expand-selected.description"
+type = "bool"
+default = false
+
+[[setting]]
+key = "expandMultiplier"
+label_key = "settings.expand-multiplier.label"
+description_key = "settings.expand-multiplier.description"
+type = "int"
+default = 120
+min = 100
+max = 300
+visible_when = { key = "expandSelected", values = [ true ] }
+
+[[setting]]
+key = "enableHoldExpand"
+label_key = "settings.enable-hold-expand.label"
+description_key = "settings.enable-hold-expand.description"
+type = "bool"
+default = false
+
+[[setting]]
+key = "holdExpandRatio"
+label_key = "settings.hold-expand-ratio.label"
+description_key = "settings.hold-expand-ratio.description"
+type = "int"
+default = 35
+min = 30
+max = 100
+visible_when = { key = "enableHoldExpand", values = [ true ] }
+
+[[setting]]
+key = "holdDelay"
+label_key = "settings.hold-delay.label"
+description_key = "settings.hold-delay.description"
+type = "int"
+default = 1500
+min = 200
+max = 10000
+visible_when = { key = "enableHoldExpand", values = [ true ] }
+
+# ── Performance ───────────────────────────────────────────────────────────────
+
+[[setting]]
+key = "cacheSize"
+label_key = "settings.cache-size.label"
+description_key = "settings.cache-size.description"
+type = "int"
+default = 30
+min = 10
+max = 1000
+advanced = true

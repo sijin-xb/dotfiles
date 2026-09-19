@@ -22,6 +22,6 @@ function pacman --wraps pacman --description "pacman，下载/安装进度实时
     # 不强制 --color：管道下 pacman 本来就去色，保证正则解析稳定。
     $cmd $argv 2>&1 | tee /dev/tty | tr '\r' '\n' | _island_pkg_progress
     set -l st $pipestatus[1]
-    qs -c end4-pC ipc call island task_end package 2>/dev/null
+    qs -c end4-pC ipc call island task_end package &>/dev/null
     return $st
 end

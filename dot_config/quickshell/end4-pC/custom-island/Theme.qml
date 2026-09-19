@@ -65,6 +65,17 @@ Singleton {
     // 所以收起态时钟也用它，跟旁边那几颗胶囊保持同一套字形。
     property string mainFontFamily: Appearance.font.family.main
 
+    // 收起态胶囊时钟（Bar 中间那段「日期 + HH:MM:SS」）专用的数字字体。
+    // 与 mainFontFamily 分开，是为了让用户可以单独挑一个数字字形更漂亮的
+    // 字体，而不动 Bar 上其它文字。本机已装的候选：
+    //   - "Space Grotesk"          设计感最强，数字独特（默认）
+    //   - "Fira Sans"              数字清晰有性格，重心稳
+    //   - "Roboto"                 Google 官方，数字利落中性
+    //   - "Google Sans Display"    Google 显示体，数字修长
+    //   - "Google Sans"            跟 main 同款
+    //   - "Noto Sans"              最保守，兼容性最好
+    property string clockFontFamily: "Space Grotesk"
+
     // 纯数字文本用的字体（appearance.fonts.numbers）。StyledText 的规则是
     // `shouldUseNumberFont = /^\d+$/` —— 只有整串都是数字时才切到 numbers。
     // 收起态时钟加了日期之后是混合文本（「2026年9月18日 11:19:06」），

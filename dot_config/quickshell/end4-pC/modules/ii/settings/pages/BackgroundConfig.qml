@@ -246,6 +246,18 @@ ContentPage {
                     }
                 }
 
+                // 顶部灵动岛（音乐 / 音量 / 录屏等活动胶囊）总开关。
+                // 关掉后 shell.qml 里的 LazyLoader 会直接销毁整座岛，即时生效，
+                // 不用重启 quickshell。注意这与 Bar 中间那座「仪表盘岛屿」无关。
+                ConfigSwitch {
+                    buttonIcon: "ad_group"
+                    text: Translation.tr("Enable dynamic island")
+                    checked: Config.options.dynamicIsland.enable
+                    onCheckedChanged: {
+                        Config.options.dynamicIsland.enable = checked;
+                    }
+                }
+
                 ConfigSelectionArray {
                     text: Translation.tr("Split blur amount")
                     icon: "split_scene"

@@ -186,6 +186,13 @@ Singleton {
                 property bool includeArchived: false
             }
 
+            // 顶部灵动岛（音乐 / 音量 / 录屏等活动胶囊）。
+            // 与 Bar 中间那座「仪表盘岛屿」是两套东西：后者由
+            // 设置 → Bar → 组件列表里的 "island" 项控制，这里只管前者。
+            property JsonObject dynamicIsland: JsonObject {
+                property bool enable: true
+            }
+
             property JsonObject hyprland: JsonObject {
                 property JsonObject animations: JsonObject {
                     property string animation: "normal"

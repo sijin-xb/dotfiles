@@ -1,0 +1,22 @@
+{
+    "id": "mpvpaper",
+    "name": "MpvPaper Plugin",
+    "description": "Play and smoothly switch video wallpapers with multi-monitor support and a DankBar widget.",
+    "version": "1.2.0",
+    "author": "tokisak1kurum1",
+    "type": "composite",
+    "capabilities": ["wallpaper", "daemon", "dankbar-widget"],
+    "components": {
+        "daemon": "./MpvPaperDaemon.qml",
+        "widget": "./MpvPaperWidget.qml"
+    },
+    "settings": "./MpvPaperSettings.qml",
+    "icon": "movie",
+    "requires_dms": ">=1.5.0",
+    "dependencies": ["mpvpaper", "ffmpeg"],
+    "permissions": [
+        "settings_read",
+        "settings_write",
+        "process"
+    ]
+}

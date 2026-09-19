@@ -24,12 +24,12 @@ function curl --wraps curl --description "curl，文件下载进度实时上报�
     else if set -l m (string match -r -- '^--output=(.+)$' $argv)
         set label $m[2]
     end
-    qs -c end4-pC ipc call island task_begin "$label" download 2>/dev/null
+    qs -c end4-pC ipc call island task_begin "$label" download &>/dev/null
 
     # --progress-bar 把进度打到 stderr（\r 刷新）：透传回终端的同时解析百分比。
     # 重定向顺序：stderr 进管道供解析，stdout（数据本体）直通终端。
     command curl --progress-bar $argv 2>&1 >/dev/tty | tee /dev/tty | tr '\r' '\n' | _island_dl_progress
     set -l st $pipestatus[1]
-    qs -c end4-pC ipc call island task_end download 2>/dev/null
+    qs -c end4-pC ipc call island task_end download &>/dev/null
     return $st
 end

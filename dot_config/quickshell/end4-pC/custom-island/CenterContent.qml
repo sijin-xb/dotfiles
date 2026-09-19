@@ -264,12 +264,12 @@ Item {
 					              + "  " + DateTime.hourStr + ":" + DateTime.minuteStr + ":" + root.secondStr
 					color:        Theme.text
 					font.pixelSize: 14
-					// 用界面主字体（appearance.fonts.main）—— 跟 Bar 上其它组件是
-					// 同一套字形：StyledText 对「非纯数字」文本取的就是 main。
-					// 不用等宽那份（monospace 是给计时器/表格对齐准备的，单颗时钟
-					// 用它太硬），也不用 numbers（那是留给纯数字文本的）。
-					// tnum 保证秒数跳动时数字宽度不抖。
-					font.family:  Theme.mainFontFamily
+					// 收起态时钟单独用 Theme.clockFontFamily（默认 Google Sans
+					// Display）。跟 Bar 上其它组件不共享 main —— 这段文字以数字
+					// 为主，换一个数字字形更漂亮的字体观感提升最大；要切回和
+					// 邻居一致，把 Theme.clockFontFamily 改成 mainFontFamily 即可。
+					// tnum 保证秒数跳动时数字宽度不抖（字体不支持时会被忽略）。
+					font.family:  Theme.clockFontFamily
 					font.features: { "tnum": 1 }
 					verticalAlignment:   Text.AlignVCenter
 					horizontalAlignment: Text.AlignHCenter

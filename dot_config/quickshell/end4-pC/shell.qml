@@ -66,15 +66,8 @@ ShellRoot {
     // ⚠ 用 LazyLoader 而不是给 DynamicIslandHost 加 visible：它是 Item，
     // 里面真正的 PanelWindow 不受父 Item 的 visible 控制，加 visible 关不掉。
     // 用 LazyLoader 的 active 才能真正创建 / 销毁，开关即时生效。
-    // ⚠ 老岛已停用。现在真正生效的岛是 custom-island/IslandHost.qml
-    // （带时钟 + 仪表盘），它在 IllogicalImpulseFamily 里无条件加载。
-    // 若这里也为 true，两套岛会同时渲染 —— 顶部出现两颗重叠胶囊
-    // （老岛没有时钟），且关面板时老岛会从收起态位置向上飞出屏幕。
-    // 两套代码互无 import 依赖，停用老岛不影响 custom 岛。
-    // 想临时对比可把 active 改回 Config.options.dynamicIsland.enable，
-    // 但记得同时把 IslandHost 那行注释掉，否则必然重影。
     LazyLoader {
-        active: false
+        active: Config.options.dynamicIsland.enable
         component: DynamicIslandHost {
             lyricsProvider: LyricsService
         }

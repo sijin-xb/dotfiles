@@ -1,0 +1,79 @@
+{
+  "shortcut": {
+    "label": "Wallpaper Carousel"
+  },
+  "notify": {
+    "title": "Wallpaper Carousel",
+    "quickshell-missing": "Quickshell ('qs') was not found on PATH. The carousel overlay cannot start without it.",
+    "start-failed": "Could not start the carousel overlay process."
+  },
+  "settings": {
+    "wallpaper-directory": {
+      "label": "Wallpaper Directory",
+      "description": "Override the directory the carousel browses. Leave empty to follow Noctalia's wallpaper directory."
+    },
+    "carousel-mode": {
+      "label": "Carousel Mode",
+      "description": "Standard stops at the edges. Wrap loops the index. Infinite shows a seamless repeating view.",
+      "standard": "Standard",
+      "wrap": "Wrap",
+      "infinite": "Infinite"
+    },
+    "apply-to-all-monitors": {
+      "label": "Change All Monitors",
+      "description": "Apply the picked wallpaper to every monitor. Turn off to change only the monitor the carousel was opened on."
+    },
+    "preload": {
+      "label": "Start With The Shell",
+      "description": "Launch the overlay process when Noctalia starts instead of on first use, so the first open is instant."
+    },
+    "overlay-opacity": {
+      "label": "Background Dimming",
+      "description": "Opacity of the dark overlay behind the carousel, in percent."
+    },
+    "border-width": {
+      "label": "Border Width",
+      "description": "Width of the skewed border around thumbnails, in pixels."
+    },
+    "corner-radius": {
+      "label": "Corner Radius",
+      "description": "Corner radius of thumbnails, in pixels. Set to 0 to disable."
+    },
+    "item-width": {
+      "label": "Item Width",
+      "description": "Width of each wallpaper thumbnail, in pixels."
+    },
+    "item-height": {
+      "label": "Item Height",
+      "description": "Height of each wallpaper thumbnail, in pixels."
+    },
+    "selected-scale": {
+      "label": "Center Tile Zoom",
+      "description": "Size of the centered tile relative to the surrounding tiles, in percent."
+    },
+    "expand-selected": {
+      "label": "Expand Selected",
+      "description": "Expand the centered tile's width to reveal more of the image."
+    },
+    "expand-multiplier": {
+      "label": "Expansion Amount",
+      "description": "Width multiplier applied when the centered tile is expanded, in percent."
+    },
+    "enable-hold-expand": {
+      "label": "Hold To Expand",
+      "description": "Dwell on a tile to trigger a large immersive preview."
+    },
+    "hold-expand-ratio": {
+      "label": "Hold Coverage",
+      "description": "Screen coverage for the hold preview, in percent."
+    },
+    "hold-delay": {
+      "label": "Hold Delay",
+      "description": "Time to dwell on a tile before the preview activates, in milliseconds."
+    },
+    "cache-size": {
+      "label": "Cache Size",
+      "description": "Total number of wallpapers to pre-cache, split evenly before and after the current selection. Reduce to save memory on large collections."
+    }
+  }
+}

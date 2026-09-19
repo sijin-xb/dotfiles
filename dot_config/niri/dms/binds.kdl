@@ -63,10 +63,19 @@ binds {
     // 欢迎页 —— Hyprland 里 Super+Shift+Alt+/ 打开 quickshell 欢迎页
     Mod+Shift+Alt+Slash hotkey-overlay-title="欢迎页 Welcome" { spawn "dms" "ipc" "call" "welcome" "open"; }
 
-    // 壁纸管理器 —— Hyprland 里 Ctrl+Super+T 与 Ctrl+Alt+T 都是壁纸选择器，
-    // 这里两个键都保留，全部改走 DMS 仪表盘的壁纸页
+    // 壁纸选择器 —— Hyprland 里 Ctrl+Super+T 与 Ctrl+Alt+T 都是壁纸选择器
+    // Mod+Ctrl+T  保留原来的 DMS 仪表盘壁纸页
     Mod+Ctrl+T hotkey-overlay-title="壁纸管理器 Wallpaper" { spawn "dms" "ipc" "call" "dankdash" "wallpaper"; }
-    Ctrl+Alt+T hotkey-overlay-title="壁纸管理器 Wallpaper" { spawn "dms" "ipc" "call" "dankdash" "wallpaper"; }
+    // Ctrl+Alt+T  改用 wallpaperCarousel 插件（全屏 3D 倾斜轮播挑选器）
+    //   插件需先在「DMS 设置 → Plugins」里启用，且 DMS 要接管壁纸管理。
+    //   键盘：← → 切换，Enter 应用，Esc 关闭。
+    //   想换回仪表盘那版，把这行 spawn 改回：
+    //   spawn "dms" "ipc" "call" "dankdash" "wallpaper"
+    Ctrl+Alt+T hotkey-overlay-title="壁纸轮播 Wallpaper carousel" { spawn "dms" "ipc" "wallpaperCarousel" "toggle"; }
+
+    // 轮播内切换上/下一张（不必先打开，会自动打开并高亮）
+    Ctrl+Alt+Right hotkey-overlay-title="下一张壁纸 Next wallpaper" { spawn "dms" "ipc" "wallpaperCarousel" "cycleNext"; }
+    Ctrl+Alt+Left  hotkey-overlay-title="上一张壁纸 Prev wallpaper" { spawn "dms" "ipc" "wallpaperCarousel" "cyclePrevious"; }
 
     // 随机壁纸 —— Hyprland 里 Ctrl+Super+Alt+T
     Mod+Ctrl+Alt+T hotkey-overlay-title="随机壁纸 Random wallpaper" { spawn "dms" "ipc" "call" "wallpaper" "next"; }

@@ -313,7 +313,10 @@ binds {
     // fullScreenshot（整个显示器），按「同键同功能」改成整屏截图。
     // 截取聚焦窗口仍可用 Mod+Alt+Ctrl+A。
     Ctrl+Print  hotkey-overlay-title="截取整个显示器 Monitor screenshot" { spawn-sh "niri msg action screenshot-screen --show-pointer false && pkill -f -USR1 screenshot-sound.sh"; }
-    Shift+Print  hotkey-overlay-title=null { spawn-sh "niri msg action screenshot-screen --show-pointer false && pkill -f -USR1 screenshot-sound.sh"; }
+    // 原来是 screenshot-screen（整屏）；Hyprland 的 SHIFT+Print 是
+    // regionScreenshot（区域截图），按「同键同功能」改成区域。
+    // 整屏截图现在用 Ctrl+Print（见上一条）。
+    Shift+Print  hotkey-overlay-title="区域截图 Region screenshot" { spawn-sh "niri msg action screenshot --show-pointer false && pkill -f -USR1 screenshot-sound.sh"; }
 
     //Mod+Shift+S { spawn "~/.config/niri/scripts/satty-screenshot.sh";}
     Mod+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }

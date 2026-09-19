@@ -7,6 +7,6 @@ function paru --wraps paru --description "paru，下载/构建/安装进度实�
 
     command paru $argv 2>&1 | tee /dev/tty | tr '\r' '\n' | _island_pkg_progress
     set -l st $pipestatus[1]
-    qs -c end4-pC ipc call island task_end package 2>/dev/null
+    qs -c end4-pC ipc call island task_end package &>/dev/null
     return $st
 end

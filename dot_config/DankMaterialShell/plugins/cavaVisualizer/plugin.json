@@ -1,0 +1,16 @@
+{
+    "id": "cavaVisualizer",
+    "name": "Cava Visualizer",
+    "capabilities": ["desktop-widget"],
+    "description": "A simple, customizable audio visualizer for your desktop. Requires cava.",
+    "version": "1.1.1",
+    "author": "ernestowg",
+    "type": "desktop",
+    "component": "./CavaVisualizerTab.qml",
+    "settings": "./CavaVisualizerSettings.qml",
+    "icon": "equalizer",
+    "permissions": [
+        "settings_read",
+        "settings_write"
+    ]
+}

@@ -11,8 +11,8 @@ import qs.services
 //   1. 配色/字体令牌换成岛屿的 Theme（上游用 Appearance）；
 //   2. 排序按钮与 kill 按钮从 RippleButton / MaterialSymbol 换成自绘的
 //      Rectangle + Nerd Font 字形 —— 岛屿里没有 MaterialSymbol 这套依赖；
-//   3. kill 按钮用 opacity 而不是 visible 控制显隐：RowLayout 里 visible
-//      切换会让进程名那一列宽度来回跳，鼠标扫过列表时整行文字都在抖。
+//   3. 进程列表增加 CPU / 内存列头与对应图标，kill 图标固定显示，避免
+//      用户不知道百分比含义，也不必悬停或右键才能找到终止操作。
 //
 // 数据来源是 end4-pC 的 ProcessList 单例（import qs.services）。
 // ─────────────────────────────────────────────────────────────────────────
@@ -197,8 +197,94 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
 
-            ListView {
-                id: procListView
+            ColumnLayout {
+                anchors.fill: parent
+                spacing: 2
+
+                // 固定列头：图标 + 文字与下面的百分比严格对齐。
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 8
+                    Layout.rightMargin: 4
+                    spacing: 6
+
+                    Text {
+                        Layout.preferredWidth: 44
+                        text: "PID"
+                        color: Theme.subtext
+                        font.pixelSize: 8
+                        font.family: Theme.monoFontFamily
+                        font.features: { "tnum": 1 }
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: Translation.tr("Name")
+                        color: Theme.subtext
+                        font.pixelSize: 8
+                    }
+
+                    Item {
+                        Layout.preferredWidth: 42
+                        implicitHeight: 16
+
+                        RowLayout {
+                            anchors.right: parent.right
+                            spacing: 2
+
+                            Text {
+                                text: "󰘚"
+                                color: Theme.subtext
+                                font.pixelSize: 9
+                                font.family: Theme.nerdFontFamily
+                            }
+                            Text {
+                                text: Translation.tr("CPU")
+                                color: Theme.subtext
+                                font.pixelSize: 8
+                            }
+                        }
+
+                        ToolTip.text: Translation.tr("CPU")
+                        ToolTip.visible: cpuHeaderHover.hovered
+                        HoverHandler { id: cpuHeaderHover; cursorShape: Qt.WhatsThisCursor }
+                    }
+
+                    Item {
+                        Layout.preferredWidth: 42
+                        implicitHeight: 16
+
+                        RowLayout {
+                            anchors.right: parent.right
+                            spacing: 2
+
+                            Text {
+                                text: "󰍛"
+                                color: Theme.subtext
+                                font.pixelSize: 9
+                                font.family: Theme.nerdFontFamily
+                            }
+                            Text {
+                                text: Translation.tr("Memory")
+                                color: Theme.subtext
+                                font.pixelSize: 8
+                            }
+                        }
+
+                        ToolTip.text: Translation.tr("Memory")
+                        ToolTip.visible: memoryHeaderHover.hovered
+                        HoverHandler { id: memoryHeaderHover; cursorShape: Qt.WhatsThisCursor }
+                    }
+
+                    Item { Layout.preferredWidth: 22 }
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+
+                    ListView {
+                        id: procListView
                 anchors.fill: parent
                 clip: true
                 spacing: 2
@@ -220,13 +306,8 @@ Item {
                            : "transparent"
                     Behavior on color { ColorAnimation { duration: 100 } }
 
-                    MouseArea {
-                        id: procRowHover
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        // 只跟踪 hover，不吃点击事件，让后面的 kill 按钮能拿到点击
-                        acceptedButtons: Qt.NoButton
-                    }
+                    // 只跟踪 hover，不吃点击事件，让后面的 kill 按钮能拿到点击
+                    HoverHandler { id: procRowHover }
 
                     RowLayout {
                         anchors.fill:        parent
@@ -272,15 +353,13 @@ Item {
                             font.features: { "tnum": 1 }
                         }
 
-                        // kill —— 用 opacity 而非 visible，避免 RowLayout 重排导致文字抖动
+                        // kill —— 固定显示，用户不必悬停或右键才能找到终止操作
                         Rectangle {
                             implicitWidth:  22
                             implicitHeight: 22
                             radius: height / 2
-                            opacity: procRowHover.hovered ? 1 : 0
                             color: killHover.hovered ? Qt.rgba(0.95, 0.55, 0.66, 0.22) : "transparent"
-                            Behavior on opacity { NumberAnimation { duration: 120 } }
-                            Behavior on color   { ColorAnimation { duration: 100 } }
+                            Behavior on color { ColorAnimation { duration: 100 } }
 
                             Text {
                                 anchors.centerIn: parent
@@ -321,5 +400,7 @@ Item {
                 }
             }
         }
+    }
+    }
     }
 }
