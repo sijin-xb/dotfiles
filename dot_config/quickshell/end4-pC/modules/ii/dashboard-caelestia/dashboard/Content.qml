@@ -9,6 +9,9 @@ import Caelestia.Config
 import "../components"
 import "../components/filedialog"
 import "../shim"
+// GitHub 页复用 custom-island/DashGitHub.qml（与「设置 → GitHub」共用
+// services/GitHub.qml 取数）。与 modules/ii/bar/Island.qml 同样的相对路径写法。
+import "../../../../custom-island"
 
 Item {
     id: root
@@ -58,6 +61,15 @@ Item {
                 iconName: "cloud",
                 text: Tr.tr("Weather"),
                 enabled: Config.dashboard.showWeather
+            },
+            {
+                component: githubComponent,
+                iconName: "code",
+                text: Tr.tr("GitHub"),
+                // 同 Processes：不挂 Config.dashboard.showXxx（那是 Caelestia
+                // 的 C++ 配置，没有 showGitHub 属性，读出来是 undefined 会让
+                // 页签永远被过滤掉）。
+                enabled: true
             }
         ];
         return allTabs.filter(tab => tab.enabled);
@@ -271,6 +283,24 @@ Item {
                 Process {
                     panelOpen: root.panelOpen
                     availableHeight: root.paneHeight
+                }
+            }
+
+            // GitHub 页：复用 custom-island/DashGitHub.qml。
+            // 它**自带 Flickable** 做纵向滚动（内部 contentHeight = 仓库网格高），
+            // 所以这里不再包一层滚动容器，只负责给尺寸：
+            //   · implicitHeight = paneHeight（与 Process 页一致，贴合可用高度）
+            //   · implicitWidth 同时决定面板宽度（面板宽 = 当前页签 implicitWidth）
+            Component {
+                id: githubComponent
+
+                Item {
+                    implicitWidth: 860
+                    implicitHeight: root.paneHeight
+
+                    DashGitHub {
+                        anchors.fill: parent
+                    }
                 }
             }
 
