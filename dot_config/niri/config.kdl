@@ -6,6 +6,10 @@
 // 这是niri的配置文件，我写了很多注释方便阅读，同时保留了部分英文注释
 // 自25.11版本起，niri的配置文件支持了拆分，每一条include都代表把已经拆分出去的配置文件嵌入进来。
 include "binds.kdl"
+// 由 Hyprland 快捷键迁移而来；冲突项已注释，只含不冲突的新增绑定
+include optional=true "binds-hyprland-migrated.kdl"
+// 注意：dms/binds.kdl 由 DMS 自己在文件末尾 include（见下方 dms/ 那几行），
+// 这里不再重复引入，避免同一文件被加载两遍。
 include optional=true "rule.kdl"
 include optional=true "output.kdl"
 include optional=true "animations.kdl"
@@ -83,8 +87,12 @@ recent-windows {
         Mod+Shift+grave { previous-window filter="app-id"; }
     }
 }
-// 这是include进来的颜色文件，主要设置了窗口边框
-include "colors.kdl"
+// niri 配色：改用 matugen 的产物（原来引用的 colors.kdl 是 9/5 的旧快照，
+// 不会随壁纸更新）。screen-cast-picker / recent-windows 等由它提供。
+include "matugen-colors.kdl"
+// DMS 自动生成的 niri 配色（含 focus-ring / border / shadow / tab-indicator），
+// 放在 colors.kdl 之后，同名节点以它为最终取值 —— 边框颜色由此纳入 DMS 配色体系
+include "dms/colors.kdl"
 
 input {
     keyboard {
@@ -178,26 +186,30 @@ overview {
 // which may be more convenient to use.
 // See the binds section below for more ipawn examples.
 
-// This line starts waybar, a commonly used bar for Wayland compositors.
 // 自动启动设置
-// 桌面壁纸的守护进程
-spawn-at-startup "awww-daemon"
-// 总览界面背景壁纸的守护进程
-spawn-at-startup "awww-daemon" "-n" "overview"
-// 随机更换一张壁纸
-spawn-sh-at-startup "sleep 1 &&  waypaper --random"
-// 恢复壁纸
+//
+// 壁纸：已完全交给 DMS 接管，下面两个 awww-daemon 都停掉。
+// `-n overview` 那个是总览背后的模糊壁纸 —— 就是它导致总览背景还是老的
+// niri 壁纸，与 DMS 的壁纸不一致。现在统一由 DMS 提供。
+//spawn-at-startup "awww-daemon"
+//spawn-at-startup "awww-daemon" "-n" "overview"
+
+// 随机壁纸 / 恢复壁纸：同样交给 DMS
+//spawn-sh-at-startup "sleep 1 &&  waypaper --random"
 //spawn-at-startup "waypaper" "--restore"
 // 询问管理员权限功能（身份验证）
-spawn-at-startup "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
+// polkit 认证代理 —— DMS 自带 polkit，停掉
+//spawn-at-startup "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
 // 屏幕分享、录屏相关的环境设置,如果屏幕分享出异常的话可以开启
  spawn-sh-at-startup "dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP=niri LANG LANGUAGE LC_MESSAGES LC_CTYPE"
 // GNOME tracker修复
 spawn-sh-at-startup "systemctl --user set-environment XDG_SESSION_CLASS=user"
-// 通知程序
-spawn-at-startup "mako"
+// 通知程序 —— DMS 自带通知，停掉避免重复
+//spawn-at-startup "mako"
 // 任务栏
-spawn-at-startup "waybar"
+// 让位给 quickshell：它自带栏，同开会和 waybar 叠成两条。
+// 想换回 waybar：把下面 quickshell 那行注释掉、把这行取消注释即可。
+//spawn-at-startup "waybar"
 // 输入法
 spawn-at-startup "fcitx5" 
 // 剪贴板守护进程
@@ -207,10 +219,10 @@ spawn-at-startup "wl-paste" "--watch" "cliphist" "store"
 spawn-at-startup "systemctl" "--user" "start" "linuxqq-clipsync"
 // 闲置时自动熄屏锁屏睡眠的脚本，说实话这东西用处不大，建议用 mod+shift+P 打开电源菜单。
 // spawn-at-startup "~/.config/niri/scripts/swayidle.sh"
-// 大写锁定键的osd显示
-spawn-at-startup "swayosd-server"
-// 自动开启护眼模式,经纬度设置位置
-spawn-at-startup "~/.local/bin/toggle-wlsunset"
+// 大写锁定键的osd显示 —— DMS 自带 OSD，停掉
+//spawn-at-startup "swayosd-server"
+// 自动开启护眼模式 —— DMS 自带夜览，停掉
+//spawn-at-startup "~/.local/bin/toggle-wlsunset"
 // 截图音效的守护进程
 spawn-at-startup "~/.config/niri/scripts/screenshot-sound.sh"
 // alt+tab切换器（这是一个第三方，无缩略图显示的切换器）
@@ -221,6 +233,11 @@ spawn-at-startup "~/.local/bin/niri-sidebar" "listen"
 spawn-at-startup "xhost" "+si:localuser:root"
 // 音频调整程序，easyeffects，-w可以在后台启动
 spawn-at-startup "flatpak" "run" "com.github.wwmm.easyeffects" "-w"
+// DankMaterialShell（本会话的 shell）
+//   `dms run` 同时拉起后端与 UI（见 `dms --help`）。
+//   原先这里是 `qs -c end4-pC` —— 那套是 Hyprland 用的 Quickshell 配置，
+//   在 niri 上会与 DMS 抢 layer surface，已移除。
+spawn-at-startup "dms" "run"
 // nirius
 spawn-at-startup "niriusd"
 
@@ -253,3 +270,7 @@ debug {
 }
 
 
+
+// DMS Include Configs
+include "dms/cursor.kdl"
+include "dms/binds.kdl"

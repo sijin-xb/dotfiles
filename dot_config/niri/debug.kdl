@@ -1,0 +1,8 @@
+// 禁止niri使用N卡（别取消下面这段的注释）
+//debug {
+//
+//    ignore-drm-device "/dev/dri/by-path/pci-0000:01:00.0-card"
+//    ignore-drm-device "/dev/dri/by-path/pci-0000:01:00.0-render"
+//}
+
+

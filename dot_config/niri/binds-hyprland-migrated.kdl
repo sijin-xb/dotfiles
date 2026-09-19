@@ -1,0 +1,311 @@
+// ============================================================================
+// 由 Hyprland 快捷键配置迁移而来
+// 源：~/.config/hypr/hyprland/keybinds.lua  +  ~/.config/hypr/custom/keybinds.lua
+//
+// 修饰键：Mod(=Super) / Ctrl / Alt / Shift，键名用大写 XKB 名（与你现有
+// binds.kdl 风格一致）。
+//
+// ⚠ 重要前提
+//   1. 本文件**不会**自动生效：niri 只读 config.kdl，请在 config.kdl 里加
+//      include "binds-hyprland-migrated.kdl"  或把内容粘进 binds.kdl。
+//   2. 凡标 [需验证] 的动作名，首次启用若报 unknown action，
+//      用 `niri msg action` 查准确名字后替换。
+//   3. quickshell 相关条目走 `qs ipc call`，前提是 niri 下已启动 quickshell
+//      （你的 niri spawn-at-startup 里目前没有，需要另加）。
+// ============================================================================
+
+binds {
+
+    // ───────────────────────────────────────────────────────────────────────
+    // 1. 窗口与列管理
+    //    Hyprland 是平铺，niri 是滚动式「列」，语义对应关系：
+    //      聚焦左右  → focus-column-left/right
+    //      聚焦上下  → focus-window-up/down（列内）
+    //      移动左右  → move-column-left/right
+    //      移动上下  → move-window-down/up
+    // ───────────────────────────────────────────────────────────────────────
+
+    // 关闭窗口（原 Super+Q）
+    Mod+Q hotkey-overlay-title="关闭窗口 Close window" { close-window; }
+    //
+    // 聚焦方向：左右切列，上下切列内窗口
+    Mod+Left  hotkey-overlay-title="聚焦左列 Focus left"  { focus-column-left; }
+    Mod+Right hotkey-overlay-title="聚焦右列 Focus right" { focus-column-right; }
+    Mod+Up    hotkey-overlay-title="聚焦上一个窗口 Focus up"   { focus-window-up; }
+    Mod+Down  hotkey-overlay-title="聚焦下一个窗口 Focus down" { focus-window-down; }
+
+    // 移动窗口/列
+    Mod+Shift+Left  hotkey-overlay-title="窗口左移 Move left"  { move-column-left; }
+    Mod+Shift+Right hotkey-overlay-title="窗口右移 Move right" { move-column-right; }
+    Mod+Shift+Up    hotkey-overlay-title="窗口上移 Move up"    { move-window-up; }
+    Mod+Shift+Down  hotkey-overlay-title="窗口下移 Move down"  { move-window-down; }
+
+    // 最大化列（原 Super+D 最大化）
+    Mod+D hotkey-overlay-title="最大化列 Maximize column" { maximize-column; }
+    //
+    // 全屏（原 Super+F）
+    Mod+F hotkey-overlay-title="全屏 Fullscreen" { fullscreen-window; }
+    //
+    // // 浮动/平铺切换（原 Super+Alt+Space）
+    Mod+Alt+Space hotkey-overlay-title="浮动/平铺 Toggle floating" { toggle-window-floating; }
+    //
+    // // 列宽：Hyprland 用 splitratio 微调，niri 没有该概念。
+    // // 最接近的替代是预设列宽循环 / 按百分比调宽。
+    Mod+Semicolon  hotkey-overlay-title="列宽-10% Narrower column" { set-column-width "-10%"; }
+    Mod+Apostrophe hotkey-overlay-title="列宽+10% Wider column"    { set-column-width "10%"; }
+    // // 若 set-column-width 不可用，改用预设循环：
+    // //   Mod+Semicolon  { switch-preset-column-width; }
+    //   Mod+Apostrophe { switch-preset-column-width-back; }
+
+    // 居中列（niri 特有，Hyprland 无对应，可选）
+    Mod+Alt+C hotkey-overlay-title="居中列 Center column" { center-column; }
+
+    // 窗口并入/移出列（niri 特有，对应「合并/拆分」语义）
+    Mod+Comma  hotkey-overlay-title="并入列 Consume into column"  { consume-window-into-column; }
+    Mod+Period hotkey-overlay-title="移出列 Expel from column"    { expel-window-from-column; }
+
+    // ───────────────────────────────────────────────────────────────────────
+    // 2. 工作区
+    //    ⚠ Hyprland 用了 workspaceGroupSize=10 的分组（Super+1..0 落在当前组内），
+    //      niri 没有分组概念，这里直接映射到 1..10。如需分组要另写脚本。
+    // ───────────────────────────────────────────────────────────────────────
+
+    Mod+1 { focus-workspace 1; }
+    Mod+2 { focus-workspace 2; }
+    Mod+3 { focus-workspace 3; }
+    Mod+4 { focus-workspace 4; }
+    Mod+5 { focus-workspace 5; }
+    Mod+6 { focus-workspace 6; }
+    Mod+7 { focus-workspace 7; }
+    Mod+8 { focus-workspace 8; }
+    Mod+9 { focus-workspace 9; }
+    Mod+0 { focus-workspace 10; }
+
+    // 上一个/下一个工作区（原 Super+U / Super+Page 系列）
+    Mod+U          hotkey-overlay-title="上一个工作区 Prev workspace" { focus-workspace-up; }
+    Mod+Page_Down  hotkey-overlay-title="下一个工作区 Next workspace" { focus-workspace-down; }
+    Mod+Page_Up    hotkey-overlay-title="上一个工作区 Prev workspace" { focus-workspace-up; }
+    Mod+Ctrl+Left  hotkey-overlay-title="上一个工作区 Prev workspace" { focus-workspace-up; }
+    Mod+Ctrl+Right hotkey-overlay-title="下一个工作区 Next workspace" { focus-workspace-down; }
+    //
+    // 窗口移到相邻工作区（原 Super+Ctrl+U / Super+Ctrl+I）
+    Mod+Ctrl+U hotkey-overlay-title="窗口移到上一个工作区 Move to prev" { move-window-to-workspace-up; }
+    Mod+Ctrl+I hotkey-overlay-title="窗口移到下一个工作区 Move to next" { move-window-to-workspace-down; }
+    //
+    // // 窗口移到指定工作区（原 Super+Alt+1..0）
+    Mod+Alt+1 { move-window-to-workspace 1; }
+    Mod+Alt+2 { move-window-to-workspace 2; }
+    Mod+Alt+3 { move-window-to-workspace 3; }
+    Mod+Alt+4 { move-window-to-workspace 4; }
+    Mod+Alt+5 { move-window-to-workspace 5; }
+    Mod+Alt+6 { move-window-to-workspace 6; }
+    Mod+Alt+7 { move-window-to-workspace 7; }
+    Mod+Alt+8 { move-window-to-workspace 8; }
+    Mod+Alt+9 { move-window-to-workspace 9; }
+    Mod+Alt+0 { move-window-to-workspace 10; }
+
+    // 整列移到相邻工作区（原 Super+Shift+Page_Up/Down）
+    Mod+Shift+Page_Up   hotkey-overlay-title="整列移到上一个工作区" { move-column-to-workspace-up; }
+    Mod+Shift+Page_Down hotkey-overlay-title="整列移到下一个工作区" { move-column-to-workspace-down; }
+
+    // ───────────────────────────────────────────────────────────────────────
+    // 3. 应用启动
+    //    Hyprland 侧走 launch_first_available.sh（挑第一个可用的程序），
+    //    这是普通 shell 脚本、与合成器无关，niri 下可直接复用。
+    // ───────────────────────────────────────────────────────────────────────
+
+    Mod+Return hotkey-overlay-title="终端 Terminal" {
+        spawn "~/.config/hypr/hyprland/scripts/launch_first_available.sh" "foot" "kitty -1" "alacritty" "wezterm" "konsole" "kgx" "uxterm" "xterm";
+    }
+    Mod+E hotkey-overlay-title="文件管理器 File manager" { spawn "nautilus"; }
+    Mod+W hotkey-overlay-title="浏览器 Browser" {
+        spawn "~/.config/hypr/hyprland/scripts/launch_first_available.sh" "google-chrome-stable" "zen-browser" "firefox" "brave" "chromium" "microsoft-edge-stable" "opera" "librewolf";
+    }
+    Mod+C hotkey-overlay-title="代码编辑器 Code editor" {
+        spawn "~/.config/hypr/hyprland/scripts/launch_first_available.sh" "windsurf" "antigravity" "code" "codium" "cursor" "zed" "zedit" "zeditor" "kate" "gnome-text-editor" "emacs";
+    }
+    Mod+X hotkey-overlay-title="文本编辑器 Text editor" {
+        spawn "~/.config/hypr/hyprland/scripts/launch_first_available.sh" "kate" "gnome-text-editor" "emacs";
+    }
+    Mod+Ctrl+Shift+Alt+W hotkey-overlay-title="办公软件 Office" {
+        spawn "~/.config/hypr/hyprland/scripts/launch_first_available.sh" "wps" "onlyoffice-desktopeditors" "libreoffice";
+    }
+    Mod+Ctrl+V hotkey-overlay-title="音量混合器 Volume mixer" {
+        spawn "~/.config/hypr/hyprland/scripts/launch_first_available.sh" "pavucontrol-qt" "pavucontrol";
+    }
+    Mod+Ctrl+Shift+Escape hotkey-overlay-title="任务管理器 Task manager" {
+        spawn "~/.config/hypr/hyprland/scripts/launch_first_available.sh" "gnome-system-monitor" "plasma-systemmonitor --page-name Processes";
+    }
+
+    // ───────────────────────────────────────────────────────────────────────
+    // 4. 截屏 / 录屏
+    // ───────────────────────────────────────────────────────────────────────
+
+    // 区域截图：niri 没有内置区域选择 UI，标准做法是 slurp 选区 + grim
+    Mod+Shift+S hotkey-overlay-title="区域截图 Screenshot region" {
+        spawn-sh "grim -g \"$(slurp)\" - | wl-copy -t image/png";
+    }
+    // 全屏截图（原 Ctrl+Print，保存并复制）
+    Mod+Ctrl+S hotkey-overlay-title="全屏截图 Screenshot screen" {
+        spawn-sh "mkdir -p ~/Pictures/Screenshots && f=~/Pictures/Screenshots/screenshot-$(date +%Y-%m-%d_%H-%M-%S).png && grim \"$f\" && wl-copy -t image/png < \"$f\" && notify-send '屏幕截图' '已保存并复制到剪贴板'";
+    }
+
+    // 录屏：沿用你原来的 record.sh（纯 shell/ffmpeg，与合成器无关）
+    Mod+Shift+R hotkey-overlay-title="区域录制 Record region" {
+        spawn "~/.config/quickshell/end4-pC/scripts/videos/record.sh";
+    }
+    Mod+Ctrl+Alt+R hotkey-overlay-title="全屏录制（含系统声音）" {
+        spawn "~/.config/quickshell/end4-pC/scripts/videos/record.sh" "--fullscreen" "--sound";
+    }
+
+    // 取色器（原 Super+Shift+C，hyprpicker 在 niri 下不可用）
+    // [改由 DMS 承担，见 dms/binds.kdl] 原 Mod+Shift+C
+    // Mod+Shift+C hotkey-overlay-title="取色 Pick color" { spawn-sh "grim -g \"$(slurp -p)\" -t ppm - | convert - -format '%[pixel:p{0,0}]' txt:- | ..."; }
+    // // ↑ 见文末「无法迁移」说明
+
+    // ───────────────────────────────────────────────────────────────────────
+    // 5. 媒体与硬件键（XF86 系列在 niri 下同样识别）
+    // ───────────────────────────────────────────────────────────────────────
+
+    // 音量（原走 wpctl，与合成器无关，直接沿用）
+    XF86AudioRaiseVolume { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "2%+" "-l" "1.5"; }
+    XF86AudioLowerVolume { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "2%-"; }
+    XF86AudioMute        { spawn "wpctl" "set-mute" "@DEFAULT_SINK@" "toggle"; }
+    Mod+Shift+M          hotkey-overlay-title="静音 Toggle mute" { spawn "wpctl" "set-mute" "@DEFAULT_SINK@" "toggle"; }
+
+    // 麦克风静音
+    XF86AudioMicMute { spawn "wpctl" "set-mute" "@DEFAULT_SOURCE@" "toggle"; }
+    Mod+Alt+M        hotkey-overlay-title="麦克风静音 Toggle mic" { spawn "wpctl" "set-mute" "@DEFAULT_SOURCE@" "toggle"; }
+    Alt+XF86AudioMute { spawn "wpctl" "set-mute" "@DEFAULT_SOURCE@" "toggle"; }
+
+    // 播放控制（playerctl，直接沿用）
+    XF86AudioPlay  { spawn "playerctl" "play-pause"; }
+    XF86AudioPause { spawn "playerctl" "play-pause"; }
+    XF86AudioNext  { spawn "playerctl" "next"; }
+    XF86AudioPrev  { spawn "playerctl" "previous"; }
+    Mod+Shift+P    hotkey-overlay-title="播放/暂停 Play/Pause" { spawn "playerctl" "play-pause"; }
+    Mod+Shift+N    hotkey-overlay-title="下一首 Next track"    { spawn "playerctl" "next"; }
+    Mod+Shift+B    hotkey-overlay-title="上一首 Previous track" { spawn "playerctl" "previous"; }
+
+    // 亮度（原走 quickshell OSD，回退 brightnessctl；niri 下直接用 brightnessctl）
+    XF86MonBrightnessUp   { spawn "brightnessctl" "s" "5%+"; }
+    XF86MonBrightnessDown { spawn "brightnessctl" "s" "5%-"; }
+
+    // 屏幕缩放：Hyprland 改的是 cursor:zoom_factor（Hyprland 专有配置项），
+    // niri 的等价物是 magnifier（你现有配置已用 Mod+Alt+滚轮 绑了它）。
+    Mod+Minus hotkey-overlay-title="缩小 Zoom out" { adjust-magnifier-zoom -0.2; }
+    Mod+Equal hotkey-overlay-title="放大 Zoom in"  { adjust-magnifier-zoom 0.2; }
+    //
+    // // ───────────────────────────────────────────────────────────────────────
+    // // 6. 会话 / 锁屏
+    // // ───────────────────────────────────────────────────────────────────────
+    //
+    // [改由 DMS 承担，见 dms/binds.kdl] 原 Mod+L
+    // Mod+L hotkey-overlay-title="锁屏 Lock"  { spawn "loginctl" "lock-session"; }
+    // Mod+Shift+L hotkey-overlay-title="睡眠 Sleep" { spawn "systemctl" "suspend"; }
+    // // 关机（Hyprland 里是隐藏绑定）
+    Mod+Ctrl+Shift+Alt+Delete hotkey-overlay-title="关机 Shut down" { spawn "systemctl" "poweroff"; }
+
+    // ───────────────────────────────────────────────────────────────────────
+    // 7. Quickshell 面板 —— 已停用：niri 上跑 DMS，end4-pC 不启动，
+    //    这些 `qs ipc call` 全部失效，对应功能由 DMS 自带组件承担。
+    //    Hyprland 用的是 global shortcut（quickshell:xxxToggle）；niri 不支持
+    //    该协议，所以改用 spawn + qs ipc。target/function 已查证自源码。
+    // ⚠ 前提：niri 下已启动 quickshell（需在 config.kdl 的 spawn-at-startup 加）
+    // ───────────────────────────────────────────────────────────────────────
+
+    // [DMS 接管，end4-pC 不再运行] Mod+I     hotkey-overlay-title="设置 Settings"      { spawn "qs" "-c" "end4-pC" "ipc" "call" "settings" "toggle"; }
+    // [DMS 接管，end4-pC 不再运行] Mod+N     hotkey-overlay-title="右侧栏 Right sidebar" { spawn "qs" "-c" "end4-pC" "ipc" "call" "sidebarRight" "toggle"; }
+    // [DMS 接管，end4-pC 不再运行] Mod+B     hotkey-overlay-title="左侧栏 Left sidebar"  { spawn "qs" "-c" "end4-pC" "ipc" "call" "sidebarLeft" "toggle"; }
+    // [DMS 接管，end4-pC 不再运行] Mod+M     hotkey-overlay-title="媒体控制 Media controls" { spawn "qs" "-c" "end4-pC" "ipc" "call" "mediaControls" "toggle"; }
+    // [DMS 接管，end4-pC 不再运行] Mod+K     hotkey-overlay-title="屏幕键盘 OSK"        { spawn "qs" "-c" "end4-pC" "ipc" "call" "osk" "toggle"; }
+    // [DMS 接管，end4-pC 不再运行] Mod+G     hotkey-overlay-title="挂件浮层 Overlay"     { spawn "qs" "-c" "end4-pC" "ipc" "call" "overlay" "toggle"; }
+    // [DMS 接管，end4-pC 不再运行] Mod+Ctrl+Delete hotkey-overlay-title="会话菜单 Session" { spawn "qs" "-c" "end4-pC" "ipc" "call" "session" "toggle"; }
+    // [DMS 接管，end4-pC 不再运行] Mod+Tab   hotkey-overlay-title="总览 Overview"       { spawn "qs" "-c" "end4-pC" "ipc" "call" "search" "workspacesToggle"; }
+    // [DMS 接管，end4-pC 不再运行] Mod+V     hotkey-overlay-title="剪贴板 Clipboard"     { spawn "qs" "-c" "end4-pC" "ipc" "call" "search" "toggle"; }
+    //
+    // 锁屏（quickshell 锁屏界面）
+    // [DMS 接管，end4-pC 不再运行] Mod+Shift+X hotkey-overlay-title="锁屏 Quickshell lock" { spawn "qs" "-c" "end4-pC" "ipc" "call" "lock" "activate"; }
+
+    // 快捷键速查表（Hyprland 里是 Super+/）
+    // ⚠ 冲突：你现有 niri 的 Mod+Slash 已绑了「临时终端」。
+    //    若想保持 Hyprland 习惯，把下面这条启用、并改掉/删除临时终端那条。
+    // [DMS 接管，end4-pC 不再运行] Mod+Slash hotkey-overlay-title="快捷键速查表 Cheatsheet" { spawn "qs" "-c" "end4-pC" "ipc" "call" "cheatsheet" "toggle"; }
+
+    // 岛屿仪表盘（Hyprland 里经 cheatsheetToggle 系列）
+    // [DMS 接管，end4-pC 不再运行] Mod+Shift+I hotkey-overlay-title="岛屿仪表盘 Island dashboard" { spawn "qs" "-c" "end4-pC" "ipc" "call" "islanddashboard" "openPanel"; }
+
+    // ───────────────────────────────────────────────────────────────────────
+    // 8. 以下为 Hyprland 专有、无法迁移的绑定（保留为注释，仅供对照）
+    //    每条都说明了原因；有接近替代的给了替代做法。
+    // ───────────────────────────────────────────────────────────────────────
+
+    // 【Super+Super_L / Super_L 单按】→ quickshell:searchToggleRelease / workspaceNumber
+    //   原因：依赖 Hyprland 的「修饰键按下/抬起」事件与 global shortcut 的
+    //         release 语义。niri 的 binds 只支持按下触发，没有 release 绑定。
+    //   替代：用 Mod+Tab / Mod+V 这类普通组合键代替（已在第 7 节给出）。
+
+    // 【Super+Shift+Alt+Q】→ hyprctl kill（强制杀窗口）
+    //   原因：hyprctl 是 Hyprland IPC，niri 下不可用。
+    //   替代：niri 有 close-window；强制杀可用 spawn "pkill" "-9" 但无法
+    //         「点选窗口」，只能按 app-id 杀，语义不同。
+
+    // 【Super+P】窗口 pin
+    //   原因：pin 是 Hyprland 专有概念（钉在所有工作区）。
+    //   替代：niri 无对应。最接近是「移到某个固定工作区」
+    //         （move-window-to-workspace N）。
+
+    // 【Super+Alt+F】Fullscreen spoof（伪全屏）
+    //   原因：Hyprland 专有，用于让游戏以为自己全屏。
+    //   替代：niri 无对应。直接用 fullscreen-window。
+
+    // 【Super+Shift+C】hyprpicker 取色
+    //   原因：hyprpicker 依赖 Hyprland 的 layer-shell/截图 IPC。
+    //   替代：niri 下用 slurp 选点 + grim + ImageMagick 取色，例如：
+    //         spawn-sh "grim -g \"$(slurp -p)\" -t ppm - | magick - -format '%[hex:p{0,0}]' info: | wl-copy"
+    //         注意需装 slurp + imagemagick。参数我不替你定，见文末确认项。
+
+    // 【Super+S / Ctrl+Super+S】scratchpad（special:special）
+    //   原因：scratchpad 是 Hyprland 专有（隐藏工作区 + 召唤）。
+    //   替代：niri 可用「命名工作区」模拟：把窗口移到一个专用命名工作区，
+    //         再用另一条绑定聚焦它。语义不等于 scratchpad（不会自动隐藏/记忆）。
+
+    // 【Super+Alt+S】窗口发送到 scratchpad
+    //   原因：同上。
+
+    // 【Super+Shift+Alt+Q 之外的 hyprctl 系列】
+    //   原因：同上，hyprctl 不可用。
+
+    // 【ALT+F4】提示「用 Super+Q 关闭」
+    //   原因：这条在 Hyprland 下是给 Windows VM 用的提示，niri 下无意义，
+    //         且 niri 里 Alt+F4 通常已被应用自己处理。可直接不迁移。
+
+    // 【Super+Shift+Alt+1..4 系列 / numpad 变体 / mouse 变体】
+    //   原因：依赖 Hyprland 的 workspaceGroupSize 分组与 mouse:xxx 绑定。
+    //   替代：分组见第 2 节说明；mouse 见下。
+
+    // 【所有 mouse:272/273/274/275/276 绑定】
+    //   原因：Hyprland 支持把鼠标按键当快捷键（mouse:272=左键、273=右键、
+    //         274=中键、275/276=侧键）；niri 的 binds 不支持鼠标按键，
+    //         只支持滚轮（Mod+WheelScrollUp/Down，你已用于放大镜）。
+    //   替代：无直接等价。侧键功能可改绑到键盘组合键。
+
+    // 【Super+mouse_up / mouse_down 切工作区/窗口】
+    //   原因：同上（鼠标滚轮在 niri 里可用，但鼠标按键不行）。
+    //   替代：滚轮可用 Mod+WheelScrollDown/Up 绑 focus-workspace-down/up。
+
+    // 【虚拟机 submap（Super+Alt+F1 切换）】
+    //   原因：submap 是 Hyprland 专有（临时屏蔽全部快捷键）。
+    //   替代：niri 无 submap。可用 niri 的 `Mod+Escape`? 无对应，
+    //         只能靠窗口规则放行按键（window-rule 的 `allow-...`）。
+
+    // 【Super+Shift+Slash】启动 welcome.qml
+    //   原因：这是 quickshell 的一次性窗口，可直接 spawn，但与 niri 内置的
+    //         快捷键帮助冲突（你现有 binds.kdl 已占用 Mod+Shift+Slash）。
+    //   替代：换键或改用其它键。
+
+    // 【Super+Ctrl+Backslash】窗口精确 resize 到 640x480
+    //   原因：Hyprland 的 resize 精确模式。
+    //   替代：niri 无「精确像素 resize」动作，可用 set-window-height 之类
+    //         部分模拟，语义不同。
+}

@@ -1,0 +1,72 @@
+// ============================================================================
+// DankMaterialShell 功能键位
+//
+// 目标：与 Hyprland 那套「同一功能、同一键位」对齐，不用重新记键。
+// 实现方式：走 `dms ipc call <target> <function>`（目标清单见 `dms ipc`）。
+//
+// 本文件由 niri 的 config.kdl 通过 include "dms/binds.kdl" 载入。
+// ⚠ 若执行 `dms setup binds`，DMS 可能重写本文件 —— 想保留这里的映射，
+//   改完记得备份，或改到别的文件里。
+// ============================================================================
+
+binds {
+    // 启动器 —— 与 Hyprland 完全一致：轻触 Super 即可
+    // niri 原生支持「tap Mod」（按下并松开 Super，中间没按别的键），
+    // 见官方默认配置 `Mod repeat=false { toggle-grid-overview; }` 那段。
+    // 这样不会干扰 Super+Q 这类组合键，和 Hyprland 的行为等价。
+    Mod repeat=false hotkey-overlay-title="启动器 Launcher" { spawn "dms" "ipc" "call" "launcher" "toggle"; }
+
+    // 备用：Super+Space 同开启动器（有些键盘/输入法下轻触不太好按）
+    Mod+Space hotkey-overlay-title="启动器 Launcher" { spawn "dms" "ipc" "call" "launcher" "toggle"; }
+
+    // 总览 —— 与 Hyprland 的 Super+Tab 同键
+    Mod+Tab hotkey-overlay-title="总览 Overview" { toggle-overview; }
+
+    // 通知中心 —— Hyprland 里 Super+N 是右侧栏（通知）
+    Mod+N hotkey-overlay-title="通知 Notifications" { spawn "dms" "ipc" "call" "notifications" "toggle"; }
+
+    // 剪贴板 —— 与 Hyprland 的 Super+V 同键
+    Mod+V hotkey-overlay-title="剪贴板 Clipboard" { spawn "dms" "ipc" "call" "clipboard" "toggle"; }
+
+    // 设置 —— 与 Hyprland 的 Super+I 同键
+    Mod+I hotkey-overlay-title="设置 Settings" { spawn "dms" "ipc" "call" "settings" "toggle"; }
+
+    // 控制中枢 —— Hyprland 的 Super+M 是媒体控制，DMS 里媒体归在控制中枢
+    Mod+M hotkey-overlay-title="控制中枢 Control center" { spawn "dms" "ipc" "call" "control-center" "toggle"; }
+
+    // 挂件 —— 与 Hyprland 的 Super+G（挂件浮层）同键
+    Mod+G hotkey-overlay-title="挂件 Widgets" { spawn "dms" "ipc" "call" "widget" "toggle"; }
+
+    // 栏开关 —— 与 Hyprland 的 Super+J 同键
+    Mod+J hotkey-overlay-title="开关任务栏 Toggle bar" { spawn "dms" "ipc" "call" "bar" "toggle"; }
+
+    // 仪表盘 —— Hyprland 的 Super+B 是左侧栏，DMS 对应的是 dash
+    Mod+B hotkey-overlay-title="仪表盘 Dashboard" { spawn "dms" "ipc" "call" "dash" "toggle"; }
+
+    // Hyprland 里 Super+O 与 Super+B 都开左侧栏，这里保持同键同功能
+    Mod+O hotkey-overlay-title="仪表盘 Dashboard" { spawn "dms" "ipc" "call" "dash" "toggle"; }
+
+    // 快捷键速查 —— 与 Hyprland 的 Super+/ 同键
+    Mod+Slash hotkey-overlay-title="快捷键速查表 Keybinds" { spawn "dms" "ipc" "call" "keybinds" "toggle"; }
+
+    // 电源菜单 —— 与 Hyprland 的 Ctrl+Alt+Delete 同键
+    Mod+Ctrl+Delete hotkey-overlay-title="电源菜单 Power menu" { spawn "dms" "ipc" "call" "powermenu" "toggle"; }
+
+    // 取色器 —— 与 Hyprland 的 Super+Shift+C 同键
+    // 原先那条是 hyprpicker 的残缺替代命令（grim+slurp），已停用，改由 DMS 承担
+    Mod+Shift+C hotkey-overlay-title="取色 Color picker" { spawn "dms" "ipc" "call" "color-picker" "toggle"; }
+
+    // 锁屏 —— 与 Hyprland 的 Super+L 同键，改用 DMS 锁屏（原为 loginctl）
+    Mod+L hotkey-overlay-title="锁屏 Lock" { spawn "dms" "ipc" "call" "lock" "lock"; }
+
+    // 欢迎页 —— Hyprland 里 Super+Shift+Alt+/ 打开 quickshell 欢迎页
+    Mod+Shift+Alt+Slash hotkey-overlay-title="欢迎页 Welcome" { spawn "dms" "ipc" "call" "welcome" "open"; }
+
+    // 壁纸管理器 —— Hyprland 里 Ctrl+Super+T 与 Ctrl+Alt+T 都是壁纸选择器，
+    // 这里两个键都保留，全部改走 DMS 仪表盘的壁纸页
+    Mod+Ctrl+T hotkey-overlay-title="壁纸管理器 Wallpaper" { spawn "dms" "ipc" "call" "dankdash" "wallpaper"; }
+    Ctrl+Alt+T hotkey-overlay-title="壁纸管理器 Wallpaper" { spawn "dms" "ipc" "call" "dankdash" "wallpaper"; }
+
+    // 随机壁纸 —— Hyprland 里 Ctrl+Super+Alt+T
+    Mod+Ctrl+Alt+T hotkey-overlay-title="随机壁纸 Random wallpaper" { spawn "dms" "ipc" "call" "wallpaper" "next"; }
+}

@@ -1,0 +1,56 @@
+// --- NIRI BLUR START ---
+// 顶层的blur配置，细节调整blur的效果
+blur {
+    passes 3
+    offset 3
+    noise 0.02
+    saturation 1.5
+}
+// 全局窗口规则。让所有普通窗口以xray的形式显示blur。xray仅渲染一次模糊版本的背景，然后将其以类似“壁纸”的形式显示在窗口后面，不是实时渲染模糊，所以完全没有性能消耗。
+window-rule {
+    background-effect {
+        xray true
+        blur true
+    }
+}
+// 浮动窗口禁用xray可以实时渲染模糊效果但是性能消耗高，开启xray会穿过浮动窗口底下的窗口直接透视到桌面。看个人喜好选择禁用与否吧。
+window-rule {
+    match is-floating=true
+    background-effect {
+        xray true
+        blur true
+    }
+}
+// fuzzle专属的layer规则
+layer-rule {
+    match namespace="^launcher$"
+    geometry-corner-radius 8
+    background-effect {
+        xray false
+	blur true
+    }
+}
+// blur 窗口的弹出窗口
+window-rule {
+    match app-id="thunar"
+    match app-id="Nautilus"
+    opacity 0.92
+
+    popups {
+        geometry-corner-radius 15
+        opacity 0.92
+        background-effect {
+            blur true
+	    xray false
+        }
+    }
+}
+window-rule {
+    match app-id="one.alynx.showmethekey"
+    background-effect {
+        xray false
+        blur false
+    }
+}
+// --- NIRI BLUR END ---
+

@@ -38,6 +38,7 @@ PRE_ROLLBACK_PREFIX="pre-rollback"
 # 缺失的路径在 tar 时会跳过，不报错
 SNAP_PATHS=(
     ".config/hypr"
+    ".config/niri"
     ".config/quickshell/end4-pC"
     ".config/fish"
     ".config/kitty"
