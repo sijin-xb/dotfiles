@@ -187,6 +187,39 @@ apply_snapshot_from_state() {
     return 0
 }
 
+# ---------- 合成器选择：Hyprland（默认） 或 niri ----------
+# 两套配置都在本仓库里：
+#   ~/.config/hypr/hyprland.lua   Hyprland 配置入口
+#   ~/.config/niri/config.kdl     niri 配置入口（键位已从 Hyprland 迁移）
+# 可交互选择，也可用环境变量预设：COMPOSITOR=niri ./install.sh install
+COMPOSITOR="${COMPOSITOR:-}"
+
+choose_compositor() {
+    if [[ -n "$COMPOSITOR" ]]; then
+        echo "    合成器（环境变量预设）: $COMPOSITOR"
+        return 0
+    fi
+    echo
+    echo "  选择要安装的 Wayland 合成器："
+    echo "    1) Hyprland   本仓库主配置，入口 ~/.config/hypr/hyprland.lua"
+    echo "    2) niri       滚动平铺，入口 ~/.config/niri/config.kdl（键位已迁移）"
+    local ans
+    read -r -p "  请输入 1 或 2 [默认 1]: " ans || true
+    case "$ans" in
+        2|niri|Niri|NIRI) COMPOSITOR=niri ;;
+        *)                COMPOSITOR=hyprland ;;
+    esac
+    echo "    合成器: $COMPOSITOR"
+}
+
+# 依据 $COMPOSITOR 给出需要装的包（合成器本体 + 对应 xdg-desktop-portal）
+compositor_pkgs() {
+    case "$COMPOSITOR" in
+        niri) echo "niri xdg-desktop-portal-gnome" ;;
+        *)    echo "hyprland xdg-desktop-portal-hyprland" ;;
+    esac
+}
+
 # ============================================================
 # 3. 安装（7 步流程，封装进 cmd_install）
 # ============================================================
@@ -204,13 +237,15 @@ cmd_install() {
 
     # ---------- [1/7] 基础工具 + 会话依赖（一次 pacman 搞定） ----------
     say "[1/7] 安装基础工具与会话依赖"
+    # 合成器本体与 portal 由 choose_compositor 的结果决定，单独追加到最后
+    choose_compositor
     PACMAN_PKGS=(
         git base-devel github-cli
-        hyprland kitty jq fish fuzzel
+        kitty jq fish fuzzel
         grim wl-clipboard wtype playerctl
         fcitx5 fcitx5-rime fcitx5-configtool
         cliphist easyeffects hypridle hyprlock
-        xdg-desktop-portal-hyprland gnome-keyring
+        gnome-keyring
         python
         # procps-ng 提供 ps 命令，仪表盘系统页的进程列表依赖它
         # （base 组已含，这里显式声明以防万一被精简掉）
@@ -230,6 +265,10 @@ cmd_install() {
         # Caelestia QML 插件编译依赖（[4/7] 步骤会用到）
         aubio libpipewire libqalculate lm_sensors fftw spirv-tools
     )
+    # 追加合成器相关包（niri 或 hyprland + 对应 portal）
+    # shellcheck disable=SC2207
+    PACMAN_PKGS+=($(compositor_pkgs))
+    say "    合成器相关包: $(compositor_pkgs)"
     # 默认只安装缺失的包，不做全系统升级（避免在你没准备时滚动整个系统）。
     # 需要全量升级时：FULL_UPGRADE=1 ./install.sh install
     if [[ "${FULL_UPGRADE:-0}" == "1" ]]; then
@@ -412,9 +451,16 @@ cmd_install() {
 
     # ---------- [7/7] 完成 ----------
     say "[7/7] 完成！接下来的步骤："
+    # 第 1 步与所选合成器相关，单独输出（其余步骤两套通用）
+    if [[ "$COMPOSITOR" == "niri" ]]; then
+        echo "  1. 注销并重新登录，会话选择 \"niri\""
+        echo "     （配置入口 ~/.config/niri/config.kdl；Quickshell 由 niri 的"
+        echo "      spawn-at-startup 自启，登录界面为 plasmalogin）"
+    else
+        echo "  1. 注销并重新登录，会话选择 \"Hyprland\""
+        echo "     （配置入口 ~/.config/hypr/hyprland.lua，Quickshell 随会话自启）"
+    fi
     cat <<'EOF'
-  1. 注销并重新登录，会话选择 "Hyprland"
-     （配置入口 ~/.config/hypr/hyprland.lua，Quickshell 随会话自启）
   2. 中文输入：fcitx5 + rime（SUPER+F1 可重启输入法）
   3. 键位速览：
        SUPER+L      锁屏（Quickshell LockSurface：MPRIS 媒体控制 + 专辑封面 + 电源）
@@ -425,7 +471,8 @@ cmd_install() {
      （桌面歌词已解耦，自动适配 KA Music / Spotify / 浏览器等任意播放器）
   5. fish 设为默认 shell（可选）: chsh -s "$(command -v fish)"
   6. Caelestia QML 插件：已编译到 ~/src/caelestia-shell，产物 build/qml
-     由 Hyprland execs.lua 与 fish config.fish 自动加载。
+     由会话自启（Hyprland: execs.lua / niri: spawn-at-startup）与
+     fish config.fish 自动加载。
   7. 键盘按键显示（可选，默认关闭）：需要读 /dev/input/event*，把当前用户
      加进 input 组后重新登录，再到 设置 → 桌面 → 按键显示 打开开关：
        sudo usermod -aG input "$USER"
@@ -616,6 +663,18 @@ sijin-xb's dotfiles 自部署脚本 —— Rice 版本: ${RICE_VERSION}
   $0 --tui              同上
   $0 install            一键安装（7 步）
                           默认不滚动系统；FULL_UPGRADE=1 $0 install 则执行 pacman -Syu
+
+环境变量：
+  COMPOSITOR=niri|hyprland   选择要安装的合成器（默认 hyprland）。
+                             设定后跳过交互提问，适合脚本/无人值守重装。
+                             例：COMPOSITOR=niri ./install.sh install
+                             · niri     → 装 niri + xdg-desktop-portal-gnome
+                                          配置入口 ~/.config/niri/config.kdl
+                             · hyprland → 装 hyprland + xdg-desktop-portal-hyprland
+                                          配置入口 ~/.config/hypr/hyprland.lua
+                             两套配置都在本仓库里，装哪个都能用；
+                             未设置时会在 [1/7] 步交互询问。
+  FULL_UPGRADE=1             安装时执行 pacman -Syu 全系统升级（默认只装缺失项）
   $0 rollback           回档：还原到最近一次 install 之前的状态
                            （执行前会自动保存 pre-rollback 快照供 restore 用）
   $0 restore            恢复：回档后，还原回 rollback 之前的 rice 状态
