@@ -194,18 +194,13 @@ PanelWindow {
         // 展开时把还没长出来的部分裁掉，形成「从 Bar 里推出来」的观感
         clip: true
 
-        // 收起时整块淡出（而不是缩回胶囊 —— 见 surfaceWidth 的注释）。
-        // 淡出走完整 animDuration，和上面尺寸动画同时结束。
-        opacity: root.open ? 1 : 0
-        Behavior on opacity {
-            NumberAnimation {
-                duration: root.open ? IslandState.fadeInDuration : IslandState.animDuration
-                easing.type: Easing.InOutQuad
-            }
-        }
-
-        // 形变交给 width/height 的 Behavior（纵向收拢），这里不再叠 scale，
-        // 避免两套动画互相打架。
+        // ⚠⚠ 不要给 surface 加 opacity 淡入（曾经加过，是「背景闪一下」的元凶）：
+        // 面板从 0 透明度淡入时，头几帧是半透明的，透出来的是**它背后的东西**
+        // —— Bar 的紫色胶囊(colPrimaryContainer) + 壁纸，看起来就是
+        // 「以紫色为主色的彩色闪一下」。面板底色必须**从第 0 帧起就是不透明的**。
+        //
+        // 收起动画由 width/height 的 Behavior 负责（纵向收拢，见 surfaceHeight），
+        // 根本不需要靠淡入淡出。形变也不要再叠 scale，避免两套动画打架。
 
         // 生长动画：400ms OutQuint。
         // ⚠ 切页签时宽度也会跟着动画（Media 1000 / Performance ~950 /
