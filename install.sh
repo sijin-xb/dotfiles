@@ -305,7 +305,11 @@ cmd_install() {
     # 不含中文字形，带中文的等宽只有霞鹜文楷等宽和文泉驿等宽正黑。
     # catppuccin-sddm-theme-mocha：SDDM 登录界面主题（Qt6，需 SDDM 走 Wayland）
     # qt6-svg / qt6-declarative / qt5-quickcontrols2 是它的依赖，AUR 包会带入。
-    for p in matugen mpvpaper libcava qt6-m3shapes-git ttf-lxgw-wenkai catppuccin-sddm-theme-mocha; do
+    # dms-shell-git：DankMaterialShell（niri 的桌面 shell，DMS）的 **git 版本**。
+# 用 -git 而不是稳定版：DMS 迭代很快，稳定版往往落后几个小版本，而 niri
+# 侧的 config.kdl / dms/binds.kdl 是按新版写的（键位、ipc 目标会对不上）。
+# dms-shell-niri 是 niri 集成包，两者都要。
+for p in matugen mpvpaper libcava qt6-m3shapes-git ttf-lxgw-wenkai catppuccin-sddm-theme-mocha dms-shell-git dms-shell-niri; do
         if pacman -Q "$p" >/dev/null 2>&1; then
             echo "    已安装: $p"
         elif aur_install "$p"; then
