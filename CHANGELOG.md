@@ -287,18 +287,55 @@ gestures {
 `niri validate` 全程通过；journal 无配置错误。fork 独有功能实测：网格总览可开可关
 ——打开时与正常状态差 **21% 像素**，关闭后只差 **0.067%**（时钟/光标噪声）。
 
+#### 8. 收尾：死键位注释 + 文档索引修复 + README 双合成器定位
+
+三件不在 niri 主线上、但同批处理的事。
+
+**（1）wordlens 死键位与死规则注释掉**
+
+`wl-wordlens` 这个可执行文件本机并不存在（flatpak / pacman / `.desktop` / 数据目录里
+都没有），所以 `Mod+F11` 与 `Mod+Shift+T` 按下去只是 spawn 失败，什么都不发生。
+已注释掉两处：`binds.kdl` 里那两条键位、`rule.kdl` 里配套的
+`match app-id="com.wordlens.app"`（同属浮动窗口白名单）。注释里写了「将来装上
+wordlens 后取消注释即可」，两处互相指向，不至于将来只改一半。
+
+**（2）`docs/README.md` 索引补全**
+
+原索引只列 3 个文档，实际有 **16 篇**（不含索引自身），而且其中
+`dynamic-island-roadmap.md` 文件名是错的（实际是 `dynamic-island.md`），链接打不开。
+重写为按 5 个主题分组——合成器与外观 / 栏·岛屿·仪表盘 / 键位与编辑器 /
+集成与本地化 / 排障——16 篇全部收录，18 个相对链接（含指向根目录 `README.md`
+与 `CHANGELOG.md` 的两条）逐一验证有效。
+
+**（3）根 README 补上 niri 双合成器定位**
+
+根 README 原来通篇按 Hyprland 写：开头只说 Hyprland，安装步骤、快捷键、目录结构
+也都只提 hypr。现在改成**双合成器**表述——Hyprland（默认）与 niri（滚动平铺）
+二选一，niri 走 `COMPOSITOR=niri ./install.sh install`。要点：
+
+- niri 条目明确标出**依赖 SHORiN fork**，并列出 fork 独有功能
+  （`magnifier` / `grid-overview` / `shake-to-enlarge` / 内置 screencast portal）；
+- 安装步骤里把合成器包拆开：Hyprland → `hyprland hypridle hyprlock` +
+  `xdg-desktop-portal-hyprland`；niri → `niri` + `xdg-desktop-portal-gnome`；
+- 快捷键由「一份列表」改为**分合成器给路径**，并说明「niri 是纯滚动平铺，
+  所以那个键位恒为切换窗口」；
+- 目录结构补全 `niri/` 全部条目、`xdg-desktop-portal/niri-portals.conf`、
+  `DankMaterialShell/plugins/`，以及光标相关的四个文件
+  （`environment.d/cursor.conf`、`gtk-3.0/`、`gtk-4.0/`、`xsettingsd/`，
+  注明唯一来源是 DMS 的 `cursorSettings`）；
+- 「文档与更新日志」由 14 条内联列表简化为「索引链接 + 常用 4 篇」，避免
+  每加一篇文档都要动 README。
+
 #### 遗留（未处理）
 
 - **`install.sh` 的 `COMPOSITOR=niri` 路径装的是上游 `niri`**，而本仓库的 niri 配置
   依赖 SHORiN fork 独有功能（`magnifier` / `grid-overview` / `shake-to-enlarge` /
   内置 screencast portal，见该包描述）。新机器按这条路径装完，niri 会因**未知配置项
   拒绝加载配置**，录屏 portal 也不存在——和字体漏装属于同一类静默故障。
-- `wl-wordlens` 不存在（flatpak / 包 / `.desktop` / 数据目录全无），所以 `Mod+F11`
-  与 `Mod+Shift+T` 目前什么都不做，`rule.kdl` 里 `com.wordlens.app` 那条也是死规则。
+  本轮选择**先不改 install.sh**，只在根 README 的 niri 条目里加了 ⚠️ 提示；
+  真要改的话，把这条路径的包名换成 AUR 的 `niri-shorin-fork-git` 即可。
 - 装了但没用到的 portal 后端：`xdg-desktop-portal-hyprland` / `-kde` / `-wlr`
   （都是 activatable、未运行，无害，只是噪音）。
-- `docs/README.md` 索引只列了 3 个文档，实际有 17 个；且其中
-  `dynamic-island-roadmap.md` 文件名是错的（实际是 `dynamic-island.md`），链接打不开。
 
 ## 2026-09-20
 

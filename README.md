@@ -1,13 +1,16 @@
 # sijin-xb's dotfiles
 
-个人桌面配置：Arch 系（开发环境 CachyOS）+ Hyprland + Quickshell。
+个人桌面配置：Arch 系（开发环境 CachyOS）+ Wayland 合成器 + Quickshell。
+合成器支持 **Hyprland**（默认）与 **niri**（滚动平铺），安装时二选一
+（`COMPOSITOR=niri ./install.sh install`）。
 源码树使用 chezmoi 风格命名（`dot_`、`executable_` 前缀），但安装由自带
 bash 脚本完成，不需要 chezmoi 二进制。
 
 > **English (brief)**: Personal desktop configuration for Arch-based systems
-> with Hyprland and Quickshell. Clone the repo and run `./install.sh` (TUI)
-> or `./install.sh install`; the same script provides `rollback`, `restore`,
-> `archive` and `uninstall`. Full documentation below is in Chinese.
+> with Hyprland (default) or niri, plus Quickshell. Clone the repo and run
+> `./install.sh` (TUI) or `./install.sh install`; the same script provides
+> `rollback`, `restore`, `archive` and `uninstall`. Full documentation below is
+> in Chinese.
 
 ## 目录
 
@@ -24,8 +27,13 @@ bash 脚本完成，不需要 chezmoi 二进制。
 
 ## 包含内容
 
-- Hyprland 配置（Lua）。`hyprland/` 为模板层，`custom/` 为个人覆盖层
+- **Hyprland** 配置（Lua）。`hyprland/` 为模板层，`custom/` 为个人覆盖层
   （同名文件在模板之后加载并覆盖模板）
+- **niri** 配置（KDL）。`config.kdl` 为入口，按功能拆到 `binds` / `rule` /
+  `layout` / `animations` / `blur` / `debug` 等文件；键位已从 Hyprland 迁移，
+  桌面外壳由 DankMaterialShell（DMS）承担，DMS 自动生成的部分放在 `dms/`。
+  间距 / 边框 / 焦点环 / 圆角由 `override-layout.kdl` 统一覆盖 DMS 的值
+  ⚠️ 需要 SHORiN fork，见[环境要求](#环境要求)
 - Quickshell（end4-pC fork）差异层：栏、侧边栏、启动器、总览、设置面板
 - **岛屿 + 仪表盘**：栏中央一颗胶囊（时间 / 音乐 / 计时器 / 秒表 / 录屏 轮播），
   点击从 Bar 里生长成面板，再点缩回。五页（页签由 Caelestia 的 `Content` 提供）：
@@ -54,7 +62,8 @@ bash 脚本完成，不需要 chezmoi 二进制。
   [docs/dynamic-island.md](docs/dynamic-island.md)
 - 壁纸视差与多后端视频壁纸，详见 [docs/appearance.md](docs/appearance.md)
 - matugen 壁纸取色：kitty / alacritty / foot / fastfetch / fcitx5（含 fcitx5-rime
-  候选框）/ mako / Hyprland 联动配色
+  候选框）/ mako / Hyprland 与 niri 联动配色（niri 侧含录屏选区界面的
+  `screen-cast-picker`）
 - fish（fzf 绑定、nvm）、btop、fastfetch、fuzzel、mako 配置
 - **nvim（LazyVim，取向是「边用边学 vim」）**：保留不是 vim 动词的 Ctrl 系快捷键
   （`Ctrl+S` 存盘、`Ctrl+P` 找文件、`Ctrl+B` 文件树、``Ctrl+` `` 终端、`Ctrl+/` 注释），
@@ -67,7 +76,14 @@ bash 脚本完成，不需要 chezmoi 二进制。
 ## 环境要求
 
 - Arch 系发行版（存在 `/etc/arch-release`）
-- Hyprland（Wayland 会话）
+- Wayland 会话，合成器二选一（安装时选，或 `COMPOSITOR=` 预设）：
+  - **Hyprland**（默认）
+  - **niri**：必须是 [SHORiN-KiWATA/niri](https://github.com/SHORiN-KiWATA/niri)
+    fork（AUR `niri-shorin-fork-git`）。本仓库的 niri 配置用到该 fork 独有的
+    `magnifier` / `grid-overview` / `cursor shake-to-enlarge` / 内置
+    screencast portal，换成上游 niri 会因未知配置项**拒绝加载配置**
+    - ⚠️ `install.sh` 的 niri 路径目前装的仍是上游 `niri` 包，需要手动换成
+      fork。详见 [CHANGELOG.md](CHANGELOG.md) 的「遗留」。
 - 普通用户运行，需要 sudo 权限（pacman 用）
 - quickshell / matugen / mpvpaper 缺失时由脚本自动安装
   （pacman → AUR → 源码编译）
@@ -83,10 +99,12 @@ cd dotfiles
 
 安装步骤：
 
-1. pacman 基础依赖（hyprland、kitty、fish、fuzzel、fcitx5、cliphist、
-   hypridle、hyprlock、xdg portals、qt6 工具链，以及 Caelestia QML 插件
-   编译所需的 aubio / libpipewire / libqalculate / lm_sensors / fftw /
-   spirv-tools）。**默认只装缺失项，不滚动系统**；需要全量升级时用
+1. pacman 基础依赖（kitty、fish、fuzzel、fcitx5、cliphist、xdg portals、
+   qt6 工具链，以及 Caelestia QML 插件编译所需的 aubio / libpipewire /
+   libqalculate / lm_sensors / fftw / spirv-tools），另加合成器相关的包
+   —— Hyprland：`hyprland hypridle hyprlock xdg-desktop-portal-hyprland`；
+   niri：`niri xdg-desktop-portal-gnome`（其中 niri 需为 fork 包，
+   见[环境要求](#环境要求)）。**默认只装缺失项，不滚动系统**；需要全量升级时用
    `FULL_UPGRADE=1 ./install.sh install`
 2. AUR 包（matugen、mpvpaper、libcava、qt6-m3shapes-git）；无 AUR helper 时自动安装 yay
 3. quickshell 三级回退：已有二进制 → pacman → AUR → 源码编译
@@ -138,24 +156,41 @@ cd dotfiles
 | Super+F1 | 重启 fcitx5 |
 | Ctrl+Super+T | 壁纸选择器 |
 
-完整列表：`~/.config/hypr/hyprland/keybinds.lua` 与
-`~/.config/hypr/custom/keybinds.lua`。
+完整列表：Hyprland 见 `~/.config/hypr/hyprland/keybinds.lua` 与
+`~/.config/hypr/custom/keybinds.lua`；niri 见 `~/.config/niri/binds.kdl`，
+DMS 相关的功能键位见 `~/.config/niri/dms/binds.kdl`。niri 那套是照着
+Hyprland 的键位迁移过来的（同一功能、同一键位），所以上表在两个合成器下
+基本通用；迁移中的差异与取舍写在
+`dot_config/niri/binds-hyprland-migrated.kdl` 的注释里。
 
 其中，`Super+鼠标滚轮` 会根据当前工作区的布局自动选择行为：使用
 `scrolling` 布局时在当前工作区内切换窗口；使用 `dwindle` 等其他布局时切换
 相邻工作区，每次滚轮只移动一个工作区。向下滚动表示下一个窗口 / 工作区，向上
-滚动表示上一个窗口 / 工作区。
+滚动表示上一个窗口 / 工作区。（niri 是纯滚动平铺，所以恒为「切换窗口」。）
 
 ## 目录结构
 
 ~~~
 dot_config/
-  hypr/
+  hypr/                   Hyprland（默认合成器）
     hyprland.lua          配置入口
     hyprland/             模板层（keybinds、general、rules、env、execs、scripts）
     custom/               个人覆盖层（同名文件覆盖模板）
     hyprlock.conf         回退锁屏配置
     hyprlock/             配色与辅助脚本
+  niri/                   niri（可选合成器，需 SHORiN fork）
+    config.kdl            配置入口（include 下面这些）
+    binds.kdl             键位（自 Hyprland 迁移）
+    binds-hyprland-migrated.kdl   迁移对照与差异说明
+    rule.kdl              窗口 / 图层规则
+    layout.kdl  animations.kdl  blur.kdl  output.kdl  debug.kdl
+    override-layout.kdl   间距 / 边框 / 焦点环 / 圆角，覆盖 DMS 自动生成的值
+    dms/binds.kdl         手写的 DMS 功能键位（dms/ 下其余文件由 DMS 生成，未纳管）
+    scripts/              截图音效、fuzzel 切换器、电源菜单等辅助脚本
+  xdg-desktop-portal/niri-portals.conf
+                        niri 的 portal 路由：录屏 / 截图走 niri 本体，
+                        密钥环走 gnome-keyring
+  DankMaterialShell/plugins/   DMS 插件（cavaVisualizer、mpvpaper 视频壁纸）
   quickshell/end4-pC/     shell 差异层（modules、services、scripts）
     custom-island/        岛屿 + 仪表盘（独立于 modules/，见 docs/bar-and-dashboard.md）
     modules/ii/bar/Island.qml    栏里那段等宽透明占位（岛真身是 custom-island/IslandHost.qml）
@@ -163,6 +198,9 @@ dot_config/
       caelestia/          Caelestia 风格锁屏（内容、组件、形变动画）
       SerpantinumLockSurface.qml  旧版锁屏（保留可切回）
   fish/  kitty/  foot/  alacritty/  nvim/  neovide/  btop/  fastfetch/  fuzzel/  mako/  matugen/
+  environment.d/cursor.conf  gtk-3.0/  gtk-4.0/  xsettingsd/
+                        光标主题 / 尺寸：唯一来源是 DMS 的 cursorSettings，
+                        其余几处只是跟着它保持一致（详见 CHANGELOG 2026-09-23）
   fontconfig/fonts.conf  无衬线 / 等宽方案（MiSans + 按语言切换 CJK 地区字形）
   fontconfig/conf.d/50-lxgw-wenkai.conf  衬线族（serif）：霞鹜文楷 + 楷体别名映射
   fcitx5/
@@ -181,7 +219,9 @@ docs/                     设计说明与排障文档（见下）
 ## 说明
 
 - 更换壁纸会触发重新取色；模板位于 `dot_config/matugen/templates/`
-  （Hyprland 窗口阴影颜色也由此生成，见 `templates/hyprland/colors.lua`）
+  （Hyprland 窗口阴影颜色见 `templates/hyprland/colors.lua`；niri 的边框 /
+  焦点环配色与录屏选区界面见 `templates/niri-colors.kdl`，输出到
+  `~/.config/niri/matugen-colors.kdl`）
 - 桌面歌词偏移微调：
   `qs -c end4-pC ipc call desktoplyrics offset_faster / offset_slower`
 - 备份根目录：`~/.local/state/dotfiles-backup/`（`snapshots/`、`state/`）
@@ -191,21 +231,14 @@ docs/                     设计说明与排障文档（见下）
 ## 文档与更新日志
 
 - [CHANGELOG.md](CHANGELOG.md) — 全部历史变更
-- [docs/](docs/README.md) — 设计说明、实现笔记与排障
-  - [bar-and-dashboard.md](docs/bar-and-dashboard.md) — 岛屿 + 仪表盘、栏组件、统一歌词源、液态玻璃、悬停动效范围
-  - [backdrop-blur.md](docs/backdrop-blur.md) — 限定范围的背景模糊（QML 自绘，不依赖合成器）
-  - [compositor-effects.md](docs/compositor-effects.md) — 合成器层模糊与窗口透明度（niri ↔ Hyprland 参数对照与移植）
-  - [login-screen.md](docs/login-screen.md) — 登录界面：SDDM + Catppuccin Mocha、壁纸、与 plasmalogin 的切换/回退
-  - [github-page.md](docs/github-page.md) — GitHub 项目页
-  - [i18n.md](docs/i18n.md) — 国际化：机制、切换与扩展语言、硬编码审计
-  - [appearance.md](docs/appearance.md) — 视频壁纸后端与视差
-  - [lockscreen.md](docs/lockscreen.md) — 锁屏
-  - [dynamic-island.md](docs/dynamic-island.md) — 灵动岛
-  - [widgets-layout.md](docs/widgets-layout.md) — 桌面小部件布局
-  - [integrations.md](docs/integrations.md) — SPlayer / fcitx5-rime 联动
-  - [keycap-display.md](docs/keycap-display.md) — 键盘按键显示
-  - [keybind-manager.md](docs/keybind-manager.md) — 快捷键管理器：速查表、点行改键、写回策略
-  - [troubleshooting.md](docs/troubleshooting.md) — 排障索引
+- [docs/README.md](docs/README.md) — **文档索引**（完整清单，本目录全部设计说明与排障文档）
+
+常用几篇：
+
+- [bar-and-dashboard.md](docs/bar-and-dashboard.md) — 岛屿 + 仪表盘、栏组件、统一歌词源、液态玻璃、悬停动效范围
+- [compositor-effects.md](docs/compositor-effects.md) — 合成器层模糊与窗口透明度（niri ↔ Hyprland 参数对照与移植）
+- [nvim-keymaps.md](docs/nvim-keymaps.md) — Neovim 快捷键速查表
+- [troubleshooting.md](docs/troubleshooting.md) — 排障索引
 
 ## 致谢与上游
 
