@@ -114,6 +114,18 @@ MiSans；默认规则在后，MiSans 仍排在发行版偏好之前。改配置�
 | `lang=zh-tw` / `zh-hk` | 霞鹜文楷 TC → Noto Serif CJK TC（与上一节一致，未变） |
 | `lang=ja` / `ko` | Noto Serif CJK JP / KR（与上一节一致，未变） |
 | `KaiTi` / `楷体` | 霞鹜文楷 Medium（新增别名映射） |
+| `Georgia` / `Times` | `serif` → Noto Serif（新增映射） |
+| `宋体` / `SimSun` / `Songti SC` | Noto Serif CJK SC（新增映射，真宋体，不并入文楷） |
+
+**补上了衬线字体名的映射缺口。** 原配置的「网页字体映射」只处理无衬线的名字
+（Arial / Segoe UI / Liberation Sans），衬线名字没人管，实测 `Georgia` / `Times` /
+`宋体` / `SimSun` 全都落到**黑体**（文泉驿正黑或 MiSans）。网页上写这些名字的不少。
+
+⚠️ 这些映射**只能写在片段里，不能写进 fonts.conf**：`<edit mode="assign">` 只影响
+「之后」执行的规则，而片段先于 fonts.conf 加载——写在 fonts.conf 里的映射永远喂不到
+片段的链规则。实测：把 `Georgia → serif` 放进 fonts.conf，`fc-match Georgia` 拿到的是
+**兜底链的臻楷 GB**，不是真链的 Noto Serif。放进片段后 `fc-match Georgia` 才等于
+`fc-match serif`（Firefox 里两者像素完全相同）。
 
 - **拉丁用 `Noto Serif`**：它不含任何 CJK（`fc-list :family="Noto Serif" :charset=4e00`
   为空），所以能安全地排在链首——西文走正经衬线，中文逐字回退到文楷。
