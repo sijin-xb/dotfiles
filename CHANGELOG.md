@@ -159,6 +159,147 @@ MiSans；默认规则在后，MiSans 仍排在发行版偏好之前。改配置�
 > 进程不生效）。验证：`fc-match serif` / `fc-match "serif:charset=4e00"` /
 > `fc-match KaiTi`。
 
+### niri：外观数值收回自管 + 清遗留 + 启用 fork 独有功能
+
+这一轮的目标是**加新外观/新功能**，顺带把摸出来的坑先清掉。改动集中在
+`dot_config/niri/`、`dot_config/xdg-desktop-portal/`、光标相关的四个文件。
+
+#### 1. 间距 / 边框 / 焦点环 / 圆角：新增自有覆盖层
+
+`dms/layout.kdl` 是 DMS **自动生成**的（`gaps 4` / `border 2` / `focus-ring 2` /
+圆角 18），而且在 `config.kdl` 里被 include 在很靠后的位置，是这几个数值的最终来源
+——直接改它会被 DMS 覆写。
+
+新增 `dot_config/niri/override-layout.kdl`，并在 `config.kdl` 末尾
+`include "override-layout.kdl"`（必须排在 `dms/layout.kdl` 之后才拿得到话语权）。
+最终取值 **间距 10 / 边框 4 / 焦点环 3 / 圆角 18**。
+
+逐像素量过两套值的实际差别（都是同一场景、同一裁剪位置截屏后数像素）：
+
+| | DMS 值 4/2/2/18 | 采用值 10/4/3/18 |
+|---|---|---|
+| 屏幕边→窗口（外间距） | 4px | 10px |
+| 两窗之间的色带 | **4px**：2px 灰边 `#9f8c8e` + 2px 粉环 `#ffb2be`，**中间一点壁纸都不露** | 10px：7px 灰紫 + 3px 粉环 |
+| 焦点环宽度 | 2px | 3px |
+| 圆角弧线跨度 | ≈15px（配置 18） | 18px |
+
+选 10/4/3 的理由就是第一行那 4px——DMS 的值下两个窗口之间被边框填满，太挤。
+圆角保留 18：它和 DMS 面板/启动器/通知的圆角语言一致，用 niri 原本的 8 会显方正、
+跟 DMS 观感打架。
+
+#### 2. 光标：三处打架收敛到 DMS 单一来源
+
+之前光标尺寸同时存在**三个值**：`environment` 里 34、`cursor{}` 块里 24
+（`catppuccin-mocha-flamingo-cursors`）、DMS 生成的 `dms/cursor.kdl` 里 32。
+实际生效的是最后一个（它 include 得更晚），另外两个既误导人、又会让
+Qt/Electron/GTK 程序跟 Wayland 原生程序对不上。
+
+现在唯一来源是 DMS 的 `settings.json → cursorSettings`（Matugen-Cursors / 32），
+其余位置全部对齐或删除：
+
+| 文件 | 改动 |
+|---|---|
+| `niri/config.kdl` `environment` | `XCURSOR_SIZE` 34 → **32** |
+| `niri/config.kdl` `cursor{}` | **删掉** xcursor-theme / xcursor-size 副本，只留 `hide-after-inactive-ms` 与 `shake-to-enlarge` |
+| `environment.d/cursor.conf` | catppuccin/24 → **Matugen-Cursors / 32**（原文件是 Hyprland 时代残留，注释还写着「Hyprland 会动态更新」） |
+| `gtk-3.0/settings.ini`、`gtk-4.0/settings.ini` | `gtk-cursor-theme-size` 34 → **32** |
+| `xsettingsd/xsettingsd.conf` | `Gtk/CursorThemeSize` 34 → **32** |
+| `~/.icons/default/index.theme`（新增 `dot_icons/`） | `Inherits` 从 `catppuccin-mocha-**pink**-cursors` → **Matugen-Cursors** |
+
+> ⚠️ 顺带发现：**`xsettingsd` 其实根本没在运行**。XSETTINGS 由 Xwayland 内建管理器
+> 提供（`dump_xsettings` 只回 `Gdk/WindowScalingFactor` / `Xft/DPI` / `Gdk/UnscaledDPI`
+> 三个键，没有任何光标项），所以 `xsettingsd.conf` 里的光标配置一直是空转的。
+> XWayland 程序（LinuxQQ 等）实际是从 `~/.icons/default/index.theme` 取光标——
+> 上面那一行改动才是真正生效的那处。
+
+验证：`niri msg action spawn -- sh -c 'echo $XCURSOR_SIZE'` → `32`；
+systemd user session 也用 `set-environment` 同步（`environment.d` 要重新登录才读）。
+
+#### 3. 启用 fork 内置的录屏 / 截图 portal
+
+`~/.config/xdg-desktop-portal/niri-portals.conf` 原来把 `ScreenCast` / `Screenshot`
+指向 `gnome`，于是 fork 自带的 niri portal（DBus 名
+`org.freedesktop.impl.portal.desktop.niri`，由 **niri 本体**持有）一直闲置，
+走的其实是 GNOME 的实现。改为 `niri`。
+
+同时补上 `Secret = gnome-keyring`：`gnome` 与 `gtk` 后端**都不提供**
+`org.freedesktop.impl.portal.Secret`，只靠 `default = gnome;gtk` 兜不住，
+密钥环相关的程序会拿不到 Secret portal。
+
+验证方式（不是看配置文件，而是看总线上真实流向）：`dbus-monitor` 挂
+`interface='org.freedesktop.impl.portal.ScreenCast'`，再通过前端发起
+`CreateSession`。结果唯一收到的 destination 是 `:1.798`，即
+`org.freedesktop.impl.portal.desktop.niri`（pid 574109 = `niri --session`）；
+gnome 后端（`:1.825`）一次都没收到。测完 `niri msg casts` 无残留会话。
+
+> `niri` 的 portal 后端由 fork 编译进 niri 本体，不需要额外装包。
+> `xdg-desktop-portal-gnome` 仍然要留——`default = gnome;gtk` 兜的是
+> Settings / Inhibit / Account 等没显式列出的接口。
+
+#### 4. 显式写出热角
+
+之前没有 `gestures` 块，热角处于 niri 默认（左上角 → overview、左下角 →
+grid-overview）。现在显式写成：
+
+```kdl
+gestures {
+    hot-corners {
+        top-left
+        bottom-left { grid-overview; }
+    }
+}
+```
+
+行为上等于空操作，价值在于自解释、且不受将来 niri 改默认值影响。
+可用动作只有 `overview` 与 `grid-overview`。
+
+#### 5. 补 3 个未配置动画 + 开光标 grow
+
+| 动画 | 取值 | 说明 |
+|---|---|---|
+| `grid-overview-open-close` | `1.0 / 900 / 0.0001` | 对齐上面的 `overview-open-close`，两种总览手感一致 |
+| `config-notification-open-close` | `0.6 / 1000 / 0.001` | niri 设计值（刻意欠阻尼、收尾轻微回弹） |
+| `exit-confirmation-open-close` | `0.6 / 500 / 0.01` | 同上，niri 设计值 |
+
+`cursor.shake-to-enlarge` 打开 `grow`：持续晃动时让光标逐步变大，
+而不是直接跳到 `zoom-factor`（`grow-speed 0.01` 本来就是默认值，已在配置里）。
+
+> ⚠️ 名字要小心：`grid-overview-open-close` 是 **fork 独有**的（上游 wiki 查不到），
+> 本机 `niri validate` 接受。反过来，`recent-windows-open-close`（上游叫
+> `recent-windows-close`）与 `vertical-view-movement` 实测**不存在**，写了会报错。
+
+#### 6. 清掉的遗留项
+
+- **`Mod+Tab`（recent-windows 里那条）是死代码，已删。** niri 文档明确写着
+  「recent-windows 的 bind 优先级**低于**普通 bind」，而 `Mod+Tab` 在
+  `dms/binds.kdl` 里已经绑成了总览（普通 bind），所以这条永远不触发。
+  保留 `Mod+Shift+Tab` / `Mod+grave` / `Mod+Shift+grave`（实测无冲突、可用）。
+- `spawn-at-startup` 三行：`niri-sidebar listen`（end4-pC 遗留，DMS 接管后不再需要）、
+  `xhost +si:localuser:root`（放宽 X11 访问权限，非必要不开）、
+  `flatpak run com.github.wwmm.easyeffects -w`（音频效果器不必开机自启）。
+- `rule.kdl` 里给 niri-sidebar 用的浮动窗口最小尺寸规则。
+  ⚠️ 副作用：它同时也给**所有**浮动窗口兜了个 100×100 下限，删掉之后若某个浮动
+  小窗开得极小，把这条规则加回来即可。
+- `config.kdl.backup*` × 3（9/19 的旧快照）。
+
+#### 7. 验证
+
+`niri validate` 全程通过；journal 无配置错误。fork 独有功能实测：网格总览可开可关
+——打开时与正常状态差 **21% 像素**，关闭后只差 **0.067%**（时钟/光标噪声）。
+
+#### 遗留（未处理）
+
+- **`install.sh` 的 `COMPOSITOR=niri` 路径装的是上游 `niri`**，而本仓库的 niri 配置
+  依赖 SHORiN fork 独有功能（`magnifier` / `grid-overview` / `shake-to-enlarge` /
+  内置 screencast portal，见该包描述）。新机器按这条路径装完，niri 会因**未知配置项
+  拒绝加载配置**，录屏 portal 也不存在——和字体漏装属于同一类静默故障。
+- `wl-wordlens` 不存在（flatpak / 包 / `.desktop` / 数据目录全无），所以 `Mod+F11`
+  与 `Mod+Shift+T` 目前什么都不做，`rule.kdl` 里 `com.wordlens.app` 那条也是死规则。
+- 装了但没用到的 portal 后端：`xdg-desktop-portal-hyprland` / `-kde` / `-wlr`
+  （都是 activatable、未运行，无害，只是噪音）。
+- `docs/README.md` 索引只列了 3 个文档，实际有 17 个；且其中
+  `dynamic-island-roadmap.md` 文件名是错的（实际是 `dynamic-island.md`），链接打不开。
+
 ## 2026-09-20
 
 ### 岛屿：修「打开时背景闪一下」

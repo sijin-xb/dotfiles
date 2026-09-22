@@ -56,12 +56,11 @@ window-rule {
     opacity 1.0 
 }
 
-// niri-siderbar需要的全局窗口规则
-window-rule {
-    match is-floating=true
-    min-width 100
-    min-height 100
-}
+// 已移除（2026-09-23）：给 niri-sidebar 用的浮动窗口最小尺寸规则
+//   window-rule { match is-floating=true; min-width 100; min-height 100 }
+// niri-sidebar 本身已不再启动，这条规则一并删掉。
+// 注意副作用：它同时也给「所有」浮动窗口兜了个 100x100 的下限，删掉之后
+// 若某个浮动小窗开得极小，把这条规则加回来即可。
 
 // 以浮动模式打开imv（一个轻量化图片预览程序）且不自动聚焦
 window-rule {

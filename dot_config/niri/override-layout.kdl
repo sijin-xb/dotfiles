@@ -1,0 +1,35 @@
+// 外观数值覆盖层：间距 / 边框粗细 / 焦点环粗细 / 圆角
+//
+// 为什么需要这个文件：
+//   dms/layout.kdl 是 DMS 自动生成的（gaps 4 / border 2 / focus-ring 2 / 圆角 18），
+//   直接改它会被 DMS 覆写。而 config.kdl 里它在 matugen-colors.kdl、dms/colors.kdl
+//   之后被 include，是这些数值的最终来源。所以本文件必须排在 dms/layout.kdl 之后
+//   （config.kdl 末尾那组 include 的下一行）才能拿到最终话语权。
+//
+// 取值理由（2026-09-23 对着截图逐像素比过后定的）：
+//   · 间距 / 边框 / 焦点环 —— 收回 niri 原本的 10 / 4 / 3。
+//     实测两窗之间 DMS 只有 4px 色带（2px 灰边 + 2px 粉环，中间一点壁纸都不露），
+//     太挤；10 / 4 / 3 下是 10px（7px 灰紫 + 3px 粉环），透气得多。
+//   · 圆角 —— 保留 DMS 的 18。圆角跟 DMS 面板 / 启动器 / 通知的圆角语言一致，
+//     用 niri 原本的 8 会显得方正、和 DMS 的观感打架。
+//
+// 只覆盖数值：tiled-state / draw-border-with-background / clip-to-geometry
+// 这些结构项仍沿用 rule.kdl 与 dms/layout.kdl 里的设定。
+
+layout {
+    gaps 10
+
+    border {
+        width 4
+    }
+
+    focus-ring {
+        width 3
+    }
+}
+
+// 全局圆角。后匹配的规则覆盖先匹配的同名属性，所以这里写 18，
+// 与 dms/layout.kdl 一致 —— 显式写出来是为了让「数值都在这一个文件里」。
+window-rule {
+    geometry-corner-radius 18
+}

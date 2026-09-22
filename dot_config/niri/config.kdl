@@ -24,11 +24,12 @@ screenshot-path "~/Pictures/Screenshots/Niri-screenshots/%Y-%m-%d %H-%M-%S.png"
 environment {
     LANGUAGE "zh_CN:en"
     LANG "zh_CN.UTF-8"
-    // 光标：与 dms/cursor.kdl 一致（Matugen-Cursors / 34）。
-    // 不设的话 Qt、Electron 等读环境变量的程序会回退默认光标，
-    // 与 Wayland 原生程序不一致（LinuxQQ 就是这个情况之一）。
+    // 光标：主题与尺寸的唯一来源是 DMS（DankMaterialShell/settings.json 的
+    // cursorSettings → 生成 dms/cursor.kdl）。这里的环境变量必须跟它一致，
+    // 否则 Qt、Electron 等读环境变量的程序会和 Wayland 原生程序对不上
+    // （LinuxQQ 就是这样）。改主题/尺寸请改 DMS 设置，然后同步这两行。
     XCURSOR_THEME "Matugen-Cursors"
-    XCURSOR_SIZE "34"
+    XCURSOR_SIZE "32"
     // 输入法环境变量（与 Hyprland 的 hyprland/env.lua 保持一致，四个都要有。
     // 原先 niri 这边漏了 GTK_IM_MODULE / QT_IM_MODULE，GTK 与 Qt 程序不会走 fcitx）
     XMODIFIERS "@im=fcitx"
@@ -48,16 +49,21 @@ environment {
     
 }
 // 光标配置
+//
+// ⚠ 主题和尺寸不在这里写。它们归 DMS 管（settings.json 的 cursorSettings，
+//   生成 dms/cursor.kdl 并在本文件末尾 include），在这里再写一份只会多一个
+//   会过期、还会误导人的副本 —— 2026-09-23 清理前这里写的是
+//   catppuccin-mocha-flamingo-cursors / 24，而实际生效的是 DMS 的
+//   Matugen-Cursors / 32，加上 environment 里第三份 34，一共三处打架。
+//   要改主题/尺寸：DMS 设置 → 光标，或直接改 settings.json 再 `dms config`。
 cursor {
-    // 主题，存放路径在~/.local/share/icons
-    xcursor-theme "catppuccin-mocha-flamingo-cursors"
-    // 大小
-    xcursor-size 24
     // 闲置多少毫秒自动隐藏光标
     hide-after-inactive-ms 15000
+    // 晃动鼠标放大光标
     shake-to-enlarge {
 	//off
-	//grow
+	// 持续晃动时让光标逐步变大（不写就只是直接跳到 zoom-factor 那么大）
+	grow
 	grow-speed 0.01
         threshold 2000
 	hold-duration-ms 1500
@@ -65,7 +71,8 @@ cursor {
     }
 }
  
-// 带缩略图的alt+tab切换窗口功能（但是我设置的是super+tab，更符合逻辑）
+// 带缩略图的 alt+tab 切换窗口功能。触发键是 Mod+Shift+Tab（向后）和 Mod+grave
+// （同应用窗口）—— 不是 Mod+Tab，原因见下面 binds 里的注释。
 recent-windows {
     // 取消//off的注释可以禁用
     // off
@@ -89,7 +96,12 @@ recent-windows {
 
     binds {
         // scope可以设置显示的窗口是当前工作区的、还是当前显示器的、或者显示全部窗口
-        Mod+Tab         { next-window scope="workspace"; }
+        //
+        // ⚠ 这里原本还有一条 Mod+Tab { next-window scope="workspace"; }，已删除。
+        //   原因：recent-windows 的 bind 优先级低于普通 bind。Mod+Tab 在 dms/binds.kdl
+        //   里已经绑成了「总览」（普通 bind），所以这一条永远不会触发，属于死代码。
+        //   现状：Mod+Tab = 总览；想开这个切换器用 Mod+Shift+Tab 或 Mod+grave。
+        //   文档：https://niri-wm.github.io/niri/Configuration:-Recent-Windows.html
         Mod+Shift+Tab   { previous-window scope="workspace"; }
         // grave是波浪键，显示当前应用的所有窗口
         Mod+grave       { next-window     filter="app-id"; }
@@ -252,12 +264,14 @@ spawn-at-startup "systemctl" "--user" "start" "linuxqq-clipsync"
 spawn-at-startup "~/.config/niri/scripts/screenshot-sound.sh"
 // alt+tab切换器（这是一个第三方，无缩略图显示的切换器）
 //spawn-at-startup "niriswitcher"
-// niri-siderbar
-spawn-at-startup "~/.local/bin/niri-sidebar" "listen"
-// 允许root通过用户的xwayland打开窗口
-spawn-at-startup "xhost" "+si:localuser:root"
-// 音频调整程序，easyeffects，-w可以在后台启动
-spawn-at-startup "flatpak" "run" "com.github.wwmm.easyeffects" "-w"
+// 已移除的三行（2026-09-23 清理，原因备查）：
+//   · spawn-at-startup "~/.local/bin/niri-sidebar" "listen"
+//       niri-sidebar 是 end4-pC 那套的侧边栏，DMS 接管后它不再被需要；
+//       rule.kdl 里配套的浮动窗口最小尺寸规则也一并删了。
+//   · spawn-at-startup "xhost" "+si:localuser:root"
+//       让 root 通过用户 XWayland 开窗口，属于放宽 X11 访问权限，非必要不开。
+//   · spawn-at-startup "flatpak" "run" "com.github.wwmm.easyeffects" "-w"
+//       音频效果器常驻后台，需要时手动开即可，不必开机自启。
 // DankMaterialShell（本会话的 shell）
 //   `dms run` 同时拉起后端与 UI（见 `dms --help`）。
 //   原先这里是 `qs -c end4-pC` —— 那套是 Hyprland 用的 Quickshell 配置，
@@ -298,6 +312,21 @@ grid-overview {
     default-mod-action false
 }
 
+// 手势 / 热角。
+// 显式写出来的意义在于自解释：niri 的默认值本来就是「左上角 → overview、
+// 左下角 → grid-overview」，所以这一段在行为上等于空操作，但写出来之后
+// 既不会被将来 niri 改默认值影响，也不用去翻默认配置猜。
+// 可用动作只有 overview 和 grid-overview；某个角写 `off` 可单独关掉。
+// 右上 / 右下不写 = 不启用。
+gestures {
+    hot-corners {
+        // 左上角 → 总览
+        top-left
+        // 左下角 → 网格总览（fork 独有）
+        bottom-left { grid-overview; }
+    }
+}
+
 debug {
 	// 放宽聚焦拦截，修复点击托盘程序无法跳转聚焦的问题。
 	honor-xdg-activation-with-invalid-serial
@@ -311,3 +340,5 @@ include "dms/binds.kdl"
 include "dms/layout.kdl"
 include "dms/windowrules.kdl"
 include "dms/input.kdl"
+// 外观数值覆盖层：必须排在 dms/layout.kdl 之后，否则被 DMS 的值压掉。
+include "override-layout.kdl"

@@ -76,4 +76,26 @@ animations {
         spring damping-ratio=1.0 stiffness=900 epsilon=0.0001
     }
 
+    // 以下三项 2026-09-23 补上。原先没写，走的是 niri 内建默认值 ——
+    // 写出来的好处是能看见、能调，而不是每次都要去翻默认配置猜。
+
+    // 开关网格总览的动画（grid-overview 是 fork 独有功能，名字也只在 fork 里有；
+    // 上游 wiki 里查不到）。取值直接对齐上面的 overview-open-close，
+    // 让两种总览的手感一致。
+    grid-overview-open-close {
+        spring damping-ratio=1.0 stiffness=900 epsilon=0.0001
+    }
+
+    // 配置解析错误 / 新默认配置通知的开关动画。
+    // 用 niri 的设计值：damping-ratio 0.6 是刻意欠阻尼，收尾带一点回弹，
+    // 小弹窗这样比纯临界阻尼更灵动。我没改数值，只是写出来。
+    config-notification-open-close {
+        spring damping-ratio=0.6 stiffness=1000 epsilon=0.001
+    }
+
+    // 退出确认对话框的开关动画。同样是 niri 设计值（欠阻尼 + 轻微回弹）。
+    exit-confirmation-open-close {
+        spring damping-ratio=0.6 stiffness=500 epsilon=0.01
+    }
+
 }
