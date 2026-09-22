@@ -101,6 +101,52 @@ MiSans；默认规则在后，MiSans 仍排在发行版偏好之前。改配置�
 - 思源黑体注释改写：不再是 fontconfig 别名的目标，保留是因为 GTK `settings.ini`
   与 fcitx5 `classicui.conf` 里硬编码了它
 
+### 字体方案（续）：霞鹜文楷接管衬线族
+
+上一节把 serif 定为「霞鹜臻楷 GB → 文楷屏幕阅读版」。这一节改成**文楷为主**，
+并把整个衬线族搬进独立的 `conf.d` 片段。
+
+**最终衬线链**（`dot_config/fontconfig/conf.d/50-lxgw-wenkai.conf`）：
+
+| 请求 | 解析到 |
+|---|---|
+| `serif` / `lang=zh-cn` | `Noto Serif`（拉丁）→ **霞鹜文楷 Medium**（中文逐字回退） |
+| `lang=zh-tw` / `zh-hk` | 霞鹜文楷 TC → Noto Serif CJK TC（与上一节一致，未变） |
+| `lang=ja` / `ko` | Noto Serif CJK JP / KR（与上一节一致，未变） |
+| `KaiTi` / `楷体` | 霞鹜文楷 Medium（新增别名映射） |
+
+- **拉丁用 `Noto Serif`**：它不含任何 CJK（`fc-list :family="Noto Serif" :charset=4e00`
+  为空），所以能安全地排在链首——西文走正经衬线，中文逐字回退到文楷。
+  代价是不做逐字回退的老程序中文会出豆腐块。
+- **正文用 `LXGW WenKai Medium`**：家族名直接写 `Medium` 就能选中中等字重
+  （`fc-match "LXGW WenKai Medium"` → `LXGWWenKai-Medium.ttf`），比屏幕阅读版厚，
+  解决「文楷太细」。文楷全系没有 Bold / Italic，粗斜体由渲染器合成。
+- **按字体调渲染没做**：实测文楷不含任何 TrueType 微调指令（无 `fpgm` 表、
+  0 个字形带指令），`hinting=true` + `hintstyle=hintslight` 对它本来就是空转，
+  没有可调的东西。
+
+**关键发现：`conf.d` 的优先级高于 `fonts.conf`。**
+`/etc/fonts/conf.d/50-user.conf` 先 include `fontconfig/conf.d`、再 include
+`fontconfig/fonts.conf`，而 prepend 是「先执行的排得更前」，所以片段的规则必然压过
+`fonts.conf`。实测：在片段里放一条无条件的 `serif` 规则，`fc-match serif:lang=zh-tw`
+就从「文楷 TC」变成片段里的字体——**地区规则会被静默抢走**。
+
+因此 `fonts.conf` 里原有的 4 条衬线地区规则 + 默认衬线规则**已整体搬进片段**，
+原位置留了指针注释。现在职责是：`fonts.conf` 管无衬线（MiSans）与等宽（Maple Mono），
+片段管衬线（文楷）。**片段是衬线族的唯一定义处**——删掉它不会回到旧方案，
+而是让 serif 回落到发行版的「文泉驿正黑」（黑体），要弃用得先把默认链搬回去。
+
+> 顺带踩的坑：fontconfig 手册写了 `compare="not_contains"`，但 **2.18.3 上对 `lang`
+> 实测不生效**（`contains` 正常）。本想用它给 ja / ko / 繁中开豁免、做成纯加法片段，
+> 结果所有语言都被命中，只好改为在片段里重述四条语言规则。
+
+> **无需安装任何新字体**：`ttf-lxgw-wenkai`（1.522，含 Medium）/ `-screen`（1.520）/
+> `-tc`（1.520）本机都已存在。后两个比上游低一个小版本，未升级。
+
+> 生效方式：`fc-cache -f` 之后重启浏览器和已运行的应用（fontconfig 新规则对已启动的
+> 进程不生效）。验证：`fc-match serif` / `fc-match "serif:charset=4e00"` /
+> `fc-match KaiTi`。
+
 ## 2026-09-20
 
 ### 岛屿：修「打开时背景闪一下」
