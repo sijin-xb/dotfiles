@@ -269,6 +269,8 @@ spawn-at-startup "xsettingsd"
 // nirius
 spawn-at-startup "niriusd"
 
+spawn-at-startup "wl-clip-persist" "--clipboard" "both"
+
 // 取消启动niri时自动开启快捷键教程
 hotkey-overlay {
     // Uncomment this line to disable the "Important Hotkeys" pop-up at startup.

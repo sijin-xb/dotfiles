@@ -6,9 +6,20 @@ patch:
     grammar/non_collocation_penalty: -20
     grammar/rear_penalty: -12
     grammar/weak_collocation_penalty: -35
-    translator/contextual_suggestions: false
+    # ── 语境能力 ────────────────────────────────────────────────
+    # contextual_suggestions：用语言模型（grammar）优化输出结果，
+    # 表现为「跨输入词组预测」——上屏前文后影响下一个词的候选。
+    # 万象官方（rime_wanxiang/wanxiang.schema.yaml）默认 false，注释「效果一般关闭」，
+    # 副作用是模型预测会压过你实际想打的词（官方例子：上屏「现在」再打 zhineng
+    # 会优先「智能」而非「只能」）。这里显式打开，是要那个「语境感」。
+    # 不满意就改回 false 重新部署即可，无副作用残留。
+    translator/contextual_suggestions: true
+
+    # max_homophones：每个读音最多给几个同音候选。
+    # 5 → 8（万象官方值）。注意：8 仍够不到「了」（liao 音下排第 19），
+    # 这个开关只放宽候选池宽度，不做单字消歧。
     translator/max_homographs: 5
-    translator/max_homophones: 5
+    translator/max_homophones: 8
 
     # ── 中文模式下按 `/` 弹出常用符号候选框 ────────────────────────────
     # 原理（librime/src/rime/gear/punctuator.cc）：
