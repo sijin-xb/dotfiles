@@ -342,6 +342,18 @@ cmd_install() {
         # 思源黑体（Source Han Sans CN）：**不再走 fontconfig 别名**，但 GTK
         # settings.ini、fcitx5 classicui.conf 里硬编码了它，保留。
         adobe-source-han-sans-cn-fonts
+        # ---- Neovim 生态 ----
+        # 配置在 dot_config/nvim/（LazyVim）。**编辑器本体必须在这里显式声明**：
+        # 之前只跟踪了配置、没跟踪包，新机器装完是「有配置、没编辑器」，
+        # 而且 install.sh 不会报任何错——和字体漏装是同一类静默故障。
+        # ripgrep / fd：Telescope 找文件与全局搜索的后端，缺了会静默回退到更慢的 find。
+        # fzf：fish 的 fzf 绑定，以及 telescope-fzf-native 的构建基础。
+        # lazygit：<leader>gg 的前提，缺了那个键位根本不存在（LazyVim 有 executable 守卫）。
+        # tree-sitter-cli：手动编译/调试语法解析器用。
+        neovim ripgrep fd fzf lazygit tree-sitter-cli
+        # neovide：nvim 的 GUI 前端。字体对齐 kitty，
+        # 见 dot_config/neovide/config.toml。
+        neovide
         # quickshell 源码编译工具链（三级回退时使用，平时不碍事）
         cmake ninja
         qt6-base qt6-declarative qt6-wayland qt6-5compat qt6-shadertools qt6-svg

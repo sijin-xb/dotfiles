@@ -43,3 +43,22 @@ opt.smartindent = true        -- 智能缩进
 -- ==========================================
 opt.updatetime = 200          -- 响应时间从 4000ms 降到 200ms，LSP 提示飞快
 opt.timeoutlen = 300          -- 组合键等待时间（如果你按 Ctrl+S 慢了点也不会断）
+
+-- ==========================================
+-- 6. 模式可见性（学 vim 用）
+-- ==========================================
+-- 学 vim 最难受的是「不知道自己现在在哪个模式」。让光标形状跟着模式走：
+--   normal / visual / command -> 方块
+--   insert                    -> 竖线
+--   replace                   -> 下划线
+-- kitty 与 neovide 都支持（终端走 DECSCUSR 序列，neovide 自己渲染）。
+-- LazyVim 默认不设 guicursor，所以这里不会和它打架。
+opt.guicursor = {
+  "n-v-c:block",
+  "i-ci-ve:ver25",
+  "r-cr:hor20",
+  "o:hor50",
+  "a:blinkwait700-blinkoff400-blinkon250-Cursor/lCursor",
+  "sm:block-blinkwait175-blinkoff150-blinkon175",
+}
+

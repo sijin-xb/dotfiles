@@ -55,7 +55,14 @@ bash 脚本完成，不需要 chezmoi 二进制。
 - 壁纸视差与多后端视频壁纸，详见 [docs/appearance.md](docs/appearance.md)
 - matugen 壁纸取色：kitty / alacritty / foot / fastfetch / fcitx5（含 fcitx5-rime
   候选框）/ mako / Hyprland 联动配色
-- fish（fzf 绑定、nvm）、nvim（LazyVim）、btop、fastfetch、fuzzel、mako 配置
+- fish（fzf 绑定、nvm）、btop、fastfetch、fuzzel、mako 配置
+- **nvim（LazyVim，取向是「边用边学 vim」）**：保留不是 vim 动词的 Ctrl 系快捷键
+  （`Ctrl+S` 存盘、`Ctrl+P` 找文件、`Ctrl+B` 文件树、``Ctrl+` `` 终端、`Ctrl+/` 注释），
+  把 vim 动词（`yy` / `p` / `u` / `ggVG`）还给 vim 本身；picker / 文件树用
+  Telescope + Neo-tree，中文输入法自动中英切换，光标形状随模式变色；
+  GUI 前端 neovide，字体对齐 kitty。
+  详见 [docs/nvim-keymaps.md](docs/nvim-keymaps.md)（速查表）与
+  [docs/nvim-learning.md](docs/nvim-learning.md)（学习清单）
 
 ## 环境要求
 
@@ -155,7 +162,7 @@ dot_config/
     modules/ii/lock/      锁屏：Lock.qml 入口
       caelestia/          Caelestia 风格锁屏（内容、组件、形变动画）
       SerpantinumLockSurface.qml  旧版锁屏（保留可切回）
-  fish/  kitty/  foot/  alacritty/  nvim/  btop/  fastfetch/  fuzzel/  mako/  matugen/
+  fish/  kitty/  foot/  alacritty/  nvim/  neovide/  btop/  fastfetch/  fuzzel/  mako/  matugen/
   fontconfig/fonts.conf  全局字体方案（MiSans + 按语言切换 CJK 地区字形）
   fcitx5/
     config                fcitx5 主配置
@@ -165,6 +172,7 @@ dot_local/share/fcitx5/
   rime/
     default.custom.yaml   全局按键 / 翻页设置
     rime_ice.custom.yaml  雾凇拼音语法权重调整 + `/` 符号候选框
+dot_vimrc                 vim（非 nvim）配置：fcitx5 自动切换 + 剪贴板降级
 install.sh                安装 / 卸载 / 回档 / 存档 / TUI
 docs/                     设计说明与排障文档（见下）
 ~~~

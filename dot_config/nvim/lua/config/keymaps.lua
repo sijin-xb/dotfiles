@@ -1,34 +1,33 @@
 -- Keymaps are automatically loaded on the VeryLazy event
 -- Default keymaps that are always set: https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/config/keymaps.lua
 -- Add any additional keymaps here
--- Keymaps are automatically loaded on the VeryLazy event
--- Default keymaps: https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/config/keymaps.lua
+--
+-- 本文件的取舍原则：保留「不是 vim 动词」的现代快捷键（存盘、移动行、跳词、注释、
+-- 开关面板），把 vim 动词（yy / p / u / dd / ggVG）还给 vim 本身，以便边用边学。
 
 local map = vim.keymap.set
 
 -- ==========================================
--- 1. 基础编辑 (Ctrl + 系)
+-- 0. 还原 vim 原生行为
 -- ==========================================
 
--- 全选: Ctrl + A
-map("n", "<C-a>", "ggVG", { desc = "Select All" })
+-- LazyVim 默认把 j/k 改成按「显示行」移动的 gj/gk。删掉那两条映射后，j/k 回到
+-- vim 原生语义（按「逻辑行」移动），和教程、别人的配置、裸 vim 保持一致。
+-- gj/gk 是 vim 内置命令，不需要额外映射。
+pcall(vim.keymap.del, { "n", "x" }, "j")
+pcall(vim.keymap.del, { "n", "x" }, "k")
+
+-- ==========================================
+-- 1. 保留的现代快捷键（都不是 vim 动词，不与学习冲突）
+-- ==========================================
 
 -- 保存: Ctrl + S (各种模式下均有效)
 map({ "i", "x", "n", "s" }, "<C-s>", "<cmd>w<cr><esc>", { desc = "Save File" })
 
--- 撤销/重做: Ctrl + Z / Ctrl + Y
-map("n", "<C-z>", "u", { desc = "Undo" })
-map("n", "<C-y>", "<C-r>", { desc = "Redo" })
-map("i", "<C-z>", "<Cmd>u<CR>", { desc = "Undo in Insert Mode" })
-
--- 复制/剪切/粘贴 (对接系统剪贴板)
-map({ "n", "v" }, "<C-c>", '"+y', { desc = "Copy to System Clipboard" })
-map({ "n", "v" }, "<C-x>", '"+d', { desc = "Cut to System Clipboard" })
-map({ "n", "v", "i" }, "<C-v>", '<C-r>+', { desc = "Paste from System Clipboard" })
-
--- ==========================================
--- 2. 现代行操作 (Alt + 方向键 移动行)
--- ==========================================
+-- 插入模式下 Ctrl + C 视同 Esc。
+-- 原因：vim 原生的 <C-c> 离开插入模式时【不触发 InsertLeave】，fcitx.nvim 就不会
+-- 切回英文，你会带着中文输入法回到 normal 模式，然后按的每个命令都变成拼音。
+map("i", "<C-c>", "<Esc>", { desc = "Escape (fires InsertLeave)" })
 
 -- 类似 VS Code 的 Alt + 上下箭头移动行
 map("n", "<A-j>", "<cmd>m .+1<cr>==", { desc = "Move Down" })
@@ -38,30 +37,34 @@ map("i", "<A-k>", "<esc><cmd>m .-2<cr>==gi", { desc = "Move Up" })
 map("v", "<A-j>", ":m '>+1<cr>gv=gv", { desc = "Move Down" })
 map("v", "<A-k>", ":m '<-2<cr>gv=gv", { desc = "Move Up" })
 
--- ==========================================
--- 3. 界面与导航
--- ==========================================
-
--- 侧边栏开关: Ctrl + B (类似 VS Code)
-map("n", "<C-b>", "<cmd>Neotree toggle<cr>", { desc = "Toggle Explorer" })
-
--- 快速查找文件: Ctrl + P
-map("n", "<C-p>", "<cmd>Telescope find_files<cr>", { desc = "Find Files" })
-
--- 快速全局搜索文本: Ctrl + F
--- 注意：在 Vim 中习惯用 / 搜索，但我们可以映射 Ctrl+F 弹出更现代的搜索
-map("n", "<C-f>", "<cmd>Telescope current_buffer_fuzzy_find<cr>", { desc = "Buffer Search" })
-
--- 终端开关: Ctrl + ` (或者 Ctrl + t)
-map({ "n", "t" }, "<C-`>", "<cmd>ToggleTerm<cr>", { desc = "Toggle Terminal" })
-
--- ==========================================
--- 4. 插入模式下的舒适操作
--- ==========================================
-
--- 在插入模式下用 Ctrl + 方向键 快速跳词 (现代人类习惯)
+-- 插入模式下用 Ctrl + 方向键 快速跳词
 map("i", "<C-Left>", "<Esc>bi", { desc = "Move word left" })
 map("i", "<C-Right>", "<Esc>ea", { desc = "Move word right" })
 
--- 注释代码: Ctrl + / (注意：某些终端可能需要映射为 <C-_>)
-map({ "n", "i", "v" }, "<C-/>", "gcc", { remap = true, desc = "Toggle Comment" })
+-- 注释代码: Ctrl + /
+-- 插入模式必须走 <C-o>，否则 "gcc" 会被当成普通字符直接打进正文。
+map({ "n", "v" }, "<C-/>", "gcc", { remap = true, desc = "Toggle Comment" })
+map("i", "<C-/>", "<C-o>gcc", { desc = "Toggle Comment" })
+
+-- ==========================================
+-- 2. 文件 / 查找 / 终端：Ctrl 与 <leader> 双轨
+-- ==========================================
+-- 下面调用的 picker / explorer / terminal 都走 LazyVim 当前启用的那一套
+-- （已在 lazyvim.json 切到 Telescope / Neo-tree / snacks），所以 Ctrl 键和
+-- <leader> 键指向同一个工具，不会出现两个文件树、两套搜索结果。
+
+-- 侧边栏开关: Ctrl + B（等价 <leader>e）
+map("n", "<C-b>", function()
+  require("neo-tree.command").execute({ toggle = true, dir = LazyVim.root() })
+end, { desc = "Toggle Explorer" })
+
+-- 快速查找文件: Ctrl + P（等价 <leader>ff）
+map("n", "<C-p>", LazyVim.pick("files"), { desc = "Find Files" })
+
+-- 搜索当前文件内容: Ctrl + F（等价 <leader>sb）
+map("n", "<C-f>", "<cmd>Telescope current_buffer_fuzzy_find<cr>", { desc = "Buffer Search" })
+
+-- 终端开关: Ctrl + `（等价 <leader>ft）
+map({ "n", "t" }, "<C-`>", function()
+  Snacks.terminal.focus(nil, { cwd = LazyVim.root() })
+end, { desc = "Toggle Terminal" })

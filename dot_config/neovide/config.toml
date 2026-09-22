@@ -1,0 +1,13 @@
+# neovide 配置（nvim 的 GUI 前端）
+# 文档：https://neovide.dev/config-file.html
+#
+# 字体与字号刻意对齐 kitty（~/.config/kitty/kitty.conf 里是
+# JetBrainsMono Nerd Font / 11.0），这样终端里和 GUI 里打开同一个文件，
+# 字号与字形是一致的。
+#
+# 可选：niri 是平铺窗管，标题栏通常多余，去掉它只要加一行
+#   frame = "none"
+
+[font]
+normal = ["JetBrainsMono Nerd Font"]
+size = 11.0

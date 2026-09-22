@@ -4,6 +4,54 @@
 
 ## 2026-09-23
 
+### Neovim：从「VS Code 手感」转向「边用边学 vim」
+
+原配置已经做过一轮「非模态化」（`Ctrl+S/C/V/Z/...` 全映射）。但如果目标是**学 vim**，
+这套改造是反作用：有 Ctrl 兜底，就永远不会被迫学会 `yy` / `p` / `u`。这次按
+「**保留不是 vim 动词的键，把 vim 动词还给 vim**」重排。
+
+**拆掉的键**（完整对照见 [docs/nvim-keymaps.md](docs/nvim-keymaps.md)）：
+
+| 拆掉 | 改用 | 备注 |
+|---|---|---|
+| `Ctrl+A` | `ggVG` | 全选 |
+| `Ctrl+C` / `Ctrl+X` / `Ctrl+V` | `y` / `d` / `p` | 已开 `clipboard=unnamedplus`，`y` 直接进系统剪贴板 |
+| `Ctrl+Z` / `Ctrl+Y` | `u` / `Ctrl+r` | ⚠️ normal 模式下 `Ctrl+Z` 现在会**挂起** nvim（原生行为），`fg` 恢复 |
+
+拆掉后回归的原生含义：`Ctrl+V` 块选择、`Ctrl+A` / `Ctrl+X` 数字加减。
+
+**保留的 Ctrl 键**（都不是 vim 动词）：`Ctrl+S` 存盘、`Ctrl+P` 找文件、
+`Ctrl+F` 搜当前文件、`Ctrl+B` 文件树、``Ctrl+` `` 终端、`Ctrl+/` 注释、
+`Alt+j/k` 移行、`Ctrl+←/→` 跳词。它们和对应的 `<leader>` 键指向同一套工具。
+
+**修好的坏键**：`Ctrl+B` / `Ctrl+P` / `Ctrl+F` 原来绑到 Neotree / Telescope，
+但这三个插件根本没装，按下去直接报错。现在 extras 加了
+`editor.telescope` + `editor.neo-tree`，snacks 的 picker / explorer 自动失能
+（LazyVim 的 `get_defaults()` 按 `has_extra()` 决定默认项，不会重复注册 picker）。
+终端维持 snacks 的，因为 LazyVim **没有** toggleterm 的 extra，手写会变成两套终端。
+
+**顺带修的 bug**：`Ctrl+/` 原来映射成 `gcc` 且覆盖了插入模式——插入模式下 `gcc`
+会被当成普通字符直接打进正文。改成插入模式走 `<C-o>gcc`。
+
+**新增**：
+
+- `hh-hg/fcitx.nvim`：离开插入模式自动切英文、进入自动恢复中文，按 buffer 记忆。
+  前提是 fcitx5 输入法列表「英文第一、中文第二」（本机 `keyboard-us` / `rime` 已满足）。
+  配套把插入模式 `Ctrl+C` 映射为 `Esc`——原生 `<C-c>` 退出插入模式
+  **不触发 `InsertLeave`**，会导致输入法不切回英文。
+- `guicursor`：normal 方块 / insert 竖线 / replace 下划线，解决「不知道自己在哪个模式」。
+- 删掉 LazyVim 的 `j`/`k` → `gj`/`gk` 映射，还原原生的逻辑行移动。
+- `dot_config/neovide/config.toml`：neovide GUI 前端，字体对齐 kitty
+  （JetBrainsMono Nerd Font / 11.0）。
+- `docs/nvim-keymaps.md`（速查表）、`docs/nvim-learning.md`（分阶段学习清单）。
+
+**install.sh**：`PACMAN_PKGS` 补 `neovim ripgrep fd fzf lazygit tree-sitter-cli neovide`。
+之前只跟踪了 `dot_config/nvim/` 却没跟踪包本体，新机器装完是「**有配置、没编辑器**」，
+而且 install.sh 不会报任何错——和字体漏装是同一类静默故障。
+
+**`~/.vimrc` 纳入仓库**（`dot_vimrc`）：它管 vim 的 fcitx5 自动切换与剪贴板降级。
+nvim 不读它，纳管只为防重装丢。
+
 ### 字体方案：换成 MiSans + 按语言切换 CJK 地区字形
 
 整体替换为 [emoeem/fontconfig](https://github.com/emoeem/fontconfig) 的方案（旧的
