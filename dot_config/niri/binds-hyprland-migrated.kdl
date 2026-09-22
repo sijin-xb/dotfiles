@@ -156,13 +156,8 @@ binds {
         spawn-sh "mkdir -p ~/Pictures/Screenshots && f=~/Pictures/Screenshots/screenshot-$(date +%Y-%m-%d_%H-%M-%S).png && grim \"$f\" && wl-copy -t image/png < \"$f\" && notify-send '屏幕截图' '已保存并复制到剪贴板'";
     }
 
-    // 录屏：沿用你原来的 record.sh（纯 shell/ffmpeg，与合成器无关）
-    Mod+Shift+R hotkey-overlay-title="区域录制 Record region" {
-        spawn "~/.config/quickshell/end4-pC/scripts/videos/record.sh";
-    }
-    Mod+Ctrl+Alt+R hotkey-overlay-title="全屏录制（含系统声音）" {
-        spawn "~/.config/quickshell/end4-pC/scripts/videos/record.sh" "--fullscreen" "--sound";
-    }
+    // 录屏：已改由 DMS 的 quickCapture 插件承担（Ctrl+Alt+R，见 dms/binds.kdl）。
+    // 原 Mod+Shift+R（区域录制）和 Mod+Ctrl+Alt+R（全屏含声音）已于 2026-09-22 删除。
 
     // 取色器（原 Super+Shift+C，hyprpicker 在 niri 下不可用）
     // [改由 DMS 承担，见 dms/binds.kdl] 原 Mod+Shift+C

@@ -79,4 +79,10 @@ binds {
 
     // 随机壁纸 —— Hyprland 里 Ctrl+Super+Alt+T
     Mod+Ctrl+Alt+T hotkey-overlay-title="随机壁纸 Random wallpaper" { spawn "dms" "ipc" "call" "wallpaper" "next"; }
+
+    // 录屏 —— quickCapture 插件。同一个键再按一次停止（recordToggle）。
+    //   想改成选区录制，把 screen 换成 region；走 xdg-desktop-portal 用 portal。
+    //   注意：本机没装 gpu-screen-recorder，只有 wf-recorder（CPU 后端），
+    //   按插件文档 wf-recorder 只录画面、不带声音；要声音得装 gpu-screen-recorder。
+    Ctrl+Alt+R hotkey-overlay-title="录屏 Record screen" { spawn "dms" "ipc" "call" "quickCapture" "recordToggle" "screen"; }
 }
