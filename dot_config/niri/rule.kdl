@@ -18,12 +18,15 @@ layer-rule{
     match namespace="^quickshell$"
      place-within-backdrop true
 }
-// awww 方案（当前生效）：awww-daemon -n overview 的命名空间是
-// "awww-daemon" + "overview" = "awww-daemonoverview"，它在 background 层，
-// backdrop 能接受。这是目前唯一确定可用的做法。
+// 已删（2026-09-23）：awww-daemonoverview / swww-daemonoverview 的 layer-rule。
+//   实测证据：把 awww 画的图换成纯绿后，总览 backdrop 的 5 个采样点颜色逐点
+//   相等 —— 它对 backdrop 从未有过贡献，规则是空转的。配套的 awww-daemon
+//   启动项也一起从 config.kdl 删了（详见那边的注释）。
+// mpvpaper 的视频壁纸放进 backdrop（2026-09-23 加）：
+//   目标效果是「桌面是视频，进总览也还是视频」。mpvpaper 用 -l background，
+//   与下面的 ^quickshell$ 同层，走同一条路。实测总览里能看到视频画面。
 layer-rule{
-    match namespace="awww-daemonoverview"
-    match namespace="swww-daemonoverview"
+    match namespace="mpvpaper"
      place-within-backdrop true
 }
 // 全局窗口规则

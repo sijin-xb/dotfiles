@@ -208,26 +208,28 @@ overview {
 // See the binds section below for more ipawn examples.
 
 // 自动启动设置
-// 壁纸完全交给 DMS（两层都是 DMS 渲染）：
-//   · 主桌面壁纸  → DMS 的 quickshell:background 层（niri 默认 zoom 行为）
-//   · overview 背景 → DMS Blur Layer（dms:blurwallpaper），见 rule.kdl 的
-//     layer-rule place-within-backdrop true
-//   · layout.kdl → background-color "transparent"（DMS 官方要求）
-// 不再起 awww / swaybg / swww，也不需要外加同步脚本。DMS 用 DMS IPC
-// 换壁纸时 backdrop 自动跟着变（同一张图，只是被 Blur Layer 模糊）。
+// 壁纸链路的最终形态（2026-09-23 实测确认）：
+//   · 桌面壁纸     → DMS 的 mpvpaper 插件（视频）
+//   · overview 背景 → 同一条视频：mpvpaper 的 surface 在 rule.kdl 里配了
+//     place-within-backdrop true，实测总览里能看到视频画面
+//   · 兜底         → DMS 主壁纸（namespace "quickshell"）也在 backdrop 里；
+//     mpvpaper 插件停掉时它会自动接管，不会开天窗
+//   · layout.kdl   → background-color "transparent"（DMS 官方要求）
 //
-// 兜底（当前实际生效的方案）：DMS 1.7 的命名空间全是 dms: 前缀，官方文档
-// 里那条 ^quickshell$ 与 dms:blurwallpaper 都不在官方 namespace 列表里，
-// 没法确定。awww 默认 -l background（backdrop 唯一接受的层），确定可用。
-// 图的来源仍是 DMS（下面这行读 dms ipc call wallpaper get），awww 只负责画。
-spawn-at-startup "awww-daemon" "-n" "overview"
-spawn-sh-at-startup r#"for i in 1 2 3 4 5 6 7 8; do W=$(dms ipc call wallpaper get 2>/dev/null | tail -1); if [ -n "$W" ]; then awww img -n overview "$W"; break; fi; sleep 2; done"#
-
+// 已删（2026-09-23）：awww-daemon -n overview + 配套同步脚本。
+//   它当初的理由是「DMS 1.7 的命名空间全是 dms: 前缀，不确定 ^quickshell$
+//   能不能进 backdrop，拿 awww 兜底」。实测证伪：把 awww 的图换成纯绿后，
+//   总览 backdrop 的 5 个采样点颜色逐点相等，说明 backdrop 一直来自 DMS 的
+//   quickshell surface，awww 从未参与。它在正常桌面被 mpvpaper 盖住、在总览里
+//   又不影响 backdrop，两头都不露脸。附带隐患是同步脚本只在开机时跑一次，
+//   之后换壁纸不会跟随。（rule.kdl 里配套的 awww layer-rule 也一并删了。）
+//
 // 此前试过的几个错路（已废弃，注释备查以防再踩）：
-//   · awww-daemon -n overview  + 同步脚本：让 awww 接管了 backdrop 画图，
-//     不是"纯 DMS"。
+//   · awww-daemon -n overview + 同步脚本：让 awww 接管了 backdrop 画图，
+//     不是"纯 DMS"。—— 后来证明它连 backdrop 都没接管上，纯属多画一层。
 //   · layer-rule match namespace="^quickshell$" + place-within-backdrop true：
-//     DMS 单层壁纸放进 backdrop 会让 desktop 没壁纸，方向错。
+//     当时判断为「方向错」（以为会让 desktop 没壁纸）。实测是对的，而且它是
+//     backdrop 真正的来源，现在保留着当兜底。
 //   · awww 的 -n X 让命名空间变成 awww-daemonX（X=overview → "awww-daemonoverview"）
 //spawn-at-startup "waypaper" "--restore"
 // 询问管理员权限功能（身份验证）

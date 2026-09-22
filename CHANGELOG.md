@@ -337,6 +337,67 @@ wordlens 后取消注释即可」，两处互相指向，不至于将来只改�
 - 装了但没用到的 portal 后端：`xdg-desktop-portal-hyprland` / `-kde` / `-wlr`
   （都是 activatable、未运行，无害，只是噪音）。
 
+### niri 壁纸：三层收敛成两层，overview 里也能看到视频
+
+起因是「感觉有三层壁纸，但会被覆盖」。查下来 background 层确实挤了 4 个
+surface，而其中一层从来没露过脸。
+
+#### 诊断
+
+`niri msg layers` 显示 background 层有四个：
+
+| surface | 谁拉起来的 | 画什么 |
+|---|---|---|
+| `mpvpaper` | DMS 的 mpvpaper 插件 | `yeqi.mp4` 视频 |
+| `quickshell` | DMS 本体（主壁纸） | `MXBpbZp.png` |
+| `awww-daemonoverview` | niri 的 `spawn-at-startup` | `MXBpbZp.png`（开机时从 DMS 读一次） |
+| `dms:plugins:wallpaperCarousel:precache` | 轮播插件 | 预缓存，不直接显示 |
+
+判断「平时看到的是哪个」用取色：窗口下方 gap 是 `(96,84,101)` 的灰紫
+（`R≈G<B`），与 `yeqi.mp4` 同位置的 `(77,74,93)` 同调；而 `MXBpbZp.png`
+那个位置是 `(78,25,36)` 的暗红（`R>>G`）。**平时是视频盖在最上面。**
+
+> ⚠ 取样点的坑：第一版取在屏幕左边缘，放大后发现那里是 kitty 窗口内容
+> （`#1E1E1E`）不是壁纸，整轮结论作废。**取样点必须先用 `-crop` 放大
+> 确认是壁纸再往下做。**
+
+#### 定位 backdrop 的真实来源
+
+`rule.kdl` 里有三条 `place-within-backdrop true`（`dms:blurwallpaper`、
+`^quickshell$`、`awww-daemonoverview`），但不清楚总览里的背景是谁贡献的。
+
+手法：**把 awww 画的图临时换成纯绿**，再开总览截图对比采样点。
+
+结果：5 个采样点颜色**逐点相等**（只有一处差 1/255 的噪声）——
+awww 对 backdrop **毫无影响**。真正的来源是 `^quickshell$` 命中的
+DMS 主壁纸 surface。
+
+于是 awww 的定性是：正常桌面被 mpvpaper 盖住、总览里又不参与 backdrop，
+**两头都不露脸**。它还有个隐患 —— `config.kdl` 里那行同步脚本是个 8 次
+重试的 for 循环，**只在开机时跑一次**，之后换壁纸不会跟随。
+
+#### 改动
+
+1. **给 mpvpaper 加 `place-within-backdrop true`**（`rule.kdl`）——
+   目标是「桌面是视频，进总览也还是视频」。实测生效：总览 backdrop 的
+   采样点从清一色 `R>>G` 的红变成蓝紫/亮色，截图里能看到视频画面。
+2. **删掉 awww**：`config.kdl` 的 `spawn-at-startup "awww-daemon" "-n" "overview"`
+   与配套同步脚本两行、`rule.kdl` 里 awww 的 layer-rule，并停掉运行中的进程。
+3. **保留 `^quickshell$` 那条** —— 它是兜底：mpvpaper 插件停掉时
+   DMS 的静态壁纸会自动接管 backdrop，不会开天窗。
+
+结果：background 层从 4 个 surface 降到 3 个，壁纸链路变成
+「mpvpaper 画 + DMS 主壁纸兜底」。因为 mpvpaper 是 DMS 插件，在 DMS 里
+换视频它会自己跟随，不像原来那个只在开机同步一次的脚本。
+
+#### 验证
+
+- `niri validate` → `config is valid`
+- background 层 surface：4 → 3
+- 正常桌面 gap 取色：改前 `(95,83,99)` / 改后 `(94,82,98)`，未受影响
+  （差值来自视频不同帧，非配置副作用）
+- 总览 backdrop：视频画面（采样点 `(80,900)=(20,16,33)`，蓝紫系）
+
 ## 2026-09-20
 
 ### 岛屿：修「打开时背景闪一下」
