@@ -334,13 +334,13 @@ cmd_install() {
         # 注意：若机器上用的是 plasmalogin（KDE 新版 DM），两者可共存，
         # 切换只需 systemctl disable/enable，见文档。
         sddm
-        # 字体：kitty 终端用 JetBrains Mono Nerd Font（含 Nerd 图标），
-        # 中文 / emoji 由 Noto 兜底；pacman 装字体包会自动触发 fc-cache
+        # 字体：kitty 终端用 JetBrains Mono Nerd Font（含 Nerd 图标）；
+        # noto-fonts-cjk 提供按语言切换 CJK 字形所需的全部地区变体
+        # （Noto Sans/Serif CJK 的 JP/KR/TC/HK），装包本身会自动 fc-cache。
         ttf-jetbrains-mono-nerd ttf-nerd-fonts-symbols
         noto-fonts noto-fonts-cjk noto-fonts-emoji
-        # 思源黑体（Source Han Sans CN）：UI / 正文的中文字体。
-        # 1080p 下 11px 依然清晰，中性专业；Latin 部分源自 Source Sans。
-        # 注意 Google Sans 不含中文字形，中文必须靠它（或霞鹜文楷）兜底。
+        # 思源黑体（Source Han Sans CN）：**不再走 fontconfig 别名**，但 GTK
+        # settings.ini、fcitx5 classicui.conf 里硬编码了它，保留。
         adobe-source-han-sans-cn-fonts
         # quickshell 源码编译工具链（三级回退时使用，平时不碍事）
         cmake ninja
@@ -374,16 +374,21 @@ cmd_install() {
     fi
     # libcava 供 Caelestia QML 插件编译；qt6-m3shapes-git 是 Caelestia 锁屏
     # 形变动画（MaterialShape）的运行时依赖，两者都只有 AUR 有。
-    # ttf-lxgw-wenkai（霞鹜文楷）：阅读 / 文档字体（serif 别名指向它），
-    # 它的等宽版本同时是「代码里的中文」字体 —— 实测 Noto Sans Mono CJK SC
-    # 不含中文字形，带中文的等宽只有霞鹜文楷等宽和文泉驿等宽正黑。
+    # 字体（偏好链见 ~/.config/fontconfig/fonts.conf）：
+    #   otf-misans             sans-serif 默认（MiSans）
+    #   maplemononormal-nf-cn  monospace 默认（自带 Nerd 图标 + 中文）
+    #   ttf-lxgw-wenkai-screen serif 回退链第二位
+    #   ttf-lxgw-wenkai-tc     繁中衬线（lang=zh-tw / zh-hk 时启用）
+    #   ttf-lxgw-wenkai        楷体，供硬编码霞鹜文楷的组件回退
+    # ⚠ AUR 包名不规则：上游 README 写的 ttf-maplemononormal-nf-cn 并不存在，
+    #   实际是 maplemononormal-nf-cn（无 ttf- 前缀）。
     # catppuccin-sddm-theme-mocha：SDDM 登录界面主题（Qt6，需 SDDM 走 Wayland）
     # qt6-svg / qt6-declarative / qt5-quickcontrols2 是它的依赖，AUR 包会带入。
     # dms-shell-git：DankMaterialShell（niri 的桌面 shell，DMS）的 **git 版本**。
 # 用 -git 而不是稳定版：DMS 迭代很快，稳定版往往落后几个小版本，而 niri
 # 侧的 config.kdl / dms/binds.kdl 是按新版写的（键位、ipc 目标会对不上）。
 # dms-shell-niri 是 niri 集成包，两者都要。
-for p in matugen mpvpaper libcava qt6-m3shapes-git ttf-lxgw-wenkai catppuccin-sddm-theme-mocha dms-shell-git dms-shell-niri; do
+for p in matugen mpvpaper libcava qt6-m3shapes-git otf-misans maplemononormal-nf-cn ttf-lxgw-wenkai ttf-lxgw-wenkai-screen ttf-lxgw-wenkai-tc catppuccin-sddm-theme-mocha dms-shell-git dms-shell-niri; do
         if pacman -Q "$p" >/dev/null 2>&1; then
             echo "    已安装: $p"
         elif aur_install "$p"; then
@@ -513,6 +518,20 @@ for p in matugen mpvpaper libcava qt6-m3shapes-git ttf-lxgw-wenkai catppuccin-sd
 
     # ---------- [6/7] 拼音搜索环境与歌词缓存 ----------
     say "[6/7] 运行环境与歌词缓存"
+    # 霞鹜臻楷 GB：serif 别名首选字体，AUR 没有对应包，只能从上游 GitHub Release
+    # 取。放在 fc-cache 之前，装完当次就能进缓存；已存在则跳过（不重复下载 17MB）。
+    lxgw_zhenkai="$HOME/.local/share/fonts/LXGWZhenKaiGB-Regular.ttf"
+    if [[ ! -e "$lxgw_zhenkai" ]]; then
+        mkdir -p "$HOME/.local/share/fonts"
+        if have curl && curl -fsSL --retry 3 -o "$lxgw_zhenkai" \
+            https://github.com/lxgw/LxgwZhenKai/releases/download/v0.825/LXGWZhenKaiGB-Regular.ttf; then
+            echo "    已下载霞鹜臻楷 GB（serif 首选字体）"
+        else
+            rm -f "$lxgw_zhenkai"
+            warn "霞鹜臻楷 GB 下载失败；serif 会回退到霞鹜文楷屏幕阅读版"
+        fi
+    fi
+
     # 字体缓存：pacman 装字体包时本身有 hook 会自动跑，这里再显式兜底一次，
     # 让用户手动放进 ~/.local/share/fonts/ 的字体在重跑脚本后也能生效。
     if have fc-cache; then
@@ -522,7 +541,8 @@ for p in matugen mpvpaper libcava qt6-m3shapes-git ttf-lxgw-wenkai catppuccin-sd
     # 文泉驿的系统级配置（65-wqy-zenhei.conf）编号 65，晚于用户配置的
     # 50-user.conf 加载，会用 <prefer> 把文泉驿 / DejaVu 顶到
     # serif / sans-serif / monospace 最前面，压制 ~/.config/fontconfig 的设置。
-    # 现在已有思源黑体 + 霞鹜文楷，文泉驿属于更低质量的兜底，去掉它。
+    # 现在 sans-serif / serif / monospace 都有明确首选（MiSans / 霞鹜臻楷 / Maple Mono），
+    # 文泉驿属于更低质量的兜底，去掉它。
     # 失败不影响安装。
     if [[ -e /etc/fonts/conf.d/65-wqy-zenhei.conf ]]; then
         if "${SUDO:-sudo}" rm -f /etc/fonts/conf.d/65-wqy-zenhei.conf 2>/dev/null; then

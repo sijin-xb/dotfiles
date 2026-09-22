@@ -2,6 +2,57 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+## 2026-09-23
+
+### 字体方案：换成 MiSans + 按语言切换 CJK 地区字形
+
+整体替换为 [emoeem/fontconfig](https://github.com/emoeem/fontconfig) 的方案（旧的
+2026-09-20 那套已备份为 `~/.config/fontconfig/fonts.conf.bak.20260923-031328`）：
+
+| 用途 | 旧方案 | 新方案 |
+|---|---|---|
+| UI / 正文 | 思源黑体 CN（只有 Chrome 用霞鹜文楷等宽） | **MiSans**（全局） |
+| 阅读 / serif | 霞鹜文楷 | **霞鹜臻楷 GB** → 霞鹜文楷屏幕阅读版 |
+| 代码 / monospace | JetBrains Maple Mono | **Maple Mono Normal NF CN** |
+| 日文内容 | 不区分 | Noto Sans / Serif CJK **JP** |
+| 韩文 / 繁中 | 不区分 | Noto Sans CJK **KR / TC / HK** |
+
+**新增的核心能力：按语言切换地区字形。** 用 `<test name="lang" compare="contains">`
+匹配 lang —— 浏览器按页面 `<html lang>`、GTK/Qt 按 `LC_*` 传入。日文网页的
+「直、门、关」出日文字形，繁中网页出繁体字形。
+
+⚠️ **规则顺序就是优先级**：fontconfig 按**规则执行顺序**排列 prepend 的值，
+**先执行的规则排得越靠前**（与「prepend 插到最前」的直觉相反）。所以顺序必须是
+`网页字体映射 → 语言地区规则 → 默认字体规则`：语言规则在前，JP/TC 字体才压得住
+MiSans；默认规则在后，MiSans 仍排在发行版偏好之前。改配置别打乱。
+
+**已知代价**（上游 README 也列了）：
+- `Arial` / `Segoe UI` / `Liberation Sans` 被 `assign` 到 sans-serif，依赖 Arial
+  度量的文档（如 LibreOffice 排版）会有偏移
+- 旧的 `prgname=chrome` strong prepend 已删除，**Chrome 网页的楷体效果没有了**
+- 分数缩放（125% / 150%）下 `rgba=rgb` 亚像素抗锯齿会出彩色边缘，改 `none` 即可
+
+**字体来源**（install.sh 已同步）：
+- AUR：`otf-misans`、`maplemononormal-nf-cn`、`ttf-lxgw-wenkai-tc`、
+  `ttf-lxgw-wenkai-screen`
+- 手动下载：霞鹜臻楷 GB —— AUR 没有对应包，install.sh 里新增了从
+  `lxgw/LxgwZhenKai` Release 自动下载（已存在则跳过）
+
+> 上游 README 有三处笔误，照抄会踩坑：`ttf-lxgw-zhenkai`（AUR 不存在）、
+> `ttf-maplemononormal-nf-cn`（实际是 `maplemononormal-nf-cn`，无 `ttf-` 前缀）、
+> 霞鹜臻楷仓库链接 `LxgwZhenKaiGB`（实际是 `LxgwZhenKai`）。
+
+> 生效方式：`fc-cache -f` 之后**重启浏览器和已运行的应用** —— fontconfig 的新规则
+> 对已启动的进程不生效。
+
+### install.sh
+
+- AUR 列表加 4 个字体包（`otf-misans` / `maplemononormal-nf-cn` /
+  `ttf-lxgw-wenkai-tc` / `ttf-lxgw-wenkai-screen`）
+- 新增霞鹜臻楷 GB 的 GitHub Release 下载（放在 fc-cache 之前，已存在则跳过）
+- 思源黑体注释改写：不再是 fontconfig 别名的目标，保留是因为 GTK `settings.ini`
+  与 fcitx5 `classicui.conf` 里硬编码了它
+
 ## 2026-09-20
 
 ### 岛屿：修「打开时背景闪一下」

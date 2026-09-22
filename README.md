@@ -156,6 +156,7 @@ dot_config/
       caelestia/          Caelestia 风格锁屏（内容、组件、形变动画）
       SerpantinumLockSurface.qml  旧版锁屏（保留可切回）
   fish/  kitty/  foot/  alacritty/  nvim/  btop/  fastfetch/  fuzzel/  mako/  matugen/
+  fontconfig/fonts.conf  全局字体方案（MiSans + 按语言切换 CJK 地区字形）
   fcitx5/
     config                fcitx5 主配置
     conf/classicui.conf   Theme=Matugen（matugen 取色联动）
