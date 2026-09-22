@@ -224,6 +224,30 @@ compositor_pkgs() {
     esac
 }
 
+# 依据 $COMPOSITOR 判断仓库内某个相对路径是否**跳过部署**。
+#
+# 两套合成器配置都在本仓库里（dot_config/hypr/** 与 dot_config/niri/**）。
+# 早期版本在 [5/7] 部署时无差别全部 cp 到 $HOME —— 也就是说选了 Hyprland 的人
+# 也会被覆盖掉 ~/.config/niri，选择 niri 的人同理被覆盖 ~/.config/hypr。
+# 现在默认只部署选中的那套，另一套完全不动（连备份都不做，因为根本不碰）。
+#
+# 想两套都部署（例如机器上两个合成器都要用）：
+#     INSTALL_BOTH_COMPOSITORS=1 ./install.sh install
+#
+# 返回 0 = 跳过，1 = 正常部署
+skip_by_compositor() {
+    if [[ "${INSTALL_BOTH_COMPOSITORS:-0}" == "1" ]]; then
+        return 1
+    fi
+    local rel="$1"
+    if [[ "$COMPOSITOR" == "niri" ]]; then
+        if [[ $rel == dot_config/hypr/* ]]; then return 0; fi
+    else
+        if [[ $rel == dot_config/niri/* ]]; then return 0; fi
+    fi
+    return 1
+}
+
 # ============================================================
 # 3. 安装（7 步流程，封装进 cmd_install）
 # ============================================================
@@ -256,6 +280,12 @@ cmd_install() {
         procps-ng
         # ffmpeg：DMS 的 mpvpaper 视频壁纸插件要用它生成缩略图和动态取色
         ffmpeg
+        # gpu-screen-recorder：DMS quickCapture 插件录屏**带声音**的前提。
+        # 默认键位 Ctrl+Alt+R（见 dot_config/niri/dms/binds.kdl）。
+        # 不装也能录，但会回退到 wf-recorder（CPU 编码、纯画面无声音）；
+        # 插件按 command -v gpu-screen-recorder 探测，装了就自动优先用它。
+        # AMD 卡走 VA-API、NVIDIA 卡走 NVENC，都由它自己选。
+        gpu-screen-recorder
         # 登录管理器：SDDM（主题用 Catppuccin Mocha，见 docs/login-screen.md）
         # 注意：若机器上用的是 plasmalogin（KDE 新版 DM），两者可共存，
         # 切换只需 systemctl disable/enable，见文档。
@@ -400,7 +430,7 @@ for p in matugen mpvpaper libcava qt6-m3shapes-git ttf-lxgw-wenkai catppuccin-sd
         rm -rf "$qs_tmp"
     fi
     backup_dir="$BACKUP_ROOT/$(now_ts)"
-    installed=0; backed=0
+    installed=0; backed=0; skipped=0
     while IFS= read -r -d '' f; do
         rel="${f#"$SRC"/}"
         case "$rel" in
@@ -408,6 +438,12 @@ for p in matugen mpvpaper libcava qt6-m3shapes-git ttf-lxgw-wenkai catppuccin-sd
             dot_*) out="$HOME/.${rel#dot_}" ;;
             *) continue ;;
         esac
+        # 只部署选中的那套合成器配置；另一套一个字节都不碰
+        # （见 skip_by_compositor 的说明，INSTALL_BOTH_COMPOSITORS=1 可两套都装）
+        if skip_by_compositor "$rel"; then
+            skipped=$((skipped + 1))
+            continue
+        fi
         base="${out##*/}"; dir="${out%/*}"
         execbit=0
         if [[ $base == executable_* ]]; then
@@ -425,6 +461,11 @@ for p in matugen mpvpaper libcava qt6-m3shapes-git ttf-lxgw-wenkai catppuccin-sd
         installed=$((installed + 1))
     done < <(find "$SRC" -type f -print0)
     say "已部署 $installed 个文件；$backed 个有差异的旧文件备份于 $backup_dir"
+    if ((skipped)); then
+        if [[ "$COMPOSITOR" == "niri" ]]; then other=hypr; else other=niri; fi
+        warn "已跳过 $skipped 个文件：未选择的另一套合成器 ~/.config/$other 原样保留，一个字节都没动。"
+        warn "  想两套都部署：INSTALL_BOTH_COMPOSITORS=1 ./install.sh install"
+    fi
 
     # ---------- [6/7] 拼音搜索环境与歌词缓存 ----------
     say "[6/7] 运行环境与歌词缓存"
@@ -690,6 +731,11 @@ sijin-xb's dotfiles 自部署脚本 —— Rice 版本: ${RICE_VERSION}
                                           配置入口 ~/.config/hypr/hyprland.lua
                              两套配置都在本仓库里，装哪个都能用；
                              未设置时会在 [1/7] 步交互询问。
+                             ⚠ 只部署**选中的那套**：选 hyprland 就不会碰
+                             ~/.config/niri，选 niri 就不会碰 ~/.config/hypr，
+                             避免覆盖机器上已有的另一套配置。
+  INSTALL_BOTH_COMPOSITORS=1 两套合成器配置都部署（默认只部署选中的那套）。
+                             机器上同时用 Hyprland 和 niri 时用它。
   FULL_UPGRADE=1             安装时执行 pacman -Syu 全系统升级（默认只装缺失项）
   $0 rollback           回档：还原到最近一次 install 之前的状态
                            （执行前会自动保存 pre-rollback 快照供 restore 用）
