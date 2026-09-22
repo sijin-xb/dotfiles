@@ -224,6 +224,50 @@ compositor_pkgs() {
     esac
 }
 
+# 按 $COMPOSITOR 过滤 SNAP_PATHS，输出到 stdout（一行一个）。
+#
+# 只用于**删除类**操作（uninstall / archive --delete）：卸载时不该把机器上
+# 另一套合成器的既有配置一起删掉。
+# 快照（snapshot）和打包（archive）**不用**它——那两步是备份，多带无妨，
+# 而且 pre-install 快照发生在 choose_compositor 之前，过滤它反而会让
+# rollback 少恢复东西。
+active_snap_paths() {
+    local p
+    for p in "${SNAP_PATHS[@]}"; do
+        if [[ "${INSTALL_BOTH_COMPOSITORS:-0}" == "1" ]]; then
+            printf '%s\n' "$p"
+            continue
+        fi
+        if [[ $p == .config/niri ]]; then
+            if [[ "$COMPOSITOR" == "niri" ]]; then printf '%s\n' "$p"; fi
+        elif [[ $p == .config/hypr ]]; then
+            if [[ "$COMPOSITOR" != "niri" ]]; then printf '%s\n' "$p"; fi
+        else
+            printf '%s\n' "$p"
+        fi
+    done
+}
+
+# 卸载时的删除范围。COMPOSITOR 已设定（例如本次跑过 install，或用了
+# COMPOSITOR=niri ./install.sh uninstall）就直接用；否则交互询问。
+uninstall_compositor_scope() {
+    if [[ -n ${COMPOSITOR:-} ]]; then
+        return 0
+    fi
+    echo
+    echo "  要删除哪套合成器的配置？"
+    echo "    1) 两套都删    ~/.config/hypr + ~/.config/niri"
+    echo "    2) 只删 Hyprland  ~/.config/hypr"
+    echo "    3) 只删 niri      ~/.config/niri"
+    local ans
+    IFS= read -r -p "  请输入 1/2/3 [默认 1]: " ans || true
+    case "$ans" in
+        2) COMPOSITOR=hyprland ;;
+        3) COMPOSITOR=niri ;;
+        *) INSTALL_BOTH_COMPOSITORS=1 ;;
+    esac
+}
+
 # 依据 $COMPOSITOR 判断仓库内某个相对路径是否**跳过部署**。
 #
 # 两套合成器配置都在本仓库里（dot_config/hypr/** 与 dot_config/niri/**）。
@@ -667,14 +711,19 @@ cmd_archive() {
 
     if ((do_delete)); then
         echo
+        # 打包带全部（备份从宽），删除只删范围内（另一套合成器配置原样保留）
+        uninstall_compositor_scope
+        local del_paths=()
+        mapfile -t del_paths < <(active_snap_paths)
+        for p in "${EXTRA_ARCHIVE_PATHS[@]}"; do del_paths+=("$p"); done
         warn "--delete 模式：以下 rice 管理路径将在确认后删除（其他用户文件绝不触碰）："
-        for p in "${all_paths[@]}"; do
+        for p in "${del_paths[@]}"; do
             if [[ -e "$HOME/$p" ]]; then
                 printf '     rm -rf ~/%s  (%s)\n' "$p" "$(du -sh "$HOME/$p" 2>/dev/null | cut -f1)"
             fi
         done
         confirm "⚠️  真的要删除吗？此操作不可恢复！" || { say "已取消删除。"; return 0; }
-        for p in "${all_paths[@]}"; do
+        for p in "${del_paths[@]}"; do
             if [[ -e "$HOME/$p" ]]; then
                 rm -rf "$HOME/$p"
                 echo "     已删除 ~/$p"
@@ -688,15 +737,18 @@ cmd_archive() {
 cmd_uninstall() {
     ensure_dirs
     echo "卸载 rice 配置：建议先打包存档作为备份。"
-    local do_archive=1 do_delete=1
+    local do_archive=1
     confirm "是否先打包存档？" || do_archive=0
     ((do_archive)) && {
         local archive_path="$HOME/dotfiles-archive-uninstall-$(now_ts).tar.gz"
         cmd_archive -o "$archive_path" || warn "存档失败，将继续执行卸载（无备份）"
     }
-    confirm "确认删除 rice 相关路径？（~/.config/hypr、quickshell 等；不会删除其他个人文件）" || return 0
-    local p
-    for p in "${SNAP_PATHS[@]}" "${EXTRA_ARCHIVE_PATHS[@]}"; do
+    # 只删本次范围内的合成器配置，另一套原样保留（见 active_snap_paths 说明）
+    uninstall_compositor_scope
+    confirm "确认删除 rice 相关路径？（合成器配置只删上述范围；不会删除其他个人文件）" || return 0
+    local paths=() p
+    mapfile -t paths < <(active_snap_paths)
+    for p in "${paths[@]}" "${EXTRA_ARCHIVE_PATHS[@]}"; do
         if [[ -e "$HOME/$p" ]]; then
             rm -rf "$HOME/$p"
             echo "     已删除 ~/$p"
@@ -943,13 +995,17 @@ detail_uninstall() {
 
 【当前状态】
 EOF
-        local cnt=0 p
-        for p in "${SNAP_PATHS[@]}" "${EXTRA_ARCHIVE_PATHS[@]}"; do
+        # 这里问一次删除范围，cmd_uninstall 在同一 shell 里沿用，不会重复提问
+        uninstall_compositor_scope
+        local paths=() p
+        mapfile -t paths < <(active_snap_paths)
+        local cnt=0
+        for p in "${paths[@]}" "${EXTRA_ARCHIVE_PATHS[@]}"; do
             if [[ -e "$HOME/$p" ]]; then cnt=$((cnt+1)); fi
         done
         echo "  · 将会删除的顶级路径数（存在才删）: $cnt"
         local tsize=0
-        for p in "${SNAP_PATHS[@]}" "${EXTRA_ARCHIVE_PATHS[@]}"; do
+        for p in "${paths[@]}" "${EXTRA_ARCHIVE_PATHS[@]}"; do
             if [[ -e "$HOME/$p" ]]; then
                 local sz; sz="$(du -sk "$HOME/$p" 2>/dev/null | awk '{print $1}')"
                 [[ -n ${sz:-} ]] && tsize=$((tsize + sz))
