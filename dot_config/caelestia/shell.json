@@ -80,7 +80,7 @@
             "logout": [
                 "hyprctl",
                 "dispatch",
-                "exit"
+                "hl.dsp.exit()"
             ]
         }
     },
