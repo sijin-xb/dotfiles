@@ -73,3 +73,23 @@ hl.window_rule({
                pin = true,
                size = { "480", "270" },
 })
+
+-- ============================================================
+-- Caelestia 图层规则
+-- ------------------------------------------------------------
+-- caelestia 的图层命名空间是 `caelestia-<name>`
+-- （见 components/containers/StyledWindow.qml:10），和 end4-pC 的
+-- `quickshell:*` 完全错开，所以下面这两条在 end4-pC 下不会命中，
+-- 可以无条件放着，不用加 shellIsCaelestia 判断。
+--
+-- 注意不要在这里重复写 blur / ignore_alpha：caelestia 的 Colours 服务
+-- 会自己往 `caelestia-drawers` 上补这两条（services/Colours.qml 的
+-- reloadHyprRules），而且它会先判断 Hypr.usingLua 再选 eval / keyword 写法。
+--
+-- 内容对齐上游 caelestia-dots/caelestia 的 hypr/hyprland/rules.lua 末尾。
+-- ============================================================
+
+-- 边框排除层 / 截图取景框：不要动画
+hl.layer_rule({ match = { namespace = "caelestia-(border-exclusion|area-picker)" }, no_anim = true })
+-- 抽屉（启动器 / 仪表盘 / 会话菜单等）与壁纸层：淡入淡出
+hl.layer_rule({ match = { namespace = "caelestia-(drawers|background)" }, animation = "fade" })

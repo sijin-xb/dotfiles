@@ -41,7 +41,7 @@ Item {
 
         text: Time.minuteStr
         color: Colours.palette.m3secondary
-        font: Tokens.font.headline.builders.large.scale((GlobalConfig.services.useTwelveHourClock ? 3.8 : 7) * root.centerScale).width(30).build()
+        font: Tokens.font.headline.builders.large.scale((Time.twelveHour ? 3.8 : 7) * root.centerScale).width(30).build()
 
         TextMetrics {
             id: minuteMetrics
@@ -56,7 +56,7 @@ Item {
         anchors.leftMargin: minuteMetrics.tightBoundingRect.x
         y: hourMetrics.tightBoundingRect.height - implicitHeight
 
-        active: GlobalConfig.services.useTwelveHourClock
+        active: Time.twelveHour
         asynchronous: true
 
         sourceComponent: StyledRect {
