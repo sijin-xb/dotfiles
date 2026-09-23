@@ -3,8 +3,12 @@ set -gx PATH ~/.npm-global/bin $PATH
 set -gx PATH "/home/xibie/.local/bin" $PATH
 
 # ===================== Caelestia QML 插件 =====================
-if test -d ~/src/caelestia-shell/build/qml
-    set -gx QML2_IMPORT_PATH ~/src/caelestia-shell/build/qml $QML2_IMPORT_PATH
+# caelestia-dots/shell 仓库里只有 QML 源码，Caelestia 这个 Qt 插件要自己
+# cmake 编译。构建产物固定在 ~/src/caelestia-build/qml。
+# 没构建过（目录不存在）就不注入，免得污染其它 Qt 程序。
+# 注意：hyprland/execs.lua 里还有一份同样的注入（给 qs 自己用），两处要一致。
+if test -d ~/src/caelestia-build/qml
+    set -gx QML2_IMPORT_PATH ~/src/caelestia-build/qml $QML2_IMPORT_PATH
 end
 
 # ===================== INTERACTIVE =====================
@@ -26,7 +30,7 @@ if status is-interactive
     alias celar clear
     alias claer clear
     alias pamcan pacman
-    alias q 'qs -c ii'
+    alias q 'qs -c caelestia'
 
     if type -q eza
         alias ls 'eza --icons --group-directories-first'

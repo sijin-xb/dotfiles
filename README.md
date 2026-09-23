@@ -109,7 +109,7 @@ cd dotfiles
 2. AUR 包（matugen、mpvpaper、libcava、qt6-m3shapes-git）；无 AUR helper 时自动安装 yay
 3. quickshell 三级回退：已有二进制 → pacman → AUR → 源码编译
 4. **Caelestia QML 插件**：clone `caelestia-dots/shell` 并编译到
-   `~/src/caelestia-shell/build/qml`（失败中断，不静默跳过）
+   `~/src/caelestia-build/qml`（失败中断，不静默跳过）
 5. 部署 `dot_*` 条目到 `$HOME`；有差异的已存在文件先备份到
    `~/.local/state/dotfiles-backup/` 再覆盖
 6. 首次运行克隆 quickshell 底盘（pctrade/end4-pC）
@@ -118,10 +118,11 @@ cd dotfiles
 重复运行幂等。
 
 > **Caelestia QML 插件**：`[4/7]` 步会 clone `caelestia-dots/shell` 并编译
-> 到 `~/src/caelestia-shell/build/qml`，编译失败会中断安装并提示重试命令。
-> 产物由 Hyprland `execs.lua` 与 fish `config.fish` 通过 `QML2_IMPORT_PATH`
-> 自动加载，**不会** `cmake --install` 写入系统目录。只引入插件本体，
-> 不含 Caelestia shell / CLI。
+> 到 `~/src/caelestia-build/qml`，编译失败会中断安装并提示重试命令。编译前先应用
+> `dot_config/quickshell/caelestia/` 覆盖层（含简体中文 `trs/zh_CN.po`），覆盖层
+> 有变化时自动重编（`.overlay-stamp` 记 hash）。产物由 Hyprland `execs.lua` 与 fish
+> `config.fish` 通过 `QML2_IMPORT_PATH` 自动加载，**不会** `cmake --install` 写入
+> 系统目录。只引入插件本体，不含 Caelestia shell / CLI。
 
 ## 脚本命令
 

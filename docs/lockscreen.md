@@ -106,5 +106,5 @@ readonly property real expandedWidth: expandedHeight * (16 / 9)
 ## 依赖
 
 - `qt6-m3shapes-git`（AUR）—— Material 3 形状 morph
-- Caelestia QML 插件（`QML2_IMPORT_PATH` 指向 `~/src/caelestia-shell/build/qml`）——
+- Caelestia QML 插件（`QML2_IMPORT_PATH` 指向 `~/src/caelestia-build/qml`）——
   提供 `Caelestia.Config`（`Tokens.anim.*` 与动画曲线）

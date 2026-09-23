@@ -34,7 +34,7 @@ STATE_DIR="$BACKUP_ROOT/state"
 PRE_INSTALL_PREFIX="pre-install"
 PRE_ROLLBACK_PREFIX="pre-rollback"
 
-# 快照 / 存档涉及的源路径清单（SNAP_PATHS 17 项 + EXTRA_ARCHIVE_PATHS 3 项）
+# 快照 / 存档涉及的源路径清单（SNAP_PATHS 18 项 + EXTRA_ARCHIVE_PATHS 3 项）
 # 缺失的路径在 tar 时会跳过，不报错
 SNAP_PATHS=(
     ".config/hypr"
@@ -43,7 +43,10 @@ SNAP_PATHS=(
     # cavaVisualizer）。只含 plugins 子目录，不含 settings.json ——
     # 后者有机型相关配置（显示器、栏布局），跨机还原会出问题。
     ".config/DankMaterialShell/plugins"
+    # 两个 quickshell shell：end4-PC 底盘差异层 + caelestia 本体。
+    # 按 SESSION 只会存在一个，缺失的那个 tar 时自动跳过。
     ".config/quickshell/end4-pC"
+    ".config/quickshell/caelestia"
     ".config/fish"
     ".config/kitty"
     ".config/foot"
@@ -191,29 +194,60 @@ apply_snapshot_from_state() {
     return 0
 }
 
-# ---------- 合成器选择：Hyprland（默认） 或 niri ----------
-# 两套配置都在本仓库里：
-#   ~/.config/hypr/hyprland.lua   Hyprland 配置入口
-#   ~/.config/niri/config.kdl     niri 配置入口（键位已从 Hyprland 迁移）
-# 可交互选择，也可用环境变量预设：COMPOSITOR=niri ./install.sh install
-COMPOSITOR="${COMPOSITOR:-}"
+# ---------- 会话选择：合成器 + 桌面 Shell（三选一） ----------
+# 三套组合各自对应一套配置：
+#   1) end4-pC   Hyprland + quickshell（end4-PC 底盘，pctrade/end4-pC）
+#                入口 ~/.config/hypr/hyprland.lua + ~/.config/quickshell/end4-pC
+#   2) caelestia Hyprland + caelestia shell（caelestia-dots/shell）
+#                shell 本体 clone 到 ~/.config/quickshell/caelestia；
+#                QML 插件 out-of-source 编译到 ~/src/caelestia-build
+#                （execs.lua 与 config.fish 都从这里加载，换位置要同步改那两处）
+#   3) dms       niri + DankMaterialShell（DMS，niri 专属桌面 shell）
+#                入口 ~/.config/niri/config.kdl，DMS 配置在 ~/.config/DankMaterialShell
+# 可交互选择，也可用环境变量预设：SESSION=caelestia ./install.sh install
+# 兼容旧变量：COMPOSITOR=niri 等价 SESSION=dms，COMPOSITOR=hyprland 等价 SESSION=end4pc
+SESSION="${SESSION:-}"        # end4pc | caelestia | dms
+COMPOSITOR="${COMPOSITOR:-}"  # hyprland | niri（由 SESSION 派生，部署过滤/卸载仍用它）
+QS_SHELL="${QS_SHELL:-}"      # end4-pC | caelestia | dms（由 SESSION 派生）
 
-choose_compositor() {
-    if [[ -n "$COMPOSITOR" ]]; then
-        echo "    合成器（环境变量预设）: $COMPOSITOR"
+# SESSION → COMPOSITOR + QS_SHELL。
+# COMPOSITOR 仍被部署过滤 / 卸载范围 / 完成指引使用，所以即使有了 SESSION 也要
+# 把它派生出来，不能只留一个变量。
+session_to_parts() {
+    case "$SESSION" in
+        caelestia) COMPOSITOR=hyprland; QS_SHELL=caelestia ;;
+        dms)       COMPOSITOR=niri;     QS_SHELL=dms ;;
+        *)         SESSION=end4pc; COMPOSITOR=hyprland; QS_SHELL=end4-pC ;;
+    esac
+}
+
+choose_session() {
+    # 环境变量预设：SESSION 优先；没给 SESSION 时回退到旧的 COMPOSITOR
+    if [[ -z "$SESSION" && -n "$COMPOSITOR" ]]; then
+        case "$COMPOSITOR" in
+            niri) SESSION=dms ;;
+            *)    SESSION=end4pc ;;
+        esac
+    fi
+    if [[ -n "$SESSION" ]]; then
+        session_to_parts
+        echo "    会话（环境变量预设）: $SESSION  →  合成器 $COMPOSITOR + shell $QS_SHELL"
         return 0
     fi
     echo
-    echo "  选择要安装的 Wayland 合成器："
-    echo "    1) Hyprland   本仓库主配置，入口 ~/.config/hypr/hyprland.lua"
-    echo "    2) niri       滚动平铺，入口 ~/.config/niri/config.kdl（键位已迁移）"
+    echo "  选择要安装的会话（合成器 + 桌面 Shell）："
+    echo "    1) Hyprland + end4-pC    quickshell（end4-PC 底盘），本仓库主配置"
+    echo "    2) Hyprland + caelestia  caelestia shell（clone + 编译 QML 插件）"
+    echo "    3) niri + DMS            DankMaterialShell（niri 专属桌面 shell）"
     local ans
-    read -r -p "  请输入 1 或 2 [默认 1]: " ans || true
+    read -r -p "  请输入 1/2/3 [默认 1]: " ans || true
     case "$ans" in
-        2|niri|Niri|NIRI) COMPOSITOR=niri ;;
-        *)                COMPOSITOR=hyprland ;;
+        2|caelestia|Caelestia)    SESSION=caelestia ;;
+        3|dms|DMS|niri|Niri|NIRI) SESSION=dms ;;
+        *)                        SESSION=end4pc ;;
     esac
-    echo "    合成器: $COMPOSITOR"
+    session_to_parts
+    echo "    会话: $SESSION  →  合成器 $COMPOSITOR + shell $QS_SHELL"
 }
 
 # 依据 $COMPOSITOR 给出需要装的包（合成器本体 + 对应 xdg-desktop-portal）
@@ -224,12 +258,42 @@ compositor_pkgs() {
     esac
 }
 
+# 各 shell 专属的 AUR 包（通用 AUR 包见 [2/7] 的固定列表）。
+#   caelestia: libcava 供 QML 插件编译；qt6-m3shapes-git 是锁屏形变动画
+#              （MaterialShape）的运行时依赖，两者都只有 AUR 有。
+#   dms:       DankMaterialShell 本体 + niri 集成包。用 -git 而不是稳定版：
+#              DMS 迭代很快，稳定版往往落后几个小版本，而 niri 侧的
+#              config.kdl / dms/binds.kdl 是按新版写的（键位、ipc 目标会对不上）。
+#   end4-pC:   无专属 AUR 包（底盘从 GitHub 拉）。
+shell_aur_pkgs() {
+    case "$QS_SHELL" in
+        caelestia) echo "libcava qt6-m3shapes-git" ;;
+        dms)       echo "dms-shell-git dms-shell-niri" ;;
+        *)         echo "" ;;
+    esac
+}
+
+# 各 shell 专属的 pacman 包（官方仓库）。
+#   caelestia: QML 插件编译 / 运行依赖（[4/7] 步骤会用到）。
+#   dms:       gpu-screen-recorder —— DMS quickCapture 插件录屏**带声音**的前提，
+#              默认键位 Ctrl+Alt+R（见 dot_config/niri/dms/binds.kdl）。不装也能录，
+#              但会回退到 wf-recorder（CPU 编码、纯画面无声音）；插件按
+#              command -v 探测，装了就自动优先用它。
+#   end4-pC:   无专属 pacman 包。
+shell_pacman_pkgs() {
+    case "$QS_SHELL" in
+        caelestia) echo "aubio libpipewire libqalculate lm_sensors fftw spirv-tools" ;;
+        dms)       echo "gpu-screen-recorder" ;;
+        *)         echo "" ;;
+    esac
+}
+
 # 按 $COMPOSITOR 过滤 SNAP_PATHS，输出到 stdout（一行一个）。
 #
 # 只用于**删除类**操作（uninstall / archive --delete）：卸载时不该把机器上
 # 另一套合成器的既有配置一起删掉。
 # 快照（snapshot）和打包（archive）**不用**它——那两步是备份，多带无妨，
-# 而且 pre-install 快照发生在 choose_compositor 之前，过滤它反而会让
+# 而且 pre-install 快照发生在 choose_session 之前，过滤它反而会让
 # rollback 少恢复东西。
 active_snap_paths() {
     local p
@@ -292,6 +356,37 @@ skip_by_compositor() {
     return 1
 }
 
+# 依据 $QS_SHELL 判断仓库内某个相对路径是否**跳过部署**。
+#
+# 三个 shell 的差异层在仓库里的位置不同：
+#   end4-pC   → dot_config/quickshell/end4-pC/**（本仓库跟踪的差异层）
+#   caelestia → 不走 chezmoi 部署，由 [4/7] git clone 到 ~/.config/quickshell/caelestia
+#   dms       → dot_config/DankMaterialShell/**（插件）
+# 选了 caelestia 就不该把 end4-pC 的差异层覆盖上去（反之亦然）；DMS 插件只在选
+# dms 时部署；illogical-impulse 是 end4-PC 的配置目录，非 end4-pC 时也跳过。
+#
+# 返回 0 = 跳过，1 = 正常部署
+skip_by_shell() {
+    local rel="$1"
+    case "$QS_SHELL" in
+        caelestia)
+            # 不部署 end4-PC 差异层与 DMS 插件；caelestia 自己的定制层（若仓库里有）允许
+            [[ $rel == dot_config/quickshell/end4-pC/* ]] && return 0
+            [[ $rel == dot_config/DankMaterialShell/* ]] && return 0
+            [[ $rel == dot_config/illogical-impulse/* ]] && return 0
+            ;;
+        dms)
+            [[ $rel == dot_config/quickshell/* ]] && return 0
+            [[ $rel == dot_config/illogical-impulse/* ]] && return 0
+            ;;
+        end4-pC)
+            [[ $rel == dot_config/quickshell/caelestia/* ]] && return 0
+            [[ $rel == dot_config/DankMaterialShell/* ]] && return 0
+            ;;
+    esac
+    return 1
+}
+
 # ============================================================
 # 3. 安装（7 步流程，封装进 cmd_install）
 # ============================================================
@@ -309,8 +404,8 @@ cmd_install() {
 
     # ---------- [1/7] 基础工具 + 会话依赖（一次 pacman 搞定） ----------
     say "[1/7] 安装基础工具与会话依赖"
-    # 合成器本体与 portal 由 choose_compositor 的结果决定，单独追加到最后
-    choose_compositor
+    # 合成器本体与 portal 由 choose_session 的结果决定，单独追加到最后
+    choose_session
     PACMAN_PKGS=(
         git base-devel github-cli
         kitty jq fish fuzzel
@@ -322,14 +417,9 @@ cmd_install() {
         # procps-ng 提供 ps 命令，仪表盘系统页的进程列表依赖它
         # （base 组已含，这里显式声明以防万一被精简掉）
         procps-ng
-        # ffmpeg：DMS 的 mpvpaper 视频壁纸插件要用它生成缩略图和动态取色
+        # ffmpeg：视频缩略图 / 动态取色（DMS 的 mpvpaper 视频壁纸插件依赖它）。
+        # 通用工具，别的 shell 也可能用到，保留在基础列表。
         ffmpeg
-        # gpu-screen-recorder：DMS quickCapture 插件录屏**带声音**的前提。
-        # 默认键位 Ctrl+Alt+R（见 dot_config/niri/dms/binds.kdl）。
-        # 不装也能录，但会回退到 wf-recorder（CPU 编码、纯画面无声音）；
-        # 插件按 command -v gpu-screen-recorder 探测，装了就自动优先用它。
-        # AMD 卡走 VA-API、NVIDIA 卡走 NVENC，都由它自己选。
-        gpu-screen-recorder
         # 登录管理器：SDDM（主题用 Catppuccin Mocha，见 docs/login-screen.md）
         # 注意：若机器上用的是 plasmalogin（KDE 新版 DM），两者可共存，
         # 切换只需 systemctl disable/enable，见文档。
@@ -358,13 +448,18 @@ cmd_install() {
         cmake ninja
         qt6-base qt6-declarative qt6-wayland qt6-5compat qt6-shadertools qt6-svg
         wayland-protocols
-        # Caelestia QML 插件编译依赖（[4/7] 步骤会用到）
-        aubio libpipewire libqalculate lm_sensors fftw spirv-tools
     )
     # 追加合成器相关包（niri 或 hyprland + 对应 portal）
     # shellcheck disable=SC2207
     PACMAN_PKGS+=($(compositor_pkgs))
     say "    合成器相关包: $(compositor_pkgs)"
+    # 追加 shell 专属包（caelestia 的 QML 编译依赖 / dms 的录屏工具 / end4-pC 无）
+    local _shell_pkgs; _shell_pkgs="$(shell_pacman_pkgs)"
+    if [[ -n "$_shell_pkgs" ]]; then
+        # shellcheck disable=SC2207
+        PACMAN_PKGS+=($_shell_pkgs)
+        say "    $QS_SHELL 专属包: $_shell_pkgs"
+    fi
     # 默认只安装缺失的包，不做全系统升级（避免在你没准备时滚动整个系统）。
     # 需要全量升级时：FULL_UPGRADE=1 ./install.sh install
     if [[ "${FULL_UPGRADE:-0}" == "1" ]]; then
@@ -375,7 +470,7 @@ cmd_install() {
             || die "依赖安装失败。若提示找不到包，先手动执行 sudo pacman -Syu 更新软件库后重试。"
     fi
 
-    # ---------- [2/7] AUR 包（matugen / mpvpaper / libcava / m3shapes） ----------
+    # ---------- [2/7] AUR 包（通用 + 所选 shell 专属） ----------
     say "[2/7] AUR 依赖"
     if ! have yay && ! have paru; then
         say "引导安装 yay（AUR helper）"
@@ -384,9 +479,9 @@ cmd_install() {
         (cd "$tmpdir/yay" && makepkg -si --noconfirm)
         rm -rf "$tmpdir"
     fi
-    # libcava 供 Caelestia QML 插件编译；qt6-m3shapes-git 是 Caelestia 锁屏
-    # 形变动画（MaterialShape）的运行时依赖，两者都只有 AUR 有。
-    # 字体（偏好链见 ~/.config/fontconfig/fonts.conf）：
+    # 通用 AUR 包 + 字体（偏好链见 ~/.config/fontconfig/fonts.conf）：
+    #   matugen                壁纸 → Material 3 全局取色
+    #   mpvpaper               视频壁纸
     #   otf-misans             sans-serif 默认（MiSans）
     #   maplemononormal-nf-cn  monospace 默认（自带 Nerd 图标 + 中文）
     #   ttf-lxgw-wenkai-screen serif 回退链第二位
@@ -396,11 +491,16 @@ cmd_install() {
     #   实际是 maplemononormal-nf-cn（无 ttf- 前缀）。
     # catppuccin-sddm-theme-mocha：SDDM 登录界面主题（Qt6，需 SDDM 走 Wayland）
     # qt6-svg / qt6-declarative / qt5-quickcontrols2 是它的依赖，AUR 包会带入。
-    # dms-shell-git：DankMaterialShell（niri 的桌面 shell，DMS）的 **git 版本**。
-# 用 -git 而不是稳定版：DMS 迭代很快，稳定版往往落后几个小版本，而 niri
-# 侧的 config.kdl / dms/binds.kdl 是按新版写的（键位、ipc 目标会对不上）。
-# dms-shell-niri 是 niri 集成包，两者都要。
-for p in matugen mpvpaper libcava qt6-m3shapes-git otf-misans maplemononormal-nf-cn ttf-lxgw-wenkai ttf-lxgw-wenkai-screen ttf-lxgw-wenkai-tc catppuccin-sddm-theme-mocha dms-shell-git dms-shell-niri; do
+    AUR_PKGS=(matugen mpvpaper otf-misans maplemononormal-nf-cn
+              ttf-lxgw-wenkai ttf-lxgw-wenkai-screen ttf-lxgw-wenkai-tc
+              catppuccin-sddm-theme-mocha)
+    # 追加 shell 专属 AUR 包（见 shell_aur_pkgs：
+    #   caelestia → libcava qt6-m3shapes-git
+    #   dms       → dms-shell-git dms-shell-niri
+    #   end4-pC   → 无）
+    # shellcheck disable=SC2207
+    AUR_PKGS+=($(shell_aur_pkgs))
+    for p in "${AUR_PKGS[@]}"; do
         if pacman -Q "$p" >/dev/null 2>&1; then
             echo "    已安装: $p"
         elif aur_install "$p"; then
@@ -439,59 +539,100 @@ for p in matugen mpvpaper libcava qt6-m3shapes-git otf-misans maplemononormal-nf
     install_quickshell
     have qs || die "quickshell 安装失败，请检查上方输出。"
 
-    # ---------- [4/7] Caelestia QML 插件 ----------
-    say "[4/7] Caelestia QML 插件"
-    install_caelestia_plugin() {
-        local dst="$HOME/src/caelestia-shell"
-        # 幂等：已经编译过（有 .so 产物）就直接跳过
-        if compgen -G "$dst/build/qml/Caelestia/*.so" >/dev/null; then
-            echo "    已编译: $dst/build/qml"
+    # ---------- [4/7] 桌面 Shell（按 choose_session 的结果三选一） ----------
+    say "[4/7] 桌面 Shell（$QS_SHELL）"
+    # end4-PC 底盘（end-4 illogical-impulse 定制 fork，pctrade/end4-pC）：
+    # 本仓库只跟踪差异层（dot_config/quickshell/end4-pC），底盘本体从这里拉。
+    install_end4pc_shell() {
+        local dst="$HOME/.config/quickshell/end4-pC"
+        if [[ -f "$dst/shell.qml" ]]; then
+            echo "    已存在: $dst"
             return 0
         fi
-        have cmake && have ninja || die "缺少 cmake/ninja，无法编译 Caelestia 插件。"
-        if [[ ! -d "$dst/.git" ]]; then
-            say "    克隆 caelestia-dots/shell"
-            mkdir -p "$(dirname "$dst")"
-            git clone --depth=1 https://github.com/caelestia-dots/shell.git "$dst" \
-                || die "克隆 caelestia-dots/shell 失败（检查网络后重试）。"
+        say "    拉取 quickshell 底盘 (pctrade/end4-pC)"
+        # 注意：不能直接 clone 进 $dst —— 目录已存在且非空时 git clone 会失败，
+        # 而 set -e 会让整个安装中断。先克隆到临时目录再合并进去。
+        local tmp; tmp="$(mktemp -d)"
+        if git clone --depth=1 https://github.com/pctrade/end4-pC.git "$tmp/end4-pC"; then
+            mkdir -p "$dst"
+            cp -a "$tmp/end4-pC/." "$dst/"
+        else
+            rm -rf "$tmp"
+            die "拉取 quickshell 底盘失败（检查网络后重试，或手动 clone 到 $dst）"
         fi
+        rm -rf "$tmp"
+    }
+
+    # caelestia shell：本体 clone + QML 插件 out-of-source 编译。
+    install_caelestia_shell() {
+        local src="$HOME/.config/quickshell/caelestia"
+        local build="$HOME/src/caelestia-build"
+        # 1) shell 本体（quickshell 按目录加载：qs -c caelestia）
+        if [[ ! -f "$src/shell.qml" ]]; then
+            say "    克隆 caelestia shell (caelestia-dots/shell)"
+            mkdir -p "$(dirname "$src")"
+            git clone --depth=1 https://github.com/caelestia-dots/shell.git "$src" \
+                || die "克隆 caelestia-dots/shell 失败（检查网络后重试）。"
+        else
+            echo "    已存在: $src"
+        fi
+
+        # 1.5) 本地覆盖层（汉化 po / 改过的 CMakeLists 等）。
+        #      ⚠ 必须在这里应用：[4/7] 编译在前、[5/7] 部署差异层在后，
+        #      晚一步这些文件就赶不上这次编译，翻译会静默不生效。
+        local overlay="$SRC/dot_config/quickshell/caelestia"
+        local ovl_hash=""
+        if [[ -d "$overlay" ]]; then
+            while IFS= read -r -d '' rel; do
+                mkdir -p "$src/$(dirname "${rel#./}")"
+                cp -a "$overlay/$rel" "$src/${rel#./}"
+            done < <(cd "$overlay" && find . -type f -print0)
+            ovl_hash="$(cd "$overlay" && find . -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -c1-16)"
+            echo "    已应用 caelestia 覆盖层（$(cd "$overlay" && find . -type f | wc -l) 个文件）"
+        fi
+
+        # 2) QML 插件。⚠ 必须编译到 $build（= ~/src/caelestia-build）：
+        #    execs.lua 与 fish/config.fish 都从这个固定路径加载 QML2_IMPORT_PATH，
+        #    编译到别处（例如 in-source 的 $src/build）会静默加载不到插件。
+        #    幂等：已有 .so 产物**且覆盖层没变**才跳过 —— 否则改了 po/CMakeLists
+        #    却不重编，汉化会静默停留在旧版本。
+        local stamp="$build/.overlay-stamp"
+        if compgen -G "$build/qml/Caelestia/*.so" >/dev/null \
+            && [[ -f "$stamp" && "$(cat "$stamp")" == "$ovl_hash" ]]; then
+            echo "    已编译: $build/qml（覆盖层无变化）"
+            return 0
+        fi
+        have cmake && have ninja || die "缺少 cmake/ninja，无法编译 caelestia 插件。"
         # shallow clone 默认没有 tag，上游 CMakeLists 用 `git describe --tags` 拿版本，
         # 拿不到就会 FATAL_ERROR 中断整个安装。这里显式拉一次 tags；
         # 即使拉不到，也给 CMake 传显式版本兜底（配合上游已改为优雅降级）。
-        ( cd "$dst" && git fetch --tags --depth=1 --quiet 2>/dev/null ) || true
+        ( cd "$src" && git fetch --tags --depth=1 --quiet 2>/dev/null ) || true
         local _cv=""
-        _cv="$(cd "$dst" && git describe --tags --abbrev=0 2>/dev/null || true)"
+        _cv="$(cd "$src" && git describe --tags --abbrev=0 2>/dev/null || true)"
         [[ -z "$_cv" ]] && _cv="0.0.0"
-        say "    编译插件（约 1-3 分钟），version=$_cv"
-        cmake -S "$dst" -B "$dst/build" -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+        say "    编译 QML 插件（约 1-3 分钟），version=$_cv"
+        cmake -S "$src" -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DVERSION="${_cv#v}" \
-            || die "Caelestia 插件 CMake 配置失败，见上方输出。"
-        cmake --build "$dst/build" --parallel \
-            || die "Caelestia 插件编译失败，见上方输出。手动重试：cd $dst && cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo && cmake --build build"
-        echo "    编译完成: $dst/build/qml（由 execs.lua / config.fish 自动加载）"
+            || die "caelestia 插件 CMake 配置失败，见上方输出。"
+        cmake --build "$build" --parallel \
+            || die "caelestia 插件编译失败，见上方输出。手动重试：cmake -S $src -B $build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo && cmake --build $build"
+        printf '%s\n' "$ovl_hash" > "$stamp"
+        echo "    编译完成: $build/qml（由 execs.lua / config.fish 自动加载）"
     }
-    install_caelestia_plugin
+
+    install_shell() {
+        case "$QS_SHELL" in
+            caelestia) install_caelestia_shell ;;
+            dms)       echo "    DMS 由 AUR 安装（dms-shell-git + dms-shell-niri），无需额外部署" ;;
+            *)         install_end4pc_shell ;;
+        esac
+    }
+    install_shell
 
     # ---------- [5/7] 部署 dotfiles ----------
     say "[5/7] 部署配置文件"
-    # quickshell 底盘（end-4 illogical-impulse 定制 fork）：本仓库只跟踪差异层
-    QS_BASE="$HOME/.config/quickshell/end4-pC"
-    if [[ ! -f "$QS_BASE/shell.qml" ]]; then
-        say "拉取 quickshell 底盘 (pctrade/end4-pC)"
-        # 注意：不能直接 clone 进 $QS_BASE —— 目录已存在且非空时 git clone 会失败，
-        # 而 set -e 会让整个安装中断。先克隆到临时目录再合并进去。
-        qs_tmp="$(mktemp -d)"
-        if git clone --depth=1 https://github.com/pctrade/end4-pC.git "$qs_tmp/end4-pC"; then
-            mkdir -p "$QS_BASE"
-            cp -a "$qs_tmp/end4-pC/." "$QS_BASE/"
-        else
-            rm -rf "$qs_tmp"
-            die "拉取 quickshell 底盘失败（检查网络后重试，或手动 clone 到 $QS_BASE）"
-        fi
-        rm -rf "$qs_tmp"
-    fi
     backup_dir="$BACKUP_ROOT/$(now_ts)"
-    installed=0; backed=0; skipped=0
+    installed=0; backed=0; skipped=0; skipped_shell=0
     while IFS= read -r -d '' f; do
         rel="${f#"$SRC"/}"
         case "$rel" in
@@ -503,6 +644,11 @@ for p in matugen mpvpaper libcava qt6-m3shapes-git otf-misans maplemononormal-nf
         # （见 skip_by_compositor 的说明，INSTALL_BOTH_COMPOSITORS=1 可两套都装）
         if skip_by_compositor "$rel"; then
             skipped=$((skipped + 1))
+            continue
+        fi
+        # 只部署选中 shell 的差异层（见 skip_by_shell）
+        if skip_by_shell "$rel"; then
+            skipped_shell=$((skipped_shell + 1))
             continue
         fi
         base="${out##*/}"; dir="${out%/*}"
@@ -526,6 +672,9 @@ for p in matugen mpvpaper libcava qt6-m3shapes-git otf-misans maplemononormal-nf
         if [[ "$COMPOSITOR" == "niri" ]]; then other=hypr; else other=niri; fi
         warn "已跳过 $skipped 个文件：未选择的另一套合成器 ~/.config/$other 原样保留，一个字节都没动。"
         warn "  想两套都部署：INSTALL_BOTH_COMPOSITORS=1 ./install.sh install"
+    fi
+    if ((skipped_shell)); then
+        warn "已跳过 $skipped_shell 个文件：不属于所选 shell（$QS_SHELL）的差异层原样保留。"
     fi
 
     # ---------- [6/7] 拼音搜索环境与歌词缓存 ----------
@@ -576,7 +725,9 @@ for p in matugen mpvpaper libcava qt6-m3shapes-git otf-misans maplemononormal-nf
     # 图标主题：文件夹图标由 matugen 的 [templates.gtk-folder] 每次换壁纸
     # 自动重新着色（生成到 ~/.local/share/icons/Adwaita-Matugen-{A,B}）。
     # 这里只负责触发一次，让新机器装完就有主题，不用等用户手动换壁纸。
-    if [[ -f "$HOME/.config/illogical-impulse/config.json" ]]; then
+    # switchwall.sh 是 end4-PC 底盘里的脚本，只有选了 end4-pC 才有；
+    # caelestia / DMS 各自在首次换壁纸时触发 matugen，不需要这里代劳。
+    if [[ "$QS_SHELL" == "end4-pC" && -f "$HOME/.config/illogical-impulse/config.json" ]]; then
         nohup bash "$HOME/.config/quickshell/end4-pC/scripts/colors/switchwall.sh" --noswitch \
             >/dev/null 2>&1 &
         echo "    已触发一次 matugen 渲染（后台执行，图标主题会随之生成）"
@@ -584,10 +735,10 @@ for p in matugen mpvpaper libcava qt6-m3shapes-git otf-misans maplemononormal-nf
 
     # ---------- [7/7] 完成 ----------
     say "[7/7] 完成！接下来的步骤："
-    # 第 1 步与所选合成器相关，单独输出（其余步骤两套通用）
+    # 第 1 步与所选合成器相关，单独输出
     if [[ "$COMPOSITOR" == "niri" ]]; then
         echo "  1. 注销并重新登录，会话选择 \"niri\""
-        echo "     （配置入口 ~/.config/niri/config.kdl；Quickshell 由 niri 的"
+        echo "     （配置入口 ~/.config/niri/config.kdl；DMS 由 niri 的"
         echo "      spawn-at-startup 自启，登录界面为 plasmalogin）"
     else
         echo "  1. 注销并重新登录，会话选择 \"Hyprland\""
@@ -596,16 +747,38 @@ for p in matugen mpvpaper libcava qt6-m3shapes-git otf-misans maplemononormal-nf
     cat <<'EOF'
   2. 中文输入：fcitx5 + rime（SUPER+F1 可重启输入法）
   3. 键位速览：
-       SUPER+L      锁屏（Quickshell LockSurface：MPRIS 媒体控制 + 专辑封面 + 电源）
+       SUPER+L      锁屏
        SUPER+T      终端召唤（居中浮动，再按隐藏）
        SUPER+S      scratchpad
        SUPER        启动器（支持中文拼音搜索）
   4. 桌面歌词开关：设置 → 桌面 → 小部件
      （桌面歌词已解耦，自动适配 KA Music / Spotify / 浏览器等任意播放器）
   5. fish 设为默认 shell（可选）: chsh -s "$(command -v fish)"
-  6. Caelestia QML 插件：已编译到 ~/src/caelestia-shell，产物 build/qml
-     由会话自启（Hyprland: execs.lua / niri: spawn-at-startup）与
-     fish config.fish 自动加载。
+EOF
+    # 第 6 条按所选 shell 输出（三套各不相同）
+    case "$QS_SHELL" in
+        caelestia)
+            cat <<'EOF'
+  6. Caelestia QML 插件：已编译到 ~/src/caelestia-build/qml，
+     由会话自启（execs.lua 设置 QML2_IMPORT_PATH）与 fish config.fish 自动加载。
+EOF
+            ;;
+        dms)
+            cat <<'EOF'
+  6. DMS（DankMaterialShell）：由 niri 自启，配置在 ~/.config/DankMaterialShell，
+     键位见 ~/.config/niri/dms/binds.kdl，插件在 ~/.config/DankMaterialShell/plugins。
+EOF
+            ;;
+        *)
+            cat <<'EOF'
+  6. end4-PC 岛屿 + 仪表盘：栏中央那颗胶囊，点一下从 Bar 里生长成面板，
+     Home / System / Weather / GitHub 四页。
+     想增删：设置 → 栏 → 组件列表里的「Island」（删掉即整座岛隐藏）。
+     命令行：qs -c end4-pC ipc call islanddashboard toggle
+EOF
+            ;;
+    esac
+    cat <<'EOF'
   7. 键盘按键显示（可选，默认关闭）：需要读 /dev/input/event*，把当前用户
      加进 input 组后重新登录，再到 设置 → 桌面 → 按键显示 打开开关：
        sudo usermod -aG input "$USER"
@@ -613,10 +786,6 @@ for p in matugen mpvpaper libcava qt6-m3shapes-git otf-misans maplemononormal-nf
   8. 图标主题：文件夹图标由 matugen 自动着色（换壁纸时重渲），
      主题名为 Adwaita-Matugen-A / Adwaita-Matugen-B（交替）。
      想手动换：设置 → 外观 → 图标主题。
-  9. 岛屿 + 仪表盘：栏中央那颗胶囊，点一下从 Bar 里生长成面板，
-     Home / System / Weather / GitHub 四页。
-     想增删：设置 → 栏 → 组件列表里的「Island」（删掉即整座岛隐藏）。
-     命令行：qs -c end4-pC ipc call islanddashboard toggle
 EOF
 }
 
@@ -806,18 +975,22 @@ sijin-xb's dotfiles 自部署脚本 —— Rice 版本: ${RICE_VERSION}
                           默认不滚动系统；FULL_UPGRADE=1 $0 install 则执行 pacman -Syu
 
 环境变量：
-  COMPOSITOR=niri|hyprland   选择要安装的合成器（默认 hyprland）。
-                             设定后跳过交互提问，适合脚本/无人值守重装。
-                             例：COMPOSITOR=niri ./install.sh install
-                             · niri     → 装 niri + xdg-desktop-portal-gnome
+  SESSION=end4pc|caelestia|dms
+                             选择要安装的会话（合成器 + 桌面 Shell），三选一：
+                             · end4pc   → Hyprland + quickshell（end4-PC 底盘）
+                                          默认；配置入口 ~/.config/hypr/hyprland.lua
+                                          + ~/.config/quickshell/end4-pC
+                             · caelestia → Hyprland + caelestia shell
+                                          shell clone 到 ~/.config/quickshell/caelestia，
+                                          QML 插件编译到 ~/src/caelestia-build
+                             · dms      → niri + DankMaterialShell（DMS）
                                           配置入口 ~/.config/niri/config.kdl
-                             · hyprland → 装 hyprland + xdg-desktop-portal-hyprland
-                                          配置入口 ~/.config/hypr/hyprland.lua
-                             两套配置都在本仓库里，装哪个都能用；
+                             设定后跳过交互提问，适合脚本/无人值守重装。
+                             例：SESSION=caelestia ./install.sh install
                              未设置时会在 [1/7] 步交互询问。
-                             ⚠ 只部署**选中的那套**：选 hyprland 就不会碰
-                             ~/.config/niri，选 niri 就不会碰 ~/.config/hypr，
-                             避免覆盖机器上已有的另一套配置。
+                             ⚠ 只部署**选中的那套**：合成器与 shell 的另一套
+                             都不碰，避免覆盖机器上已有的配置。
+  COMPOSITOR=niri|hyprland   [兼容旧写法] 等价于 SESSION=dms / SESSION=end4pc。
   INSTALL_BOTH_COMPOSITORS=1 两套合成器配置都部署（默认只部署选中的那套）。
                              机器上同时用 Hyprland 和 niri 时用它。
   FULL_UPGRADE=1             安装时执行 pacman -Syu 全系统升级（默认只装缺失项）
@@ -833,14 +1006,17 @@ sijin-xb's dotfiles 自部署脚本 —— Rice 版本: ${RICE_VERSION}
 
 环境要求：
   · Arch Linux 系（/etc/arch-release 必须存在）
-  · Wayland 会话；安装目标为 Hyprland + quickshell (end4-pC)
+  · Wayland 会话；安装目标为 Hyprland 或 niri + 对应桌面 Shell
+    （Hyprland + quickshell end4-PC / Hyprland + caelestia / niri + DMS）
   · 普通用户执行（不要 root），需有 sudo 权限用于 pacman
 
 目录说明：
   · ~/.config/hypr/hyprland.lua     Hyprland 配置入口
   ·     custom/general.lua          用户差异层（blur / 阴影等高级参数放这里）
   ·     hyprland/shellOverrides/    quickshell 设置面板写入的值（优先级最高）
-  · ~/.config/quickshell/end4-pC/   quickshell 底盘 + 本仓库的差异层
+  · ~/.config/quickshell/end4-pC/   quickshell 底盘 + 本仓库的差异层（end4pc）
+  · ~/.config/quickshell/caelestia/ caelestia shell 本体（caelestia）
+  · ~/.config/niri/config.kdl       niri 配置入口（dms）
   · ~/.local/state/dotfiles-backup/  回档 / 卸载存档 / 备份目录
 
 FAQ：
@@ -895,7 +1071,7 @@ show_splash() {
                                            _/ |
                                           |__/
 
-        Arch Linux · Hyprland · Quickshell
+        Arch Linux · Hyprland / niri · Quickshell / DMS
 
 EOF
     draw_header "✨ 核心特性"
@@ -906,7 +1082,7 @@ EOF
     echo
     draw_header "🖥️  适配环境"
     printf '  OS       : CachyOS / Arch Linux / EndeavourOS（需要 /etc/arch-release）\n'
-    printf '  会话     : Wayland · Hyprland + Quickshell (end4-pC)\n'
+    printf '  会话     : Wayland · Hyprland + end4-PC / caelestia，或 niri + DMS\n'
     printf '  GPU 建议 : Intel 核显 UHD 620+ / AMD Vega 3+ / NVIDIA（需开启 modeset）\n'
     echo
     printf '%s按任意键进入主菜单 ...%s' "${TC_BOLD}${TC_YELLOW}" "${TC_RESET}"
@@ -920,14 +1096,14 @@ show_help() {
     echo
     echo "【① 适配环境】"
     echo "  · OS: CachyOS / Arch / EndeavourOS（/etc/arch-release 必须存在）"
-    echo "  · 会话: Wayland · Hyprland · Quickshell (end4-pC)"
+    echo "  · 会话: Wayland · Hyprland（end4-PC / caelestia）或 niri（DMS）"
     echo "  · 建议 GPU: ≥ Intel UHD 620（模糊 + 壁纸视差要一点 GPU 算力）"
     echo
     echo "【② 键位速览】"
     echo "  SUPER         启动器（中文拼音搜索 + 窗口缩略图信息卡）"
     echo "  SUPER+T       终端召唤（居中浮动半透明，再按隐藏）"
     echo "  SUPER+S       Scratchpad（临时工作区）"
-    echo "  SUPER+L       锁屏（Quickshell：MPRIS 媒体控制 + 专辑封面 + 电源按钮）"
+    echo "  SUPER+L       锁屏（Quickshell LockSurface / caelestia lock）"
     echo "  SUPER+F1      重启 fcitx5 输入法（rime 卡住时用）"
     echo "  SUPER+ESC     打开 quickshell 设置面板"
     echo "  SUPER+方向键  切换工作区 / 移动窗口焦点（配合 SHIFT 则移动窗口）"
@@ -937,7 +1113,9 @@ show_help() {
     echo "    ├── hyprland/   默认模板层（由 quickshell/上游管理，建议只读）"
     echo "    ├── custom/     用户差异层（blur / shadow 细项在 custom/general.lua）"
     echo "    └── shellOverrides/main.lua    由 quickshell 设置面板写入，优先级最高"
-    echo "  ~/.config/quickshell/end4-pC/         quickshell 底盘 + 差异层"
+    echo "  ~/.config/quickshell/end4-pC/         quickshell 底盘 + 差异层（end4-PC）"
+    echo "  ~/.config/quickshell/caelestia/       caelestia shell 本体"
+    echo "  ~/.config/niri/config.kdl             niri 配置入口（DMS）"
     echo "  ~/.local/state/dotfiles-backup/       备份根（snapshots/ + state/）"
     echo
     echo "【④ 常见问题 FAQ】"
@@ -966,12 +1144,13 @@ detail_install() {
         cat <<'EOF'
 【功能说明】
   从零部署 sijin-xb's dotfiles：
-    [1/7] pacman 基础依赖（hyprland / kitty / fish / fcitx5 / cmake ...）
+    [1/7] pacman 基础依赖（hyprland 或 niri / kitty / fish / fcitx5 / cmake ...）
           默认只装缺失项；FULL_UPGRADE=1 ./install.sh install 可全系统升级
-    [2/7] AUR 包（matugen / mpvpaper / libcava + 引导 yay 不存在时的安装）
+    [2/7] AUR 包（matugen / mpvpaper + 所选 shell 专属包 + 引导 yay）
     [3/7] quickshell 三级回退（已装→仓库→AUR→源码编译）
-    [4/7] Caelestia QML 插件（clone + 编译到 ~/src/caelestia-shell）
-    [5/7] dot_ 前缀 → $HOME 部署；有差异的旧文件自动备份
+    [4/7] 桌面 Shell：end4-PC 拉底盘 / caelestia clone + 编译 QML 插件
+          （dms 无此步，DMS 由 [2/7] 的 AUR 包提供）
+    [5/7] dot_ 前缀 → $HOME 部署（按会话过滤）；有差异的旧文件自动备份
     [6/7] 拼音搜索 Python venv + pypinyin / dbus-python
     [7/7] 输出后续指引（注销重新登录 · fish chsh · 键位速览）
   · 开始前自动保存 pre-install 快照（./install.sh rollback 的基线）
@@ -993,7 +1172,7 @@ EOF
         echo "                 : $cnt / ${#SNAP_PATHS[@]}（新机器通常为 0~2；现有 rice 安装通常 ≥ 10）"
         [[ -r "$STATE_DIR/current" ]] && echo "  · 上次快照基线 : $(<"$STATE_DIR/current")" || echo "  · 快照基线     : 尚未安装过，本次运行将生成 rollback 可用基线"
         echo
-        printf '%s 注意事项%s：默认只装缺失依赖（首次可能 5-15 分钟）；quickshell 源码编译 5-15 分钟；Caelestia 插件编译 1-3 分钟。\n' "${TC_BOLD}${TC_YELLOW}${TC_BG_BLACK:-}" "${TC_RESET}"
+        printf '%s 注意事项%s：默认只装缺失依赖（首次可能 5-15 分钟）；quickshell 源码编译 5-15 分钟；caelestia 插件编译 1-3 分钟（仅选 caelestia 时）。\n' "${TC_BOLD}${TC_YELLOW}${TC_BG_BLACK:-}" "${TC_RESET}"
         echo
         # 二次确认 + 返回
         case "$(confirm_3way '确认开始执行安装？')" in
@@ -1021,7 +1200,7 @@ detail_uninstall() {
 【功能说明】
   移除 rice 相关的配置/数据文件（可选先打包存档）：
     1) 可选：打包存档为 dotfiles-archive-uninstall-时间戳.tar.gz
-    2) 删除 ~/.config/hypr / quickshell/end4-pC / fish / kitty / matugen ... 等 rice 管理目录
+    2) 删除 ~/.config/hypr 或 niri / quickshell / DankMaterialShell / fish / kitty / matugen ... 等 rice 管理目录
     3) 不删除 ~/ 下其他非 rice 用户文件
   · 系统程序（hyprland / qs / pacman 安装的二进制）保留，如需清理请自行 pacman -Rns
 
@@ -1119,7 +1298,7 @@ detail_archive() {
         cat <<'EOF'
 【功能说明】
   将 rice 相关的全部配置 / 数据 / 状态 / 备份统一打包为 tar.gz：
-    ① 16 项 rice 配置路径（hypr / quickshell end4-pC / fish / kitty / nvim ...）
+    ① 全部 rice 配置路径（hypr / niri / quickshell / DankMaterialShell / fish / nvim ...）
     ② ~/.local/state/quickshell/ （venv / 生成的颜色 / 状态）
     ③ ~/.local/state/dotfiles-backup/ （旧备份 / snapshots / state）
     ④ ~/.cache/quickshell/ （歌词缓存 / 通知等）

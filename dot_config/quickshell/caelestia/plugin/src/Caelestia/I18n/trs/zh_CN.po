@@ -1,0 +1,3847 @@
+# Chinese translations for caelestia-shell package.
+# Copyright (C) 2026 THE caelestia-shell'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the caelestia-shell package.
+# Automatically generated, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: caelestia-shell\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-09-23 09:47+0800\n"
+"PO-Revision-Date: 2026-09-23 09:47+0800\n"
+"Last-Translator: sijin-xb\n"
+"Language-Team: none\n"
+"Language: zh_CN\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#. TRANSLATORS: %1 = name of the selected file
+#: components/filedialog/CurrentItem.qml
+#, qt-format
+msgctxt "selected file"
+msgid "\"%1\" selected"
+msgstr "已选择 \"%1\""
+
+#: components/filedialog/DialogButtons.qml
+msgctxt "file filter"
+msgid "Filter:"
+msgstr "过滤："
+
+#: components/filedialog/DialogButtons.qml
+msgctxt "file filter separator"
+msgid ", "
+msgstr "、"
+
+#. TRANSLATORS: %1 = filter label, %2 = file patterns
+#: components/filedialog/DialogButtons.qml
+#, qt-format
+msgctxt "file filter label and patterns"
+msgid "%1 (%2)"
+msgstr "%1 (%2)"
+
+#: components/filedialog/DialogButtons.qml
+msgctxt "button"
+msgid "Select"
+msgstr "选择"
+
+#: components/filedialog/DialogButtons.qml
+#: modules/bar/popouts/WirelessPassword.qml
+#: modules/nexus/common/DialogRowButton.qml
+#: modules/nexus/pages/network/AddNetworkPage.qml
+#: modules/nexus/pages/network/AddVpnPage.qml
+#: modules/utilities/RecordingDeleteModal.qml
+msgctxt "button"
+msgid "Cancel"
+msgstr "取消"
+
+#: components/filedialog/FileDialog.qml
+msgid "All files"
+msgstr "所有文件"
+
+#: components/filedialog/FileDialog.qml
+msgid "Select a file"
+msgstr "选择文件"
+
+#: components/filedialog/FolderContents.qml
+msgid "This folder is empty"
+msgstr "此文件夹为空"
+
+#: components/filedialog/Sidebar.qml
+msgctxt "file dialog sidebar heading"
+msgid "Files"
+msgstr "文件"
+
+#: modules/areapicker/Picker.qml
+msgid "Screenshot taken"
+msgstr "截图已保存"
+
+#: modules/areapicker/Picker.qml
+msgid "Screenshot copied to clipboard"
+msgstr "截图已复制到剪贴板"
+
+#: modules/background/Wallpaper.qml
+msgid "Wallpaper missing?"
+msgstr "壁纸丢失了？"
+
+#: modules/background/Wallpaper.qml
+msgid "Select a wallpaper"
+msgstr "选择壁纸"
+
+#: modules/background/Wallpaper.qml modules/dashboard/Wrapper.qml
+#: modules/nexus/pages/wallandstyle/WallpaperSelect.qml
+msgid "Image files"
+msgstr "图片文件"
+
+#: modules/background/Wallpaper.qml
+msgid "Set it now!"
+msgstr "立即设置！"
+
+#: modules/bar/components/ActiveWindow.qml
+msgctxt "shown when no window is focused"
+msgid "Desktop"
+msgstr "桌面"
+
+#: modules/bar/popouts/AudioPopout.qml
+msgctxt "audio output device"
+msgid "Output device"
+msgstr "输出设备"
+
+#: modules/bar/popouts/AudioPopout.qml
+msgctxt "audio input device"
+msgid "Input device"
+msgstr "输入设备"
+
+#: modules/bar/popouts/AudioPopout.qml
+msgid "Volume (muted)"
+msgstr "音量（已静音）"
+
+#: modules/bar/popouts/AudioPopout.qml
+#, qt-format
+msgid "Volume (%1%)"
+msgstr "音量（%1%）"
+
+#: modules/bar/popouts/AudioPopout.qml modules/bar/popouts/Bluetooth.qml
+msgid "Open settings"
+msgstr "打开设置"
+
+#: modules/bar/popouts/Battery.qml utils/SysInfo.qml
+#, qt-plural-format
+msgid "%n day"
+msgid_plural "%n days"
+msgstr[0] "%n 天"
+
+#: modules/bar/popouts/Battery.qml utils/SysInfo.qml
+#, qt-plural-format
+msgid "%n hour"
+msgid_plural "%n hours"
+msgstr[0] "%n 小时"
+
+#: modules/bar/popouts/Battery.qml
+#, qt-plural-format
+msgid "%n min"
+msgid_plural "%n mins"
+msgstr[0] "%n 分钟"
+
+#: modules/bar/popouts/Battery.qml
+msgctxt "duration component separator"
+msgid ", "
+msgstr "，"
+
+#: modules/bar/popouts/Battery.qml
+msgctxt "power profile"
+msgid "Balanced"
+msgstr "平衡"
+
+#: modules/bar/popouts/Battery.qml
+msgctxt "power profile"
+msgid "Performance"
+msgstr "性能"
+
+#: modules/bar/popouts/Battery.qml
+msgctxt "power profile"
+msgid "Power saver"
+msgstr "节能"
+
+#: modules/bar/popouts/Battery.qml
+msgctxt "power profile"
+msgid "Unknown"
+msgstr "未知"
+
+#: modules/bar/popouts/Battery.qml
+msgid "The device is too hot"
+msgstr "设备过热"
+
+#: modules/bar/popouts/Battery.qml
+msgid "The device is on a lap"
+msgstr "设备放在腿上"
+
+#: modules/bar/popouts/Battery.qml
+msgid "Unknown reason"
+msgstr "未知原因"
+
+#: modules/bar/popouts/Battery.qml
+#, qt-format
+msgctxt "battery remaining"
+msgid "Remaining: %1%"
+msgstr "剩余：%1%"
+
+#: modules/bar/popouts/Battery.qml
+msgid "No battery detected"
+msgstr "未检测到电池"
+
+#: modules/bar/popouts/Battery.qml
+#, qt-format
+msgid "Power profile: %1"
+msgstr "电源模式：%1"
+
+#: modules/bar/popouts/Battery.qml
+#, qt-format
+msgid "Time remaining: %1"
+msgstr "剩余时间：%1"
+
+#: modules/bar/popouts/Battery.qml
+msgid "Calculating remaining battery life..."
+msgstr "正在计算剩余电量…"
+
+#: modules/bar/popouts/Battery.qml
+#, qt-format
+msgid "Time until charged: %1"
+msgstr "充满还需：%1"
+
+#: modules/bar/popouts/Battery.qml
+msgid "Fully charged!"
+msgstr "已充满！"
+
+#: modules/bar/popouts/Battery.qml
+msgid "Calculating time until charged..."
+msgstr "正在计算充满时间…"
+
+#. TRANSLATORS: charger or thermal warning: the battery cannot draw full power
+#: modules/bar/popouts/Battery.qml
+msgid "Performance degraded"
+msgstr "性能下降"
+
+#: modules/bar/popouts/Bluetooth.qml modules/nexus/pages/BluetoothPage.qml
+#: modules/nexus/pages/panels/taskbar/BarStatusIcons.qml
+#: modules/nexus/pages/panels/UtilitiesPanel.qml
+msgid "Bluetooth"
+msgstr "蓝牙"
+
+#: modules/bar/popouts/Bluetooth.qml modules/bar/popouts/Network.qml
+#: modules/nexus/pages/panels/DashboardPanel.qml
+#: modules/nexus/pages/panels/LauncherPanel.qml
+#: modules/nexus/pages/panels/SidebarPanel.qml
+#: modules/nexus/pages/panels/UtilitiesPanel.qml
+msgctxt "toggle label"
+msgid "Enabled"
+msgstr "已启用"
+
+#: modules/bar/popouts/Bluetooth.qml
+msgctxt "bluetooth adapter state"
+msgid "Discovering"
+msgstr "发现中"
+
+#. TRANSLATORS: %n = total paired devices, %1 = how many of them are connected
+#: modules/bar/popouts/Bluetooth.qml
+#, qt-format, qt-plural-format
+msgid "%n device available (%1 connected)"
+msgid_plural "%n devices available (%1 connected)"
+msgstr[0] "%n 个设备可用（%1 个已连接）"
+
+#: modules/bar/popouts/Bluetooth.qml modules/bar/popouts/Network.qml
+#, qt-plural-format
+msgid "%n device available"
+msgid_plural "%n devices available"
+msgstr[0] "%n 个设备可用"
+
+#: modules/bar/popouts/kblayout/KbLayout.qml
+msgid "Keyboard layouts"
+msgstr "键盘布局"
+
+#: modules/bar/popouts/kblayout/KbLayout.qml
+msgid "XKB limitation: maximum 4 layouts allowed"
+msgstr "XKB 限制：最多允许 4 个布局"
+
+#. TRANSLATORS: %1 = language, %2 = layout code
+#: modules/bar/popouts/kblayout/KbLayoutModel.qml
+#, qt-format
+msgctxt "keyboard layout language and code"
+msgid "%1 (%2)"
+msgstr "%1 (%2)"
+
+#: modules/bar/popouts/kblayout/KbLayoutModel.qml
+msgid "Keyboard layout limit"
+msgstr "键盘布局上限"
+
+#: modules/bar/popouts/kblayout/KbLayoutModel.qml
+msgid "XKB supports only 4 layouts at a time"
+msgstr "XKB 一次仅支持 4 个布局"
+
+#. TRANSLATORS: %1 = layout code, %2 = layout name
+#: modules/bar/popouts/kblayout/KbLayoutModel.qml
+#, qt-format
+msgctxt "keyboard layout code and name"
+msgid "%1 - %2"
+msgstr "%1 - %2"
+
+#: modules/bar/popouts/LockStatus.qml
+#: plugin/src/Caelestia/Services/hyprdevices.cpp
+msgid "Caps lock enabled"
+msgstr "大写锁定已启用"
+
+#: modules/bar/popouts/LockStatus.qml
+#: plugin/src/Caelestia/Services/hyprdevices.cpp
+msgid "Caps lock disabled"
+msgstr "大写锁定已禁用"
+
+#: modules/bar/popouts/LockStatus.qml
+#: plugin/src/Caelestia/Services/hyprdevices.cpp
+msgid "Num lock enabled"
+msgstr "数字锁定已启用"
+
+#: modules/bar/popouts/LockStatus.qml
+#: plugin/src/Caelestia/Services/hyprdevices.cpp
+msgid "Num lock disabled"
+msgstr "数字锁定已禁用"
+
+#: modules/bar/popouts/Network.qml
+msgid "Wireless"
+msgstr "无线网络"
+
+#: modules/bar/popouts/Network.qml
+#, qt-plural-format
+msgid "%n network available"
+msgid_plural "%n networks available"
+msgstr[0] "%n 个网络可用"
+
+#: modules/bar/popouts/Network.qml
+msgid "Rescan networks"
+msgstr "重新扫描网络"
+
+#: modules/bar/popouts/Network.qml modules/nexus/common/EthernetSection.qml
+#: modules/nexus/pages/network/EthernetDetailPage.qml
+msgid "Ethernet"
+msgstr "有线网络"
+
+#: modules/bar/popouts/Network.qml
+msgctxt "unknown network interface"
+msgid "Unknown"
+msgstr "未知"
+
+#: modules/bar/popouts/TrayMenu.qml
+msgctxt "button"
+msgid "Back"
+msgstr "返回"
+
+#: modules/bar/popouts/WirelessPassword.qml
+#: modules/nexus/pages/network/AddNetworkPage.qml
+#: modules/nexus/pages/network/EthernetDetailPage.qml
+msgid "Connect"
+msgstr "连接"
+
+#: modules/bar/popouts/WirelessPassword.qml
+msgid "Enter password"
+msgstr "输入密码"
+
+#. TRANSLATORS: %1 = the network SSID
+#: modules/bar/popouts/WirelessPassword.qml
+#, qt-format
+msgid "Network: %1"
+msgstr "网络：%1"
+
+#: modules/bar/popouts/WirelessPassword.qml
+msgid "Unknown network"
+msgstr "未知网络"
+
+#: modules/bar/popouts/WirelessPassword.qml
+msgid "Connection failed. Please check your password and try again."
+msgstr "连接失败。请检查密码后重试。"
+
+#: modules/bar/popouts/WirelessPassword.qml modules/nexus/pages/NetworkPage.qml
+msgid "Connecting..."
+msgstr "连接中…"
+
+#: modules/bar/popouts/WirelessPassword.qml
+#: modules/nexus/pages/network/AddNetworkPage.qml
+msgid "Password"
+msgstr "密码"
+
+#: modules/BatteryMonitor.qml
+msgid "Battery warning"
+msgstr "电池警告"
+
+#: modules/BatteryMonitor.qml
+msgid "Battery level is low"
+msgstr "电量过低"
+
+#: modules/BatteryMonitor.qml
+msgid "Hibernating in 5 seconds"
+msgstr "5 秒后休眠"
+
+#: modules/BatteryMonitor.qml
+msgid "Hibernating to prevent data loss"
+msgstr "即将休眠以防数据丢失"
+
+#: modules/BatteryMonitor.qml
+msgid "Charger unplugged"
+msgstr "已拔出充电器"
+
+#: modules/BatteryMonitor.qml
+msgid "Battery is discharging"
+msgstr "电池正在放电"
+
+#: modules/BatteryMonitor.qml
+msgid "Charger plugged in"
+msgstr "已插入充电器"
+
+#: modules/BatteryMonitor.qml
+msgid "Battery is charging"
+msgstr "电池正在充电"
+
+#: modules/dashboard/Content.qml modules/nexus/pages/panels/DashboardPanel.qml
+#: modules/nexus/pages/PanelsPage.qml
+msgid "Dashboard"
+msgstr "仪表盘"
+
+#: modules/dashboard/Content.qml modules/nexus/pages/panels/DashboardPanel.qml
+msgid "Media"
+msgstr "媒体"
+
+#: modules/dashboard/Content.qml modules/nexus/pages/panels/DashboardPanel.qml
+msgid "Performance"
+msgstr "性能"
+
+#: modules/dashboard/Content.qml modules/nexus/pages/LanguageAndRegion.qml
+#: modules/nexus/pages/panels/DashboardPanel.qml
+msgid "Weather"
+msgstr "天气"
+
+#: modules/dashboard/dash/Media.qml
+msgid "No media"
+msgstr "无媒体"
+
+#: modules/dashboard/dash/Media.qml
+msgid "Unknown title"
+msgstr "未知标题"
+
+#: modules/dashboard/dash/Media.qml modules/dashboard/media/Details.qml
+msgid "Unknown album"
+msgstr "未知专辑"
+
+#: modules/dashboard/dash/Media.qml modules/dashboard/media/Details.qml
+#: modules/lock/Media.qml
+msgid "Unknown artist"
+msgstr "未知艺术家"
+
+#. TRANSLATORS: %1 = system uptime, e.g. "2 days, 3 hours"
+#: modules/dashboard/dash/User.qml
+#, qt-format
+msgctxt "system uptime"
+msgid "up %1"
+msgstr "已运行 %1"
+
+#: modules/dashboard/Media.qml modules/lock/Media.qml
+msgid "Nothing playing"
+msgstr "暂无播放"
+
+#: modules/dashboard/Media.qml
+msgid "Play something for it to show up here!"
+msgstr "播放点什么，它就会显示在这里！"
+
+#: modules/dashboard/media/LyricList.qml
+msgid "Loading lyrics..."
+msgstr "正在加载歌词…"
+
+#: modules/dashboard/media/LyricList.qml modules/dashboard/media/LyricsInfo.qml
+msgid "No lyrics found"
+msgstr "未找到歌词"
+
+#: modules/dashboard/media/LyricsAndSelector.qml
+msgid "Lyrics"
+msgstr "歌词"
+
+#: modules/dashboard/media/LyricsAndSelector.qml
+msgctxt "no media players active"
+msgid "No players"
+msgstr "无播放器"
+
+#. TRANSLATORS: %1 = lyrics backend name, e.g. LRCLIB
+#: modules/dashboard/media/LyricsInfo.qml
+#, qt-format
+msgid "Backend: %1"
+msgstr "后端：%1"
+
+#. TRANSLATORS: %1/%2/%3 = matched track title, artist and album
+#: modules/dashboard/media/LyricsInfo.qml
+#, qt-format
+msgid "Selected candidate: %1 | %2 | %3"
+msgstr "已选候选项：%1 | %2 | %3"
+
+#. TRANSLATORS: %1 = lyric timing offset; ms is the millisecond unit, leave untranslated
+#: modules/dashboard/media/LyricsInfo.qml
+#, qt-format
+msgid "Offset: %1 ms"
+msgstr "偏移：%1 ms"
+
+#: modules/dashboard/media/LyricsInfo.qml modules/dashboard/WeatherTab.qml
+#: modules/lock/center/InputField.qml
+msgid "Loading..."
+msgstr "加载中…"
+
+#: modules/dashboard/Performance.qml
+msgid "No widgets enabled"
+msgstr "未启用任何组件"
+
+#: modules/dashboard/Performance.qml
+msgid "Enable widgets in the dashboard settings"
+msgstr "请在仪表盘设置中启用组件"
+
+#: modules/dashboard/Performance.qml
+#: modules/nexus/pages/panels/DashboardPanel.qml
+msgid "CPU"
+msgstr "CPU"
+
+#: modules/dashboard/Performance.qml
+#: modules/nexus/pages/panels/DashboardPanel.qml
+#: modules/nexus/pages/ServicesPage.qml
+msgid "GPU"
+msgstr "GPU"
+
+#: modules/dashboard/Performance.qml
+msgid "Detecting GPU..."
+msgstr "正在检测 GPU…"
+
+#: modules/dashboard/Performance.qml
+msgctxt "GPU name"
+msgid "None"
+msgstr "无"
+
+#: modules/dashboard/performance/BatteryTank.qml
+#: modules/nexus/pages/bluetooth/BtDeviceInfo.qml
+#: modules/nexus/pages/panels/DashboardPanel.qml
+#: modules/nexus/pages/panels/taskbar/BarStatusIcons.qml
+msgid "Battery"
+msgstr "电池"
+
+#: modules/dashboard/performance/BatteryTank.qml
+msgctxt "battery state"
+msgid "Full"
+msgstr "已充满"
+
+#: modules/dashboard/performance/BatteryTank.qml
+msgctxt "battery state"
+msgid "Charging"
+msgstr "充电中"
+
+#. TRANSLATORS: %1 = hours, %2 = minutes
+#: modules/dashboard/performance/BatteryTank.qml
+#, qt-format
+msgctxt "battery time remaining"
+msgid "%1h %2m"
+msgstr "%1 小时 %2 分"
+
+#. TRANSLATORS: %1 = minutes
+#: modules/dashboard/performance/BatteryTank.qml
+#, qt-format
+msgctxt "battery time remaining"
+msgid "%1m"
+msgstr "%1 分"
+
+#. TRANSLATORS: labels the CPU or GPU utilisation percentage shown below it
+#: modules/dashboard/performance/HeroCard.qml
+msgctxt "resource usage"
+msgid "Usage"
+msgstr "使用率"
+
+#: modules/dashboard/performance/MemoryCard.qml
+#: modules/nexus/pages/panels/DashboardPanel.qml
+msgid "Memory"
+msgstr "内存"
+
+#: modules/dashboard/performance/MemoryCard.qml
+msgctxt "memory used"
+msgid "Used"
+msgstr "已用"
+
+#: modules/dashboard/performance/NetworkCard.qml modules/nexus/PageRegistry.qml
+#: modules/nexus/pages/network/NetworkDetailPage.qml
+#: modules/nexus/pages/NetworkPage.qml
+#: modules/nexus/pages/panels/DashboardPanel.qml
+#: modules/nexus/pages/panels/taskbar/BarStatusIcons.qml
+msgid "Network"
+msgstr "网络"
+
+#: modules/dashboard/performance/NetworkCard.qml
+msgid "Collecting data..."
+msgstr "正在收集数据…"
+
+#: modules/dashboard/performance/NetworkCard.qml
+msgctxt "network throughput"
+msgid "Download"
+msgstr "下载"
+
+#: modules/dashboard/performance/NetworkCard.qml
+msgctxt "network throughput"
+msgid "Upload"
+msgstr "上传"
+
+#: modules/dashboard/performance/NetworkCard.qml
+msgctxt "total network data transferred"
+msgid "Total"
+msgstr "总计"
+
+#. TRANSLATORS: %1 = downloaded total, %2 = uploaded total
+#: modules/dashboard/performance/NetworkCard.qml
+#, qt-format
+msgid "↓%1 ↑%2"
+msgstr "↓%1 ↑%2"
+
+#: modules/dashboard/performance/StorageCard.qml
+msgctxt "storage used"
+msgid "Used"
+msgstr "已用"
+
+#: modules/dashboard/performance/StorageCard.qml
+#: modules/nexus/pages/panels/DashboardPanel.qml
+msgid "Storage"
+msgstr "存储"
+
+#: modules/dashboard/performance/StorageCard.qml
+msgid "No disks detected"
+msgstr "未检测到磁盘"
+
+#: modules/dashboard/performance/StorageCard.qml
+msgid "No disks"
+msgstr "无磁盘"
+
+#: modules/dashboard/WeatherTab.qml
+msgid "Sunrise"
+msgstr "日出"
+
+#: modules/dashboard/WeatherTab.qml
+msgid "Sunset"
+msgstr "日落"
+
+#: modules/dashboard/WeatherTab.qml
+msgid "Humidity"
+msgstr "湿度"
+
+#: modules/dashboard/WeatherTab.qml
+msgctxt "apparent temperature"
+msgid "Feels like"
+msgstr "体感温度"
+
+#: modules/dashboard/WeatherTab.qml
+msgid "Wind"
+msgstr "风"
+
+#: modules/dashboard/WeatherTab.qml
+#, qt-format
+msgid "%1 km/h"
+msgstr "%1 km/h"
+
+#: modules/dashboard/WeatherTab.qml
+msgid "7-day forecast"
+msgstr "7 天预报"
+
+#: modules/dashboard/WeatherTab.qml
+msgctxt "forecast column"
+msgid "Today"
+msgstr "今天"
+
+#: modules/dashboard/WeatherTab.qml
+#, qt-format
+msgctxt "min/max temperature"
+msgid "%1 / %2"
+msgstr "%1 / %2"
+
+#: modules/dashboard/Wrapper.qml
+msgid "Select a profile picture"
+msgstr "选择头像"
+
+#. TRANSLATORS: %1 = a file path
+#: modules/dashboard/Wrapper.qml
+#, qt-format
+msgid "Profile picture changed"
+msgstr "头像已更改"
+
+#: modules/dashboard/Wrapper.qml
+#, qt-format
+msgid "Profile picture changed to %1"
+msgstr "头像已更改为 %1"
+
+#. TRANSLATORS: %1 = a file path
+#: modules/dashboard/Wrapper.qml
+#, qt-format
+msgid "Unable to change profile picture"
+msgstr "无法更改头像"
+
+#: modules/dashboard/Wrapper.qml
+#, qt-format
+msgid "Failed to change profile picture to %1"
+msgstr "更改头像为 %1 失败"
+
+#: modules/launcher/Content.qml
+#, qt-format
+msgid "Type \"%1\" for commands"
+msgstr "输入 \"%1\" 以使用命令"
+
+#: modules/launcher/ContentList.qml
+msgid "No wallpapers found"
+msgstr "未找到壁纸"
+
+#: modules/launcher/ContentList.qml
+msgid "No results"
+msgstr "无结果"
+
+#: modules/launcher/ContentList.qml
+#, qt-format
+msgid "Try putting some wallpapers in %1"
+msgstr "试着在 %1 中放入一些壁纸"
+
+#: modules/launcher/ContentList.qml
+msgid "Try searching for something else"
+msgstr "试着搜索其他内容"
+
+#: modules/launcher/items/CalcItem.qml
+msgid "Calculating..."
+msgstr "计算中…"
+
+#: modules/launcher/items/CalcItem.qml
+msgid "Type an expression to calculate"
+msgstr "输入表达式进行计算"
+
+#: modules/launcher/items/CalcItem.qml
+msgid "Open in calculator"
+msgstr "在计算器中打开"
+
+#: modules/launcher/services/Actions.qml
+msgctxt "launcher action with no name"
+msgid "Unnamed"
+msgstr "未命名"
+
+#: modules/launcher/services/Actions.qml
+msgctxt "launcher action with no description"
+msgid "No description"
+msgstr "无描述"
+
+#: modules/launcher/services/M3Variants.qml
+msgctxt "M3 scheme variant name"
+msgid "Vibrant"
+msgstr "鲜艳"
+
+#: modules/launcher/services/M3Variants.qml
+msgid "A high chroma palette. The primary palette's chroma is at maximum."
+msgstr "高彩度调色板。主调色板的彩度处于最大值。"
+
+#: modules/launcher/services/M3Variants.qml
+msgctxt "M3 scheme variant name"
+msgid "Tonal Spot"
+msgstr "色调点缀"
+
+#: modules/launcher/services/M3Variants.qml
+msgid "Default for Material theme colours. A pastel palette with a low chroma."
+msgstr "Material 主题颜色的默认值。低彩度的柔和调色板。"
+
+#: modules/launcher/services/M3Variants.qml
+msgctxt "M3 scheme variant name"
+msgid "Expressive"
+msgstr "表现力"
+
+#: modules/launcher/services/M3Variants.qml
+msgid ""
+"A medium chroma palette. The primary palette's hue is different from the "
+"seed colour, for variety."
+msgstr "中等彩度调色板。为了多样性，主调色板的色相与种子颜色不同。"
+
+#: modules/launcher/services/M3Variants.qml
+msgctxt "M3 scheme variant name"
+msgid "Fidelity"
+msgstr "保真"
+
+#: modules/launcher/services/M3Variants.qml
+msgid ""
+"Matches the seed colour, even if the seed colour is very bright (high "
+"chroma)."
+msgstr "与种子颜色匹配，即使种子颜色非常明亮（高彩度）。"
+
+#: modules/launcher/services/M3Variants.qml
+msgctxt "M3 scheme variant name"
+msgid "Content"
+msgstr "内容"
+
+#: modules/launcher/services/M3Variants.qml
+msgid "Almost identical to fidelity."
+msgstr "与保真几乎相同。"
+
+#: modules/launcher/services/M3Variants.qml
+msgctxt "M3 scheme variant name"
+msgid "Fruit Salad"
+msgstr "水果沙拉"
+
+#: modules/launcher/services/M3Variants.qml
+msgid "A playful theme - the seed colour's hue does not appear in the theme."
+msgstr "活泼的主题——种子颜色的色相不会出现在主题中。"
+
+#: modules/launcher/services/M3Variants.qml
+msgctxt "M3 scheme variant name"
+msgid "Rainbow"
+msgstr "彩虹"
+
+#: modules/launcher/services/M3Variants.qml
+msgctxt "M3 scheme variant name"
+msgid "Neutral"
+msgstr "中性"
+
+#: modules/launcher/services/M3Variants.qml
+msgid "Close to greyscale, a hint of chroma."
+msgstr "接近灰度，带一点彩度。"
+
+#: modules/launcher/services/M3Variants.qml
+msgctxt "M3 scheme variant name"
+msgid "Monochrome"
+msgstr "单色"
+
+#: modules/launcher/services/M3Variants.qml
+msgid "All colours are greyscale, no chroma."
+msgstr "所有颜色均为灰度，无彩度。"
+
+#: modules/lock/center/InputField.qml
+msgid "Scanning face..."
+msgstr "正在扫描面部…"
+
+#: modules/lock/center/InputField.qml
+msgid "Max tries reached"
+msgstr "已达最大尝试次数"
+
+#: modules/lock/center/InputField.qml
+msgid "Enter your password"
+msgstr "输入密码"
+
+#: modules/lock/center/StateMessage.qml
+#, qt-format
+msgid "FP ERROR: %1"
+msgstr "指纹错误：%1"
+
+#: modules/lock/center/StateMessage.qml
+#, qt-format
+msgid "FACE ERROR: %1"
+msgstr "面部错误：%1"
+
+#: modules/lock/center/StateMessage.qml
+#, qt-format
+msgid "PW ERROR: %1"
+msgstr "密码错误：%1"
+
+#. TRANSLATORS: %1 = attempts used so far, %2 = maximum attempts allowed
+#: modules/lock/center/StateMessage.qml
+#, qt-format
+msgid "Fingerprint not recognised (%1/%2). Please try again or use password."
+msgstr "无法识别指纹（%1/%2）。请重试或使用密码。"
+
+#. TRANSLATORS: %1 = attempts used so far, %2 = maximum attempts allowed
+#: modules/lock/center/StateMessage.qml
+#, qt-format
+msgid "Face not recognised (%1/%2). Please try again or use password."
+msgstr "无法识别面部（%1/%2）。请重试或使用密码。"
+
+#. TRANSLATORS: %1 = attempts used so far, %2 = maximum attempts allowed
+#: modules/lock/center/StateMessage.qml
+#, qt-format
+msgid "Fingerprint not recognised (%1/%2). Please try again."
+msgstr "无法识别指纹（%1/%2）。请重试。"
+
+#. TRANSLATORS: %1 = attempts used so far, %2 = maximum attempts allowed
+#: modules/lock/center/StateMessage.qml
+#, qt-format
+msgid "Face not recognised (%1/%2). Please try again."
+msgstr "无法识别面部（%1/%2）。请重试。"
+
+#: modules/lock/center/StateMessage.qml
+msgid "Incorrect password. Please try again or use fingerprint."
+msgstr "密码错误。请重试或使用指纹。"
+
+#: modules/lock/center/StateMessage.qml
+msgid "Incorrect password. Please try again or use face."
+msgstr "密码错误。请重试或使用面部。"
+
+#: modules/lock/center/StateMessage.qml
+msgid "Incorrect password. Please try again."
+msgstr "密码错误。请重试。"
+
+#: modules/lock/center/StateMessage.qml
+msgid "Maximum password attempts reached. Please use fingerprint."
+msgstr "已达密码尝试上限。请使用指纹。"
+
+#: modules/lock/center/StateMessage.qml
+msgid "Maximum password attempts reached. Please use face."
+msgstr "已达密码尝试上限。请使用面部。"
+
+#: modules/lock/center/StateMessage.qml
+msgid "Maximum attempts for all authentication methods reached."
+msgstr "所有认证方式的尝试次数均已用尽。"
+
+#: modules/lock/center/StateMessage.qml
+msgid "Maximum password attempts reached."
+msgstr "已达密码尝试上限。"
+
+#: modules/lock/center/StateMessage.qml
+msgid "Maximum fingerprint attempts reached. Please use password."
+msgstr "已达指纹尝试上限。请使用密码。"
+
+#: modules/lock/center/StateMessage.qml
+msgid "Maximum face attempts reached. Please use password."
+msgstr "已达面部尝试上限。请使用密码。"
+
+#. TRANSLATORS: %1 = the active keyboard layout name, e.g. "English (US)"
+#: modules/lock/center/StateMessage.qml
+#, qt-format
+msgid ""
+"Caps lock and Num lock are ON.\n"
+"Keyboard layout: %1"
+msgstr ""
+"大写锁定和数字锁定已开启。\n"
+"键盘布局：%1"
+
+#. TRANSLATORS: %1 = the active keyboard layout name, e.g. "English (US)"
+#: modules/lock/center/StateMessage.qml
+#, qt-format
+msgid "Caps lock is ON. Keyboard layout: %1"
+msgstr "大写锁定已开启。键盘布局：%1"
+
+#. TRANSLATORS: %1 = the active keyboard layout name, e.g. "English (US)"
+#: modules/lock/center/StateMessage.qml
+#, qt-format
+msgid "Num lock is ON. Keyboard layout: %1"
+msgstr "数字锁定已开启。键盘布局：%1"
+
+#. TRANSLATORS: %1 = the active keyboard layout name, e.g. "English (US)"
+#: modules/lock/center/StateMessage.qml
+#, qt-format
+msgid "Keyboard layout: %1"
+msgstr "键盘布局：%1"
+
+#: modules/lock/center/StateMessage.qml
+msgid "Caps lock and Num lock are ON."
+msgstr "大写锁定和数字锁定已开启。"
+
+#: modules/lock/center/StateMessage.qml
+msgid "Caps lock is ON."
+msgstr "大写锁定已开启。"
+
+#: modules/lock/center/StateMessage.qml
+msgid "Num lock is ON."
+msgstr "数字锁定已开启。"
+
+#. TRANSLATORS: keep the label padded to 4 chars so the column stays aligned
+#: modules/lock/Fetch.qml
+#, qt-format
+msgid "OS  : %1"
+msgstr "系统：%1"
+
+#. TRANSLATORS: keep the label padded to 4 chars so the column stays aligned
+#: modules/lock/Fetch.qml
+#, qt-format
+msgid "WM  : %1"
+msgstr "窗口：%1"
+
+#. TRANSLATORS: keep the label padded to 4 chars so the column stays aligned
+#: modules/lock/Fetch.qml
+#, qt-format
+msgid "USER: %1"
+msgstr "用户：%1"
+
+#. TRANSLATORS: keep the label padded to 4 chars so the column stays aligned
+#: modules/lock/Fetch.qml
+#, qt-format
+msgid "UP  : %1"
+msgstr "运行：%1"
+
+#. TRANSLATORS: keep the label padded to 4 chars, (+) marks charging
+#: modules/lock/Fetch.qml
+#, qt-format
+msgid "BATT: (+) %1%"
+msgstr "电量：(+) %1%"
+
+#: modules/lock/Fetch.qml
+#, qt-format
+msgid "BATT: %1%"
+msgstr "电量：%1%"
+
+#: modules/lock/Media.qml
+msgid "Unknown track"
+msgstr "未知曲目"
+
+#: modules/lock/Media.qml
+msgid "Try playing some music!"
+msgstr "试着播放一些音乐！"
+
+#: modules/lock/NotifDock.qml
+#, qt-plural-format
+msgid "%n notification"
+msgid_plural "%n notifications"
+msgstr[0] "%n 条通知"
+
+#: modules/lock/NotifDock.qml
+#: modules/nexus/pages/services/NotificationsPage.qml
+#: modules/nexus/pages/ServicesPage.qml modules/sidebar/NotifDock.qml
+msgid "Notifications"
+msgstr "通知"
+
+#: modules/lock/NotifDock.qml
+msgid "Unlock for notifications"
+msgstr "解锁以查看通知"
+
+#: modules/lock/NotifDock.qml
+msgid "No notifications"
+msgstr "无通知"
+
+#. TRANSLATORS: %1 = apparent temperature, unit already included
+#: modules/lock/weather/BriefInfo.qml
+#, qt-format
+msgid "Feels like %1"
+msgstr "体感温度 %1"
+
+#. TRANSLATORS: %1/%2 = today's max and min temperature, units already included
+#: modules/lock/weather/BriefInfo.qml
+#, qt-format
+msgid "High %1 • Low %2"
+msgstr "最高 %1 • 最低 %2"
+
+#: modules/lock/weather/Forecast.qml
+msgid "Hourly forecast"
+msgstr "逐小时预报"
+
+#: modules/lock/weather/Forecast.qml
+msgctxt "forecast column"
+msgid "Now"
+msgstr "现在"
+
+#: modules/nexus/common/AudioDeviceList.qml
+msgctxt "unknown audio device"
+msgid "Unknown"
+msgstr "未知"
+
+#: modules/nexus/common/EthernetSection.qml
+#: modules/nexus/pages/network/EthernetDetailPage.qml
+msgctxt "ethernet link state"
+msgid "Connected"
+msgstr "已连接"
+
+#: modules/nexus/common/EthernetSection.qml
+#: modules/nexus/pages/network/EthernetDetailPage.qml
+msgctxt "ethernet link state"
+msgid "Not connected"
+msgstr "未连接"
+
+#. TRANSLATORS: %1 = data transferred, already formatted with a unit
+#: modules/nexus/common/EthernetSection.qml
+#, qt-format
+msgid "Data usage: %1"
+msgstr "数据用量：%1"
+
+#: modules/nexus/common/EthernetSection.qml
+msgid "Wired connection"
+msgstr "有线连接"
+
+#: modules/nexus/common/EthernetSection.qml
+#, qt-format
+msgctxt "ethernet link state with interface name"
+msgid "Not connected • %1"
+msgstr "未连接 • %1"
+
+#: modules/nexus/common/EthernetSection.qml
+msgid "Local IP Address"
+msgstr "本地 IP 地址"
+
+#: modules/nexus/common/EthernetSection.qml
+msgid "Primary DNS"
+msgstr "首选 DNS"
+
+#: modules/nexus/common/NetworkList.qml
+msgid "No networks found"
+msgstr "未找到网络"
+
+#: modules/nexus/common/NetworkList.qml
+msgid "Wi-Fi disabled"
+msgstr "Wi-Fi 已禁用"
+
+#: modules/nexus/common/NetworkList.qml
+msgctxt "network connected"
+msgid "Connected"
+msgstr "已连接"
+
+#: modules/nexus/common/NetworkList.qml
+msgctxt "network saved"
+msgid "Saved"
+msgstr "已保存"
+
+#. TRANSLATORS: %1 = security type, %2 = connection status
+#: modules/nexus/common/NetworkList.qml
+#, qt-format
+msgctxt "network security and status"
+msgid "Security: %1 • %2"
+msgstr "安全性：%1 • %2"
+
+#: modules/nexus/common/NetworkList.qml
+#, qt-format
+msgctxt "network security"
+msgid "Security: %1"
+msgstr "安全性：%1"
+
+#: modules/nexus/NavPane.qml
+msgid "Search settings"
+msgstr "搜索设置"
+
+#: modules/nexus/PageCompRegistry.qml
+#: modules/nexus/pages/wallandstyle/ColourSelect.qml
+msgid "Page under construction"
+msgstr "页面建设中"
+
+#: modules/nexus/PageCompRegistry.qml
+#: modules/nexus/pages/wallandstyle/ColourSelect.qml
+msgid "This page will be available in a future update."
+msgstr "此页面将在未来的更新中提供。"
+
+#: modules/nexus/PageRegistry.qml modules/nexus/pages/WallpaperAndStyle.qml
+msgid "Wallpaper & style"
+msgstr "壁纸与样式"
+
+#: modules/nexus/PageRegistry.qml
+msgid "Wallpaper, fonts, colours"
+msgstr "壁纸、字体、颜色"
+
+#: modules/nexus/PageRegistry.qml
+msgid "Wi-Fi, ethernet, VPN"
+msgstr "Wi-Fi、有线网络、VPN"
+
+#: modules/nexus/PageRegistry.qml modules/nexus/pages/BluetoothPage.qml
+msgid "Connected devices"
+msgstr "已连接的设备"
+
+#: modules/nexus/PageRegistry.qml
+msgid "Bluetooth, pairing"
+msgstr "蓝牙、配对"
+
+#: modules/nexus/PageRegistry.qml modules/nexus/pages/AudioPage.qml
+msgid "Audio"
+msgstr "音频"
+
+#: modules/nexus/PageRegistry.qml
+msgid "App volumes, sound devices"
+msgstr "应用音量、声音设备"
+
+#: modules/nexus/PageRegistry.qml
+msgid "Updates"
+msgstr "更新"
+
+#: modules/nexus/PageRegistry.qml
+msgid "System updates"
+msgstr "系统更新"
+
+#: modules/nexus/PageRegistry.qml modules/nexus/pages/AboutPage.qml
+msgid "Plugins"
+msgstr "插件"
+
+#: modules/nexus/PageRegistry.qml
+msgid "Manage plugins"
+msgstr "管理插件"
+
+#: modules/nexus/PageRegistry.qml modules/nexus/pages/PanelsPage.qml
+msgid "Panels"
+msgstr "面板"
+
+#: modules/nexus/PageRegistry.qml
+msgid "Dashboard, taskbar, launcher, sidebar"
+msgstr "仪表盘、任务栏、启动器、侧边栏"
+
+#: modules/nexus/PageRegistry.qml modules/nexus/pages/AppsPage.qml
+#: modules/nexus/pages/panels/LauncherPanel.qml
+msgid "Apps"
+msgstr "应用"
+
+#: modules/nexus/PageRegistry.qml
+msgid "Default apps, favourites, hidden apps"
+msgstr "默认应用、收藏、隐藏的应用"
+
+#: modules/nexus/PageRegistry.qml modules/nexus/pages/ServicesPage.qml
+msgid "Services"
+msgstr "服务"
+
+#: modules/nexus/PageRegistry.qml
+msgid "Poll intervals, lyrics backend"
+msgstr "轮询间隔、歌词后端"
+
+#: modules/nexus/PageRegistry.qml modules/nexus/pages/LanguageAndRegion.qml
+msgid "Language & region"
+msgstr "语言与地区"
+
+#: modules/nexus/PageRegistry.qml
+msgid "UI language, weather location, display units"
+msgstr "界面语言、天气位置、显示单位"
+
+#: modules/nexus/PageRegistry.qml modules/nexus/pages/AboutPage.qml
+msgid "About"
+msgstr "关于"
+
+#: modules/nexus/PageRegistry.qml
+msgid "System information, credits"
+msgstr "系统信息、鸣谢"
+
+#: modules/nexus/pages/AboutPage.qml
+msgid "System"
+msgstr "系统"
+
+#: modules/nexus/pages/AboutPage.qml
+msgid "Hostname"
+msgstr "主机名"
+
+#: modules/nexus/pages/AboutPage.qml
+msgctxt "system model name"
+msgid "Device"
+msgstr "设备"
+
+#: modules/nexus/pages/AboutPage.qml
+msgid "Distro"
+msgstr "发行版"
+
+#: modules/nexus/pages/AboutPage.qml
+msgid "Kernel"
+msgstr "内核"
+
+#. TRANSLATORS: BIOS or UEFI firmware version
+#: modules/nexus/pages/AboutPage.qml
+msgid "Firmware"
+msgstr "固件"
+
+#: modules/nexus/pages/AboutPage.qml
+msgid "Software"
+msgstr "软件"
+
+#: modules/nexus/pages/AboutPage.qml
+msgctxt "the caelestia shell itself, not a unix shell"
+msgid "Shell"
+msgstr "Shell"
+
+#: modules/nexus/pages/AboutPage.qml
+msgctxt "the caelestia command line tool"
+msgid "CLI"
+msgstr "CLI"
+
+#: modules/nexus/pages/AboutPage.qml
+msgid "Loaded plugins"
+msgstr "已加载的插件"
+
+#: modules/nexus/pages/apps/AllApps.qml modules/nexus/pages/AppsPage.qml
+msgid "All apps"
+msgstr "所有应用"
+
+#: modules/nexus/pages/apps/AppInfo.qml
+msgid "App info"
+msgstr "应用信息"
+
+#: modules/nexus/pages/apps/AppInfo.qml
+#: modules/nexus/pages/panels/LauncherPanel.qml
+#: modules/nexus/pages/PanelsPage.qml
+msgid "Launcher"
+msgstr "启动器"
+
+#: modules/nexus/pages/apps/AppInfo.qml
+msgid "Favourite"
+msgstr "收藏"
+
+#: modules/nexus/pages/apps/AppInfo.qml
+msgid "Matched by a regex in favouriteApps — edit the config file to change"
+msgstr "由 favouriteApps 中的正则匹配 — 编辑配置文件可更改"
+
+#: modules/nexus/pages/apps/AppInfo.qml
+msgid "Pin to the top of the launcher"
+msgstr "固定到启动器顶部"
+
+#: modules/nexus/pages/apps/AppInfo.qml
+msgid "Hidden"
+msgstr "隐藏"
+
+#: modules/nexus/pages/apps/AppInfo.qml
+msgid "Matched by a regex in hiddenApps — edit the config file to change"
+msgstr "由 hiddenApps 中的正则匹配 — 编辑配置文件可更改"
+
+#: modules/nexus/pages/apps/AppInfo.qml
+msgid "Hide from the launcher"
+msgstr "从启动器中隐藏"
+
+#: modules/nexus/pages/apps/AppInfo.qml
+msgid "Details"
+msgstr "详情"
+
+#: modules/nexus/pages/apps/AppInfo.qml
+msgid "App ID"
+msgstr "App ID"
+
+#: modules/nexus/pages/apps/AppInfo.qml
+msgid "Command"
+msgstr "命令"
+
+#: modules/nexus/pages/AppsPage.qml
+msgid "Default applications"
+msgstr "默认应用"
+
+#: modules/nexus/pages/AppsPage.qml
+msgctxt "default app category"
+msgid "Terminal"
+msgstr "终端"
+
+#: modules/nexus/pages/AppsPage.qml
+msgctxt "default app category"
+msgid "Audio"
+msgstr "音频"
+
+#: modules/nexus/pages/AppsPage.qml
+msgctxt "default app category"
+msgid "Media playback"
+msgstr "媒体播放"
+
+#: modules/nexus/pages/AppsPage.qml
+msgctxt "default app category"
+msgid "File manager"
+msgstr "文件管理器"
+
+#: modules/nexus/pages/AppsPage.qml
+msgctxt "app library"
+msgid "Library"
+msgstr "应用库"
+
+#: modules/nexus/pages/AppsPage.qml
+msgid "Browse installed apps, set favourites and hidden"
+msgstr "浏览已安装的应用，设置收藏与隐藏"
+
+#: modules/nexus/pages/audio/AppVolumes.qml modules/nexus/pages/AudioPage.qml
+msgid "App volumes"
+msgstr "应用音量"
+
+#: modules/nexus/pages/audio/AppVolumes.qml
+msgid "Adjust the volume of individual apps currently playing audio."
+msgstr "调整当前正在播放声音的各个应用的音量。"
+
+#: modules/nexus/pages/audio/AppVolumes.qml modules/nexus/pages/AudioPage.qml
+msgid "No apps playing audio"
+msgstr "没有正在播放声音的应用"
+
+#: modules/nexus/pages/AudioPage.qml
+msgctxt "audio output"
+msgid "Output"
+msgstr "输出"
+
+#: modules/nexus/pages/AudioPage.qml
+msgctxt "audio output muted"
+msgid "Muted"
+msgstr "已静音"
+
+#: modules/nexus/pages/AudioPage.qml
+msgctxt "no audio outputs"
+msgid "No output devices"
+msgstr "无输出设备"
+
+#: modules/nexus/pages/AudioPage.qml
+msgctxt "audio input"
+msgid "Input"
+msgstr "输入"
+
+#: modules/nexus/pages/AudioPage.qml
+msgctxt "audio input muted"
+msgid "Muted"
+msgstr "已静音"
+
+#: modules/nexus/pages/AudioPage.qml
+msgctxt "no audio inputs"
+msgid "No input devices"
+msgstr "无输入设备"
+
+#: modules/nexus/pages/AudioPage.qml
+#, qt-plural-format
+msgid "%n app playing audio"
+msgid_plural "%n apps playing audio"
+msgstr[0] "%n 个应用正在播放声音"
+
+#: modules/nexus/pages/bluetooth/BluetoothPairing.qml
+#: modules/nexus/pages/BluetoothPage.qml
+msgid "Pair new device"
+msgstr "配对新的设备"
+
+#: modules/nexus/pages/bluetooth/BluetoothPairing.qml
+msgid "Available devices"
+msgstr "可用的设备"
+
+#: modules/nexus/pages/bluetooth/BluetoothPairing.qml
+msgid "Searching for devices…"
+msgstr "正在搜索设备…"
+
+#: modules/nexus/pages/bluetooth/BluetoothPairing.qml
+msgid "Unknown device"
+msgstr "未知设备"
+
+#: modules/nexus/pages/bluetooth/BluetoothPairing.qml
+msgid "Pairing..."
+msgstr "配对中…"
+
+#. TRANSLATORS: %1 = battery level, already formatted as a percentage
+#: modules/nexus/pages/bluetooth/BtDeviceInfo.qml
+#: modules/nexus/pages/BluetoothPage.qml
+#, qt-format
+msgctxt "bluetooth device state with battery"
+msgid "Connected • %1"
+msgstr "已连接 • %1"
+
+#: modules/nexus/pages/bluetooth/BtDeviceInfo.qml
+#: modules/nexus/pages/BluetoothPage.qml
+msgctxt "bluetooth device state"
+msgid "Connected"
+msgstr "已连接"
+
+#: modules/nexus/pages/bluetooth/BtDeviceInfo.qml
+msgctxt "bluetooth device state"
+msgid "Paired"
+msgstr "已配对"
+
+#: modules/nexus/pages/bluetooth/BtDeviceInfo.qml
+msgctxt "bluetooth device state"
+msgid "Not paired"
+msgstr "未配对"
+
+#: modules/nexus/pages/bluetooth/BtDeviceInfo.qml
+msgctxt "unnamed bluetooth device"
+msgid "Device"
+msgstr "设备"
+
+#: modules/nexus/pages/bluetooth/BtDeviceInfo.qml
+msgctxt "button"
+msgid "Forget"
+msgstr "忘记"
+
+#: modules/nexus/pages/bluetooth/BtDeviceInfo.qml
+msgctxt "button"
+msgid "Disconnect"
+msgstr "断开"
+
+#: modules/nexus/pages/bluetooth/BtDeviceInfo.qml
+msgctxt "button"
+msgid "Connect"
+msgstr "连接"
+
+#: modules/nexus/pages/bluetooth/BtDeviceInfo.qml
+msgctxt "bluetooth device state"
+msgid "Trusted"
+msgstr "已信任"
+
+#: modules/nexus/pages/bluetooth/BtDeviceInfo.qml
+msgid "Allow this device to connect automatically"
+msgstr "允许此设备自动连接"
+
+#: modules/nexus/pages/bluetooth/BtDeviceInfo.qml
+msgctxt "bluetooth device state"
+msgid "Blocked"
+msgstr "已阻止"
+
+#: modules/nexus/pages/bluetooth/BtDeviceInfo.qml
+msgid "Prevent this device from connecting"
+msgstr "阻止此设备连接"
+
+#: modules/nexus/pages/bluetooth/BtDeviceInfo.qml
+msgid "Wake allowed"
+msgstr "允许唤醒"
+
+#: modules/nexus/pages/bluetooth/BtDeviceInfo.qml
+msgid "Allow this device to wake the system"
+msgstr "允许此设备唤醒系统"
+
+#: modules/nexus/pages/bluetooth/BtDeviceInfo.qml
+msgctxt "bluetooth device state"
+msgid "Unavailable"
+msgstr "不可用"
+
+#: modules/nexus/pages/bluetooth/BtDeviceInfo.qml
+msgctxt "bluetooth MAC address"
+msgid "Address"
+msgstr "地址"
+
+#: modules/nexus/pages/BluetoothPage.qml
+msgid "No saved devices"
+msgstr "无已保存的设备"
+
+#: modules/nexus/pages/BluetoothPage.qml
+msgid "Bluetooth disabled"
+msgstr "蓝牙已禁用"
+
+#: modules/nexus/pages/BluetoothPage.qml
+msgctxt "unknown bluetooth device"
+msgid "Unknown"
+msgstr "未知"
+
+#: modules/nexus/pages/BluetoothPage.qml
+msgctxt "bluetooth device state"
+msgid "Saved"
+msgstr "已保存"
+
+#. TRANSLATORS: adjective: other devices can find this computer
+#: modules/nexus/pages/BluetoothPage.qml
+msgctxt "bluetooth setting"
+msgid "Discoverable"
+msgstr "可被发现"
+
+#: modules/nexus/pages/BluetoothPage.qml
+msgid "Allow nearby devices to find this one"
+msgstr "允许附近的设备发现此设备"
+
+#. TRANSLATORS: adjective: other devices are allowed to pair with this computer
+#: modules/nexus/pages/BluetoothPage.qml
+msgctxt "bluetooth setting"
+msgid "Pairable"
+msgstr "可配对"
+
+#: modules/nexus/pages/BluetoothPage.qml
+msgid "Allow nearby devices to pair with this one"
+msgstr "允许附近的设备与此设备配对"
+
+#: modules/nexus/pages/LanguageAndRegion.qml
+msgid "Auto"
+msgstr "自动"
+
+#: modules/nexus/pages/LanguageAndRegion.qml
+msgid "°C"
+msgstr "°C"
+
+#: modules/nexus/pages/LanguageAndRegion.qml
+msgid "°F"
+msgstr "°F"
+
+#: modules/nexus/pages/LanguageAndRegion.qml
+msgid "K"
+msgstr "K"
+
+#: modules/nexus/pages/LanguageAndRegion.qml
+msgid "Binary (KiB, MiB)"
+msgstr "二进制（KiB、MiB）"
+
+#: modules/nexus/pages/LanguageAndRegion.qml
+msgid "Decimal (KB, MB)"
+msgstr "十进制（KB、MB）"
+
+#: modules/nexus/pages/LanguageAndRegion.qml
+msgid "12-hour"
+msgstr "12 小时制"
+
+#: modules/nexus/pages/LanguageAndRegion.qml
+msgid "24-hour"
+msgstr "24 小时制"
+
+#: modules/nexus/pages/LanguageAndRegion.qml
+msgid "Language"
+msgstr "语言"
+
+#: modules/nexus/pages/LanguageAndRegion.qml
+msgid "UI language"
+msgstr "界面语言"
+
+#: modules/nexus/pages/LanguageAndRegion.qml
+msgid "The language used in the shell UI"
+msgstr "Shell 界面使用的语言"
+
+#: modules/nexus/pages/LanguageAndRegion.qml
+msgid "Location picker coming soon"
+msgstr "位置选择器即将推出"
+
+#: modules/nexus/pages/LanguageAndRegion.qml
+msgid "Choose your weather location on a map in a future update"
+msgstr "在未来的更新中可在地图上选择天气位置"
+
+#: modules/nexus/pages/LanguageAndRegion.qml
+msgid "Units"
+msgstr "单位"
+
+#: modules/nexus/pages/LanguageAndRegion.qml
+msgid "Temperature"
+msgstr "温度"
+
+#: modules/nexus/pages/LanguageAndRegion.qml
+msgid "Units for weather temperatures"
+msgstr "天气温度的单位"
+
+#: modules/nexus/pages/LanguageAndRegion.qml
+msgid "System temperatures"
+msgstr "系统温度"
+
+#: modules/nexus/pages/LanguageAndRegion.qml
+msgid "Units for CPU and GPU temperatures"
+msgstr "CPU 和 GPU 温度的单位"
+
+#: modules/nexus/pages/LanguageAndRegion.qml
+msgid "Data sizes"
+msgstr "数据大小"
+
+#: modules/nexus/pages/LanguageAndRegion.qml
+msgid "Units for data sizes and network speeds"
+msgstr "数据大小和网络速率的单位"
+
+#: modules/nexus/pages/LanguageAndRegion.qml
+msgid "Time & date"
+msgstr "时间与日期"
+
+#: modules/nexus/pages/LanguageAndRegion.qml
+msgid "Clock format"
+msgstr "时钟格式"
+
+#: modules/nexus/pages/LanguageAndRegion.qml
+msgid "How times are shown across the shell"
+msgstr "Shell 中时间的显示方式"
+
+#: modules/nexus/pages/network/AddNetworkPage.qml
+#: modules/nexus/pages/NetworkPage.qml
+msgid "Add network"
+msgstr "添加网络"
+
+#: modules/nexus/pages/network/AddNetworkPage.qml
+msgid "Enter the details below to manually connect to a network."
+msgstr "在下方输入详细信息以手动连接到网络。"
+
+#. TRANSLATORS: SSID is a protocol term, leave it untranslated
+#: modules/nexus/pages/network/AddNetworkPage.qml
+msgid "Network name (SSID)"
+msgstr "网络名称（SSID）"
+
+#. TRANSLATORS: sample network name, translate the e.g. but the name is a placeholder
+#: modules/nexus/pages/network/AddNetworkPage.qml
+msgid "e.g. MyHiddenNetwork"
+msgstr "例如 MyHiddenNetwork"
+
+#: modules/nexus/pages/network/AddNetworkPage.qml
+msgid "Network name is required"
+msgstr "网络名称为必填项"
+
+#: modules/nexus/pages/network/AddNetworkPage.qml
+msgid "Hidden network"
+msgstr "隐藏网络"
+
+#: modules/nexus/pages/network/AddNetworkPage.qml
+msgid "Actively probe for a network that doesn't broadcast its name"
+msgstr "主动探测不广播名称的网络"
+
+#: modules/nexus/pages/network/AddNetworkPage.qml
+#: modules/nexus/pages/network/NetworkDetailPage.qml
+msgid "Security"
+msgstr "安全性"
+
+#. TRANSLATORS: WPA/WPA2/WPA3 are protocol names, leave them untranslated
+#: modules/nexus/pages/network/AddNetworkPage.qml
+msgid "WPA/WPA2/WPA3 Personal"
+msgstr "WPA/WPA2/WPA3 个人版"
+
+#: modules/nexus/pages/network/AddNetworkPage.qml
+msgctxt "wifi security type"
+msgid "None (open)"
+msgstr "无（开放）"
+
+#. TRANSLATORS: WPA is a protocol name, leave it untranslated
+#: modules/nexus/pages/network/AddNetworkPage.qml
+msgid "WPA passwords are at least 8 characters"
+msgstr "WPA 密码至少 8 个字符"
+
+#: modules/nexus/pages/network/AddNetworkPage.qml
+msgid "Connection failed — check the password"
+msgstr "连接失败 — 请检查密码"
+
+#: modules/nexus/pages/network/AddNetworkPage.qml
+msgid "Password must be at least 8 characters"
+msgstr "密码至少需要 8 个字符"
+
+#: modules/nexus/pages/network/AddVpnPage.qml
+msgid "Edit VPN provider"
+msgstr "编辑 VPN 提供商"
+
+#: modules/nexus/pages/network/AddVpnPage.qml
+msgid "Add VPN provider"
+msgstr "添加 VPN 提供商"
+
+#. TRANSLATORS: the four names in brackets are provider identifiers, leave them untranslated
+#: modules/nexus/pages/network/AddVpnPage.qml
+msgid ""
+"Built-in names (wireguard, warp, tailscale, netbird) auto-fill their "
+"commands. For others, provide the connect/disconnect commands."
+msgstr ""
+"内置名称（wireguard、warp、tailscale、netbird）会自动填入其命令。其他提供商请"
+"提供连接/断开命令。"
+
+#: modules/nexus/pages/network/AddVpnPage.qml
+msgid "Provider name"
+msgstr "提供商名称"
+
+#. TRANSLATORS: id here means the provider identifier, e.g. wireguard
+#: modules/nexus/pages/network/AddVpnPage.qml
+msgid "Built-in id or a custom name"
+msgstr "内置 id 或自定义名称"
+
+#: modules/nexus/pages/network/AddVpnPage.qml
+msgid "Provider name is required"
+msgstr "提供商名称为必填项"
+
+#: modules/nexus/pages/network/AddVpnPage.qml
+msgid "Display name"
+msgstr "显示名称"
+
+#. TRANSLATORS: the name shown in the VPN provider list on the network page
+#: modules/nexus/pages/network/AddVpnPage.qml
+msgid "Shown in the list"
+msgstr "在列表中显示的名称"
+
+#: modules/nexus/pages/network/AddVpnPage.qml
+#: modules/nexus/pages/network/EthernetDetailPage.qml
+#: modules/nexus/pages/NetworkPage.qml
+msgctxt "network interface"
+msgid "Interface"
+msgstr "接口"
+
+#: modules/nexus/pages/network/AddVpnPage.qml
+msgid "Network interface (for WireGuard / status checks)"
+msgstr "网络接口（用于 WireGuard / 状态检查）"
+
+#: modules/nexus/pages/network/AddVpnPage.qml
+msgid "Custom commands (optional)"
+msgstr "自定义命令（可选）"
+
+#: modules/nexus/pages/network/AddVpnPage.qml
+msgid "Connect command"
+msgstr "连接命令"
+
+#: modules/nexus/pages/network/AddVpnPage.qml
+msgid "Leave empty to use the built-in default"
+msgstr "留空则使用内置默认值"
+
+#: modules/nexus/pages/network/AddVpnPage.qml
+msgid "Disconnect command"
+msgstr "断开命令"
+
+#: modules/nexus/pages/network/AddVpnPage.qml
+msgid "Delete"
+msgstr "删除"
+
+#: modules/nexus/pages/network/AddVpnPage.qml
+msgctxt "button"
+msgid "Save"
+msgstr "保存"
+
+#: modules/nexus/pages/network/AddVpnPage.qml
+#: modules/nexus/pages/panels/taskbar/BarStatusIcons.qml
+msgctxt "button"
+msgid "Add"
+msgstr "添加"
+
+#: modules/nexus/pages/network/AllNetworksPage.qml
+msgid "All networks"
+msgstr "所有网络"
+
+#: modules/nexus/pages/network/AllNetworksPage.qml
+msgctxt "network filter heading"
+msgid "Filters"
+msgstr "筛选"
+
+#: modules/nexus/pages/network/AllNetworksPage.qml
+msgctxt "network filter"
+msgid "Saved"
+msgstr "已保存"
+
+#: modules/nexus/pages/network/AllNetworksPage.qml
+msgctxt "network filter"
+msgid "Secured"
+msgstr "加密"
+
+#: modules/nexus/pages/network/AllNetworksPage.qml
+msgctxt "network filter"
+msgid "5 GHz"
+msgstr "5 GHz"
+
+#: modules/nexus/pages/network/AllNetworksPage.qml
+msgctxt "network filter"
+msgid "2.4 GHz"
+msgstr "2.4 GHz"
+
+#: modules/nexus/pages/network/EthernetDetailPage.qml
+#: modules/nexus/pages/network/NetworkDetailPage.qml
+msgid "Disconnect"
+msgstr "断开"
+
+#: modules/nexus/pages/network/EthernetDetailPage.qml
+#: modules/nexus/pages/network/NetworkDetailPage.qml
+msgid "Connection"
+msgstr "连接"
+
+#: modules/nexus/pages/network/EthernetDetailPage.qml
+msgid "Status"
+msgstr "状态"
+
+#: modules/nexus/pages/network/EthernetDetailPage.qml
+msgid "Speed"
+msgstr "速率"
+
+#: modules/nexus/pages/network/EthernetDetailPage.qml
+#: modules/nexus/pages/network/NetworkDetailPage.qml
+msgid "IP address"
+msgstr "IP 地址"
+
+#: modules/nexus/pages/network/EthernetDetailPage.qml
+#: modules/nexus/pages/network/NetworkDetailPage.qml
+msgid "Gateway"
+msgstr "网关"
+
+#: modules/nexus/pages/network/EthernetDetailPage.qml
+#: modules/nexus/pages/network/NetworkDetailPage.qml
+msgid "MAC address"
+msgstr "MAC 地址"
+
+#: modules/nexus/pages/network/EthernetDetailPage.qml
+#: modules/nexus/pages/network/NetworkDetailPage.qml
+msgid "IPv4"
+msgstr "IPv4"
+
+#: modules/nexus/pages/network/EthernetDetailPage.qml
+#: modules/nexus/pages/network/NetworkDetailPage.qml
+msgid "IP assignment"
+msgstr "IP 分配"
+
+#. TRANSLATORS: DHCP and DNS are protocol names, leave them untranslated
+#: modules/nexus/pages/network/EthernetDetailPage.qml
+#: modules/nexus/pages/network/NetworkDetailPage.qml
+msgid "Automatic (DHCP)"
+msgstr "自动（DHCP）"
+
+#: modules/nexus/pages/network/EthernetDetailPage.qml
+#: modules/nexus/pages/network/NetworkDetailPage.qml
+msgid "Automatic, DNS only"
+msgstr "自动，仅 DNS"
+
+#: modules/nexus/pages/network/EthernetDetailPage.qml
+#: modules/nexus/pages/network/NetworkDetailPage.qml
+msgctxt "ip configuration method"
+msgid "Manual"
+msgstr "手动"
+
+#. TRANSLATORS: CIDR is a networking term, leave it untranslated
+#: modules/nexus/pages/network/EthernetDetailPage.qml
+#: modules/nexus/pages/network/NetworkDetailPage.qml
+msgid "Address (CIDR)"
+msgstr "地址（CIDR）"
+
+#: modules/nexus/pages/network/EthernetDetailPage.qml
+#: modules/nexus/pages/network/NetworkDetailPage.qml
+msgid "IP and prefix, e.g. 192.168.1.50/24"
+msgstr "IP 和前缀，例如 192.168.1.50/24"
+
+#: modules/nexus/pages/network/EthernetDetailPage.qml
+#: modules/nexus/pages/network/NetworkDetailPage.qml
+msgid "Enter a valid address in CIDR notation"
+msgstr "请输入 CIDR 格式的有效地址"
+
+#: modules/nexus/pages/network/EthernetDetailPage.qml
+#: modules/nexus/pages/network/NetworkDetailPage.qml
+msgid "Enter a valid gateway address"
+msgstr "请输入有效的网关地址"
+
+#: modules/nexus/pages/network/EthernetDetailPage.qml
+#: modules/nexus/pages/network/NetworkDetailPage.qml
+msgid "DNS servers"
+msgstr "DNS 服务器"
+
+#. TRANSLATORS: describes the DNS servers field above: several addresses separated by commas
+#: modules/nexus/pages/network/EthernetDetailPage.qml
+#: modules/nexus/pages/network/NetworkDetailPage.qml
+msgid "Comma-separated"
+msgstr "以逗号分隔"
+
+#: modules/nexus/pages/network/EthernetDetailPage.qml
+#: modules/nexus/pages/network/NetworkDetailPage.qml
+msgid "Enter valid DNS server addresses"
+msgstr "请输入有效的 DNS 服务器地址"
+
+#: modules/nexus/pages/network/EthernetDetailPage.qml
+#: modules/nexus/pages/network/NetworkDetailPage.qml
+msgid "Apply"
+msgstr "应用"
+
+#: modules/nexus/pages/network/NetworkDetailPage.qml
+msgid "Forget"
+msgstr "忘记"
+
+#: modules/nexus/pages/network/NetworkDetailPage.qml
+msgid "Signal"
+msgstr "信号"
+
+#: modules/nexus/pages/network/NetworkDetailPage.qml
+#: modules/nexus/pages/network/SavedNetworksPage.qml services/Nmcli.qml
+msgctxt "wifi security type"
+msgid "Open"
+msgstr "开放"
+
+#: modules/nexus/pages/network/NetworkDetailPage.qml
+msgid "Frequency"
+msgstr "频率"
+
+#. TRANSLATORS: %1 = channel frequency; MHz is a unit, leave it untranslated
+#: modules/nexus/pages/network/NetworkDetailPage.qml
+#, qt-format
+msgid "%1 MHz"
+msgstr "%1 MHz"
+
+#: modules/nexus/pages/network/NetworkDetailPage.qml
+#: modules/nexus/pages/panels/DashboardPanel.qml
+#: modules/nexus/pages/panels/LauncherPanel.qml
+#: modules/nexus/pages/panels/taskbar/BarStatusIcons.qml
+#: modules/nexus/pages/panels/TaskbarPanel.qml
+msgid "Behaviour"
+msgstr "行为"
+
+#: modules/nexus/pages/network/NetworkDetailPage.qml
+msgid "Connect automatically"
+msgstr "自动连接"
+
+#: modules/nexus/pages/network/NetworkDetailPage.qml
+msgid "Join this network when it's in range"
+msgstr "在信号范围内时加入此网络"
+
+#: modules/nexus/pages/network/SavedNetworksPage.qml
+#: modules/nexus/pages/NetworkPage.qml
+msgid "Saved networks"
+msgstr "已保存的网络"
+
+#: modules/nexus/pages/network/SavedNetworksPage.qml
+msgid "No saved networks"
+msgstr "无已保存的网络"
+
+#: modules/nexus/pages/network/SavedNetworksPage.qml
+msgctxt "unknown wifi security"
+msgid "Unknown"
+msgstr "未知"
+
+#. TRANSLATORS: %1 = security type
+#: modules/nexus/pages/network/SavedNetworksPage.qml
+#, qt-format
+msgctxt "network connected with security"
+msgid "Connected • %1"
+msgstr "已连接 • %1"
+
+#: modules/nexus/pages/NetworkPage.qml
+#: modules/nexus/pages/panels/UtilitiesPanel.qml
+msgid "Wi-Fi"
+msgstr "Wi-Fi"
+
+#. TRANSLATORS: %1 = number of networks found
+#: modules/nexus/pages/NetworkPage.qml
+#, qt-format
+msgid "Show all networks (%1)"
+msgstr "显示所有网络（%1）"
+
+#: modules/nexus/pages/NetworkPage.qml
+#: modules/nexus/pages/panels/UtilitiesPanel.qml services/VPN.qml
+msgid "VPN"
+msgstr "VPN"
+
+#: modules/nexus/pages/NetworkPage.qml
+msgid "No VPN providers configured"
+msgstr "未配置 VPN 提供商"
+
+#: modules/nexus/pages/NetworkPage.qml
+msgid "Tap to select"
+msgstr "点击选择"
+
+#: modules/nexus/pages/NetworkPage.qml
+msgid "Disconnecting..."
+msgstr "正在断开…"
+
+#: modules/nexus/pages/NetworkPage.qml
+msgctxt "vpn state"
+msgid "Connected"
+msgstr "已连接"
+
+#: modules/nexus/pages/NetworkPage.qml services/VPN.qml
+msgid "Authentication required"
+msgstr "需要身份验证"
+
+#: modules/nexus/pages/NetworkPage.qml
+msgid "An error occurred"
+msgstr "发生错误"
+
+#: modules/nexus/pages/NetworkPage.qml
+msgid "Selected"
+msgstr "已选择"
+
+#: modules/nexus/pages/NetworkPage.qml
+msgctxt "round-trip latency to the VPN endpoint"
+msgid "Current ping"
+msgstr "当前延迟"
+
+#: modules/nexus/pages/NetworkPage.qml
+#, qt-format
+msgid "%1 ms"
+msgstr "%1 ms"
+
+#: modules/nexus/pages/NetworkPage.qml
+msgid "Add provider"
+msgstr "添加提供商"
+
+#: modules/nexus/pages/panels/DashboardPanel.qml
+#: modules/nexus/pages/panels/LauncherPanel.qml
+#: modules/nexus/pages/panels/SidebarPanel.qml
+#: modules/nexus/pages/panels/UtilitiesPanel.qml
+msgid "General"
+msgstr "常规"
+
+#: modules/nexus/pages/panels/DashboardPanel.qml
+#: modules/nexus/pages/panels/LauncherPanel.qml
+#: modules/nexus/pages/panels/taskbar/BarActiveWindow.qml
+#: modules/nexus/pages/panels/TaskbarPanel.qml
+msgid "Show on hover"
+msgstr "悬停时显示"
+
+#: modules/nexus/pages/panels/DashboardPanel.qml
+#: modules/nexus/pages/panels/LauncherPanel.qml
+msgid "Reveal when the cursor reaches the screen edge"
+msgstr "光标到达屏幕边缘时显示"
+
+#: modules/nexus/pages/panels/DashboardPanel.qml
+msgid "Show clock seconds"
+msgstr "显示时钟秒数"
+
+#: modules/nexus/pages/panels/DashboardPanel.qml
+msgid "Display seconds for the clock in the main panel"
+msgstr "在主面板的时钟中显示秒数"
+
+#: modules/nexus/pages/panels/DashboardPanel.qml
+msgid "Tabs"
+msgstr "标签页"
+
+#: modules/nexus/pages/panels/DashboardPanel.qml
+msgid "Performance widgets"
+msgstr "性能组件"
+
+#: modules/nexus/pages/panels/DashboardPanel.qml
+#: modules/nexus/pages/panels/LauncherPanel.qml
+#: modules/nexus/pages/panels/SidebarPanel.qml
+#: modules/nexus/pages/panels/TaskbarPanel.qml
+msgid "Drag threshold"
+msgstr "拖动阈值"
+
+#: modules/nexus/pages/panels/DashboardPanel.qml
+msgid "Pixels dragged before the dashboard opens"
+msgstr "打开仪表盘前需拖动的像素数"
+
+#: modules/nexus/pages/panels/LauncherPanel.qml
+msgid "Action prefix"
+msgstr "操作前缀"
+
+#: modules/nexus/pages/panels/LauncherPanel.qml
+msgid "Prefix used to run actions in the launcher"
+msgstr "在启动器中运行操作所用的前缀"
+
+#: modules/nexus/pages/panels/LauncherPanel.qml
+msgid "Prefix must not be alphanumeric"
+msgstr "前缀不能是字母或数字"
+
+#: modules/nexus/pages/panels/LauncherPanel.qml
+msgid "Display"
+msgstr "显示"
+
+#: modules/nexus/pages/panels/LauncherPanel.qml
+msgid "Max items shown"
+msgstr "最多显示条目数"
+
+#: modules/nexus/pages/panels/LauncherPanel.qml
+msgid "Max wallpapers"
+msgstr "最多壁纸数"
+
+#: modules/nexus/pages/panels/LauncherPanel.qml
+msgid "Pixels dragged before the launcher opens"
+msgstr "打开启动器前需拖动的像素数"
+
+#: modules/nexus/pages/panels/LauncherPanel.qml
+msgid "Vim keybinds"
+msgstr "Vim 键位"
+
+#: modules/nexus/pages/panels/LauncherPanel.qml
+msgid "Navigate results with Ctrl+hjkl"
+msgstr "用 Ctrl+hjkl 浏览结果"
+
+#: modules/nexus/pages/panels/LauncherPanel.qml
+msgid "Enable dangerous actions"
+msgstr "启用危险操作"
+
+#: modules/nexus/pages/panels/LauncherPanel.qml
+msgid "Allow actions that shut down or log out"
+msgstr "允许关机或注销等操作"
+
+#: modules/nexus/pages/panels/LauncherPanel.qml
+msgid "Fuzzy search"
+msgstr "模糊搜索"
+
+#: modules/nexus/pages/panels/LauncherPanel.qml
+msgid "Actions"
+msgstr "操作"
+
+#: modules/nexus/pages/panels/LauncherPanel.qml
+msgid "Schemes"
+msgstr "配色方案"
+
+#: modules/nexus/pages/panels/LauncherPanel.qml
+msgid "Variants"
+msgstr "变体"
+
+#: modules/nexus/pages/panels/LauncherPanel.qml
+#: modules/nexus/pages/wallandstyle/WallpaperSelect.qml
+#: modules/nexus/pages/WallpaperAndStyle.qml
+msgid "Wallpapers"
+msgstr "壁纸"
+
+#: modules/nexus/pages/panels/SidebarPanel.qml
+#: modules/nexus/pages/PanelsPage.qml
+msgid "Sidebar"
+msgstr "侧边栏"
+
+#: modules/nexus/pages/panels/SidebarPanel.qml
+msgid "Pixels dragged before the sidebar opens"
+msgstr "打开侧边栏前需拖动的像素数"
+
+#: modules/nexus/pages/panels/taskbar/BarActiveWindow.qml
+#: modules/nexus/pages/panels/TaskbarPanel.qml
+msgid "Active window"
+msgstr "活动窗口"
+
+#: modules/nexus/pages/panels/taskbar/BarActiveWindow.qml
+msgctxt "taskbar active window layout"
+msgid "Compact"
+msgstr "紧凑"
+
+#: modules/nexus/pages/panels/taskbar/BarActiveWindow.qml
+msgctxt "taskbar active window: swap the title and class order"
+msgid "Inverted"
+msgstr "反转"
+
+#: modules/nexus/pages/panels/taskbar/BarActiveWindow.qml
+msgid "Only show the active window title while hovering"
+msgstr "仅在悬停时显示活动窗口标题"
+
+#: modules/nexus/pages/panels/taskbar/BarActiveWindow.qml
+#: modules/nexus/pages/panels/taskbar/BarStatusIcons.qml
+#: modules/nexus/pages/panels/taskbar/BarTray.qml
+msgid "Popout on hover"
+msgstr "悬停时弹出"
+
+#: modules/nexus/pages/panels/taskbar/BarActiveWindow.qml
+msgid "Show a window details popout when hovering"
+msgstr "悬停时显示窗口详情弹出面板"
+
+#: modules/nexus/pages/panels/taskbar/BarClock.qml
+#: modules/nexus/pages/panels/TaskbarPanel.qml
+msgid "Clock"
+msgstr "时钟"
+
+#: modules/nexus/pages/panels/taskbar/BarClock.qml
+msgctxt "taskbar clock: draw a background behind the clock"
+msgid "Background"
+msgstr "背景"
+
+#: modules/nexus/pages/panels/taskbar/BarClock.qml
+msgid "Show date"
+msgstr "显示日期"
+
+#: modules/nexus/pages/panels/taskbar/BarClock.qml
+msgid "Show icon"
+msgstr "显示图标"
+
+#: modules/nexus/pages/panels/taskbar/BarClock.qml
+msgid "Show seconds"
+msgstr "显示秒数"
+
+#: modules/nexus/pages/panels/taskbar/BarStatusIcons.qml
+msgid "Lock keys"
+msgstr "锁定键"
+
+#: modules/nexus/pages/panels/taskbar/BarStatusIcons.qml
+msgid "Keyboard layout"
+msgstr "键盘布局"
+
+#: modules/nexus/pages/panels/taskbar/BarStatusIcons.qml
+msgid "Speakers"
+msgstr "扬声器"
+
+#: modules/nexus/pages/panels/taskbar/BarStatusIcons.qml
+#: modules/nexus/pages/panels/UtilitiesPanel.qml
+msgid "Microphone"
+msgstr "麦克风"
+
+#: modules/nexus/pages/panels/taskbar/BarStatusIcons.qml
+#: modules/nexus/pages/panels/TaskbarPanel.qml
+msgid "Status icons"
+msgstr "状态图标"
+
+#: modules/nexus/pages/panels/taskbar/BarStatusIcons.qml
+msgid "Visible icons"
+msgstr "可见图标"
+
+#: modules/nexus/pages/panels/taskbar/BarStatusIcons.qml
+msgid "Add entry"
+msgstr "添加条目"
+
+#: modules/nexus/pages/panels/taskbar/BarStatusIcons.qml
+msgid "Add new entry"
+msgstr "添加新条目"
+
+#: modules/nexus/pages/panels/taskbar/BarStatusIcons.qml
+msgid "Show a details popout when hovering the status icons"
+msgstr "悬停状态图标时显示详情弹出面板"
+
+#: modules/nexus/pages/panels/taskbar/BarTray.qml
+#: modules/nexus/pages/panels/TaskbarPanel.qml
+msgid "Tray"
+msgstr "托盘"
+
+#: modules/nexus/pages/panels/taskbar/BarTray.qml
+msgctxt "taskbar tray: draw a background behind the tray"
+msgid "Background"
+msgstr "背景"
+
+#. TRANSLATORS: tint system tray icons with the theme accent colour
+#: modules/nexus/pages/panels/taskbar/BarTray.qml
+msgid "Recolour icons"
+msgstr "重新着色图标"
+
+#: modules/nexus/pages/panels/taskbar/BarTray.qml
+msgctxt "taskbar tray layout"
+msgid "Compact"
+msgstr "紧凑"
+
+#: modules/nexus/pages/panels/taskbar/BarTray.qml
+msgid "Show the tray menu popout when hovering"
+msgstr "悬停时显示托盘菜单弹出面板"
+
+#: modules/nexus/pages/panels/taskbar/BarWorkspaces.qml
+#: modules/nexus/pages/panels/TaskbarPanel.qml
+msgid "Workspaces"
+msgstr "工作区"
+
+#. TRANSLATORS: the number of workspaces shown on the bar
+#: modules/nexus/pages/panels/taskbar/BarWorkspaces.qml
+msgctxt "bar workspaces"
+msgid "Shown"
+msgstr "显示数量"
+
+#: modules/nexus/pages/panels/taskbar/BarWorkspaces.qml
+msgid "Number of workspaces displayed"
+msgstr "显示的工作区数量"
+
+#: modules/nexus/pages/panels/taskbar/BarWorkspaces.qml
+msgctxt "bar workspaces"
+msgid "Active indicator"
+msgstr "活动指示器"
+
+#: modules/nexus/pages/panels/taskbar/BarWorkspaces.qml
+msgctxt "bar workspaces"
+msgid "Active trail"
+msgstr "活动轨迹"
+
+#: modules/nexus/pages/panels/taskbar/BarWorkspaces.qml
+msgctxt "bar workspaces"
+msgid "Occupied background"
+msgstr "占用背景"
+
+#: modules/nexus/pages/panels/taskbar/BarWorkspaces.qml
+msgctxt "bar workspaces"
+msgid "Show unoccupied"
+msgstr "显示未占用"
+
+#: modules/nexus/pages/panels/taskbar/BarWorkspaces.qml
+msgid "Show workspaces that are inactive and empty"
+msgstr "显示未激活且为空的工作区"
+
+#: modules/nexus/pages/panels/taskbar/BarWorkspaces.qml
+msgctxt "bar workspaces"
+msgid "Per monitor"
+msgstr "每个显示器"
+
+#: modules/nexus/pages/panels/taskbar/BarWorkspaces.qml
+msgid "Hide workspaces not on the current monitor"
+msgstr "隐藏不在当前显示器上的工作区"
+
+#: modules/nexus/pages/panels/taskbar/BarWorkspaces.qml
+msgctxt "bar workspaces"
+msgid "Show windows"
+msgstr "显示窗口"
+
+#: modules/nexus/pages/panels/taskbar/BarWorkspaces.qml
+msgid "Show icons of open windows on each workspace"
+msgstr "在每个工作区上显示已打开窗口的图标"
+
+#: modules/nexus/pages/panels/taskbar/BarWorkspaces.qml
+msgctxt "bar workspaces"
+msgid "Windows on special workspaces"
+msgstr "特殊工作区上的窗口"
+
+#. TRANSLATORS: maximum number of window icons shown per workspace
+#: modules/nexus/pages/panels/taskbar/BarWorkspaces.qml
+msgctxt "bar workspaces"
+msgid "Max window icons"
+msgstr "最多窗口图标数"
+
+#: modules/nexus/pages/panels/TaskbarPanel.qml
+#: modules/nexus/pages/PanelsPage.qml
+msgid "Taskbar"
+msgstr "任务栏"
+
+#: modules/nexus/pages/panels/TaskbarPanel.qml
+msgid "Persistent"
+msgstr "常驻"
+
+#: modules/nexus/pages/panels/TaskbarPanel.qml
+msgid "Keep the bar visible at all times"
+msgstr "始终保持栏可见"
+
+#: modules/nexus/pages/panels/TaskbarPanel.qml
+msgid "Reveal the bar when the cursor reaches the screen edge"
+msgstr "光标到达屏幕边缘时显示栏"
+
+#: modules/nexus/pages/panels/TaskbarPanel.qml
+msgid "Pixels dragged before the bar reveals"
+msgstr "显示栏前需拖动的像素数"
+
+#: modules/nexus/pages/panels/TaskbarPanel.qml
+msgid "Components"
+msgstr "组件"
+
+#: modules/nexus/pages/panels/TaskbarPanel.qml
+msgid "Indicators, window icons"
+msgstr "指示器、窗口图标"
+
+#: modules/nexus/pages/panels/TaskbarPanel.qml
+msgid "Title display, popout"
+msgstr "标题显示、弹出面板"
+
+#: modules/nexus/pages/panels/TaskbarPanel.qml
+msgid "System tray icons"
+msgstr "系统托盘图标"
+
+#: modules/nexus/pages/panels/TaskbarPanel.qml
+msgid "Visible indicators"
+msgstr "可见指示器"
+
+#: modules/nexus/pages/panels/TaskbarPanel.qml
+msgid "Date, icon, background"
+msgstr "日期、图标、背景"
+
+#: modules/nexus/pages/panels/TaskbarPanel.qml
+msgid "Scroll actions"
+msgstr "滚动操作"
+
+#: modules/nexus/pages/panels/TaskbarPanel.qml
+msgid "Scroll over the workspace indicator to switch workspaces"
+msgstr "在工作区指示器上滚动以切换工作区"
+
+#: modules/nexus/pages/panels/TaskbarPanel.qml
+msgid "Volume"
+msgstr "音量"
+
+#: modules/nexus/pages/panels/TaskbarPanel.qml
+msgid "Scroll on the top half of the bar to adjust volume"
+msgstr "在栏的上半部分滚动以调节音量"
+
+#: modules/nexus/pages/panels/TaskbarPanel.qml
+msgid "Brightness"
+msgstr "亮度"
+
+#: modules/nexus/pages/panels/TaskbarPanel.qml
+msgid "Scroll on the bottom half of the bar to adjust brightness"
+msgstr "在栏的下半部分滚动以调节亮度"
+
+#: modules/nexus/pages/panels/UtilitiesPanel.qml
+#: modules/nexus/pages/PanelsPage.qml
+msgid "Utilities"
+msgstr "工具"
+
+#: modules/nexus/pages/panels/UtilitiesPanel.qml
+msgid "Show the utilities panel"
+msgstr "显示工具面板"
+
+#: modules/nexus/pages/panels/UtilitiesPanel.qml
+msgid "Cards"
+msgstr "卡片"
+
+#: modules/nexus/pages/panels/UtilitiesPanel.qml
+msgid "Keep awake"
+msgstr "保持唤醒"
+
+#: modules/nexus/pages/panels/UtilitiesPanel.qml
+msgid "Show the idle inhibitor card"
+msgstr "显示空闲抑制卡片"
+
+#: modules/nexus/pages/panels/UtilitiesPanel.qml
+#: modules/utilities/cards/Record.qml
+msgid "Screen recorder"
+msgstr "屏幕录制"
+
+#: modules/nexus/pages/panels/UtilitiesPanel.qml
+msgid "Show the screen recorder card"
+msgstr "显示屏幕录制卡片"
+
+#: modules/nexus/pages/panels/UtilitiesPanel.qml
+#: modules/utilities/cards/Toggles.qml
+msgid "Quick toggles"
+msgstr "快捷开关"
+
+#: modules/nexus/pages/panels/UtilitiesPanel.qml
+msgid "Show the quick toggles card"
+msgstr "显示快捷开关卡片"
+
+#: modules/nexus/pages/panels/UtilitiesPanel.qml
+msgid "Toggle wireless networking"
+msgstr "切换无线网络"
+
+#: modules/nexus/pages/panels/UtilitiesPanel.qml
+msgid "Toggle the Bluetooth adapter"
+msgstr "切换蓝牙适配器"
+
+#: modules/nexus/pages/panels/UtilitiesPanel.qml
+msgid "Mute or unmute the default source"
+msgstr "静音或取消静音默认输入源"
+
+#: modules/nexus/pages/panels/UtilitiesPanel.qml
+msgid "Settings"
+msgstr "设置"
+
+#: modules/nexus/pages/panels/UtilitiesPanel.qml
+msgid "Open the settings window"
+msgstr "打开设置窗口"
+
+#: modules/nexus/pages/panels/UtilitiesPanel.qml
+msgid "Game mode"
+msgstr "游戏模式"
+
+#: modules/nexus/pages/panels/UtilitiesPanel.qml
+msgid "Toggle game mode"
+msgstr "切换游戏模式"
+
+#: modules/nexus/pages/panels/UtilitiesPanel.qml
+msgid "Do not disturb"
+msgstr "免打扰"
+
+#: modules/nexus/pages/panels/UtilitiesPanel.qml
+msgid "Silence notifications"
+msgstr "静默通知"
+
+#: modules/nexus/pages/panels/UtilitiesPanel.qml
+msgid "Connect or disconnect the VPN"
+msgstr "连接或断开 VPN"
+
+#: modules/nexus/pages/PanelsPage.qml
+msgctxt "panel status"
+msgid "Enabled"
+msgstr "已启用"
+
+#: modules/nexus/pages/PanelsPage.qml
+msgctxt "panel status"
+msgid "Disabled"
+msgstr "已禁用"
+
+#: modules/nexus/pages/PanelsPage.qml
+msgid "Always visible"
+msgstr "始终可见"
+
+#: modules/nexus/pages/PanelsPage.qml
+msgid "Reveal on hover"
+msgstr "悬停时显示"
+
+#: modules/nexus/pages/PanelsPage.qml
+msgid "Reveal on drag"
+msgstr "拖动时显示"
+
+#: modules/nexus/pages/services/NotificationsPage.qml
+msgctxt "show notifications over fullscreen apps"
+msgid "On"
+msgstr "开启"
+
+#: modules/nexus/pages/services/NotificationsPage.qml
+msgctxt "show notifications over fullscreen apps"
+msgid "Off"
+msgstr "关闭"
+
+#: modules/nexus/pages/services/NotificationsPage.qml
+msgctxt "show toasts over fullscreen apps"
+msgid "Off"
+msgstr "关闭"
+
+#: modules/nexus/pages/services/NotificationsPage.qml
+msgctxt "show toasts over fullscreen apps: important ones only"
+msgid "Important"
+msgstr "重要"
+
+#: modules/nexus/pages/services/NotificationsPage.qml
+msgctxt "show toasts over fullscreen apps"
+msgid "On"
+msgstr "开启"
+
+#: modules/nexus/pages/services/NotificationsPage.qml
+msgid "Show in fullscreen"
+msgstr "全屏时显示"
+
+#: modules/nexus/pages/services/NotificationsPage.qml
+msgid "Whether notifications appear over fullscreen apps"
+msgstr "通知是否显示在全屏应用之上"
+
+#: modules/nexus/pages/services/NotificationsPage.qml
+msgid "Expire automatically"
+msgstr "自动过期"
+
+#: modules/nexus/pages/services/NotificationsPage.qml
+msgid "Dismiss notifications after their timeout"
+msgstr "通知超时后自动关闭"
+
+#: modules/nexus/pages/services/NotificationsPage.qml
+msgid "Open expanded"
+msgstr "展开显示"
+
+#: modules/nexus/pages/services/NotificationsPage.qml
+msgid "Show notifications expanded by default"
+msgstr "默认展开显示通知"
+
+#: modules/nexus/pages/services/NotificationsPage.qml
+msgid "Default timeout"
+msgstr "默认超时"
+
+#. TRANSLATORS: ms is the millisecond unit, leave it untranslated
+#: modules/nexus/pages/services/NotificationsPage.qml
+msgid "Time before a notification dismisses (ms)"
+msgstr "通知关闭前的停留时间（毫秒）"
+
+#: modules/nexus/pages/services/NotificationsPage.qml
+msgid "Group preview count"
+msgstr "分组预览数量"
+
+#: modules/nexus/pages/services/NotificationsPage.qml
+msgid "Notifications shown per group before collapsing"
+msgstr "折叠前每组显示的通知数"
+
+#: modules/nexus/pages/services/NotificationsPage.qml
+msgid "Toasts"
+msgstr "气泡通知"
+
+#: modules/nexus/pages/services/NotificationsPage.qml
+msgid "Whether toasts appear over fullscreen apps"
+msgstr "气泡通知是否显示在全屏应用之上"
+
+#: modules/nexus/pages/services/NotificationsPage.qml
+msgid "Visible toasts"
+msgstr "可见气泡通知数"
+
+#: modules/nexus/pages/services/NotificationsPage.qml
+msgid "Maximum number of toasts shown at once"
+msgstr "同时显示的气泡通知最大数量"
+
+#: modules/nexus/pages/services/NotificationsPage.qml
+msgid "Toast events"
+msgstr "气泡通知事件"
+
+#: modules/nexus/pages/services/NotificationsPage.qml
+msgid "Charging changes"
+msgstr "充电状态变化"
+
+#: modules/nexus/pages/services/NotificationsPage.qml
+msgid "Game mode changes"
+msgstr "游戏模式变化"
+
+#: modules/nexus/pages/services/NotificationsPage.qml
+msgid "Do not disturb changes"
+msgstr "免打扰变化"
+
+#: modules/nexus/pages/services/NotificationsPage.qml
+msgid "Audio output changes"
+msgstr "音频输出变化"
+
+#: modules/nexus/pages/services/NotificationsPage.qml
+msgid "Audio input changes"
+msgstr "音频输入变化"
+
+#: modules/nexus/pages/services/NotificationsPage.qml
+msgid "Caps lock changes"
+msgstr "大写锁定变化"
+
+#: modules/nexus/pages/services/NotificationsPage.qml
+msgid "Num lock changes"
+msgstr "数字锁定变化"
+
+#: modules/nexus/pages/services/NotificationsPage.qml
+msgid "Keyboard layout changes"
+msgstr "键盘布局变化"
+
+#: modules/nexus/pages/services/NotificationsPage.qml
+msgid "VPN changes"
+msgstr "VPN 变化"
+
+#: modules/nexus/pages/services/NotificationsPage.qml services/Players.qml
+msgid "Now playing"
+msgstr "正在播放"
+
+#: modules/nexus/pages/ServicesPage.qml
+msgctxt "lyrics backend"
+msgid "Auto"
+msgstr "自动"
+
+#: modules/nexus/pages/ServicesPage.qml
+msgctxt "lyrics backend"
+msgid "Local"
+msgstr "本地"
+
+#: modules/nexus/pages/ServicesPage.qml
+msgctxt "gpu type"
+msgid "Auto"
+msgstr "自动"
+
+#: modules/nexus/pages/ServicesPage.qml
+msgctxt "gpu type"
+msgid "Generic"
+msgstr "通用"
+
+#: modules/nexus/pages/ServicesPage.qml
+msgctxt "gpu type"
+msgid "None"
+msgstr "无"
+
+#: modules/nexus/pages/ServicesPage.qml
+msgid "Notifications, toasts, timeouts"
+msgstr "通知、气泡通知、超时"
+
+#: modules/nexus/pages/ServicesPage.qml
+msgid "Polling"
+msgstr "轮询"
+
+#: modules/nexus/pages/ServicesPage.qml
+msgid "Media refresh"
+msgstr "媒体刷新"
+
+#. TRANSLATORS: ms is the millisecond unit, leave it untranslated
+#: modules/nexus/pages/ServicesPage.qml
+msgid "How often the media position updates (ms)"
+msgstr "媒体进度更新频率（毫秒）"
+
+#: modules/nexus/pages/ServicesPage.qml
+msgid "System stats refresh"
+msgstr "系统状态刷新"
+
+#. TRANSLATORS: CPU and GPU are hardware abbreviations, leave them untranslated
+#: modules/nexus/pages/ServicesPage.qml
+msgid "CPU, memory and GPU update interval (seconds)"
+msgstr "CPU、内存和 GPU 更新间隔（秒）"
+
+#: modules/nexus/pages/ServicesPage.qml
+msgid "Wi-Fi rescan"
+msgstr "Wi-Fi 重新扫描"
+
+#: modules/nexus/pages/ServicesPage.qml
+msgid "How often available networks are rescanned (seconds)"
+msgstr "可用网络重新扫描频率（秒）"
+
+#: modules/nexus/pages/ServicesPage.qml
+msgid "Media & lyrics"
+msgstr "媒体与歌词"
+
+#: modules/nexus/pages/ServicesPage.qml
+msgid "Lyrics backend"
+msgstr "歌词来源"
+
+#: modules/nexus/pages/ServicesPage.qml
+msgid "Source used to fetch synced lyrics"
+msgstr "用于获取同步歌词的来源"
+
+#: modules/nexus/pages/ServicesPage.qml
+msgid "Default player"
+msgstr "默认播放器"
+
+#: modules/nexus/pages/ServicesPage.qml
+msgid "Preferred media player when several are open"
+msgstr "同时打开多个媒体播放器时的首选播放器"
+
+#: modules/nexus/pages/ServicesPage.qml
+msgctxt "default media player"
+msgid "Auto"
+msgstr "自动"
+
+#: modules/nexus/pages/ServicesPage.qml
+msgid "Input increments"
+msgstr "输入增量"
+
+#: modules/nexus/pages/ServicesPage.qml
+msgid "Volume step"
+msgstr "音量步进"
+
+#: modules/nexus/pages/ServicesPage.qml
+msgid "Amount the volume changes per scroll (%)"
+msgstr "每次滚动改变的音量（%）"
+
+#: modules/nexus/pages/ServicesPage.qml
+msgid "Brightness step"
+msgstr "亮度步进"
+
+#: modules/nexus/pages/ServicesPage.qml
+msgid "Amount the brightness changes per scroll (%)"
+msgstr "每次滚动改变的亮度（%）"
+
+#: modules/nexus/pages/ServicesPage.qml
+msgid "Max volume"
+msgstr "最大音量"
+
+#: modules/nexus/pages/ServicesPage.qml
+msgid "Upper limit for output volume (%)"
+msgstr "输出音量上限（%）"
+
+#: modules/nexus/pages/ServicesPage.qml
+msgid "Service tuning"
+msgstr "服务调节"
+
+#. TRANSLATORS: bars of a spectrum analyser, not the taskbar
+#: modules/nexus/pages/ServicesPage.qml
+msgid "Visualiser bars"
+msgstr "可视化条数"
+
+#: modules/nexus/pages/ServicesPage.qml
+msgid "Number of bars in the audio visualisers"
+msgstr "音频可视化中的条数"
+
+#: modules/nexus/pages/ServicesPage.qml
+msgid "Smart colour scheme"
+msgstr "智能配色方案"
+
+#: modules/nexus/pages/ServicesPage.qml
+msgid "Derive theme mode and variant from the wallpaper"
+msgstr "从壁纸推导主题模式和变体"
+
+#: modules/nexus/pages/ServicesPage.qml
+#, qt-format
+msgid "Monitoring: %1"
+msgstr "监控：%1"
+
+#: modules/nexus/pages/ServicesPage.qml
+msgid "Override for GPU type"
+msgstr "GPU 类型覆盖"
+
+#: modules/nexus/pages/wallandstyle/ColourSelect.qml
+#: modules/nexus/pages/WallpaperAndStyle.qml
+msgid "Colours"
+msgstr "颜色"
+
+#: modules/nexus/pages/wallandstyle/WallpaperSelect.qml
+msgid "Browse"
+msgstr "浏览"
+
+#: modules/nexus/pages/wallandstyle/WallpaperSelect.qml
+msgid "Select an image"
+msgstr "选择图片"
+
+#: modules/nexus/pages/wallandstyle/WallpaperSelect.qml
+msgid "Random"
+msgstr "随机"
+
+#: modules/nexus/pages/wallandstyle/WallpaperSelect.qml
+msgid "Featured wallpaper"
+msgstr "精选壁纸"
+
+#: modules/nexus/pages/wallandstyle/WallpaperSelect.qml
+msgid "Local wallpapers"
+msgstr "本地壁纸"
+
+#: modules/nexus/pages/wallandstyle/WallpaperSelect.qml
+msgid "No local wallpapers found"
+msgstr "未找到本地壁纸"
+
+#: modules/nexus/pages/WallpaperAndStyle.qml
+msgid "Wallpaper disabled"
+msgstr "壁纸已禁用"
+
+#: modules/nexus/pages/WallpaperAndStyle.qml
+msgid "Display wallpaper"
+msgstr "显示壁纸"
+
+#: modules/nexus/pages/WallpaperAndStyle.qml
+msgid "Transparency"
+msgstr "透明度"
+
+#. TRANSLATORS: %1/%2 = opacity values from 0 to 1 for the base surface and layered surfaces
+#: modules/nexus/pages/WallpaperAndStyle.qml
+#, qt-format
+msgid "Base %1, layers %2"
+msgstr "基础 %1，层 %2"
+
+#: modules/nexus/pages/WallpaperAndStyle.qml
+msgid "Dark theme"
+msgstr "深色主题"
+
+#: modules/nexus/WindowFactory.qml
+#, qt-format
+msgid "Nexus — %1"
+msgstr "Nexus — %1"
+
+#: modules/sidebar/Notif.qml
+msgid "No body here! :/"
+msgstr "这里没有内容！:/"
+
+#. TRANSLATORS: the count itself is rendered separately, immediately to the left
+#: modules/sidebar/NotifDock.qml
+msgctxt "notification count label, number shown separately"
+msgid "notification"
+msgid_plural "notifications"
+msgstr[0] "条通知"
+
+#: modules/sidebar/NotifDock.qml
+msgid "All up to date!"
+msgstr "全部已读！"
+
+#: modules/utilities/cards/IdleInhibit.qml
+msgctxt "idle inhibitor"
+msgid "Keep awake"
+msgstr "保持唤醒"
+
+#: modules/utilities/cards/IdleInhibit.qml
+msgctxt "idle inhibitor"
+msgid "Preventing sleep mode"
+msgstr "正在阻止睡眠模式"
+
+#: modules/utilities/cards/IdleInhibit.qml
+msgctxt "idle inhibitor"
+msgid "Normal power management"
+msgstr "正常电源管理"
+
+#. TRANSLATORS: %1 = a clock time, e.g. 14:30
+#: modules/utilities/cards/IdleInhibit.qml
+#, qt-format
+msgid "Active since %1"
+msgstr "自 %1 起生效"
+
+#: modules/utilities/cards/Record.qml
+msgctxt "recorder state"
+msgid "Paused"
+msgstr "已暂停"
+
+#: modules/utilities/cards/Record.qml
+msgctxt "recorder state"
+msgid "Running..."
+msgstr "录制中…"
+
+#: modules/utilities/cards/Record.qml
+msgctxt "recorder state"
+msgid "Ready"
+msgstr "就绪"
+
+#: modules/utilities/cards/Record.qml
+msgid "Record fullscreen"
+msgstr "录制全屏"
+
+#: modules/utilities/cards/Record.qml
+msgctxt "recording mode"
+msgid "Fullscreen"
+msgstr "全屏"
+
+#: modules/utilities/cards/Record.qml
+msgid "Record region"
+msgstr "录制区域"
+
+#: modules/utilities/cards/Record.qml
+msgctxt "recording mode"
+msgid "Region"
+msgstr "区域"
+
+#: modules/utilities/cards/Record.qml
+msgid "Record fullscreen with sound"
+msgstr "录制全屏（含声音）"
+
+#: modules/utilities/cards/Record.qml
+msgid "Record region with sound"
+msgstr "录制区域（含声音）"
+
+#: modules/utilities/cards/Record.qml
+msgctxt "recording status"
+msgid "PAUSED"
+msgstr "已暂停"
+
+#: modules/utilities/cards/Record.qml
+msgctxt "recording status"
+msgid "REC"
+msgstr "录制中"
+
+#. TRANSLATORS: %1 = elapsed recording duration, e.g. 01:23
+#: modules/utilities/cards/Record.qml
+#, qt-format
+msgid "Recording for %1"
+msgstr "已录制 %1"
+
+#: modules/utilities/cards/RecordingList.qml
+msgid "Recordings"
+msgstr "录制文件"
+
+#: modules/utilities/cards/RecordingList.qml
+#, qt-format
+msgid "Recording at %1"
+msgstr "录制于 %1"
+
+#: modules/utilities/cards/RecordingList.qml
+msgid "No recordings found"
+msgstr "未找到录制文件"
+
+#: modules/utilities/RecordingDeleteModal.qml
+msgid "Delete recording?"
+msgstr "删除录制？"
+
+#: modules/utilities/RecordingDeleteModal.qml
+#, qt-format
+msgid "Recording '%1' will be permanently deleted."
+msgstr "录制「%1」将被永久删除。"
+
+#: modules/utilities/RecordingDeleteModal.qml
+msgctxt "button"
+msgid "Delete"
+msgstr "删除"
+
+#: modules/windowinfo/Buttons.qml
+msgid "Move to workspace"
+msgstr "移动到工作区"
+
+#: modules/windowinfo/Buttons.qml
+msgid "Tile"
+msgstr "平铺"
+
+#: modules/windowinfo/Buttons.qml
+msgid "Float"
+msgstr "浮动"
+
+#: modules/windowinfo/Buttons.qml
+msgid "Unpin"
+msgstr "取消固定"
+
+#: modules/windowinfo/Buttons.qml
+msgid "Pin"
+msgstr "固定"
+
+#: modules/windowinfo/Buttons.qml
+msgid "Kill"
+msgstr "结束进程"
+
+#: modules/windowinfo/Details.qml modules/windowinfo/Preview.qml
+msgid "No active client"
+msgstr "无活动窗口"
+
+#: modules/windowinfo/Details.qml
+#, qt-format
+msgctxt "window address"
+msgid "Address: %1"
+msgstr "地址：%1"
+
+#: modules/windowinfo/Details.qml
+msgctxt "window address"
+msgid "Address: unknown"
+msgstr "地址：未知"
+
+#. TRANSLATORS: %1/%2 = x and y position in pixels
+#: modules/windowinfo/Details.qml
+#, qt-format
+msgid "Position: %1, %2"
+msgstr "位置：%1, %2"
+
+#. TRANSLATORS: %1/%2 = width and height in pixels; the x is a multiplication sign
+#: modules/windowinfo/Details.qml
+#, qt-format
+msgid "Size: %1 x %2"
+msgstr "尺寸：%1 x %2"
+
+#. TRANSLATORS: %1 = workspace name, %2 = workspace id
+#: modules/windowinfo/Details.qml
+#, qt-format
+msgid "Workspace: %1 (%2)"
+msgstr "工作区：%1（%2）"
+
+#. TRANSLATORS: %1 = monitor name, %2 = monitor id, %3/%4 = x/y position in pixels
+#: modules/windowinfo/Details.qml
+#, qt-format
+msgid "Monitor: %1 (%2) at %3, %4"
+msgstr "显示器：%1（%2），位于 %3, %4"
+
+#: modules/windowinfo/Details.qml
+msgid "Monitor: unknown"
+msgstr "显示器：未知"
+
+#: modules/windowinfo/Details.qml
+#, qt-format
+msgid "Initial title: %1"
+msgstr "初始标题：%1"
+
+#: modules/windowinfo/Details.qml
+msgid "Initial title: unknown"
+msgstr "初始标题：未知"
+
+#: modules/windowinfo/Details.qml
+#, qt-format
+msgid "Initial class: %1"
+msgstr "初始窗口类：%1"
+
+#: modules/windowinfo/Details.qml
+msgid "Initial class: unknown"
+msgstr "初始窗口类：未知"
+
+#. TRANSLATORS: %1 = process id
+#: modules/windowinfo/Details.qml
+#, qt-format
+msgid "Process id: %1"
+msgstr "进程 ID：%1"
+
+#: modules/windowinfo/Details.qml
+msgid "Floating: yes"
+msgstr "浮动：是"
+
+#: modules/windowinfo/Details.qml
+msgid "Floating: no"
+msgstr "浮动：否"
+
+#: modules/windowinfo/Details.qml
+msgid "Xwayland: yes"
+msgstr "Xwayland：是"
+
+#: modules/windowinfo/Details.qml
+msgid "Xwayland: no"
+msgstr "Xwayland：否"
+
+#: modules/windowinfo/Details.qml
+msgid "Pinned: yes"
+msgstr "已固定：是"
+
+#: modules/windowinfo/Details.qml
+msgid "Pinned: no"
+msgstr "已固定：否"
+
+#: modules/windowinfo/Details.qml
+msgid "Fullscreen state: off"
+msgstr "全屏状态：关闭"
+
+#: modules/windowinfo/Details.qml
+msgid "Fullscreen state: maximised"
+msgstr "全屏状态：最大化"
+
+#: modules/windowinfo/Details.qml
+msgid "Fullscreen state: on"
+msgstr "全屏状态：开启"
+
+#: modules/windowinfo/Details.qml
+msgid "Fullscreen state: unknown"
+msgstr "全屏状态：未知"
+
+#: modules/windowinfo/Preview.qml
+msgid "Try switching to a window"
+msgstr "尝试切换到某个窗口"
+
+#. TRANSLATORS: %1 = window title, %2 = monitor name, %3/%4 = x/y position in pixels
+#: modules/windowinfo/Preview.qml
+#, qt-format
+msgid "%1 on monitor %2 at %3, %4"
+msgstr "%1 位于显示器 %2，坐标 %3, %4"
+
+#: plugin/src/Caelestia/I18n/Units.qml
+#, qt-format
+msgctxt "temperature"
+msgid "%1°"
+msgstr "%1°"
+
+#: plugin/src/Caelestia/I18n/Units.qml
+#, qt-format
+msgctxt "temperature"
+msgid "%1°F"
+msgstr "%1°F"
+
+#: plugin/src/Caelestia/I18n/Units.qml
+#, qt-format
+msgctxt "temperature"
+msgid "%1 K"
+msgstr "%1 K"
+
+#: plugin/src/Caelestia/I18n/Units.qml
+#, qt-format
+msgctxt "temperature"
+msgid "%1°C"
+msgstr "%1°C"
+
+#: plugin/src/Caelestia/I18n/Units.qml
+#, qt-format
+msgid "%1 B"
+msgstr "%1 B"
+
+#: plugin/src/Caelestia/I18n/Units.qml
+#, qt-format
+msgid "%1 KB"
+msgstr "%1 KB"
+
+#: plugin/src/Caelestia/I18n/Units.qml
+#, qt-format
+msgid "%1 MB"
+msgstr "%1 MB"
+
+#: plugin/src/Caelestia/I18n/Units.qml
+#, qt-format
+msgid "%1 GB"
+msgstr "%1 GB"
+
+#: plugin/src/Caelestia/I18n/Units.qml
+#, qt-format
+msgid "%1 TB"
+msgstr "%1 TB"
+
+#: plugin/src/Caelestia/I18n/Units.qml
+#, qt-format
+msgid "%1 KiB"
+msgstr "%1 KiB"
+
+#: plugin/src/Caelestia/I18n/Units.qml
+#, qt-format
+msgid "%1 MiB"
+msgstr "%1 MiB"
+
+#: plugin/src/Caelestia/I18n/Units.qml
+#, qt-format
+msgid "%1 GiB"
+msgstr "%1 GiB"
+
+#: plugin/src/Caelestia/I18n/Units.qml
+#, qt-format
+msgid "%1 TiB"
+msgstr "%1 TiB"
+
+#: plugin/src/Caelestia/I18n/Units.qml
+#, qt-format
+msgid "%1 B/s"
+msgstr "%1 B/s"
+
+#: plugin/src/Caelestia/I18n/Units.qml
+#, qt-format
+msgid "%1 KB/s"
+msgstr "%1 KB/s"
+
+#: plugin/src/Caelestia/I18n/Units.qml
+#, qt-format
+msgid "%1 MB/s"
+msgstr "%1 MB/s"
+
+#: plugin/src/Caelestia/I18n/Units.qml
+#, qt-format
+msgid "%1 GB/s"
+msgstr "%1 GB/s"
+
+#: plugin/src/Caelestia/I18n/Units.qml
+#, qt-format
+msgid "%1 TB/s"
+msgstr "%1 TB/s"
+
+#: plugin/src/Caelestia/I18n/Units.qml
+#, qt-format
+msgid "%1 KiB/s"
+msgstr "%1 KiB/s"
+
+#: plugin/src/Caelestia/I18n/Units.qml
+#, qt-format
+msgid "%1 MiB/s"
+msgstr "%1 MiB/s"
+
+#: plugin/src/Caelestia/I18n/Units.qml
+#, qt-format
+msgid "%1 GiB/s"
+msgstr "%1 GiB/s"
+
+#: plugin/src/Caelestia/I18n/Units.qml
+#, qt-format
+msgid "%1 TiB/s"
+msgstr "%1 TiB/s"
+
+#. TRANSLATORS: %1 = used amount, %2 = total amount with unit
+#: plugin/src/Caelestia/I18n/Units.qml
+#, qt-format
+msgctxt "used / total amount"
+msgid "%1 / %2"
+msgstr "%1 / %2"
+
+#: services/Audio.qml
+msgctxt "unknown audio stream"
+msgid "Unknown"
+msgstr "未知"
+
+#: services/Audio.qml
+msgctxt "unknown application audio stream"
+msgid "Unknown application"
+msgstr "未知应用"
+
+#: services/Audio.qml
+msgctxt "unknown audio device"
+msgid "Unknown device"
+msgstr "未知设备"
+
+#: services/Audio.qml
+msgid "Audio output changed"
+msgstr "音频输出已切换"
+
+#: services/Audio.qml
+#, qt-format
+msgid "Now using: %1"
+msgstr "正在使用：%1"
+
+#: services/Audio.qml
+msgid "Audio input changed"
+msgstr "音频输入已切换"
+
+#: services/GameMode.qml
+msgid "Game mode enabled"
+msgstr "游戏模式已启用"
+
+#: services/GameMode.qml
+msgid "Disabled Hyprland animations, blur, gaps and shadows"
+msgstr "已禁用 Hyprland 动画、模糊、间隙与阴影"
+
+#: services/GameMode.qml
+msgid "Game mode disabled"
+msgstr "游戏模式已禁用"
+
+#: services/GameMode.qml
+msgid "Hyprland settings restored"
+msgstr "Hyprland 设置已恢复"
+
+#: services/Hypr.qml
+msgctxt "keyboard layout"
+msgid "Unknown"
+msgstr "未知"
+
+#: services/Nmcli.qml
+msgid "Enterprise"
+msgstr "企业级"
+
+#: services/Nmcli.qml
+msgid "Enhanced Open"
+msgstr "增强开放"
+
+#. TRANSLATORS: %1 = a number
+#: services/Nmcli.qml
+#, qt-format
+msgid "%1 Gbps"
+msgstr "%1 Gbps"
+
+#. TRANSLATORS: %1 = a number
+#: services/Nmcli.qml
+#, qt-format
+msgid "%1 Mbps"
+msgstr "%1 Mbps"
+
+#: services/NotifData.qml
+msgid "now"
+msgstr "现在"
+
+#: services/NotifData.qml
+#, qt-format
+msgctxt "abbreviated notification age, days"
+msgid "%1d"
+msgstr "%1 天"
+
+#: services/NotifData.qml
+#, qt-format
+msgctxt "abbreviated notification age, hours"
+msgid "%1h"
+msgstr "%1 小时"
+
+#: services/NotifData.qml
+#, qt-format
+msgctxt "abbreviated notification age, minutes"
+msgid "%1m"
+msgstr "%1 分钟"
+
+#: services/Notifs.qml
+msgid "Do not disturb enabled"
+msgstr "免打扰已启用"
+
+#: services/Notifs.qml
+msgid "Popup notifications are now disabled"
+msgstr "弹出通知已禁用"
+
+#: services/Notifs.qml
+msgid "Do not disturb disabled"
+msgstr "免打扰已禁用"
+
+#: services/Notifs.qml
+msgid "Popup notifications are now enabled"
+msgstr "弹出通知已启用"
+
+#: services/Players.qml
+#, qt-format
+msgctxt "track artist and title"
+msgid "%1 - %2"
+msgstr "%1 - %2"
+
+#: services/VPN.qml
+msgid "VPN connection failed"
+msgstr "VPN 连接失败"
+
+#: services/VPN.qml
+msgid "VPN disconnection failed"
+msgstr "VPN 断开失败"
+
+#: services/VPN.qml
+msgid "Login required"
+msgstr "需要登录"
+
+#: services/VPN.qml
+msgid "Machine authorisation required"
+msgstr "需要设备授权"
+
+#: services/VPN.qml
+msgid "Tailscale may not be running"
+msgstr "Tailscale 可能未运行"
+
+#: services/VPN.qml
+msgid "Failed to parse status"
+msgstr "解析状态失败"
+
+#: services/VPN.qml
+msgid "WARP registration required"
+msgstr "需要注册 WARP"
+
+#: services/VPN.qml
+msgid "Unknown WARP status"
+msgstr "未知的 WARP 状态"
+
+#: services/VPN.qml
+msgid "VPN connected"
+msgstr "VPN 已连接"
+
+#: services/VPN.qml
+#, qt-format
+msgid "Connected to %1"
+msgstr "已连接到 %1"
+
+#: services/VPN.qml
+msgid "VPN disconnected"
+msgstr "VPN 已断开"
+
+#: services/VPN.qml
+#, qt-format
+msgid "Disconnected from %1"
+msgstr "已断开与 %1 的连接"
+
+#: services/VPN.qml
+msgid "VPN authentication required"
+msgstr "需要 VPN 身份验证"
+
+#: services/VPN.qml
+#, qt-format
+msgctxt "vpn name and reason"
+msgid "%1: %2"
+msgstr "%1：%2"
+
+#: services/VPN.qml
+msgid "Unknown error"
+msgstr "未知错误"
+
+#: services/VPN.qml
+msgid "VPN error"
+msgstr "VPN 错误"
+
+#. TRANSLATORS: %1 = a shell command, leave it untranslated
+#: services/VPN.qml
+#, qt-format
+msgid "WireGuard module not loaded. Run: %1"
+msgstr "WireGuard 模块未加载。请运行：%1"
+
+#. TRANSLATORS: %1 = a shell command, leave it untranslated
+#: services/VPN.qml
+#, qt-format
+msgid "Permission denied. Run in terminal: %1"
+msgstr "权限被拒绝。请在终端中运行：%1"
+
+#. TRANSLATORS: %1 = a shell command, leave it untranslated
+#: services/VPN.qml
+#, qt-format
+msgid "Service not running (run: %1)"
+msgstr "服务未运行（请运行：%1）"
+
+#: services/VPN.qml
+#, qt-format
+msgid "Could not start %1. Is it installed?"
+msgstr "无法启动 %1。是否已安装？"
+
+#: services/VPN.qml
+#, qt-format
+msgid "Could not connect to %1"
+msgstr "无法连接到 %1"
+
+#: services/Weather.qml
+msgid "No weather"
+msgstr "无天气数据"
+
+#: services/Weather.qml
+msgctxt "weather location unavailable"
+msgid "Unknown city"
+msgstr "未知城市"
+
+#: services/Weather.qml
+msgid "Clear"
+msgstr "晴"
+
+#: services/Weather.qml
+msgid "Partly cloudy"
+msgstr "局部多云"
+
+#: services/Weather.qml
+msgid "Overcast"
+msgstr "阴"
+
+#: services/Weather.qml
+msgid "Fog"
+msgstr "雾"
+
+#: services/Weather.qml
+msgid "Drizzle"
+msgstr "毛毛雨"
+
+#: services/Weather.qml
+msgid "Freezing drizzle"
+msgstr "冻毛毛雨"
+
+#: services/Weather.qml
+msgid "Light rain"
+msgstr "小雨"
+
+#: services/Weather.qml
+msgid "Rain"
+msgstr "雨"
+
+#: services/Weather.qml
+msgid "Heavy rain"
+msgstr "大雨"
+
+#: services/Weather.qml
+msgid "Light snow"
+msgstr "小雪"
+
+#: services/Weather.qml
+msgid "Snow"
+msgstr "雪"
+
+#: services/Weather.qml
+msgid "Heavy snow"
+msgstr "大雪"
+
+#: services/Weather.qml
+msgid "Light snow showers"
+msgstr "小阵雪"
+
+#: services/Weather.qml
+msgid "Heavy snow showers"
+msgstr "大阵雪"
+
+#: services/Weather.qml
+msgid "Thunderstorm"
+msgstr "雷暴"
+
+#: services/Weather.qml
+msgid "Thunderstorm with hail"
+msgstr "雷暴伴冰雹"
+
+#: services/Weather.qml
+msgctxt "weather condition"
+msgid "Unknown"
+msgstr "未知"
+
+#. TRANSLATORS: %1 = a number
+#: utils/Strings.qml
+#, qt-format
+msgid "%1%"
+msgstr "%1%"
+
+#. TRANSLATORS: joins uptime components, e.g. "2 days, 3 hours"
+#: utils/SysInfo.qml
+msgctxt "uptime component separator"
+msgid ", "
+msgstr "，"
+
+#: utils/SysInfo.qml
+#, qt-plural-format
+msgid "%n minute"
+msgid_plural "%n minutes"
+msgstr[0] "%n 分钟"
+
+#: plugin/src/Caelestia/Config/rootnodes.cpp
+#, c-format, qt-plural-format
+msgid "Config loaded with %n issue."
+msgid_plural "Config loaded with %n issues."
+msgstr[0] "配置已加载，有 %n 个问题。"
+
+#: plugin/src/Caelestia/Config/rootnodes.cpp
+msgid "Config loaded successfully!"
+msgstr "配置加载成功！"
+
+#: plugin/src/Caelestia/Config/rootnodes.cpp
+msgid "Config loaded"
+msgstr "配置已加载"
+
+#: plugin/src/Caelestia/Config/rootnodes.cpp
+msgid "Failed to parse token config"
+msgstr "解析颜色令牌配置失败"
+
+#. TRANSLATORS: %1 = a monitor name
+#: plugin/src/Caelestia/Config/rootnodes.cpp
+#, qt-format
+msgid "Failed to parse token config for %1"
+msgstr "解析 %1 的颜色令牌配置失败"
+
+#. TRANSLATORS: %1 = a monitor name
+#: plugin/src/Caelestia/Config/rootnodes.cpp
+#, qt-format
+msgid "Failed to parse config"
+msgstr "解析配置失败"
+
+#: plugin/src/Caelestia/Config/rootnodes.cpp
+#, qt-format
+msgid "Failed to parse config for %1"
+msgstr "解析 %1 的配置失败"
+
+#. TRANSLATORS: %1 = a monitor name
+#: plugin/src/Caelestia/Config/rootnodes.cpp
+#, qt-format
+msgid "Failed to save config"
+msgstr "保存配置失败"
+
+#: plugin/src/Caelestia/Config/rootnodes.cpp
+#, qt-format
+msgid "Failed to save config for %1"
+msgstr "保存 %1 的配置失败"
+
+#. TRANSLATORS: %1 = a message from Qalculate, we don't translate it
+#: plugin/src/Caelestia/qalculator.cpp
+#, qt-format
+msgid "error: %1"
+msgstr "错误：%1"
+
+#. TRANSLATORS: %1 = a message from Qalculate, we don't translate it
+#: plugin/src/Caelestia/qalculator.cpp
+#, qt-format
+msgid "warning: %1"
+msgstr "警告：%1"
+
+#: plugin/src/Caelestia/Services/hyprdevices.cpp
+msgid "Caps lock is currently enabled"
+msgstr "大写锁定当前已启用"
+
+#: plugin/src/Caelestia/Services/hyprdevices.cpp
+msgid "Caps lock is currently disabled"
+msgstr "大写锁定当前已禁用"
+
+#: plugin/src/Caelestia/Services/hyprdevices.cpp
+msgid "Num lock is currently enabled"
+msgstr "数字锁定当前已启用"
+
+#: plugin/src/Caelestia/Services/hyprdevices.cpp
+msgid "Num lock is currently disabled"
+msgstr "数字锁定当前已禁用"
+
+#. TRANSLATORS: %1 = an XKB keyboard layout name, e.g. English (US)
+#: plugin/src/Caelestia/Services/hyprdevices.cpp
+#, qt-format
+msgid "Keyboard layout changed"
+msgstr "键盘布局已切换"
+
+#: plugin/src/Caelestia/Services/hyprdevices.cpp
+#, qt-format
+msgid "Layout changed to: %1"
+msgstr "布局已切换为：%1"
+
+#: plugin/src/Caelestia/Services/sessionmanager.cpp
+msgid "Hibernate failed"
+msgstr "休眠失败"
+
+#: plugin/src/Caelestia/Services/sessionmanager.cpp
+msgid "Enable hibernation to use this feature."
+msgstr "请启用休眠以使用此功能。"
+
+#. TRANSLATORS: %1 = the non-integer number that was found
+#: plugin/src/Caelestia/Settings/codecs.cpp
+#, qt-format
+msgid "Expected an integer, got the real %1"
+msgstr "预期为整数，实际得到实数 %1"
+
+#. TRANSLATORS: %1 = the value given, %2/%3 = the allowed minimum and maximum
+#: plugin/src/Caelestia/Settings/codecs.cpp
+#, qt-format
+msgid "Integer %1 is out of range, expected between %2 and %3"
+msgstr "整数 %1 超出范围，应在 %2 到 %3 之间"
+
+#. TRANSLATORS: %1 = a config key name, %2 = a C++ type name; both are untranslated identifiers
+#: plugin/src/Caelestia/Settings/codecs.cpp
+#, qt-format
+msgid "Could not convert %1 to %2"
+msgstr "无法将 %1 转换为 %2"
+
+#. TRANSLATORS: %1 = a config key name, %2 = a comma-separated list of allowed values; both untranslated
+#: plugin/src/Caelestia/Settings/codecs.cpp
+#, qt-format
+msgid "Invalid enum value %1. Expected one of %2"
+msgstr "无效的枚举值 %1。应为 %2 之一"
+
+#: plugin/src/Caelestia/Settings/common.cpp
+msgctxt "expected type"
+msgid "a boolean"
+msgstr "布尔值"
+
+#: plugin/src/Caelestia/Settings/common.cpp
+msgctxt "expected type"
+msgid "an integer"
+msgstr "整数"
+
+#: plugin/src/Caelestia/Settings/common.cpp
+msgctxt "expected type"
+msgid "a number"
+msgstr "数字"
+
+#: plugin/src/Caelestia/Settings/common.cpp
+msgctxt "expected type"
+msgid "a string"
+msgstr "字符串"
+
+#: plugin/src/Caelestia/Settings/common.cpp
+msgctxt "expected type"
+msgid "an array"
+msgstr "数组"
+
+#: plugin/src/Caelestia/Settings/common.cpp
+msgctxt "expected type"
+msgid "an object"
+msgstr "对象"
+
+#: plugin/src/Caelestia/Settings/common.cpp
+msgctxt "received type"
+msgid "null"
+msgstr "null"
+
+#: plugin/src/Caelestia/Settings/common.cpp
+msgctxt "received type"
+msgid "a boolean"
+msgstr "布尔值"
+
+#: plugin/src/Caelestia/Settings/common.cpp
+msgctxt "received type"
+msgid "a number"
+msgstr "数字"
+
+#: plugin/src/Caelestia/Settings/common.cpp
+msgctxt "received type"
+msgid "a string"
+msgstr "字符串"
+
+#: plugin/src/Caelestia/Settings/common.cpp
+msgctxt "received type"
+msgid "an array"
+msgstr "数组"
+
+#: plugin/src/Caelestia/Settings/common.cpp
+msgctxt "received type"
+msgid "an object"
+msgstr "对象"
+
+#: plugin/src/Caelestia/Settings/common.cpp
+msgctxt "received type"
+msgid "nothing"
+msgstr "空"
+
+#. TRANSLATORS: %1/%2 = the allowed types, %3 = the type that was found; all nouns such as "a string"
+#: plugin/src/Caelestia/Settings/common.cpp
+#, qt-format
+msgid "Expected %1 or %2, got %3"
+msgstr "预期为 %1 或 %2，实际为 %3"
+
+#. TRANSLATORS: %1-%3 = the allowed types, %4 = the type that was found; all nouns such as "a string"
+#: plugin/src/Caelestia/Settings/common.cpp
+#, qt-format
+msgid "Expected %1, %2 or %3, got %4"
+msgstr "预期为 %1、%2 或 %3，实际为 %4"
+
+#. TRANSLATORS: %1-%4 = the allowed types, %5 = the type that was found; all nouns such as "a string"
+#: plugin/src/Caelestia/Settings/common.cpp
+#, qt-format
+msgid "Expected one of: %1, %2, %3, %4; got %5"
+msgstr "预期为以下之一：%1、%2、%3、%4；实际为 %5"
+
+#. TRANSLATORS: %1 = the expected type, %2 = the type that was found; both nouns such as "a string"
+#: plugin/src/Caelestia/Settings/common.cpp
+#, qt-format
+msgid "Expected %1, got %2"
+msgstr "预期为 %1，实际为 %2"
+
+#: plugin/src/Caelestia/Settings/node.cpp
+msgid "Global options should not be defined in overlay files"
+msgstr "全局选项不应在覆盖文件中定义"
+
+#. TRANSLATORS: %1 = a config key name
+#: plugin/src/Caelestia/Settings/objectnode.cpp
+#, qt-format
+msgid "Unknown option %1"
+msgstr "未知选项 %1"
+
+#: plugin/src/Caelestia/Settings/settingsfile.cpp
+#, qt-format
+msgid "Failed to open: %1"
+msgstr "打开失败：%1"
+
+#: plugin/src/Caelestia/Settings/settingsfile.cpp
+#, qt-format
+msgid "Failed to parse: %1"
+msgstr "解析失败：%1"
+
+#: plugin/src/Caelestia/Settings/settingsfile.cpp
+msgid "Failed to create parent directory"
+msgstr "创建父目录失败"
+
+#: plugin/src/Caelestia/Settings/settingsfile.cpp
+#, qt-format
+msgid "Failed to write: %1"
+msgstr "写入失败：%1"
+
+#: plugin/src/Caelestia/Config/generalconfig.hpp
+msgid "Low battery"
+msgstr "电量低"
+
+#: plugin/src/Caelestia/Config/generalconfig.hpp
+msgid "You might want to plug in a charger"
+msgstr "建议接上充电器"
+
+#: plugin/src/Caelestia/Config/generalconfig.hpp
+msgid "Did you see the previous message?"
+msgstr "看到上一条消息了吗？"
+
+#: plugin/src/Caelestia/Config/generalconfig.hpp
+msgid "You should probably plug in a charger <b>now</b>"
+msgstr "你最好<b>现在</b>就接上充电器"
+
+#: plugin/src/Caelestia/Config/generalconfig.hpp
+msgid "Critical battery level"
+msgstr "电量严重不足"
+
+#: plugin/src/Caelestia/Config/generalconfig.hpp
+msgid "PLUG THE CHARGER RIGHT NOW!!"
+msgstr "立刻接上充电器！！"
+
+#: plugin/src/Caelestia/Config/launcherconfig.hpp
+msgctxt "launcher action"
+msgid "Calculator"
+msgstr "计算器"
+
+#: plugin/src/Caelestia/Config/launcherconfig.hpp
+msgid "Do simple maths equations (powered by Qalc)"
+msgstr "进行简单数学计算（由 Qalc 驱动）"
+
+#: plugin/src/Caelestia/Config/launcherconfig.hpp
+msgctxt "launcher action"
+msgid "Scheme"
+msgstr "配色方案"
+
+#: plugin/src/Caelestia/Config/launcherconfig.hpp
+msgid "Change the current colour scheme"
+msgstr "更改当前配色方案"
+
+#: plugin/src/Caelestia/Config/launcherconfig.hpp
+msgctxt "launcher action"
+msgid "Wallpaper"
+msgstr "壁纸"
+
+#: plugin/src/Caelestia/Config/launcherconfig.hpp
+msgid "Change the current wallpaper"
+msgstr "更改当前壁纸"
+
+#: plugin/src/Caelestia/Config/launcherconfig.hpp
+msgctxt "launcher action"
+msgid "Variant"
+msgstr "变体"
+
+#: plugin/src/Caelestia/Config/launcherconfig.hpp
+msgid "Change the current scheme variant"
+msgstr "更改当前配色方案变体"
+
+#: plugin/src/Caelestia/Config/launcherconfig.hpp
+msgctxt "launcher action"
+msgid "Random"
+msgstr "随机"
+
+#: plugin/src/Caelestia/Config/launcherconfig.hpp
+msgid "Switch to a random wallpaper"
+msgstr "切换到随机壁纸"
+
+#: plugin/src/Caelestia/Config/launcherconfig.hpp
+msgctxt "launcher action"
+msgid "Light"
+msgstr "浅色"
+
+#: plugin/src/Caelestia/Config/launcherconfig.hpp
+msgid "Change the scheme to light mode"
+msgstr "将配色方案切换为浅色模式"
+
+#: plugin/src/Caelestia/Config/launcherconfig.hpp
+msgctxt "launcher action"
+msgid "Dark"
+msgstr "深色"
+
+#: plugin/src/Caelestia/Config/launcherconfig.hpp
+msgid "Change the scheme to dark mode"
+msgstr "将配色方案切换为深色模式"
+
+#: plugin/src/Caelestia/Config/launcherconfig.hpp
+msgctxt "launcher action"
+msgid "Shutdown"
+msgstr "关机"
+
+#: plugin/src/Caelestia/Config/launcherconfig.hpp
+msgid "Shutdown the system"
+msgstr "关闭系统"
+
+#: plugin/src/Caelestia/Config/launcherconfig.hpp
+msgctxt "launcher action"
+msgid "Reboot"
+msgstr "重启"
+
+#: plugin/src/Caelestia/Config/launcherconfig.hpp
+msgid "Reboot the system"
+msgstr "重启系统"
+
+#: plugin/src/Caelestia/Config/launcherconfig.hpp
+msgctxt "launcher action"
+msgid "Logout"
+msgstr "注销"
+
+#: plugin/src/Caelestia/Config/launcherconfig.hpp
+msgid "Log out of the current session"
+msgstr "注销当前会话"
+
+#: plugin/src/Caelestia/Config/launcherconfig.hpp
+msgctxt "launcher action"
+msgid "Lock"
+msgstr "锁定"
+
+#: plugin/src/Caelestia/Config/launcherconfig.hpp
+msgid "Lock the current session"
+msgstr "锁定当前会话"
+
+#: plugin/src/Caelestia/Config/launcherconfig.hpp
+msgctxt "launcher action"
+msgid "Sleep"
+msgstr "睡眠"
+
+#: plugin/src/Caelestia/Config/launcherconfig.hpp
+msgid "Suspend then hibernate"
+msgstr "挂起后再休眠"
+
+#: plugin/src/Caelestia/Config/launcherconfig.hpp
+msgctxt "launcher action"
+msgid "Settings"
+msgstr "设置"
+
+#: plugin/src/Caelestia/Config/launcherconfig.hpp
+msgid "Configure the shell"
+msgstr "配置 Shell"

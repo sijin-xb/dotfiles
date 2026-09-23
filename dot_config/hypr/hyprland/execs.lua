@@ -15,8 +15,9 @@ hl.on("hyprland.start", function ()
     -- 会在登录时把合成器一起拖死（tty 都进不去）。QT_IM_MODULE 等
     -- 已由上面那行 dbus-update-activation-environment 全局设置，够用。
     -- Caelestia QML 插件（可选）：仓库不含插件本体，自行 clone caelestia-dots/shell
-    -- 编译后若存在 build/qml，则加入 Qt 导入路径；目录不存在时该行不生效。
-    hl.exec_cmd("while ! fcitx5-remote --check >/dev/null 2>&1; do sleep 0.1; done; if [ -d \"$HOME/src/caelestia-shell/build/qml\" ]; then export QML2_IMPORT_PATH=\"$HOME/src/caelestia-shell/build/qml:$QML2_IMPORT_PATH\"; fi; qs -c $qsConfig")
+    -- 编译后若存在 ~/src/caelestia-build/qml，则加入 Qt 导入路径；目录不存在时该行不生效。
+    -- 与 ~/.config/fish/config.fish 里的那份注入保持一致（fish 那份给终端里手动起 qs 用）。
+    hl.exec_cmd("while ! fcitx5-remote --check >/dev/null 2>&1; do sleep 0.1; done; if [ -d \"$HOME/src/caelestia-build/qml\" ]; then export QML2_IMPORT_PATH=\"$HOME/src/caelestia-build/qml:$QML2_IMPORT_PATH\"; fi; qs -c $qsConfig")
     hl.exec_cmd("$HOME/.config/hypr/custom/scripts/__restore_video_wallpaper.sh")
     -- Refresh pinyin search aliases for CJK-named apps (used by AppSearch)
     hl.exec_cmd("$HOME/.local/state/quickshell/.venv/bin/python $HOME/.config/hypr/hyprland/scripts/generate_app_pinyin.py")

@@ -4,6 +4,31 @@
 
 ## 2026-09-23
 
+### caelestia shell 简体中文化
+
+caelestia 自带 gettext i18n 框架（`Tr.tr()` → C++ `Translator` 读 `.mo`），但上游
+`plugin/src/Caelestia/I18n/CMakeLists.txt` 的 `po_files` 是**空的** —— 框架搭好了、
+一条翻译都没有，界面全英文。这次补齐。
+
+- **`trs/zh_CN.po`**：用官方 `scripts/trs.fish raw`（xgettext）提取全部 **821 条**文案
+  （187 条带 context、11 条复数）并翻译。系统 `LANG=zh_CN.UTF-8` 时
+  `general.language` 留空即自动命中；也可在 nexus → 语言与地区 → UI 语言里选「中文」。
+- **`CMakeLists.txt`**：`po_files` 加入 `trs/zh_CN.po`，`.mo` 经 `qml_module` 编入插件
+  资源（`:/qt/qml/Caelestia/I18n/zh_CN.mo`）。复数条目按中文规则 `nplurals=1` 只保留
+  `msgstr[0]`。
+
+**install.sh**：caelestia 不走 chezmoi 部署，`[4/7]` 是「clone 到
+`~/.config/quickshell/caelestia` + out-of-source 编译」，而差异层要到 `[5/7]` 才落地 ——
+**晚于编译**。所以在 `install_caelestia_shell()` 里加了「编译前先应用
+`dot_config/quickshell/caelestia/` 覆盖层」这一步，并用 `$build/.overlay-stamp` 记录
+覆盖层 hash：变了才重编，没变就跳过。否则重装后 po 文件在、翻译却不生效（静默故障）。
+
+**顺带修的 bug**：`dot_config/fish/executable_config.fish` 与
+`dot_config/hypr/hyprland/execs.lua` 里的 `QML2_IMPORT_PATH` 还写着旧的
+`~/src/caelestia-shell/build/qml`，而 install.sh 编译到 `~/src/caelestia-build` ——
+工作树早改对了、差异层没同步，重装会**静默加载不到插件**（和字体漏装同类故障）。
+两份文件已按工作树现状同步进差异层。
+
 ### Neovim：从「VS Code 手感」转向「边用边学 vim」
 
 原配置已经做过一轮「非模态化」（`Ctrl+S/C/V/Z/...` 全映射）。但如果目标是**学 vim**，

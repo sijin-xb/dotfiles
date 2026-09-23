@@ -64,6 +64,7 @@ hl.window_rule({match = {class = "kcm_.*" },                                  fl
 hl.window_rule({match = {class = ".*bluedevilwizard" },                      float = true}) -- KDE 蓝牙配对向导
 hl.window_rule({match = {title = ".*Welcome" },                              float = true})
 hl.window_rule({match = {title = "^(illogical-impulse Settings)$" },         float = true})
+hl.window_rule({match = {title = "^Nexus.*" },                                float = true}) -- Caelestia 设置窗口
 hl.window_rule({match = {title = ".*Shell conflicts.*" },                    float = true})
 hl.window_rule({match = {class = "org.freedesktop.impl.portal.desktop.kde" }, float = true}) -- 文件选择/权限弹窗
 hl.window_rule({match = {class = "org.freedesktop.impl.portal.desktop.kde" }, size = {"(monitor_w*0.60)", "(monitor_h*0.65)"} })
