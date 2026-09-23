@@ -23,6 +23,12 @@ output_path = '~/.config/hypr/hyprlock/colors.conf'
 input_path = '~/.config/matugen/templates/fuzzel/fuzzel_theme.ini'
 output_path = '~/.config/fuzzel/fuzzel_theme.ini'
 
+[templates.walker]
+# walker 主题的配色部分。布局 xml 不走 matugen（直接放在
+# ~/.config/walker/themes/matugen/，只在升级 walker 后需要同步上游改动）。
+input_path = '~/.config/matugen/templates/walker/style.css'
+output_path = '~/.config/walker/themes/matugen/style.css'
+
 [templates.alacritty]
 input_path = '~/.config/matugen/templates/alacritty/matugen-theme.toml'
 output_path = '~/.config/alacritty/matugen-theme.toml'

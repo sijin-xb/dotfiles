@@ -68,10 +68,14 @@ if shellIsCaelestia then
     hl.unbind("SUPER + SHIFT + S")
 
     -- ---- 沿用 end4-PC 的习惯键位（映射到 caelestia 的等价功能） ----
-    -- 剪贴板：必须先擦掉 base 的普通 hl.bind，再启动 caelestia 自己的
-    -- cliphist + fuzzel 入口；否则两条绑定会同时触发，旧兜底会抢焦点。
-    hl.bind("SUPER + V", shell("caelestia clipboard"),
-        { description = "Caelestia: 剪贴板历史" })
+    -- 剪贴板：必须先擦掉 base 的普通 hl.bind 再重绑，否则两条绑定会同时触发、
+    -- 旧兜底会抢焦点。
+    -- 前端从 fuzzel 换成 walker（-m clipboard = 只查剪贴板 provider），
+    -- 数据在 elephant 的 clipboard provider 里。fuzzel 那边卡的原因是
+    -- icons-enabled=yes 时 750 条历史每行都要查图标主题，跟数据量无关
+    -- （cliphist list 才 72K）。walker 是异步查询，不吃这个亏。
+    hl.bind("SUPER + V", shell("walker -m clipboard"),
+        { description = "Utilities: Clipboard history (walker)" })
 
     -- end4-PC 的 SUPER+I 是 quickshell 设置面板；caelestia 里「设置」就是 nexus
     -- （launcher 的 Settings action 命令正是 `caelestia shell nexus open`，
