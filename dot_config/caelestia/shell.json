@@ -1,0 +1,122 @@
+{
+    "appearance": {
+        "transparency": {
+            "enabled": true
+        }
+    },
+    "background": {
+        "visualiser": {
+            "enabled": true,
+            "autoHide": false,
+            "blur": true
+        }
+    },
+    "bar": {
+        "statusIcons": [
+            {
+                "enabled": true,
+                "id": "lockStatus"
+            },
+            {
+                "enabled": true,
+                "id": "audio"
+            },
+            {
+                "enabled": false,
+                "id": "microphone"
+            },
+            {
+                "enabled": false,
+                "id": "kbLayout"
+            },
+            {
+                "enabled": true,
+                "id": "network"
+            },
+            {
+                "enabled": true,
+                "id": "bluetooth"
+            },
+            {
+                "enabled": true,
+                "id": "battery"
+            }
+        ],
+        "tray": {
+            "background": false
+        },
+        "workspaces": {
+            "occupiedBg": false
+        }
+    },
+    "dashboard": {
+        "enabled": true,
+        "showClockSeconds": true
+    },
+    "general": {
+        "apps": {
+            "audio": [
+                "pavucontrol"
+            ],
+            "explorer": [
+                "nautilus"
+            ],
+            "terminal": [
+                "kitty"
+            ]
+        },
+        "language": ""
+    },
+    "lock": {
+        "enableFprint": false,
+        "enableHowdy": false
+    },
+    "services": {
+        "defaultPlayer": "kugou-tui",
+        "gpuType": "Generic"
+    },
+    "session": {
+        "commands": {
+            "logout": [
+                "hyprctl",
+                "dispatch",
+                "exit"
+            ]
+        }
+    },
+    "sidebar": {
+        "enabled": true
+    },
+    "utilities": {
+        "quickToggles": [
+            {
+                "enabled": true,
+                "id": "wifi"
+            },
+            {
+                "enabled": true,
+                "id": "bluetooth"
+            },
+            {
+                "enabled": true,
+                "id": "mic"
+            },
+            {
+                "enabled": true,
+                "id": "settings"
+            },
+            {
+                "enabled": true,
+                "id": "gameMode"
+            },
+            {
+                "enabled": true,
+                "id": "dnd"
+            },
+            {
+                "enabled": false,
+                "id": "vpn"
+            }
+        ]
+    }
+}
