@@ -235,13 +235,10 @@ window-rule {
     open-focused false
 }
 
-// 忽略grid（2026-09-26 停用）
-// ignore-grid-overview 是 shorin-fork 网格总览专属的窗口规则；
-// niri-spicy 没有网格总览，这个字段不存在，写了整份配置就加载不起来。
-// steam 通知 toast / showmethekey 在 spicy 下也就没有需要排除的总览了。
-// window-rule {
-//     match app-id="steam"
-//     match app-id="steam" title=r#"^notificationtoasts_\d+_desktop$"#
-//     match app-id="one.alynx.showmethekey"
-//     ignore-grid-overview true
-// }
+// 忽略grid（2026-09-26 换回 shorin fork 后恢复）
+window-rule {
+    match app-id="steam"
+    match app-id="steam" title=r#"^notificationtoasts_\d+_desktop$"#
+    match app-id="one.alynx.showmethekey"
+    ignore-grid-overview true
+}

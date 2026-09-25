@@ -41,13 +41,10 @@ binds {
     Mod+Shift+O hotkey-overlay-title="快速聚焦到OpenCode Quick focus OpenCode" {spawn "nirius" "focus" "--app-id" "opencode" ;} 
     Mod+Shift+W hotkey-overlay-title="快速聚焦到微信 Quick focus Wechat" {spawn "nirius" "focus" "--app-id" "wechat" ;} 
 
-    //niri-shorin-fork —— magnifier（屏幕放大镜）三条已停用（2026-09-26）
-    // niri-spicy 没有 magnifier，adjust-magnifier-zoom / toggle-magnifier
-    // 这两个 action 都不存在，写了整份配置就加载不起来。
-    // 想恢复：换回 niri-shorin-fork-git，把下面三行的注释去掉即可。
-    // Mod+Alt+WheelScrollUp hotkey-overlay-title="滚轮放大屏幕 magnifier"  { adjust-magnifier-zoom 0.2; }
-    // Mod+Alt+WheelScrollDown hotkey-overlay-title="滚轮缩小屏幕 magnifier" { adjust-magnifier-zoom -0.2; }
-    // Mod+Shift+Z  hotkey-overlay-title="切换屏幕缩放效果 magnifier" { toggle-magnifier; }
+    //niri-shorin-fork（2026-09-26 换回该 fork 后恢复）
+    Mod+Alt+WheelScrollUp hotkey-overlay-title="滚轮放大屏幕 magnifier"  { adjust-magnifier-zoom 0.2; }
+    Mod+Alt+WheelScrollDown hotkey-overlay-title="滚轮缩小屏幕 magnifier" { adjust-magnifier-zoom -0.2; }
+    Mod+Shift+Z  hotkey-overlay-title="切换屏幕缩放效果 magnifier" { toggle-magnifier; }
 
     // 临时开一个浮动终端
     Mod+Alt+O hotkey-overlay-title="AI助手 opencode agent" { spawn "kitty" "--class" "opencode" "-e" "opencode"; }        

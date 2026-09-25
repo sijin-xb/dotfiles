@@ -87,70 +87,6 @@ aur_install() {
     esac
 }
 
-# 需要本地打补丁的 AUR 包：包名 → 补丁文件（相对仓库根）。
-#
-#   niri-spicy-git：上游 niri 不支持「单独一个修饰键」当绑定，而本仓库的
-#   dms/binds.kdl 里「轻触 Super → DMS 启动器」正是 `Mod repeat=false`。
-#   patches/niri-mod-tap.patch 把 SHORiN-KiWATA/niri fork 的 Trigger::Modifier
-#   实现移植了进来（Trigger::Modifier + pending-modifier 状态机，见 patch 内注释）。
-#   不打这个补丁的话，niri 会因 `invalid key: Mod` 拒绝加载整份配置。
-patch_for_aur_pkg() {
-    case "$1" in
-        niri-spicy-git) echo "patches/niri-mod-tap.patch" ;;
-        *)              echo "" ;;
-    esac
-}
-
-# 用 AUR 的 PKGBUILD + 仓库里的补丁构建并安装。
-#
-# 为什么不直接 `paru -S`：paru/yay 装的是 AUR 原包，补丁不会生效；而
-# 直接改 paru 的 PKGBUILD 又会在每次更新时被覆盖。这里改成显式三步：
-#   ① makepkg --nobuild  → 拉源码到 src/（含 prepare 里的 cargo fetch）
-#   ② 在 src/<源码目录> 里 patch -p1 应用补丁
-#   ③ makepkg -e         → 复用已打好补丁的 src/ 构建打包（不重新解压）
-#   ④ pacman -U 装本地包
-# 这样装出来的仍是 pacman 管理的正常包，且不依赖 AUR 包的 PKGBUILD 是否被改过。
-install_aur_pkg_patched() {
-    local pkg=$1 patch_rel=$2
-    local patch="$SRC/$patch_rel"
-    if [[ ! -f "$patch" ]]; then
-        warn "补丁文件不存在：$patch"
-        return 1
-    fi
-
-    local work; work="$(mktemp -d)"
-    if ! git clone --depth 1 "https://aur.archlinux.org/$pkg.git" "$work/$pkg" >/dev/null 2>&1; then
-        warn "拉取 $pkg 的 PKGBUILD 失败"
-        rm -rf "$work"
-        return 1
-    fi
-
-    # PKGBUILD 里源码目录名是 ${pkgname%-spicy-git}，即去掉 -git 后缀的部分
-    local src_name="${pkg%-git}"
-
-    local ok=0
-    (
-        set -e
-        cd "$work/$pkg"
-        say "    准备源码（makepkg --nobuild，会 cargo fetch，可能要几分钟）"
-        makepkg --nobuild --noconfirm
-        if [[ ! -d "src/$src_name" ]]; then
-            echo "找不到源码目录 src/$src_name" >&2
-            exit 1
-        fi
-        cd "src/$src_name"
-        say "    应用补丁 $patch_rel"
-        patch -p1 --forward < "$patch"
-        cd "$work/$pkg"
-        say "    编译中（Rust release 构建，首次约几分钟到十几分钟）"
-        makepkg -e --noconfirm
-        say "    安装本地包"
-        "${SUDO:-sudo}" pacman -U --noconfirm ./"$pkg"-*.pkg.tar.zst
-    ) && ok=1
-
-    rm -rf "$work"
-    [[ "$ok" == 1 ]]
-}
 
 ensure_dirs() {
     mkdir -p "$BACKUP_ROOT" "$SNAP_ROOT" "$STATE_DIR"
@@ -327,27 +263,23 @@ compositor_pkgs() {
 
 # 合成器本体的 AUR 包（官方仓库那侧只放 portal / 依赖）。
 #
-#   niri → niri-spicy-git：losnoco/niri 的 spicy-main 分支。相对上游多出
-#          HDR（含 peak-luminance override）、per-output allow-tearing、
-#          Vulkan 渲染器、color-management、窗口最小化、wp-fifo /
-#          commit-timing / tearing-control 等协议。
+#   niri → niri-shorin-fork-git：SHORiN-KiWATA/niri。本仓库的 niri 配置依赖
+#          它独有的几项，换成上游 niri 或 losnoco 的 niri-spicy-git 都会因
+#          未知配置项**拒绝加载整份配置**：
+#            - magnifier / adjust-magnifier-zoom / toggle-magnifier
+#            - grid-overview（及 grid-overview-open-close、ignore-grid-overview、
+#              toggle-grid-overview）—— 「窗口总览」就是它
+#            - cursor 的 shake-to-enlarge
+#            - screen-cast-picker（配色节点，matugen 模板里也有一份）
+#            - 单独一个 Mod 键的绑定（轻触 Super → 启动器）
+#          它 provides niri / conflicts niri，与官方 niri、niri-bin、
+#          niri-spicy-git 都不能共存 —— 换装前先卸掉旧的那个。
 #
-#          它 conflicts=('niri' 'niri-bin')，和官方 niri 不能共存 —— 装之前
-#          先卸掉官方包，否则 makepkg 会报冲突。
-#
-# ⚠ 换分支（比如换回 niri-shorin-fork-git）时要同步改这里，并且确认
-#   dot_config/niri/** 里没有该分支不认识的节点：
-#     - magnifier / adjust-magnifier-zoom / toggle-magnifier
-#     - grid-overview（及 grid-overview-open-close、ignore-grid-overview、
-#       toggle-grid-overview）
-#     - cursor 的 shake-to-enlarge
-#     - screen-cast-picker（配色节点，matugen 模板里也有一份）
-#     - 单独一个 Mod 键的绑定（轻触 Super）
-#   这几项只有 shorin-fork 有，spicy 里写了会让整份配置加载失败。
-#   验证：`niri validate`。
+# ⚠ 换分支时要同步改这里，并按上面的清单增删 dot_config/niri/** 里的节点，
+#   改完务必 `niri validate`。
 compositor_aur_pkgs() {
     case "$COMPOSITOR" in
-        niri) echo "niri-spicy-git" ;;
+        niri) echo "niri-shorin-fork-git" ;;
         *)    echo "" ;;
     esac
 }
@@ -589,15 +521,19 @@ cmd_install() {
               ttf-lxgw-wenkai ttf-lxgw-wenkai-screen ttf-lxgw-wenkai-tc
               catppuccin-sddm-theme-mocha)
     # 追加合成器本体的 AUR 包（见 compositor_aur_pkgs：
-    #   niri → niri-spicy-git，hyprland → 官方仓库已装，无）
+    #   niri → niri-shorin-fork-git，hyprland → 官方仓库已装，无）
     local _comp_aur; _comp_aur="$(compositor_aur_pkgs)"
     if [[ -n "$_comp_aur" ]]; then
-        # fork 与官方包互相 conflicts，官方包在的话 AUR helper 会直接失败退出。
-        # 这里只提示不代劳：卸载合成器会连带停掉当前会话，得你自己决定时机。
+        # fork 声明 conflicts niri，所以官方 niri / niri-bin / niri-spicy-git
+        # 在的话 AUR helper 会因冲突直接失败（且 --noconfirm 下无法自动确认卸载）。
+        # 这里只提示不代劳：卸载合成器会停掉当前会话，得你自己决定时机。
+        # 用 -Rdd 是为了不连带卸掉依赖 niri 的 dms-shell-niri。
         local _conflict
-        for _conflict in niri niri-bin; do
+        for _conflict in niri niri-bin niri-spicy-git; do
             if pacman -Q "$_conflict" >/dev/null 2>&1; then
-                warn "已装官方包 $_conflict，与 $_comp_aur 冲突。请先卸载（sudo pacman -R $_conflict）再继续，否则 $_comp_aur 会安装失败。"
+                warn "已装 $_conflict，与 $_comp_aur 冲突（conflicts niri）"
+                say "    先卸掉再继续：sudo pacman -Rdd $_conflict"
+                say "    （-Rdd 跳过依赖检查，避免连带卸掉 dms-shell-niri）"
             fi
         done
         # shellcheck disable=SC2207
@@ -611,28 +547,8 @@ cmd_install() {
     # shellcheck disable=SC2207
     AUR_PKGS+=($(shell_aur_pkgs))
     for p in "${AUR_PKGS[@]}"; do
-        local _patch; _patch="$(patch_for_aur_pkg "$p")"
         if pacman -Q "$p" >/dev/null 2>&1; then
-            # 需要补丁的包，已装但没打补丁时要提醒（否则轻触 Super 那条配置会让
-            # niri 拒绝加载整份配置，而且现象是「配置明明 validate 过却报错」）
-            if [[ -n "$_patch" ]] && ! niri --version 2>/dev/null | grep -q modified; then
-                warn "$p 已安装，但看起来没打补丁（niri --version 无 -modified 后缀）"
-                say "    轻触 Super 需要它：先 sudo pacman -R $p，再重跑本步骤"
-            else
-                echo "    已安装: $p"
-            fi
-        elif [[ -n "$_patch" ]]; then
-            say "    $p 需要打补丁（$_patch），改用本地构建"
-            if install_aur_pkg_patched "$p" "$_patch"; then
-                echo "    打补丁安装成功: $p"
-            else
-                warn "$p 打补丁构建失败，回退装 AUR 原包 —— 轻触 Super 会失效"
-                if aur_install "$p"; then
-                    echo "    AUR 安装成功（未打补丁）: $p"
-                else
-                    warn "$p 安装失败（不影响其余功能，可稍后手动安装）"
-                fi
-            fi
+            echo "    已安装: $p"
         elif aur_install "$p"; then
             echo "    AUR 安装成功: $p"
         else
@@ -1275,9 +1191,9 @@ detail_install() {
 【功能说明】
   从零部署 sijin-xb's dotfiles：
     [1/7] pacman 基础依赖（hyprland / kitty / fish / fcitx5 / cmake ...）
-          niri 本体不在这里，走 [2/7] 的 AUR fork 包 niri-spicy-git
+          niri 本体不在这里，走 [2/7] 的 AUR fork 包 niri-shorin-fork-git
           默认只装缺失项；FULL_UPGRADE=1 ./install.sh install 可全系统升级
-    [2/7] AUR 包（niri 本体 niri-spicy-git / matugen / mpvpaper
+    [2/7] AUR 包（niri 本体 niri-shorin-fork-git / matugen / mpvpaper
           + 所选 shell 专属包 + 引导 yay）
     [3/7] quickshell 三级回退（已装→仓库→AUR→源码编译）
     [4/7] 桌面 Shell：end4-PC 拉底盘 / caelestia clone + 编译 QML 插件

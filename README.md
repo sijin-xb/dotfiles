@@ -78,17 +78,18 @@ bash 脚本完成，不需要 chezmoi 二进制。
 - Arch 系发行版（存在 `/etc/arch-release`）
 - Wayland 会话，合成器二选一（安装时选，或 `COMPOSITOR=` 预设）：
   - **Hyprland**（默认）
-  - **niri**：必须是 [losnoco/niri](https://github.com/losnoco/niri) 的
-    `spicy-main` 分支（AUR `niri-spicy-git`），不能是官方仓库的 `niri` /
-    `niri-bin`（fork 包与之 `conflicts`，装了会直接失败）。
-    该分支相对上游多出：HDR（含 peak-luminance override）、per-output
-    `allow-tearing`、Vulkan 渲染器、color-management、窗口最小化、
-    wp-fifo / commit-timing / tearing-control 等协议。
-    - ⚠️ 本仓库的 niri 配置**不含** shorin-fork 那几个独有节点
-      （`magnifier` / `grid-overview` / `cursor shake-to-enlarge` /
-      `screen-cast-picker` / 单独一个 `Mod` 键的绑定）。换到 shorin-fork 时
-      它们可以加回来，反过来把 shorin-fork 的配置搬到这里会因未知配置项
-      **拒绝加载** —— 换分支后先跑 `niri validate`。
+  - **niri**：必须是 [SHORiN-KiWATA/niri](https://github.com/SHORiN-KiWATA/niri)
+    fork（AUR `niri-shorin-fork-git`）。本仓库的 niri 配置用到该 fork 独有的：
+    `magnifier`（屏幕放大镜）、`grid-overview`（**「窗口总览」**，把所有窗口
+    排成网格）、`cursor shake-to-enlarge`（晃鼠标放大光标）、内置 screencast
+    portal 的 `screen-cast-picker` 配色、以及**单独一个 `Mod` 键的绑定**
+    （轻触 Super → DMS 启动器）。换成上游 `niri` 或 losnoco 的
+    `niri-spicy-git` 会因未知配置项**拒绝加载整份配置**。
+    - 它 `provides` / `conflicts` `niri`，与官方 `niri`、`niri-bin`、
+      `niri-spicy-git` 都不能共存。换装前先卸掉旧的：
+      `sudo pacman -Rdd <旧包>`（用 `-Rdd` 跳过依赖检查，避免连带卸掉
+      依赖 niri 的 `dms-shell-niri`）。
+    - 换分支后务必 `niri validate` —— 配置里的 fork 专属节点要与分支匹配。
 - 普通用户运行，需要 sudo 权限（pacman 用）
 - quickshell / matugen / mpvpaper 缺失时由脚本自动安装
   （pacman → AUR → 源码编译）
@@ -111,7 +112,7 @@ cd dotfiles
    niri：只有 `xdg-desktop-portal-gnome`（niri 本体走 AUR 的 fork 包，
    见[环境要求](#环境要求)）。**默认只装缺失项，不滚动系统**；需要全量升级时用
    `FULL_UPGRADE=1 ./install.sh install`
-2. AUR 包（niri 本体 `niri-spicy-git`、matugen、mpvpaper、libcava、
+2. AUR 包（niri 本体 `niri-shorin-fork-git`、matugen、mpvpaper、libcava、
    qt6-m3shapes-git）；无 AUR helper 时自动安装 yay
 3. quickshell 三级回退：已有二进制 → pacman → AUR → 源码编译
 4. **Caelestia QML 插件**：clone `caelestia-dots/shell` 并编译到
@@ -185,7 +186,7 @@ dot_config/
     custom/               个人覆盖层（同名文件覆盖模板）
     hyprlock.conf         回退锁屏配置
     hyprlock/             配色与辅助脚本
-  niri/                   niri（可选合成器，需 AUR 的 niri-spicy-git）
+  niri/                   niri（可选合成器，需 AUR 的 niri-shorin-fork-git）
     config.kdl            配置入口（include 下面这些）
     binds.kdl             键位（自 Hyprland 迁移）
     binds-hyprland-migrated.kdl   迁移对照与差异说明
@@ -227,7 +228,8 @@ docs/                     设计说明与排障文档（见下）
 
 - 更换壁纸会触发重新取色；模板位于 `dot_config/matugen/templates/`
   （Hyprland 窗口阴影颜色见 `templates/hyprland/colors.lua`；niri 的边框 /
-  焦点环配色与 recent-windows 高亮见 `templates/niri-colors.kdl`，输出到
+  焦点环配色、recent-windows 高亮与录屏选区界面（`screen-cast-picker`）见
+  `templates/niri-colors.kdl`，输出到
   `~/.config/niri/matugen-colors.kdl`）
 - 桌面歌词偏移微调：
   `qs -c end4-pC ipc call desktoplyrics offset_faster / offset_slower`

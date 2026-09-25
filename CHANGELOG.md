@@ -109,6 +109,50 @@ F13，实测失败：keyd 进程一个 `/dev/input/event*` 都没打开（niri �
 ⚠️ 打了补丁的 niri 只在本机生效；**下次 `paru -S niri-spicy-git` 更新会把补丁
 冲掉**，需要重跑 `install.sh` 的 [2/7] 步骤（或用 `install_aur_pkg_patched`）。
 
+### niri：换回 niri-shorin-fork-git（同日，最终方案）
+
+用户要的「窗口总览」确认是 `grid-overview`（网格总览）。先评估了移植到 spicy 的
+可行性，结论是**不现实**：该功能在 shorin fork 里是一个 1305 行的新文件
+`src/layout/grid_overview.rs` + 19 个文件引用 + 596 处改动，两个分支的 `layout/`
+目录差异达 11695 行 —— 属于「重写布局模块」级别，不是打补丁的量级。于是换回
+shorin fork（它原生就有网格总览、轻触 Super、magnifier）。
+
+**换装过程**（踩了两个坑，记下来）：
+- `paru -S --noconfirm niri-shorin-fork-git` 直接失败：shorin fork 声明
+  `conflicts niri`，而 spicy 包 `provides niri`，`--noconfirm` 下无法确认卸载。
+  解法：先 `sudo pacman -Rdd niri-spicy-git`（`-Rdd` 跳过依赖检查，避免连带卸掉
+  依赖 niri 的 `dms-shell-niri`），再装。
+- 改装后 paru 构建报 `failed to write .../target/release/.fingerprint/...`，
+  而且**失败后 paru 把整个构建目录清掉了**（PKGBUILD 都没了）。最后改成
+  「clone AUR 仓库 + 在 `~/build/shorin` 里 `makepkg -s`」手动构建：
+  官方仓库的 `/tmp` 是 tmpfs 只有 4G，放不下 Rust 的 target（spicy 那次就 2.7G）。
+
+**恢复的 fork 专属配置**（换 spicy 时逐条停用的，现全部还原）：
+`cursor` 的 `shake-to-enlarge`、顶层 `magnifier`、顶层 `grid-overview`
+（含 `default-mod-action false`）、热角 `bottom-left { grid-overview; }`、
+`binds.kdl` 的 magnifier 三条、`Mod+Shift+Space → toggle-grid-overview`、
+`Mod+Minus/Equal → adjust-magnifier-zoom`、`ignore-grid-overview` 窗口规则、
+`grid-overview-open-close` 动画、matugen 模板与产物的 `screen-cast-picker`。
+
+**键位最终版**：
+
+| 键位 | 功能 |
+|---|---|
+| 轻触 Super | DMS 启动器（shorin fork 原生支持 `Mod repeat=false`） |
+| Super+Space | DMS 启动器（备用） |
+| `Super+Tab` | **网格总览** `toggle-grid-overview`（= 「窗口总览」） |
+| `Alt+Tab` | 窗口缩略图切换器（`recent-windows` 正向） |
+| Super+Shift+Space | 网格总览（备用） |
+| Super+Shift+Tab / Super+grave / Super+Shift+grave | 其它窗口切换 |
+
+**移除**：`patches/niri-mod-tap.patch` 与 install.sh 里的
+`patch_for_aur_pkg()` / `install_aur_pkg_patched()` —— shorin fork 原生支持
+单独 `Mod` 绑定，不需要那个补丁了。（补丁本身留在 `~/niri-mod-tap.patch`，
+方法和实现细节记在 `local-desktop-config` 技能里，将来要换回 spicy 可以复用。）
+
+**install.sh**：`compositor_aur_pkgs()` 改回 `niri-shorin-fork-git`；冲突检测
+从 `niri` / `niri-bin` 扩展到再加 `niri-spicy-git`，并提示用 `-Rdd` 卸载。
+
 ## 2026-09-23
 
 ### caelestia shell 简体中文化

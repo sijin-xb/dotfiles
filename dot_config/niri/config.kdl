@@ -59,11 +59,16 @@ environment {
 cursor {
     // 闲置多少毫秒自动隐藏光标
     hide-after-inactive-ms 15000
-    // （2026-09-26）原 shorin-fork 的 shake-to-enlarge（晃动鼠标放大光标）已移除：
-    // niri-spicy（losnoco/niri spicy-main）的 cursor 只支持
-    // xcursor-theme / xcursor-size / hide-after-inactive-ms / hide-when-typing，
-    // 没有这个子节点，写了会直接让整个配置解析失败。
-    // 想要放大光标的替代方案见 binds.kdl 里被注释掉的 magnifier 那几条。
+    // 晃动鼠标放大光标（shorin-fork 独有；2026-09-26 换回该 fork 后恢复）
+    shake-to-enlarge {
+	//off
+	// 持续晃动时让光标逐步变大（不写就只是直接跳到 zoom-factor 那么大）
+	grow
+	grow-speed 0.01
+        threshold 2000
+	hold-duration-ms 1500
+	zoom-factor 7
+    }
 }
  
 // 带缩略图的 alt+tab 切换窗口功能（「窗口缩略图切换器」）。
@@ -292,38 +297,37 @@ hotkey-overlay {
 // 隐藏窗口标题栏
 prefer-no-csd
 
-// （2026-09-26）以下两块是 niri-shorin-fork 独有的，niri-spicy 里不存在，
-// 留着会直接让配置解析失败，故注释掉：
-//   magnifier（屏幕放大镜）：spicy 无此功能，也没有等价配置项。
-//   grid-overview（网格总览）：spicy 只有普通 overview，没有网格版，
-//     也就不存在 gap / padding / focused-column-scale / grid-all-monitors /
-//     default-mod-action 这些字段。
-// 想恢复这两个功能只有换回 niri-shorin-fork-git。
-// magnifier {
-//     // off
-//     zoom-factor 3
-//     track-cursor false
-//     //scale-cursor false
-// }
-//
-// grid-overview {
-//     gap 16
-//     padding 80
-//     focused-column-scale 1.04
-//     grid-all-monitors true
-//     default-mod-action false
-// }
+// 以下两块是 shorin-fork 独有功能（2026-09-26 换回该 fork 后恢复）。
+magnifier {
+    // off
+    zoom-factor 3
+    track-cursor false 
+    //scale-cursor false
+}
+
+grid-overview {
+    gap 16
+    padding 80
+    focused-column-scale 1.04
+    grid-all-monitors true
+    // 关掉「轻触 Mod 自动开网格总览」这个内建行为：这条即使不写也默认生效，
+    // 会和 dms/binds.kdl 里「轻触 Mod → 启动器」冲突（两个一起触发）。
+    // 关掉之后轻触 Super 只开启动器。
+    default-mod-action false
+}
 
 // 手势 / 热角。
-// spicy 的 hot-corners 每个角只是个开关（写了 = 启用，写 off = 关掉整组），
-// 触发的动作固定是打开 overview，不能再指定 grid-overview。
-// 所以下面等于：左上角 → 总览，左下角 → 总览，右上/右下不启用。
+// 显式写出来的意义在于自解释：niri 的默认值本来就是「左上角 → overview、
+// 左下角 → grid-overview」，所以这一段在行为上等于空操作，但写出来之后
+// 既不会被将来 niri 改默认值影响，也不用去翻默认配置猜。
+// 可用动作只有 overview 和 grid-overview；某个角写 `off` 可单独关掉。
+// 右上 / 右下不写 = 不启用。
 gestures {
     hot-corners {
         // 左上角 → 总览
         top-left
-        // 左下角 → 总览（shorin-fork 时这里是网格总览，spicy 只有普通总览）
-        bottom-left
+        // 左下角 → 网格总览（fork 独有）
+        bottom-left { grid-overview; }
     }
 }
 

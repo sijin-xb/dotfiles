@@ -31,13 +31,13 @@ binds {
     // 备用：Super+Space 同开启动器（spicy 下这是开启动器的主要入口，已可用）
     Mod+Space hotkey-overlay-title="启动器 Launcher" { spawn "dms" "ipc" "call" "launcher" "toggle"; }
 
-    // （2026-09-26）Alt+Tab 和 Super+Tab 都不在这里绑东西了：
-    //   Alt+Tab 归还给「窗口缩略图切换器」（见 config.kdl 的 recent-windows），
-    //   Super+Tab 空着。
-    // 工作区总览（toggle-overview）的入口只剩 Super+Shift+Space
-    // （binds-hyprland-migrated.kdl）。
+    // 网格总览 —— Super+Tab（2026-09-26 换回 shorin fork 后启用）
+    // 这就是「窗口总览」：把所有窗口排成网格显示，fork 独有。
+    // 备用入口 Super+Shift+Space（binds-hyprland-migrated.kdl）。
+    Mod+Tab hotkey-overlay-title="网格总览 Grid overview" { toggle-grid-overview; }
+
+    // Alt+Tab 归「窗口缩略图切换器」（见 config.kdl 的 recent-windows），不在这里绑。
     // Alt+Tab hotkey-overlay-title="总览 Overview" { toggle-overview; }
-    // Mod+Tab hotkey-overlay-title="总览 Overview" { toggle-overview; }
 
     // 通知中心 —— Hyprland 里 Super+N 是右侧栏（通知）
     Mod+N hotkey-overlay-title="通知 Notifications" { spawn "dms" "ipc" "call" "notifications" "toggle"; }
