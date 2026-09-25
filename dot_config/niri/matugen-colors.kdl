@@ -1,0 +1,24 @@
+// 默认占位：config.kdl 里 include 了这个文件，缺它 niri 会直接起不来。
+// 装完系统、matugen 还没跑过之前用这份配色顶上。
+// matugen 跑起来后会按当前壁纸覆盖本文件（output_path 见 ~/.config/matugen/config.toml），
+// 所以它已被写进 .chezmoiignore —— chezmoi 不再拿它和本机比对。
+layout{
+    focus-ring{
+        active-gradient from="#b1c5ffcc" to="#e0bbddcc" angle=135
+        urgent-color "#ffb4ab"
+
+        }
+}
+recent-windows {
+    highlight {
+        active-color "#38393f"
+        urgent-color "#ffb4ab"
+    }
+}
+// 内置screencast portal选择器的配色
+screen-cast-picker {
+    background-color "#1e1f25"
+    accent-color "#b1c5ff"
+    text-color "#e2e2e9"
+    accent-text-color "#162e60"
+}
