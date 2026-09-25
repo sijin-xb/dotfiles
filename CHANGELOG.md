@@ -40,6 +40,34 @@ tearing-control 等协议，**不含** shorin-fork 的那几项。以下节点�
 多出来的能力，并写明本仓库配置**不含** shorin-fork 独有节点（换分支后先
 `niri validate`）；安装步骤 [1/7] / [2/7] 的包名同步。
 
+### niri 键位：三键顺移（同日）
+
+按「轻触 Super 的功能 → Alt+Tab，Alt+Tab 的功能 → Super+Tab」顺移：
+
+| 键位 | 改后 | 改前 |
+|---|---|---|
+| `Alt+Tab` | DMS 启动器（`dms ipc call launcher toggle`） | recent-windows 正向 `next-window` |
+| `Super+Tab` | 总览 `toggle-overview` | recent-windows 正向（中间态） |
+| `Alt+Shift+Tab` | **删除** | `previous-window` |
+| `Super+Space` | 启动器（未动，备用入口） | 启动器 |
+
+`recent-windows` 的触发键只剩 `Super+Shift+Tab`（反向）、`Super+grave` /
+`Super+Shift+grave`（同应用内）—— 正向入口按需求不再保留。
+
+**「轻触 Super」以前为什么能用**：靠两条 shorin-fork 专属配置**配合**，缺一不可——
+`dms/binds.kdl` 的 `Mod repeat=false`（把单独一个修饰键当绑定）和 `config.kdl` 的
+`grid-overview { default-mod-action false }`（关掉内建的「轻触 Mod = 开网格总览」，
+否则会和启动器一起触发）。spicy 两条都不认，所以换分支后这个功能必然消失，
+不是配置写错。它的落点改成 `Alt+Tab`，不依赖轻触 Super，也就不用换分支、
+不用装 keyd。
+
+真想要「轻触 Super」只剩两条路，两行备选都已在 `dms/binds.kdl` 顶部注释备好：
+① 换回 `niri-shorin-fork-git`，取消 `Mod repeat=false` 的注释并恢复
+`grid-overview { default-mod-action false }`；② 留在 spicy，用 keyd
+（`leftmeta = overload(meta, f13)`）把轻触 Super 映射成 F13，再绑 F13 → 启动器。
+
+⚠ `dms/binds.kdl` 会被 `dms setup binds` 重写，届时这里的键位改动会丢失。
+
 ## 2026-09-23
 
 ### caelestia shell 简体中文化

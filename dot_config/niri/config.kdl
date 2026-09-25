@@ -66,8 +66,12 @@ cursor {
     // 想要放大光标的替代方案见 binds.kdl 里被注释掉的 magnifier 那几条。
 }
  
-// 带缩略图的 alt+tab 切换窗口功能。触发键是 Mod+Shift+Tab（向后）和 Mod+grave
-// （同应用窗口）—— 不是 Mod+Tab，原因见下面 binds 里的注释。
+// 带缩略图的 alt+tab 切换窗口功能。
+// （2026-09-26 改键）Alt+Tab 已改去开 DMS 启动器（见 dms/binds.kdl），
+// Super+Tab 已改去开总览，所以这里只剩反向与「同应用内」两个入口：
+//   Super+Shift+Tab   反向（本工作区内）
+//   Super+grave       同应用内正向（filter="app-id"）
+//   Super+Shift+grave 同应用内反向
 recent-windows {
     debounce-ms 750
     open-delay-ms 150
@@ -85,8 +89,12 @@ recent-windows {
     }
 
     binds {
-        Alt+Tab         { next-window; }
-        Alt+Shift+Tab   { previous-window; }
+        // （2026-09-26）Super+Tab 原本是这里的正向切换，现已让给总览
+        // （dms/binds.kdl 的 toggle-overview），按需求不再保留应用切换入口。
+        // 剩下的窗口切换键：
+        //   Super+Shift+Tab  反向（本工作区内）
+        //   Super+grave      同应用内正向
+        //   Super+Shift+grave 同应用内反向
         Mod+Shift+Tab   { previous-window scope="workspace"; }
         Mod+grave       { next-window     filter="app-id"; }
         Mod+Shift+grave { previous-window filter="app-id"; }

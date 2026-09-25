@@ -15,15 +15,25 @@ binds {
     // （2026-09-26 停用）「单独一个 Mod」这种只有修饰键的绑定是 shorin-fork 的扩展，
     // niri-spicy 解析按键时 Mod 只认作修饰语，单独出现会报
     //   invalid keybind → invalid key: Mod
-    // 整个配置就加载不起来。而且 spicy 也没有需要配套的
-    // grid-overview 的 default-mod-action。
-    // 轻触 Super 开启动器这个功能，在 spicy 上只能换回 shorin-fork 才有。
+    // 整个配置就加载不起来。
+    // 想恢复「轻触 Super」只有两条路：
+    //   ① 换回 niri-shorin-fork-git，然后取消下面这行的注释
+    //      （并给 config.kdl 的 grid-overview 加 default-mod-action false）
+    //   ② 留在 spicy，用 keyd 把「轻触 Super」重映射成 F13，再绑 F13 → 启动器
     // Mod repeat=false hotkey-overlay-title="启动器 Launcher" { spawn "dms" "ipc" "call" "launcher" "toggle"; }
+    // F13 hotkey-overlay-title="启动器 Launcher" { spawn "dms" "ipc" "call" "launcher" "toggle"; }
 
     // 备用：Super+Space 同开启动器（spicy 下这是开启动器的主要入口，已可用）
     Mod+Space hotkey-overlay-title="启动器 Launcher" { spawn "dms" "ipc" "call" "launcher" "toggle"; }
 
-    // 总览 —— 与 Hyprland 的 Super+Tab 同键
+    // 启动器 —— Alt+Tab（2026-09-26）
+    // 这就是原本想挂在「轻触 Super」上的功能。spicy 绑不了单个 Super 键，
+    // 功能本身落到 Alt+Tab 上（Super+Space 那份同时保留，两个键都能开）。
+    Alt+Tab hotkey-overlay-title="启动器 Launcher" { spawn "dms" "ipc" "call" "launcher" "toggle"; }
+
+    // 总览 —— Super+Tab（2026-09-26）
+    // 原 Alt+Tab 的功能顺移到这里。
+    // 备用入口：Super+Shift+Space（binds-hyprland-migrated.kdl）同样是总览。
     Mod+Tab hotkey-overlay-title="总览 Overview" { toggle-overview; }
 
     // 通知中心 —— Hyprland 里 Super+N 是右侧栏（通知）
