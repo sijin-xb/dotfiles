@@ -62,3 +62,4 @@ abbr -a fastf fastfetch
 
 alias poweroff='systemctl poweroff'
 alias reboot='systemctl reboot'
+fish_add_path /opt/rocm/bin
