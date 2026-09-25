@@ -12,23 +12,15 @@
 binds {
     // 启动器 —— 轻触 Super（与 Hyprland 的 Super 单击一致）
     //
-    // （2026-09-26 停用）「单独一个 Mod」这种只有修饰键的绑定是 shorin-fork 的扩展，
-    // niri-spicy 解析按键时 Mod 只认作修饰语，单独出现会报
-    //   invalid keybind → invalid key: Mod
-    // 整个配置就加载不起来。
-    // 轻触 Super → 启动器（原生，2026-09-26）
-    // 这条依赖打过 mod-tap 补丁的 niri：本机 /usr/bin/niri 是
-    // v26.04-219-gd9131c33-modified（把 SHORiN fork 的 Trigger::Modifier
-    // 实现移植了进来，补丁存 ~/niri-mod-tap.patch）。
-    // 原版 niri / 未打补丁的 niri-spicy 会报 `invalid key: Mod` 拒绝加载。
-    // 按住 Super 仍是修饰键（Super+Tab 等不受影响），按下后单独松开才触发。
+    // 「单独一个 Mod」这种只有修饰键的绑定是 shorin-fork 的扩展，本机用的正是
+    // 该 fork，所以原生可用。按住 Super 仍是修饰键（Super+Tab 等不受影响），
+    // 按下后单独松开才触发。
+    // （上游 niri / niri-spicy 不支持它，会报 `invalid key: Mod` 拒绝加载整份
+    //   配置。中途为了留在 spicy 试过 keyd 重映射与 mod-tap 补丁，两者都已随
+    //   换回 shorin fork 废弃，别再把它们捡回来。）
     Mod repeat=false hotkey-overlay-title="启动器 Launcher" { spawn "dms" "ipc" "call" "launcher" "toggle"; }
 
-    // 备用（keyd 方案，已停用）：keyd 把轻触 Super 重映射成 F13 时用这条。
-    // keyd 服务已 disable，恢复它的话取消下面注释即可。
-    // F13 hotkey-overlay-title="启动器 Launcher" { spawn "dms" "ipc" "call" "launcher" "toggle"; }
-
-    // 备用：Super+Space 同开启动器（spicy 下这是开启动器的主要入口，已可用）
+    // 备用：Super+Space 同开启动器
     Mod+Space hotkey-overlay-title="启动器 Launcher" { spawn "dms" "ipc" "call" "launcher" "toggle"; }
 
     // 网格总览 —— Super+Tab（2026-09-26 换回 shorin fork 后启用）

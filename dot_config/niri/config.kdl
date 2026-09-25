@@ -72,7 +72,7 @@ cursor {
 }
  
 // 带缩略图的 alt+tab 切换窗口功能（「窗口缩略图切换器」）。
-// （2026-09-26 改键）Alt+Tab 是它的正向入口；Super+Tab 不绑任何东西。
+// （2026-09-26 改键）Alt+Tab 是它的正向入口（Super+Tab 给了网格总览）。
 // 其余入口：
 //   Super+Shift+Tab   反向（本工作区内）
 //   Super+grave       同应用内正向（filter="app-id"）
@@ -109,8 +109,8 @@ recent-windows {
 }
 
 // niri 配色：改用 matugen 的产物（原来引用的 colors.kdl 是 9/5 的旧快照，
-// 不会随壁纸更新）。recent-windows 等由它提供。
-// 注：里面的 screen-cast-picker 已于 2026-09-26 去掉（spicy 无此节点）。
+// 不会随壁纸更新）。recent-windows 高亮与录屏选区界面（screen-cast-picker）
+// 等由它提供。
 include "matugen-colors.kdl"
 // DMS 自动生成的 niri 配色（含 focus-ring / border / shadow / tab-indicator），
 // 放在 colors.kdl 之后，同名节点以它为最终取值 —— 边框颜色由此纳入 DMS 配色体系
