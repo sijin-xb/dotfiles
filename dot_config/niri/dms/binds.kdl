@@ -23,8 +23,8 @@ binds {
     // 备用：Super+Space 同开启动器
     Mod+Space hotkey-overlay-title="启动器 Launcher" { spawn "dms" "ipc" "call" "launcher" "toggle"; }
 
-    // Alt+Tab 归「窗口缩略图切换器」（见 config.kdl 的 recent-windows），不在这里绑。
-    // Alt+Tab hotkey-overlay-title="总览 Overview" { toggle-overview; }
+    // 网格总览 —— Alt+Tab（shorin-fork 独有，网格预览）
+    Alt+Tab hotkey-overlay-title="网格总览 Grid overview" { toggle-grid-overview; }
 
     // 通知中心 —— Hyprland 里 Super+N 是右侧栏（通知）
     Mod+N hotkey-overlay-title="通知 Notifications" { spawn "dms" "ipc" "call" "notifications" "toggle"; }

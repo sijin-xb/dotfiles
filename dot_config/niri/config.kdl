@@ -72,9 +72,9 @@ cursor {
 }
  
 // 带缩略图的 alt+tab 切换窗口功能（「窗口缩略图切换器」）。
-// （2026-09-26 改键）Alt+Tab 是它的正向入口（Super+Tab 给了网格总览）。
+// （2026-09-26 改键）网格总览交给 Alt+Tab（dms/binds.kdl），
+// Super+Tab 不再绑定。
 // 其余入口：
-//   Super+Shift+Tab   反向（本工作区内）
 //   Super+grave       同应用内正向（filter="app-id"）
 //   Super+Shift+grave 同应用内反向
 recent-windows {
@@ -94,12 +94,7 @@ recent-windows {
     }
 
     binds {
-        // （2026-09-26）Super+Tab 归还给窗口切换 —— 它就是这个「窗口缩略图切换器」
-        // 的正向入口：按下弹出窗口缩略图列表，松开确认。
-        //   Super+Tab        正向（MRU 顺序）
-        //   Super+grave      同应用内正向
-        //   Super+Shift+grave 同应用内反向
-        Super+Tab       { next-window; }
+        // Super+Tab 已取消绑定，网格总览由 Alt+Tab 承担。
         Mod+grave       { next-window     filter="app-id"; }
         Mod+Shift+grave { previous-window filter="app-id"; }
     }
