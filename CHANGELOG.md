@@ -2,6 +2,44 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+## 2026-09-26
+
+### niri：合成器换成 niri-spicy-git，配置与 install.sh 同步
+
+合成器从 AUR 的 `niri-shorin-fork-git` 换成 `niri-spicy-git`（losnoco/niri 的
+`spicy-main` 分支，v26.04.r219.gd9131c3）。换完 `niri validate` 报一堆解析错——
+spicy 的「spice」是 HDR（含 peak-luminance override）、per-output `allow-tearing`、
+Vulkan 渲染器、color-management、窗口最小化、wp-fifo / commit-timing /
+tearing-control 等协议，**不含** shorin-fork 的那几项。以下节点全部停用（保留注释
+说明原因，换回 shorin-fork 时去掉注释即可）：
+
+| 文件 | 改动 |
+|---|---|
+| `config.kdl` | 删 `cursor.shake-to-enlarge`；删顶层 `magnifier` / `grid-overview`；热角 `bottom-left { grid-overview; }` → 纯 `bottom-left`（spicy 的热角只是开关，动作固定 open overview） |
+| `binds.kdl` | 停用 `adjust-magnifier-zoom` ×2 / `toggle-magnifier` |
+| `binds-hyprland-migrated.kdl` | `Mod+Shift+Space` 的 `toggle-grid-overview` → **`toggle-overview`**；`Mod+Minus`/`Mod+Equal` 的 `adjust-magnifier-zoom` 停用 |
+| `rule.kdl` | 停用带 `ignore-grid-overview` 的 window-rule |
+| `animations.kdl` | 删 `grid-overview-open-close`（spicy 只有 `overview-open-close`） |
+| `matugen/templates/niri-colors.kdl` | 删 `screen-cast-picker` 配色节点 |
+
+⚠ `screen-cast-picker` 同时存在于模板和 matugen 产物
+`~/.config/niri/matugen-colors.kdl`，**两边都要改**，否则下次换壁纸重新生成又会把
+它写回来，配置再次加载失败。产物文件不在 chezmoi 纳管范围内（matugen 生成物）。
+
+另外 spicy **不支持「单独一个 `Mod` 键」的绑定**（`invalid key: Mod`），所以
+`dms/binds.kdl` 里「轻触 Super → 启动器」那条作废，启动器改走已有的 `Mod+Space`。
+注意该文件会被 `dms setup binds` 重写，届时那条绑定会回来。
+
+**install.sh**：`compositor_pkgs()` 里 niri 那支原本装官方仓库的 `niri`，现在只留
+`xdg-desktop-portal-gnome`；niri 本体新开 `compositor_aur_pkgs()` 走 AUR 的
+`niri-spicy-git`（它 `conflicts=('niri' 'niri-bin')`，装之前加了冲突检测提示）。
+这同时解决了 2026-09-23 那条遗留——原本写着「先不改 install.sh，真要改就换成
+`niri-shorin-fork-git`」，实际换成了 spicy，包名按当前分支写。
+
+**README**：环境要求里的 niri 条目从「必须 SHORiN fork」改成 spicy 分支，列出它
+多出来的能力，并写明本仓库配置**不含** shorin-fork 独有节点（换分支后先
+`niri validate`）；安装步骤 [1/7] / [2/7] 的包名同步。
+
 ## 2026-09-23
 
 ### caelestia shell 简体中文化

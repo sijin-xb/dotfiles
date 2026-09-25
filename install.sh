@@ -250,11 +250,40 @@ choose_session() {
     echo "    会话: $SESSION  →  合成器 $COMPOSITOR + shell $QS_SHELL"
 }
 
-# 依据 $COMPOSITOR 给出需要装的包（合成器本体 + 对应 xdg-desktop-portal）
+# 依据 $COMPOSITOR 给出需要装的**官方仓库**包（合成器本体 + 对应 xdg-desktop-portal）。
+# ⚠ niri 的本体不在这里：本机用的是 AUR 的 fork（见 compositor_aur_pkgs），
+#   官方仓库这边只留 portal。
 compositor_pkgs() {
     case "$COMPOSITOR" in
-        niri) echo "niri xdg-desktop-portal-gnome" ;;
+        niri) echo "xdg-desktop-portal-gnome" ;;
         *)    echo "hyprland xdg-desktop-portal-hyprland" ;;
+    esac
+}
+
+# 合成器本体的 AUR 包（官方仓库那侧只放 portal / 依赖）。
+#
+#   niri → niri-spicy-git：losnoco/niri 的 spicy-main 分支。相对上游多出
+#          HDR（含 peak-luminance override）、per-output allow-tearing、
+#          Vulkan 渲染器、color-management、窗口最小化、wp-fifo /
+#          commit-timing / tearing-control 等协议。
+#
+#          它 conflicts=('niri' 'niri-bin')，和官方 niri 不能共存 —— 装之前
+#          先卸掉官方包，否则 makepkg 会报冲突。
+#
+# ⚠ 换分支（比如换回 niri-shorin-fork-git）时要同步改这里，并且确认
+#   dot_config/niri/** 里没有该分支不认识的节点：
+#     - magnifier / adjust-magnifier-zoom / toggle-magnifier
+#     - grid-overview（及 grid-overview-open-close、ignore-grid-overview、
+#       toggle-grid-overview）
+#     - cursor 的 shake-to-enlarge
+#     - screen-cast-picker（配色节点，matugen 模板里也有一份）
+#     - 单独一个 Mod 键的绑定（轻触 Super）
+#   这几项只有 shorin-fork 有，spicy 里写了会让整份配置加载失败。
+#   验证：`niri validate`。
+compositor_aur_pkgs() {
+    case "$COMPOSITOR" in
+        niri) echo "niri-spicy-git" ;;
+        *)    echo "" ;;
     esac
 }
 
@@ -494,6 +523,22 @@ cmd_install() {
     AUR_PKGS=(matugen mpvpaper otf-misans maplemononormal-nf-cn
               ttf-lxgw-wenkai ttf-lxgw-wenkai-screen ttf-lxgw-wenkai-tc
               catppuccin-sddm-theme-mocha)
+    # 追加合成器本体的 AUR 包（见 compositor_aur_pkgs：
+    #   niri → niri-spicy-git，hyprland → 官方仓库已装，无）
+    local _comp_aur; _comp_aur="$(compositor_aur_pkgs)"
+    if [[ -n "$_comp_aur" ]]; then
+        # fork 与官方包互相 conflicts，官方包在的话 AUR helper 会直接失败退出。
+        # 这里只提示不代劳：卸载合成器会连带停掉当前会话，得你自己决定时机。
+        local _conflict
+        for _conflict in niri niri-bin; do
+            if pacman -Q "$_conflict" >/dev/null 2>&1; then
+                warn "已装官方包 $_conflict，与 $_comp_aur 冲突。请先卸载（sudo pacman -R $_conflict）再继续，否则 $_comp_aur 会安装失败。"
+            fi
+        done
+        # shellcheck disable=SC2207
+        AUR_PKGS+=($_comp_aur)
+        say "    合成器本体（AUR）: $_comp_aur"
+    fi
     # 追加 shell 专属 AUR 包（见 shell_aur_pkgs：
     #   caelestia → libcava qt6-m3shapes-git
     #   dms       → dms-shell-git dms-shell-niri
@@ -1144,9 +1189,11 @@ detail_install() {
         cat <<'EOF'
 【功能说明】
   从零部署 sijin-xb's dotfiles：
-    [1/7] pacman 基础依赖（hyprland 或 niri / kitty / fish / fcitx5 / cmake ...）
+    [1/7] pacman 基础依赖（hyprland / kitty / fish / fcitx5 / cmake ...）
+          niri 本体不在这里，走 [2/7] 的 AUR fork 包 niri-spicy-git
           默认只装缺失项；FULL_UPGRADE=1 ./install.sh install 可全系统升级
-    [2/7] AUR 包（matugen / mpvpaper + 所选 shell 专属包 + 引导 yay）
+    [2/7] AUR 包（niri 本体 niri-spicy-git / matugen / mpvpaper
+          + 所选 shell 专属包 + 引导 yay）
     [3/7] quickshell 三级回退（已装→仓库→AUR→源码编译）
     [4/7] 桌面 Shell：end4-PC 拉底盘 / caelestia clone + 编译 QML 插件
           （dms 无此步，DMS 由 [2/7] 的 AUR 包提供）

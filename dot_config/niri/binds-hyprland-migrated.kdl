@@ -50,8 +50,10 @@ binds {
     // 浮动/平铺（与 Hyprland 的 Super+Alt+Space 一致）
     Mod+Alt+Space hotkey-overlay-title="浮动/平铺 Toggle floating" { toggle-window-floating; }
 
-    // 网格总览：轻触 Super 已给 DMS 启动器，这里留个显式入口
-    Mod+Shift+Space hotkey-overlay-title="网格总览 Grid overview" { toggle-grid-overview; }
+    // 总览：轻触 Super 已给 DMS 启动器，这里留个显式入口。
+    // （2026-09-26）原为 fork 独有的 toggle-grid-overview（网格总览），
+    // niri-spicy 没有网格总览，改回上游的 toggle-overview。
+    Mod+Shift+Space hotkey-overlay-title="总览 Overview" { toggle-overview; }
     //
     // // 列宽：Hyprland 用 splitratio 微调，niri 没有该概念。
     // // 最接近的替代是预设列宽循环 / 按百分比调宽。
@@ -193,9 +195,11 @@ binds {
     XF86MonBrightnessDown { spawn "brightnessctl" "s" "5%-"; }
 
     // 屏幕缩放：Hyprland 改的是 cursor:zoom_factor（Hyprland 专有配置项），
-    // niri 的等价物是 magnifier（你现有配置已用 Mod+Alt+滚轮 绑了它）。
-    Mod+Minus hotkey-overlay-title="缩小 Zoom out" { adjust-magnifier-zoom -0.2; }
-    Mod+Equal hotkey-overlay-title="放大 Zoom in"  { adjust-magnifier-zoom 0.2; }
+    // shorin-fork 下用 magnifier 顶替（Mod+Alt+滚轮）。
+    // （2026-09-26）niri-spicy 没有 magnifier，adjust-magnifier-zoom 不存在，
+    // 这两条注释掉，否则配置整体加载失败。换回 shorin-fork 再放开。
+    // Mod+Minus hotkey-overlay-title="缩小 Zoom out" { adjust-magnifier-zoom -0.2; }
+    // Mod+Equal hotkey-overlay-title="放大 Zoom in"  { adjust-magnifier-zoom 0.2; }
     //
     // // ───────────────────────────────────────────────────────────────────────
     // // 6. 会话 / 锁屏
