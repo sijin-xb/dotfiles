@@ -13,10 +13,9 @@ binds {
     // shows a list of important hotkeys.
 
     // 显示快捷键教程
-    Mod+Shift+Slash hotkey-overlay-title="快捷键教程 Keybind tutorial" { spawn "~/.config/niri/scripts/niri-binds"; }
+    Super+Slash hotkey-overlay-title="快捷键教程 Keybind tutorial" { spawn "~/.config/niri/scripts/niri-binds"; }
 
-    // alt+tab切换窗口
-    Alt+Tab hotkey-overlay-title="快速跳转窗口 Quick window switch menu" {spawn "~/.config/niri/scripts/niri-quick-switch-fuzzel.py";}
+
     // 壁纸已交给 DMS：这里开 DMS 仪表盘的壁纸页（原来是 waypaper）
     Mod+Alt+W hotkey-overlay-title="切换壁纸 Change wallpaper" { spawn "dms" "ipc" "call" "dankdash" "wallpaper"; }
     Mod+F10 hotkey-overlay-title="随机切换壁纸 Random wallpaper" { spawn "dms" "ipc" "call" "wallpaper" "next"; }

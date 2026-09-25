@@ -74,40 +74,30 @@ cursor {
 // 带缩略图的 alt+tab 切换窗口功能。触发键是 Mod+Shift+Tab（向后）和 Mod+grave
 // （同应用窗口）—— 不是 Mod+Tab，原因见下面 binds 里的注释。
 recent-windows {
-    // 取消//off的注释可以禁用
-    // off
     debounce-ms 750
     open-delay-ms 150
 
     highlight {
         active-color "#999999ff"
         urgent-color "#ff9999ff"
-        // 缩略图背景内间距
         padding 30
-        // 缩略图的背景圆角
         corner-radius 12
     }
 
-	//设置缩略图大小
     previews {
         max-height 480
         max-scale 0.2
     }
 
     binds {
-        // scope可以设置显示的窗口是当前工作区的、还是当前显示器的、或者显示全部窗口
-        //
-        // ⚠ 这里原本还有一条 Mod+Tab { next-window scope="workspace"; }，已删除。
-        //   原因：recent-windows 的 bind 优先级低于普通 bind。Mod+Tab 在 dms/binds.kdl
-        //   里已经绑成了「总览」（普通 bind），所以这一条永远不会触发，属于死代码。
-        //   现状：Mod+Tab = 总览；想开这个切换器用 Mod+Shift+Tab 或 Mod+grave。
-        //   文档：https://niri-wm.github.io/niri/Configuration:-Recent-Windows.html
+        Alt+Tab         { next-window; }
+        Alt+Shift+Tab   { previous-window; }
         Mod+Shift+Tab   { previous-window scope="workspace"; }
-        // grave是波浪键，显示当前应用的所有窗口
         Mod+grave       { next-window     filter="app-id"; }
         Mod+Shift+grave { previous-window filter="app-id"; }
     }
 }
+
 // niri 配色：改用 matugen 的产物（原来引用的 colors.kdl 是 9/5 的旧快照，
 // 不会随壁纸更新）。screen-cast-picker / recent-windows 等由它提供。
 include "matugen-colors.kdl"
