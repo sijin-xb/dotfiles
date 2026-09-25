@@ -94,15 +94,12 @@ recent-windows {
     }
 
     binds {
-        // （2026-09-26）Alt+Tab 归还给窗口切换 —— 它就是这个「窗口缩略图切换器」
-        // 的正向入口：按下弹出窗口缩略图列表，松开确认。中途被拿去开过总览和
-        // 启动器，现在按需求放回来。
-        //   Alt+Tab           正向（MRU 顺序）
-        //   Super+Shift+Tab   反向（本工作区内）
-        //   Super+grave       同应用内正向
+        // （2026-09-26）Super+Tab 归还给窗口切换 —— 它就是这个「窗口缩略图切换器」
+        // 的正向入口：按下弹出窗口缩略图列表，松开确认。
+        //   Super+Tab        正向（MRU 顺序）
+        //   Super+grave      同应用内正向
         //   Super+Shift+grave 同应用内反向
-        Alt+Tab         { next-window; }
-        Mod+Shift+Tab   { previous-window scope="workspace"; }
+        Super+Tab       { next-window; }
         Mod+grave       { next-window     filter="app-id"; }
         Mod+Shift+grave { previous-window filter="app-id"; }
     }
