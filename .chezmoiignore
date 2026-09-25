@@ -13,6 +13,7 @@
 .config/fuzzel/fuzzel_theme.ini
 .config/fastfetch/config.jsonc
 .config/mako/colors.conf
+.config/niri/matugen-colors.kdl
 
 # ---- matugen 运行时生成物 ----
 .config/gtk-3.0/gtk.css
@@ -47,3 +48,17 @@ Pictures/
 # 这是商店用来更新插件的，不该进 dotfiles —— 否则插件目录变嵌套 git 仓库，
 # 还会把商店的远端 URL 带进来。
 .config/DankMaterialShell/plugins/**/dot_git
+
+# ---- niri 目录下的运行时生成物 ----
+# dms/*.kdl 由 DMS 写回（含 .bak-XXXXXX 备份），qssettings/ 由 quickshell 写回。
+# 注意：dms/binds.kdl 是本仓库自管的，不在这里屏蔽。
+.config/niri/dms/alttab.kdl
+.config/niri/dms/colors.kdl
+.config/niri/dms/cursor.kdl
+.config/niri/dms/input.kdl
+.config/niri/dms/layout.kdl
+.config/niri/dms/outputs.kdl
+.config/niri/dms/windowrules.kdl
+.config/niri/dms/wpblur.kdl
+.config/niri/dms/*.bak*
+.config/niri/qssettings/
