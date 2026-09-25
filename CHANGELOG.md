@@ -68,6 +68,47 @@ tearing-control 等协议，**不含** shorin-fork 的那几项。以下节点�
 
 ⚠ `dms/binds.kdl` 会被 `dms setup binds` 重写，届时这里的键位改动会丢失。
 
+### niri：轻触 Super 用 mod-tap 补丁实现 + 键位再调整（同日）
+
+**「轻触 Super → 启动器」改成原生实现。** 之前试过 keyd 把轻触 Super 重映射成
+F13，实测失败：keyd 进程一个 `/dev/input/event*` 都没打开（niri 先独占了物理
+键盘），它创建的虚拟键盘是空壳。keyd 方案已放弃（服务 disable），改成把
+`SHORiN-KiWATA/niri` fork 的「单独修饰键绑定」实现移植进 spicy：
+
+- `patches/niri-mod-tap.patch`（4 文件 / 320 行）：
+  `Trigger::Modifier(Modifiers)` 变体 + `modifier_from_name()`；
+  `PendingModifierBind` 状态机（按下修饰键挂起 → 期间按别的键就取消 →
+  单独松开才执行）+ 鼠标/触摸事件取消逻辑；`niri.rs` 两个状态字段；
+  速查表显示名。**没搬** shorin 的 `pending_default_mod_tap`（那是
+  grid-overview 的 `default-mod-action` 专用，spicy 没这节点）。
+- `install.sh`：新增 `patch_for_aur_pkg()` / `install_aur_pkg_patched()`，
+  [2/7] 装 `niri-spicy-git` 时改走「AUR PKGBUILD + 本地补丁 + makepkg」
+  而不是直接 `paru -S`（否则包一更新补丁就没了）。补丁构建失败会回退装
+  AUR 原包并告警；已装但 `niri --version` 无 `-modified` 也会提醒。
+  流程：`makepkg --nobuild` 准备 src/ → `patch -p1` 应用补丁 →
+  `makepkg -e` 复用 src/ 构建 → `pacman -U` 装本地包。
+
+**键位再调整**（Alt+Tab 归还给窗口切换，Super+Tab 空出）：
+
+| 键位 | 功能 |
+|---|---|
+| 轻触 Super | DMS 启动器（原生，依赖上面的补丁） |
+| Super+Space | DMS 启动器（备用） |
+| `Alt+Tab` | **窗口缩略图切换器**（`recent-windows` 正向 `next-window`） |
+| `Super+Tab` | 空出（不绑任何东西） |
+| Super+Shift+Space | 工作区总览 `toggle-overview`（仅剩的入口） |
+| Super+Shift+Tab / Super+grave / Super+Shift+grave | 窗口切换（反向 / 同应用内正反向） |
+
+术语澄清（免得以后又绕）：niri 里「总览」有两个完全不同的东西 ——
+`toggle-overview` 是**工作区总览**（所有工作区缩小显示），`recent-windows`
+是**窗口缩略图切换器**（当前工作区窗口的缩略图列表，按下弹出、松手确认）。
+本仓库把 Alt+Tab 给后者。第三个「网格总览」（`grid-overview`，所有窗口排成网格）
+是 shorin-fork 独有，spicy 没有；它在 shorin fork 里跨 18 个文件、596 处引用，
+移植量远大于本次的 mod-tap，真要它只能换回 `niri-shorin-fork-git`。
+
+⚠️ 打了补丁的 niri 只在本机生效；**下次 `paru -S niri-spicy-git` 更新会把补丁
+冲掉**，需要重跑 `install.sh` 的 [2/7] 步骤（或用 `install_aur_pkg_patched`）。
+
 ## 2026-09-23
 
 ### caelestia shell 简体中文化

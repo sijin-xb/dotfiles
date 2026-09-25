@@ -16,25 +16,28 @@ binds {
     // niri-spicy 解析按键时 Mod 只认作修饰语，单独出现会报
     //   invalid keybind → invalid key: Mod
     // 整个配置就加载不起来。
-    // 想恢复「轻触 Super」只有两条路：
-    //   ① 换回 niri-shorin-fork-git，然后取消下面这行的注释
-    //      （并给 config.kdl 的 grid-overview 加 default-mod-action false）
-    //   ② 留在 spicy，用 keyd 把「轻触 Super」重映射成 F13，再绑 F13 → 启动器
-    // Mod repeat=false hotkey-overlay-title="启动器 Launcher" { spawn "dms" "ipc" "call" "launcher" "toggle"; }
+    // 轻触 Super → 启动器（原生，2026-09-26）
+    // 这条依赖打过 mod-tap 补丁的 niri：本机 /usr/bin/niri 是
+    // v26.04-219-gd9131c33-modified（把 SHORiN fork 的 Trigger::Modifier
+    // 实现移植了进来，补丁存 ~/niri-mod-tap.patch）。
+    // 原版 niri / 未打补丁的 niri-spicy 会报 `invalid key: Mod` 拒绝加载。
+    // 按住 Super 仍是修饰键（Super+Tab 等不受影响），按下后单独松开才触发。
+    Mod repeat=false hotkey-overlay-title="启动器 Launcher" { spawn "dms" "ipc" "call" "launcher" "toggle"; }
+
+    // 备用（keyd 方案，已停用）：keyd 把轻触 Super 重映射成 F13 时用这条。
+    // keyd 服务已 disable，恢复它的话取消下面注释即可。
     // F13 hotkey-overlay-title="启动器 Launcher" { spawn "dms" "ipc" "call" "launcher" "toggle"; }
 
     // 备用：Super+Space 同开启动器（spicy 下这是开启动器的主要入口，已可用）
     Mod+Space hotkey-overlay-title="启动器 Launcher" { spawn "dms" "ipc" "call" "launcher" "toggle"; }
 
-    // 启动器 —— Alt+Tab（2026-09-26）
-    // 这就是原本想挂在「轻触 Super」上的功能。spicy 绑不了单个 Super 键，
-    // 功能本身落到 Alt+Tab 上（Super+Space 那份同时保留，两个键都能开）。
-    Alt+Tab hotkey-overlay-title="启动器 Launcher" { spawn "dms" "ipc" "call" "launcher" "toggle"; }
-
-    // 总览 —— Super+Tab（2026-09-26）
-    // 原 Alt+Tab 的功能顺移到这里。
-    // 备用入口：Super+Shift+Space（binds-hyprland-migrated.kdl）同样是总览。
-    Mod+Tab hotkey-overlay-title="总览 Overview" { toggle-overview; }
+    // （2026-09-26）Alt+Tab 和 Super+Tab 都不在这里绑东西了：
+    //   Alt+Tab 归还给「窗口缩略图切换器」（见 config.kdl 的 recent-windows），
+    //   Super+Tab 空着。
+    // 工作区总览（toggle-overview）的入口只剩 Super+Shift+Space
+    // （binds-hyprland-migrated.kdl）。
+    // Alt+Tab hotkey-overlay-title="总览 Overview" { toggle-overview; }
+    // Mod+Tab hotkey-overlay-title="总览 Overview" { toggle-overview; }
 
     // 通知中心 —— Hyprland 里 Super+N 是右侧栏（通知）
     Mod+N hotkey-overlay-title="通知 Notifications" { spawn "dms" "ipc" "call" "notifications" "toggle"; }

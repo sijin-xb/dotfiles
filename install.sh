@@ -87,6 +87,71 @@ aur_install() {
     esac
 }
 
+# 需要本地打补丁的 AUR 包：包名 → 补丁文件（相对仓库根）。
+#
+#   niri-spicy-git：上游 niri 不支持「单独一个修饰键」当绑定，而本仓库的
+#   dms/binds.kdl 里「轻触 Super → DMS 启动器」正是 `Mod repeat=false`。
+#   patches/niri-mod-tap.patch 把 SHORiN-KiWATA/niri fork 的 Trigger::Modifier
+#   实现移植了进来（Trigger::Modifier + pending-modifier 状态机，见 patch 内注释）。
+#   不打这个补丁的话，niri 会因 `invalid key: Mod` 拒绝加载整份配置。
+patch_for_aur_pkg() {
+    case "$1" in
+        niri-spicy-git) echo "patches/niri-mod-tap.patch" ;;
+        *)              echo "" ;;
+    esac
+}
+
+# 用 AUR 的 PKGBUILD + 仓库里的补丁构建并安装。
+#
+# 为什么不直接 `paru -S`：paru/yay 装的是 AUR 原包，补丁不会生效；而
+# 直接改 paru 的 PKGBUILD 又会在每次更新时被覆盖。这里改成显式三步：
+#   ① makepkg --nobuild  → 拉源码到 src/（含 prepare 里的 cargo fetch）
+#   ② 在 src/<源码目录> 里 patch -p1 应用补丁
+#   ③ makepkg -e         → 复用已打好补丁的 src/ 构建打包（不重新解压）
+#   ④ pacman -U 装本地包
+# 这样装出来的仍是 pacman 管理的正常包，且不依赖 AUR 包的 PKGBUILD 是否被改过。
+install_aur_pkg_patched() {
+    local pkg=$1 patch_rel=$2
+    local patch="$SRC/$patch_rel"
+    if [[ ! -f "$patch" ]]; then
+        warn "补丁文件不存在：$patch"
+        return 1
+    fi
+
+    local work; work="$(mktemp -d)"
+    if ! git clone --depth 1 "https://aur.archlinux.org/$pkg.git" "$work/$pkg" >/dev/null 2>&1; then
+        warn "拉取 $pkg 的 PKGBUILD 失败"
+        rm -rf "$work"
+        return 1
+    fi
+
+    # PKGBUILD 里源码目录名是 ${pkgname%-spicy-git}，即去掉 -git 后缀的部分
+    local src_name="${pkg%-git}"
+
+    local ok=0
+    (
+        set -e
+        cd "$work/$pkg"
+        say "    准备源码（makepkg --nobuild，会 cargo fetch，可能要几分钟）"
+        makepkg --nobuild --noconfirm
+        if [[ ! -d "src/$src_name" ]]; then
+            echo "找不到源码目录 src/$src_name" >&2
+            exit 1
+        fi
+        cd "src/$src_name"
+        say "    应用补丁 $patch_rel"
+        patch -p1 --forward < "$patch"
+        cd "$work/$pkg"
+        say "    编译中（Rust release 构建，首次约几分钟到十几分钟）"
+        makepkg -e --noconfirm
+        say "    安装本地包"
+        "${SUDO:-sudo}" pacman -U --noconfirm ./"$pkg"-*.pkg.tar.zst
+    ) && ok=1
+
+    rm -rf "$work"
+    [[ "$ok" == 1 ]]
+}
+
 ensure_dirs() {
     mkdir -p "$BACKUP_ROOT" "$SNAP_ROOT" "$STATE_DIR"
 }
@@ -546,8 +611,28 @@ cmd_install() {
     # shellcheck disable=SC2207
     AUR_PKGS+=($(shell_aur_pkgs))
     for p in "${AUR_PKGS[@]}"; do
+        local _patch; _patch="$(patch_for_aur_pkg "$p")"
         if pacman -Q "$p" >/dev/null 2>&1; then
-            echo "    已安装: $p"
+            # 需要补丁的包，已装但没打补丁时要提醒（否则轻触 Super 那条配置会让
+            # niri 拒绝加载整份配置，而且现象是「配置明明 validate 过却报错」）
+            if [[ -n "$_patch" ]] && ! niri --version 2>/dev/null | grep -q modified; then
+                warn "$p 已安装，但看起来没打补丁（niri --version 无 -modified 后缀）"
+                say "    轻触 Super 需要它：先 sudo pacman -R $p，再重跑本步骤"
+            else
+                echo "    已安装: $p"
+            fi
+        elif [[ -n "$_patch" ]]; then
+            say "    $p 需要打补丁（$_patch），改用本地构建"
+            if install_aur_pkg_patched "$p" "$_patch"; then
+                echo "    打补丁安装成功: $p"
+            else
+                warn "$p 打补丁构建失败，回退装 AUR 原包 —— 轻触 Super 会失效"
+                if aur_install "$p"; then
+                    echo "    AUR 安装成功（未打补丁）: $p"
+                else
+                    warn "$p 安装失败（不影响其余功能，可稍后手动安装）"
+                fi
+            fi
         elif aur_install "$p"; then
             echo "    AUR 安装成功: $p"
         else
