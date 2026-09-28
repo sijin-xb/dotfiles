@@ -45,6 +45,19 @@ fi
 
 log() { printf '%s [qs] %s\n' "$(date '+%F %T')" "$*" >>"$LOG"; }
 
+# --- 0) Caelestia C++ QML 插件 import path ---
+# end4-pC 的锁屏 `import Caelestia.Config`（以及 caelestia shell 本体）都依赖
+# caelestia-dots/shell 的 C++ 插件，编译产物固定在 ~/src/caelestia-build/qml
+# （见 install.sh [4/7]）。fish config.fish 里有同款注入，但那只覆盖
+# 「从 fish 里手动跑 qs」的场景；Hyprland 由 SDDM/uwsm 拉起时环境里没有它。
+# 这里在启动任何 qs 实例之前补上，兑现 execs.lua 注释里"脚本负责
+# QML2_IMPORT_PATH"的承诺。目录不存在就不注入（未装 caelestia/插件未编译）。
+CAELESTIA_QML="$HOME/src/caelestia-build/qml"
+if [[ -d $CAELESTIA_QML ]]; then
+    export QML2_IMPORT_PATH="$CAELESTIA_QML${QML2_IMPORT_PATH:+:$QML2_IMPORT_PATH}"
+    log "注入 QML2_IMPORT_PATH=$QML2_IMPORT_PATH"
+fi
+
 # --- 1) 候选顺序：首选（$qsConfig）→ end4-pC ---
 preferred="${qsConfig:-}"
 if [[ -z $preferred ]]; then
