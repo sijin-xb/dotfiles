@@ -285,30 +285,31 @@ compositor_aur_pkgs() {
 }
 
 # 各 shell 专属的 AUR 包（通用 AUR 包见 [2/7] 的固定列表）。
-#   caelestia: libcava 供 QML 插件编译；qt6-m3shapes-git 是锁屏形变动画
-#              （MaterialShape）的运行时依赖，两者都只有 AUR 有。
+#   caelestia / end4-pC: libcava 供 QML 插件编译；qt6-m3shapes-git 是锁屏形变
+#              动画（MaterialShape）的运行时依赖，两者都只有 AUR 有。
+#              end4-pC 也要：它的锁屏差异层 vendored 了 Caelestia 风格 surface，
+#              `import Caelestia.Config` 指向同一个 C++ 插件（见 install_caelestia_shell）。
 #   dms:       DankMaterialShell 本体 + niri 集成包。用 -git 而不是稳定版：
 #              DMS 迭代很快，稳定版往往落后几个小版本，而 niri 侧的
 #              config.kdl / dms/binds.kdl 是按新版写的（键位、ipc 目标会对不上）。
-#   end4-pC:   无专属 AUR 包（底盘从 GitHub 拉）。
 shell_aur_pkgs() {
     case "$QS_SHELL" in
-        caelestia) echo "libcava qt6-m3shapes-git" ;;
+        caelestia|end4-pC) echo "libcava qt6-m3shapes-git" ;;
         dms)       echo "dms-shell-git dms-shell-niri" ;;
         *)         echo "" ;;
     esac
 }
 
 # 各 shell 专属的 pacman 包（官方仓库）。
-#   caelestia: QML 插件编译 / 运行依赖（[4/7] 步骤会用到）。
+#   caelestia / end4-pC: QML 插件编译 / 运行依赖（[4/7] 步骤会用到）。
+#              end4-pC 也要，原因同 shell_aur_pkgs：锁屏依赖 caelestia 的 C++ 插件。
 #   dms:       gpu-screen-recorder —— DMS quickCapture 插件录屏**带声音**的前提，
 #              默认键位 Ctrl+Alt+R（见 dot_config/niri/dms/binds.kdl）。不装也能录，
 #              但会回退到 wf-recorder（CPU 编码、纯画面无声音）；插件按
 #              command -v 探测，装了就自动优先用它。
-#   end4-pC:   无专属 pacman 包。
 shell_pacman_pkgs() {
     case "$QS_SHELL" in
-        caelestia) echo "aubio libpipewire libqalculate lm_sensors fftw spirv-tools" ;;
+        caelestia|end4-pC) echo "aubio libpipewire libqalculate lm_sensors fftw spirv-tools" ;;
         dms)       echo "gpu-screen-recorder" ;;
         *)         echo "" ;;
     esac
@@ -479,7 +480,8 @@ cmd_install() {
     # shellcheck disable=SC2207
     PACMAN_PKGS+=($(compositor_pkgs))
     say "    合成器相关包: $(compositor_pkgs)"
-    # 追加 shell 专属包（caelestia 的 QML 编译依赖 / dms 的录屏工具 / end4-pC 无）
+    # 追加 shell 专属包（caelestia 的 QML 编译依赖 / dms 的录屏工具；end4-pC 与
+    # caelestia 同一份——锁屏依赖 caelestia 的 C++ 插件，见 shell_pacman_pkgs）
     local _shell_pkgs; _shell_pkgs="$(shell_pacman_pkgs)"
     if [[ -n "$_shell_pkgs" ]]; then
         # shellcheck disable=SC2207
@@ -541,9 +543,9 @@ cmd_install() {
         say "    合成器本体（AUR）: $_comp_aur"
     fi
     # 追加 shell 专属 AUR 包（见 shell_aur_pkgs：
-    #   caelestia → libcava qt6-m3shapes-git
+    #   caelestia / end4-pC → libcava qt6-m3shapes-git（锁屏插件）
     #   dms       → dms-shell-git dms-shell-niri
-    #   end4-pC   → 无）
+    #   （历史上 end4-pC 无专属 AUR 包，锁屏接上 Caelestia surface 后就同 caelestia 了）
     # shellcheck disable=SC2207
     AUR_PKGS+=($(shell_aur_pkgs))
     for p in "${AUR_PKGS[@]}"; do
@@ -610,6 +612,8 @@ cmd_install() {
     }
 
     # caelestia shell：本体 clone + QML 插件 out-of-source 编译。
+    # end4-pC 会话也会调用本函数：锁屏差异层 import 的 Caelestia.Config 出自
+    # 这个插件（见 install_shell 里 end4-pC 分支的说明）。
     install_caelestia_shell() {
         local src="$HOME/.config/quickshell/caelestia"
         local build="$HOME/src/caelestia-build"
@@ -669,8 +673,16 @@ cmd_install() {
     install_shell() {
         case "$QS_SHELL" in
             caelestia) install_caelestia_shell ;;
+            end4-pC)
+                # end4-pC 的锁屏差异层（modules/ii/lock/caelestia/CaelestiaLockSurface.qml）
+                # `import Caelestia.Config` —— 这是 caelestia-dots/shell 的 C++ QML 插件，
+                # 只能编译出来，QML 层 vendored 不了。缺了它整个 shell 加载失败：
+                #   ERROR: module "Caelestia.Config" is not installed
+                # 所以 end4-pC 也需要 caelestia 源码 + 插件编译（差异层与底盘照旧）。
+                install_end4pc_shell
+                install_caelestia_shell
+                ;;
             dms)       echo "    DMS 由 AUR 安装（dms-shell-git + dms-shell-niri），无需额外部署" ;;
-            *)         install_end4pc_shell ;;
         esac
     }
     install_shell
@@ -806,7 +818,7 @@ EOF
         caelestia)
             cat <<'EOF'
   6. Caelestia QML 插件：已编译到 ~/src/caelestia-build/qml，
-     由会话自启（execs.lua 设置 QML2_IMPORT_PATH）与 fish config.fish 自动加载。
+     由会话自启（start_quickshell.sh 注入 QML2_IMPORT_PATH）与 fish config.fish 自动加载。
 EOF
             ;;
         dms)
@@ -821,6 +833,9 @@ EOF
      Home / System / Weather / GitHub 四页。
      想增删：设置 → 栏 → 组件列表里的「Island」（删掉即整座岛隐藏）。
      命令行：qs -c end4-pC ipc call islanddashboard toggle
+     锁屏依赖的 Caelestia QML 插件已编译到 ~/src/caelestia-build/qml，
+     手动跑 qs 前请先在 fish 里开个新终端（config.fish 自动注入
+     QML2_IMPORT_PATH），或 export QML2_IMPORT_PATH=~/src/caelestia-build/qml。
 EOF
             ;;
     esac

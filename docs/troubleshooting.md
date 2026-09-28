@@ -82,6 +82,25 @@ bash ~/.config/hypr/hyprland/scripts/start_quickshell.sh
 这不是路径不存在，而是 `~/.config/quickshell/end4-pC/` 下找不到可识别的入口
 `shell.qml`。常见于把 `shell.qml` 改名为 `.off` 之后忘记改回。改回来即可。
 
+## Quickshell 报「module "Caelestia.Config" is not installed」
+
+`end4-pC` 的锁屏（`modules/ii/lock/caelestia/CaelestiaLockSurface.qml`）
+`import Caelestia.Config` —— 这是 caelestia-dots/shell 的 **C++ QML 插件**，
+QML 层 vendored 不了，必须编译（install.sh [4/7] 会把它编到
+`~/src/caelestia-build/qml`）。缺了它整个 shell 都加载失败，连带报一串
+`Type ... unavailable`（Lock → CaelestiaLockSurface → module not installed）。
+
+排查顺序：
+
+1. 插件在不在：`ls ~/src/caelestia-build/qml/Caelestia/`（应能看到 `Config/` 等
+   子目录与 `.so`）。不在就重跑安装（SESSION 不限，end4pc 也会编译）。
+2. import path 注入没有：`echo $QML2_IMPORT_PATH`。会话自启走
+   `start_quickshell.sh`（自动注入）；手动跑 `qs` 走 fish
+   config.fish（开新终端即注入）。其它 shell 手动跑需要
+   `export QML2_IMPORT_PATH=~/src/caelestia-build/qml`。
+3. 日志里那几条 `Ignoring unresolvable import` WARN（`..@command:components`、
+   `shim` 之类）来自底盘本身的扫描器，无害，别和这个 ERROR 混在一起看。
+
 ## 设置面板某页无法向下滚动（滚到底就回弹）
 
 **症状**：设置面板的某一页（典型是「界面」）滚到下半部分时，内容像被顶住
