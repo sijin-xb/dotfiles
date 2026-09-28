@@ -18,26 +18,14 @@ while ! fcitx5-remote --check >/dev/null 2>&1; do sleep 0.1; done; ... ; qs -c $
 `fcitx5-remote --check` 在「fcitx5 没起来 / DBus 不可用 / fcitx5-remote 缺失」时
 恒返回 1，循环永不退出 → qs 永远不执行 → 只剩光标。
 
-**根因二：caelestia 加载不起来且没有回退。** `custom/variables.lua` 只用
-`~/.config/quickshell/caelestia/shell.qml` 是否存在来决定 `qsConfig`。但 caelestia
-的界面几乎全部由编译出来的 C++ QML 模块提供，clone 成功而插件没编译时，qs 报
-
-```
-module "Caelestia.Config" is not installed
-```
-
-后立刻退出；此时 `qsConfig` 已被锁成 caelestia，完整的 end4-pC 反而不启动。
-本机就是这个状态（`~/src/caelestia-build` 不存在，而 200+ 个 QML 文件
-`import Caelestia.*`），已用真实 `qs` 复现该报错。
-
 **改法**（小范围、可回滚，不动无关功能）：
 
 | 文件 | 改动 |
 |---|---|
 | `hyprland/scripts/executable_fcitx_init.sh` | **新增**。有界等待（`FCITX_READY_TIMEOUT_SEC`，默认 10s），单次探测也包 timeout；失败只记日志并退出 0 |
-| `hyprland/scripts/executable_start_quickshell.sh` | **新增**。独立启动 Shell：注入 `QML2_IMPORT_PATH` → 入口/模块可用性检查 → 启动 → IPC 健康检查（`qs ipc show`）→ 失败回退 end4-pC；全过程写日志 |
+| `hyprland/scripts/executable_start_quickshell.sh` | **新增**。独立启动 Shell：入口/模块可用性检查 → 启动 → IPC 健康检查（`qs ipc show`）→ 失败回退 end4-pC；全过程写日志 |
 | `hyprland/execs.lua` | 两行内联长命令换成调用上面两个脚本；qs 不再被任何「等就绪」挡住 |
-| `custom/variables.lua` | caelestia 判据改成「入口 + 插件产物」；新增 `QS_SHELL_PREFERENCE`（`""` 自动 / `"end4-pC"` / `"caelestia"`）供手动指定 |
+| `custom/variables.lua` | 固定 `qsConfig = "end4-pC"`（caelestia 实验已取消，不再含 caelestia 选择逻辑） |
 
 日志：`~/.local/state/dotfiles/quickshell-startup.log` 与 `fcitx-init.log`。
 排障索引见 [docs/troubleshooting.md](docs/troubleshooting.md) 新增的
@@ -48,9 +36,8 @@ module "Caelestia.Config" is not installed
 没有包住长期运行的 qs 进程。
 
 **验证**：`bash -n` / `luac -p` 全过；用假 `qs` 搭行为测试台覆盖
-「fcitx 全挂仍能起 qs」「静态跳过不可运行的 caelestia」「运行时失败回退」
-「卡住则超时+清理」「全失败则有界退出」共 25 项断言；shell 选择逻辑另有 7 项
-Lua 断言（含「强制 caelestia 但不可运行时仍退 end4-pC」的安全回归）。
+「fcitx 全挂仍能起 qs」「运行时失败回退」
+「卡住则超时+清理」「全失败则有界退出」共 25 项断言。
 
 ## 2026-09-26
 

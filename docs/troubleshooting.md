@@ -50,28 +50,6 @@ while ! fcitx5-remote --check >/dev/null 2>&1; do sleep 0.1; done; ... ; qs -c $
 | `hyprland/scripts/fcitx_init.sh` | 有界等待（默认 10s，`FCITX_READY_TIMEOUT_SEC` 可调），失败只记日志、退出 0 |
 | `hyprland/scripts/start_quickshell.sh` | 独立启动 Shell、健康检查、失败回退，全过程写日志 |
 
-### 根因二：shell 加载不起来，且没有回退（已修）
-
-`custom/variables.lua` 原来只用「`~/.config/quickshell/caelestia/shell.qml`
-是否存在」来决定 `qsConfig`。但 **caelestia 的界面几乎全部由编译出来的 C++ QML
-模块提供**（`Caelestia.Config` 等）。clone 成功、插件没编译时，`qs` 会报：
-
-```
-ERROR: Failed to load configuration
-ERROR:   caused by @shell.qml[28:5]: Type ServiceLoader unavailable
-ERROR:   caused by @modules/ServiceLoader.qml[3:1]: module "Caelestia.Config" is not installed
-```
-
-`qs` 立刻退出，而 `qsConfig` 已被锁死成 caelestia —— 完整的 end4-pC 反而不启动，
-于是黑屏。
-
-修复分两层，两层的判据都跟着 install.sh 第 [4/7] 步（查
-`~/src/caelestia-build/qml/Caelestia/*.so`）对齐：
-
-* 静态：`custom/variables.lua` 同时检查 shell 入口**和**插件产物；
-* 运行时：`start_quickshell.sh` 启动后做 IPC 健康检查
-  （`qs -c <cfg> ipc show`），失败就回退 end4-pC。
-
 ### 怎么查
 
 ```bash
@@ -79,7 +57,7 @@ cat ~/.local/state/dotfiles/quickshell-startup.log      # Shell 启动全过程
 cat ~/.local/state/dotfiles/fcitx-init.log              # 输入法初始化
 ```
 
-日志里有：最终选了哪个 shell、入口/模块是否存在、`QML2_IMPORT_PATH`、启动命令、
+日志里有：最终选了哪个 shell、入口是否存在、启动命令、
 是否立即退出（含退出码）、是否触发回退、以及 qs 自己打出的 ERROR。
 
 单独重跑启动逻辑（不改配置、不重启会话）：
@@ -88,8 +66,8 @@ cat ~/.local/state/dotfiles/fcitx-init.log              # 输入法初始化
 bash ~/.config/hypr/hyprland/scripts/start_quickshell.sh
 ```
 
-想临时换 shell，改 `~/.config/hypr/custom/variables.lua` 的 `QS_SHELL_PREFERENCE`
-（`""` 自动 / `"end4-pC"` / `"caelestia"`）后重启会话。
+想临时换 shell，改 `~/.config/hypr/custom/variables.lua` 里 `hl.env("qsConfig", ...)`
+的值（当前固定 `end4-pC`）后重启会话。
 
 ### 注意
 

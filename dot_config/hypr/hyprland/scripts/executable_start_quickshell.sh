@@ -11,8 +11,7 @@
 # 两个后果，任一都会导致「登录后黑屏、只剩鼠标光标」：
 #
 #   1. 输入法没就绪 → 循环永不退出 → qs 永远不启动 → 桌面只剩光标。
-#   2. `$qsConfig` 指向一个**加载不起来**的 shell（典型：caelestia 克隆成功、
-#      但 C++ QML 插件没编译，242 个 QML 文件 import Caelestia.* 全部失败）
+#   2. `$qsConfig` 指向一个**加载不起来**的 shell（入口在、但所需模块缺失）
 #      → qs 立刻退出，没有任何回退 → 同样只剩光标。
 #
 # 所以这里做三件事：**不依赖输入法**、**有健康检查**、**失败会回退**。
@@ -24,8 +23,6 @@
 #   * 所有等待都有上限（QS_HEALTH_TIMEOUT_SEC，默认 15 秒）
 #   * 首选 shell 的偏好仍然来自 custom/variables.lua 设置的 $qsConfig，
 #     本脚本只负责「它真的能用吗」以及「不能用时退到哪」
-#   * 保留 QML2_IMPORT_PATH 注入（caelestia 的 C++ 插件在这里），
-#     目录不存在时不设置、留痕
 #   * 日志：~/.local/state/dotfiles/quickshell-startup.log
 
 set -uo pipefail
@@ -34,7 +31,6 @@ STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles"
 LOG="$STATE_DIR/quickshell-startup.log"
 CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 QS_DIR="$CONFIG_HOME/quickshell"
-CAELESTIA_BUILD="${CAELESTIA_BUILD_DIR:-$HOME/src/caelestia-build}"
 HEALTH_TIMEOUT_SEC="${QS_HEALTH_TIMEOUT_SEC:-15}"
 PROBE_TIMEOUT_SEC="${QS_PROBE_TIMEOUT_SEC:-3}"
 FALLBACK_SHELL="end4-pC"
@@ -49,19 +45,7 @@ fi
 
 log() { printf '%s [qs] %s\n' "$(date '+%F %T')" "$*" >>"$LOG"; }
 
-# --- 1) QML 导入路径：caelestia 的 C++ 插件在这里 ---
-if [[ -d $CAELESTIA_BUILD/qml ]]; then
-    if [[ -n ${QML2_IMPORT_PATH:-} ]]; then
-        export QML2_IMPORT_PATH="$CAELESTIA_BUILD/qml:$QML2_IMPORT_PATH"
-    else
-        export QML2_IMPORT_PATH="$CAELESTIA_BUILD/qml"
-    fi
-    log "QML2_IMPORT_PATH=$QML2_IMPORT_PATH"
-else
-    log "未发现 $CAELESTIA_BUILD/qml，不设置 QML2_IMPORT_PATH"
-fi
-
-# --- 2) 候选顺序：首选（$qsConfig）→ end4-pC ---
+# --- 1) 候选顺序：首选（$qsConfig）→ end4-pC ---
 preferred="${qsConfig:-}"
 if [[ -z $preferred ]]; then
     preferred="$FALLBACK_SHELL"
@@ -73,12 +57,6 @@ candidates=("$preferred")
 
 log "开始启动：首选=$preferred 候选=${candidates[*]}"
 
-# caelestia 的界面由编译出来的 C++ QML 模块提供（Caelestia.Config 等）。
-# 只检查 shell.qml 存在会把「克隆成功但没编译」当成可用。
-caelestia_module_missing() {
-    ! compgen -G "$CAELESTIA_BUILD/qml/Caelestia/*.so" >/dev/null 2>&1
-}
-
 # 启动一个候选；成功返回 0，失败返回 1（失败原因已写日志）
 start_shell() {
     local cfg="$1"
@@ -86,12 +64,6 @@ start_shell() {
 
     if [[ ! -f $entry ]]; then
         log "跳过 $cfg：入口不存在（$entry）"
-        return 1
-    fi
-
-    if [[ $cfg == caelestia ]] && caelestia_module_missing; then
-        log "跳过 caelestia：Caelestia QML 模块缺失（找不到 $CAELESTIA_BUILD/qml/Caelestia/*.so）"
-        log "        → 这就是「shell.qml 在、模块不在」的状态，qs 会报 module \"Caelestia.Config\" is not installed"
         return 1
     fi
 
