@@ -3,21 +3,22 @@ local home_dir = os.getenv("HOME")
 
 hl.on("hyprland.start", function ()
 
-    -- Input method
-    hl.exec_cmd("fcitx5 -d")
-    hl.exec_cmd("while ! fcitx5-remote --check >/dev/null 2>&1; do sleep 0.1; done; fcitx5-remote -o; fcitx5-remote -s rime; dbus-update-activation-environment --systemd XMODIFIERS GTK_IM_MODULE QT_IM_MODULE QT_IM_MODULES LANG LANGUAGE")
+    -- Input method：异步 + **有界**。超时与日志都在脚本里，失败不阻塞桌面。
+    -- ⚠ 这里以前是内联的无界等待（`while ! fcitx5-remote --check; do sleep 0.1; done`）：
+    --   fcitx5 没起来 / DBus 不可用 / fcitx5-remote 缺失时它永远不退出。单独一行时
+    --   只是输入法不可用，但历史上同一个循环还串在 Quickshell 启动之前，于是
+    --   登录后黑屏只剩光标。任何"等一个东西就绪"的写法都必须有上限。
+    hl.exec_cmd("$HOME/.config/hypr/hyprland/scripts/fcitx_init.sh")
 
     -- Bar, wallpaper
     hl.exec_cmd("$HOME/.config/hypr/hyprland/scripts/start_geoclue_agent.sh")
-    -- Keep Qt's Wayland text-input fallback available; forcing only the
-    -- Fcitx backend can swallow ordinary key events in QtQuick.
-    -- 不再注入 fcitx 环境变量：该组合与 layer-shell 存在已知死锁，
-    -- 会在登录时把合成器一起拖死（tty 都进不去）。QT_IM_MODULE 等
-    -- 已由上面那行 dbus-update-activation-environment 全局设置，够用。
-    -- Caelestia QML 插件（可选）：仓库不含插件本体，自行 clone caelestia-dots/shell
-    -- 编译后若存在 ~/src/caelestia-build/qml，则加入 Qt 导入路径；目录不存在时该行不生效。
-    -- 与 ~/.config/fish/config.fish 里的那份注入保持一致（fish 那份给终端里手动起 qs 用）。
-    hl.exec_cmd("while ! fcitx5-remote --check >/dev/null 2>&1; do sleep 0.1; done; if [ -d \"$HOME/src/caelestia-build/qml\" ]; then export QML2_IMPORT_PATH=\"$HOME/src/caelestia-build/qml:$QML2_IMPORT_PATH\"; fi; qs -c $qsConfig")
+    -- Quickshell：**独立脚本**启动，不与输入法、也不与其它任何"等就绪"耦合。
+    -- 脚本负责：QML2_IMPORT_PATH（caelestia 的 C++ 插件）、入口/模块可用性检查、
+    -- 启动后的 IPC 健康检查、失败回退 end4-pC、以及全过程日志
+    -- （~/.local/state/dotfiles/quickshell-startup.log）。
+    -- 这样即使 $qsConfig 指向一个加载不起来的 shell（例如 caelestia 克隆成功但
+    -- C++ 插件没编译），也只会退到 end4-pC，不会黑屏。
+    hl.exec_cmd("$HOME/.config/hypr/hyprland/scripts/start_quickshell.sh")
     hl.exec_cmd("$HOME/.config/hypr/custom/scripts/__restore_video_wallpaper.sh")
     -- Refresh pinyin search aliases for CJK-named apps (used by AppSearch)
     hl.exec_cmd("$HOME/.local/state/quickshell/.venv/bin/python $HOME/.config/hypr/hyprland/scripts/generate_app_pinyin.py")

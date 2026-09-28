@@ -23,6 +23,82 @@
 **临时禁用 QS 自启动**：把 `~/.config/quickshell/end4-pC/shell.qml` 改名为
 `shell.qml.off` 即可让 Quickshell 找不到入口而不启动，排查时很有用。
 
+## 登录后黑屏 / 空桌面，只剩鼠标光标
+
+**症状**：Hyprland 起来了（能切 tty、`hyprctl` 有响应），但屏幕上什么都没有，
+只有鼠标指针。没有栏、没有壁纸、快捷键没反应。
+
+**这和上面那条「整个桌面卡死」不是一回事**：那条是合成器一起死了，这条是
+**合成器正常、桌面 Shell 没起来**。
+
+### 根因一：Quickshell 被输入法「等就绪」卡死（已修）
+
+`hyprland/execs.lua` 里启动 qs 的那一行，前面串着一个**无界等待**：
+
+```sh
+while ! fcitx5-remote --check >/dev/null 2>&1; do sleep 0.1; done; ... ; qs -c $qsConfig
+```
+
+`fcitx5-remote --check` 的语义是「Fcitx 已在运行返回 0，否则返回 1」。于是
+**fcitx5 没起来 / DBus 不可用 / fcitx5-remote 不存在**时它恒为假，循环永不退出，
+`qs` 永远不会被执行 → 只剩光标。
+
+修复：输入法初始化与 Shell 启动**解耦**，两边都有明确超时。
+
+| 文件 | 作用 |
+|---|---|
+| `hyprland/scripts/fcitx_init.sh` | 有界等待（默认 10s，`FCITX_READY_TIMEOUT_SEC` 可调），失败只记日志、退出 0 |
+| `hyprland/scripts/start_quickshell.sh` | 独立启动 Shell、健康检查、失败回退，全过程写日志 |
+
+### 根因二：shell 加载不起来，且没有回退（已修）
+
+`custom/variables.lua` 原来只用「`~/.config/quickshell/caelestia/shell.qml`
+是否存在」来决定 `qsConfig`。但 **caelestia 的界面几乎全部由编译出来的 C++ QML
+模块提供**（`Caelestia.Config` 等）。clone 成功、插件没编译时，`qs` 会报：
+
+```
+ERROR: Failed to load configuration
+ERROR:   caused by @shell.qml[28:5]: Type ServiceLoader unavailable
+ERROR:   caused by @modules/ServiceLoader.qml[3:1]: module "Caelestia.Config" is not installed
+```
+
+`qs` 立刻退出，而 `qsConfig` 已被锁死成 caelestia —— 完整的 end4-pC 反而不启动，
+于是黑屏。
+
+修复分两层，两层的判据都跟着 install.sh 第 [4/7] 步（查
+`~/src/caelestia-build/qml/Caelestia/*.so`）对齐：
+
+* 静态：`custom/variables.lua` 同时检查 shell 入口**和**插件产物；
+* 运行时：`start_quickshell.sh` 启动后做 IPC 健康检查
+  （`qs -c <cfg> ipc show`），失败就回退 end4-pC。
+
+### 怎么查
+
+```bash
+cat ~/.local/state/dotfiles/quickshell-startup.log      # Shell 启动全过程
+cat ~/.local/state/dotfiles/fcitx-init.log              # 输入法初始化
+```
+
+日志里有：最终选了哪个 shell、入口/模块是否存在、`QML2_IMPORT_PATH`、启动命令、
+是否立即退出（含退出码）、是否触发回退、以及 qs 自己打出的 ERROR。
+
+单独重跑启动逻辑（不改配置、不重启会话）：
+
+```bash
+bash ~/.config/hypr/hyprland/scripts/start_quickshell.sh
+```
+
+想临时换 shell，改 `~/.config/hypr/custom/variables.lua` 的 `QS_SHELL_PREFERENCE`
+（`""` 自动 / `"end4-pC"` / `"caelestia"`）后重启会话。
+
+### 注意
+
+* 上面那条「整个桌面卡死」的**输入法环境变量强制注入**依然是禁区：本修复只在
+  Shell 启动脚本里保留 `QML2_IMPORT_PATH`，没有再引入 `QT_IM_MODULE` /
+  `GTK_IM_MODULE` / `QT_WAYLAND_TEXT_INPUT_PROTOCOL`。
+* 排队等待一定要有上限。同样的无界等待还留在 `niri/config.kdl` 的
+  `spawn-sh-at-startup` 里（只挡输入法、不挡 Shell，所以不会黑屏），本次未改。
+
 ## Quickshell 报「Could not find 'end4-pC' config directory」
 
 这不是路径不存在，而是 `~/.config/quickshell/end4-pC/` 下找不到可识别的入口

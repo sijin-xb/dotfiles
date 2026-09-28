@@ -2,6 +2,56 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+## 2026-09-28
+
+### 修复：登录 Hyprland 后黑屏、只剩鼠标光标
+
+两个独立的根因叠在同一条链路上，都会让「合成器起来了但桌面 Shell 没起来」。
+
+**根因一：Shell 启动被输入法「等就绪」卡死。** `hyprland/execs.lua` 里拉起 qs 的
+那一行前面串着无界等待：
+
+```sh
+while ! fcitx5-remote --check >/dev/null 2>&1; do sleep 0.1; done; ... ; qs -c $qsConfig
+```
+
+`fcitx5-remote --check` 在「fcitx5 没起来 / DBus 不可用 / fcitx5-remote 缺失」时
+恒返回 1，循环永不退出 → qs 永远不执行 → 只剩光标。
+
+**根因二：caelestia 加载不起来且没有回退。** `custom/variables.lua` 只用
+`~/.config/quickshell/caelestia/shell.qml` 是否存在来决定 `qsConfig`。但 caelestia
+的界面几乎全部由编译出来的 C++ QML 模块提供，clone 成功而插件没编译时，qs 报
+
+```
+module "Caelestia.Config" is not installed
+```
+
+后立刻退出；此时 `qsConfig` 已被锁成 caelestia，完整的 end4-pC 反而不启动。
+本机就是这个状态（`~/src/caelestia-build` 不存在，而 200+ 个 QML 文件
+`import Caelestia.*`），已用真实 `qs` 复现该报错。
+
+**改法**（小范围、可回滚，不动无关功能）：
+
+| 文件 | 改动 |
+|---|---|
+| `hyprland/scripts/executable_fcitx_init.sh` | **新增**。有界等待（`FCITX_READY_TIMEOUT_SEC`，默认 10s），单次探测也包 timeout；失败只记日志并退出 0 |
+| `hyprland/scripts/executable_start_quickshell.sh` | **新增**。独立启动 Shell：注入 `QML2_IMPORT_PATH` → 入口/模块可用性检查 → 启动 → IPC 健康检查（`qs ipc show`）→ 失败回退 end4-pC；全过程写日志 |
+| `hyprland/execs.lua` | 两行内联长命令换成调用上面两个脚本；qs 不再被任何「等就绪」挡住 |
+| `custom/variables.lua` | caelestia 判据改成「入口 + 插件产物」；新增 `QS_SHELL_PREFERENCE`（`""` 自动 / `"end4-pC"` / `"caelestia"`）供手动指定 |
+
+日志：`~/.local/state/dotfiles/quickshell-startup.log` 与 `fcitx-init.log`。
+排障索引见 [docs/troubleshooting.md](docs/troubleshooting.md) 新增的
+「登录后黑屏 / 空桌面，只剩鼠标光标」。
+
+**没有重新引回** `QT_IM_MODULE` / `GTK_IM_MODULE` / `QT_WAYLAND_TEXT_INPUT_PROTOCOL`
+那套注入（历史死锁，见 troubleshooting 第一节）；`timeout` 只用在就绪/健康探测上，
+没有包住长期运行的 qs 进程。
+
+**验证**：`bash -n` / `luac -p` 全过；用假 `qs` 搭行为测试台覆盖
+「fcitx 全挂仍能起 qs」「静态跳过不可运行的 caelestia」「运行时失败回退」
+「卡住则超时+清理」「全失败则有界退出」共 25 项断言；shell 选择逻辑另有 7 项
+Lua 断言（含「强制 caelestia 但不可运行时仍退 end4-pC」的安全回归）。
+
 ## 2026-09-26
 
 ### niri：合成器换成 niri-spicy-git，配置与 install.sh 同步
