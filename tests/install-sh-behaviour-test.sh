@@ -174,5 +174,24 @@ chk "dms 不装插件 AUR 依赖"        "$( (QS_SHELL=dms; base_aur_pkgs) | wc 
 chk "quickshell 会话拿到插件 pacman 依赖" "$( (QS_SHELL=end4-pC; base_pacman_pkgs) | tr ' ' '\n' | grep -cx libqalculate)" "1"
 chk "dms 不装插件 pacman 依赖"     "$( (QS_SHELL=dms; base_pacman_pkgs) | wc -w)" "0"
 
+say_t "J. 依赖声明：本次补的三个 + 复核「故意不加」那批"
+# 只取包列表本体，先剥掉注释（注释里会提到命令名，不能当声明）
+_inline="$(sed -n '/^    PACMAN_PKGS=(/,/^    )/p' "$REPO/install.sh" | sed 's/#.*//')"
+_funcs="$(compositor_pkgs 2>/dev/null; shell_pacman_pkgs 2>/dev/null; base_pacman_pkgs 2>/dev/null; \
+          base_aur_pkgs 2>/dev/null; shell_aur_pkgs 2>/dev/null; compositor_aur_pkgs 2>/dev/null)"
+_all_pkgs="$(printf '%s\n%s\n' "$_inline" "$_funcs" | tr -s '[:space:]' '\n')"
+has_pkg() { printf '%s\n' "$_all_pkgs" | grep -cx "$1"; }
+
+# 本次坐实后新补的：都在可执行上下文里被真实调用
+chk "声明 psmisc（killall）"        "$(has_pkg psmisc)"      "1"
+chk "声明 libnotify（notify-send）" "$(has_pkg libnotify)"   "1"
+chk "声明 imagemagick（magick）"    "$(has_pkg imagemagick)" "1"
+
+# 「故意不加」那批：逐个确认**没有**被声明（复核依据见 CHANGELOG）
+for _p in rofi clipse anyrun satty ydotool firefox micro \
+          alacritty wezterm waybar swaybg swayidle hyprpaper copyq upscayl; do
+    chk "未声明 $_p（复核：不在可执行上下文）" "$(has_pkg "$_p")" "0"
+done
+
 printf '\n============================\n'
 if ((fail)); then printf '失败 %d 项\n' "$fail"; exit 1; else printf '全部通过\n'; fi

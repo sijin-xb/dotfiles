@@ -755,6 +755,20 @@ cmd_install() {
         # procps-ng 提供 ps 命令，仪表盘系统页的进程列表依赖它
         # （base 组已含，这里显式声明以防万一被精简掉）
         procps-ng
+        # psmisc 提供 killall。hypr 的 CTRL+SUPER+R（重启 quickshell）是
+        # hl.exec_cmd("killall ydotool qs quickshell; qs -c $qsConfig &")，
+        # 这是真调用不是注释；killall 属 psmisc，与 procps-ng 的 pkill/pgrep
+        # 不是一个包，别指望顺带带入。
+        psmisc
+        # libnotify 提供 notify-send：19 个配置文件靠它上报结果与报错
+        # （switchwall 配色、截图、录屏、随机壁纸、强制关窗……）。
+        # 缺了不只是"少个气泡"——模糊壁纸脚本把它写进 DEPENDENCIES，
+        # 缺失时直接 exit 1，连"缺依赖"这件事都报不出来。
+        libnotify
+        # imagemagick 提供 magick：与上面同一个脚本的 DEPENDENCIES 里和
+        # notify-send 并列，负责总览模糊底图的高斯模糊与填充着色（IMG_BLUR_*
+        # / IMG_COLORIZE_*），缺了同样 exit 1。
+        imagemagick
         # ffmpeg：视频缩略图 / 动态取色（DMS 的 mpvpaper 视频壁纸插件依赖它）。
         # 通用工具，别的 shell 也可能用到，保留在基础列表。
         ffmpeg

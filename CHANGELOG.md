@@ -4,6 +4,41 @@
 
 ## 2026-09-29
 
+### 依赖审计复核：「故意不加」那批逐个坐实（补 3 个真缺口）
+
+上一节的依赖审计把一批候选判为"可选/非 rice 依赖，故意不加"，依据是人工判断。
+这节改成按**是否真的出现在可执行上下文**逐条验（`hl.exec_cmd` / niri `spawn` /
+QML `Process.command` / `command -v` / shell 脚本真实调用行）；非可执行上下文
+（被 `//` 注释的绑定、窗口与 layer 规则、回退链里的备选、注释正文）一律不算。
+
+**复核结论：原先那 15 个候选全部维持"不装"**，依据逐条如下：
+
+| 候选 | 出现位置 | 为什么不算可执行上下文 |
+|---|---|---|
+| `rofi` | `niri/scripts/executable_niri-pick:95-118` | 是真调用，但在 `fuzzel` 之后的 `elif` 回退分支；fuzzel 已在基础包列表 |
+| `clipse` | `niri/binds.kdl:62`（整行 `//` 注释）、`rule.kdl:111/174` | 绑定被注释；rule.kdl 是窗口规则，不执行程序 |
+| `anyrun` | `hypr/hyprland/rules.lua:127` | layer rule，只匹配 namespace |
+| `satty` | `niri/binds.kdl:324/454`（两行都被 `//` 注释） | 绑定没启用；且它引用的 `niri/scripts/satty-screenshot.sh` 仓库里根本不存在 |
+| `ydotool` | `hypr/hyprland/keybinds.lua:71` | 以 `killall ydotool ...` 的**参数**出现（要杀的进程名），不是被调用的程序 |
+| `firefox` / `micro` | `hypr/hyprland/variables.lua:11/14` | `launch_first_available.sh` 的候选链成员，主选在前面 |
+| `alacritty` / `wezterm` | `niri/scripts/executable_niri-binds:41-47` | 真调用，但在 kitty → foot 之后的第 3/4 个 `elif`；kitty 已装 |
+| `waybar` | `niri/config.kdl:240`（`//spawn-at-startup`）、`binds.kdl:343-349`（全注释） | 已停用，一行未启用 |
+| `swaybg` | `scripts/executable_niri_set_overview_blur_dark_bg.sh:57/278` | 真调用，但被 `WALLPAPER_BACKEND="awww"` 挡住；默认后端是 awww（已补 `awww-git`） |
+| `swayidle` | `niri/scripts/executable_swayidle.sh:4` | 脚本自身存在，但 `config.kdl:253` 的 spawn-at-startup 是注释，无人调用 |
+| `hyprpaper` | DMS 插件 README、`matugen/templates/yazi-theme.toml:318` | 前者是说明文字，后者是图标名 |
+| `copyq` | `niri/binds.kdl:62/68`（均注释）、`rule.kdl:103` | 绑定未启用 |
+| `upscayl` | `end4-pC/scripts/colors/executable_switchwall.sh:163-175` | `command -v` 守卫 + 缺失时提示自行 `yay -S`，属可选增强 |
+
+**同时坐实出 3 个真缺口**（配置里真的调用、脚本却没声明）：
+
+| 包 | 仓库 | 谁在调用 | 缺了会怎样 |
+|---|---|---|---|
+| `imagemagick` | extra | `scripts/executable_niri_set_overview_blur_dark_bg.sh:53` 把它写进 `DEPENDENCIES`，负责总览模糊底图的高斯模糊与填充着色 | 脚本 `exit 1` |
+| `libnotify` | extra | 同上，与 `magick` 并列；`niri-force-kill-window:90` 更直接写着 `check_dependency "notify-send" "libnotify"`。全仓 19 个文件用 `notify-send` 上报结果 | 同上；且**连"缺依赖"这件事都报不出来** |
+| `psmisc` | **core** | `hypr/hyprland/keybinds.lua:71` 的 CTRL+SUPER+R（重启 quickshell）是 `hl.exec_cmd("killall ydotool qs quickshell; ...")` | `killall` 属 psmisc，与 procps-ng 的 pkill/pgrep 不是一个包，不会顺带带入 |
+
+三个包名都过 Arch 官方包 API 核过（extra / extra / core）。
+
 ### 修复：dry-run 测试台会污染真实桌面会话
 
 **表现**：跑完 `tests/install-sh-dryrun.sh` 之后，真实会话里弹出一条通知：
