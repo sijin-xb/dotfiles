@@ -120,28 +120,28 @@ binds {
     // ───────────────────────────────────────────────────────────────────────
 
     Mod+Return hotkey-overlay-title="终端 Terminal" {
-        spawn "~/.config/hypr/hyprland/scripts/launch_first_available.sh" "foot" "kitty -1" "alacritty" "wezterm" "konsole" "kgx" "uxterm" "xterm";
+        spawn "/home/xibie/.config/niri/scripts/launch_first_available.sh" "kitty" "foot" "alacritty" "wezterm" "konsole" "kgx" "uxterm" "xterm";
     }
     Mod+E hotkey-overlay-title="文件管理器 File manager" { spawn "nautilus"; }
     Mod+W hotkey-overlay-title="浏览器 Browser" {
-        spawn "~/.config/hypr/hyprland/scripts/launch_first_available.sh" "google-chrome-stable" "zen-browser" "firefox" "brave" "chromium" "microsoft-edge-stable" "opera" "librewolf";
+        spawn "/home/xibie/.config/niri/scripts/launch_first_available.sh" "google-chrome-stable" "zen-browser" "firefox" "brave" "chromium" "microsoft-edge-stable" "opera" "librewolf";
     }
     Mod+C hotkey-overlay-title="代码编辑器 Code editor" {
         // 顺序即优先级：code(VSCode) 放最前 —— 原先 antigravity 在 code 前面，
         // 导致 Super+C 打开 antigravity 而不是 VSCode（与 Hyprland 同一份优先级）。
-        spawn "~/.config/hypr/hyprland/scripts/launch_first_available.sh" "code" "windsurf" "antigravity" "codium" "cursor" "zed" "zedit" "zeditor" "kate" "gnome-text-editor" "emacs";
+        spawn "/home/xibie/.config/niri/scripts/launch_first_available.sh" "code" "windsurf" "antigravity" "codium" "cursor" "zed" "zedit" "zeditor" "kate" "gnome-text-editor" "emacs";
     }
     Mod+X hotkey-overlay-title="文本编辑器 Text editor" {
-        spawn "~/.config/hypr/hyprland/scripts/launch_first_available.sh" "kate" "gnome-text-editor" "emacs";
+        spawn "/home/xibie/.config/niri/scripts/launch_first_available.sh" "kate" "gnome-text-editor" "emacs";
     }
     Mod+Ctrl+Shift+Alt+W hotkey-overlay-title="办公软件 Office" {
-        spawn "~/.config/hypr/hyprland/scripts/launch_first_available.sh" "wps" "onlyoffice-desktopeditors" "libreoffice";
+        spawn "/home/xibie/.config/niri/scripts/launch_first_available.sh" "wps" "onlyoffice-desktopeditors" "libreoffice";
     }
     Mod+Ctrl+V hotkey-overlay-title="音量混合器 Volume mixer" {
-        spawn "~/.config/hypr/hyprland/scripts/launch_first_available.sh" "pavucontrol-qt" "pavucontrol";
+        spawn "/home/xibie/.config/niri/scripts/launch_first_available.sh" "pavucontrol-qt" "pavucontrol";
     }
     Mod+Ctrl+Shift+Escape hotkey-overlay-title="任务管理器 Task manager" {
-        spawn "~/.config/hypr/hyprland/scripts/launch_first_available.sh" "gnome-system-monitor" "plasma-systemmonitor --page-name Processes";
+        spawn "/home/xibie/.config/niri/scripts/launch_first_available.sh" "gnome-system-monitor" "plasma-systemmonitor --page-name Processes";
     }
 
     // ───────────────────────────────────────────────────────────────────────
@@ -172,13 +172,13 @@ binds {
     // 音量（原走 wpctl，与合成器无关，直接沿用）
     XF86AudioRaiseVolume { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "2%+" "-l" "1.5"; }
     XF86AudioLowerVolume { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "2%-"; }
-    XF86AudioMute        { spawn "wpctl" "set-mute" "@DEFAULT_SINK@" "toggle"; }
-    Mod+Shift+M          hotkey-overlay-title="静音 Toggle mute" { spawn "wpctl" "set-mute" "@DEFAULT_SINK@" "toggle"; }
+    XF86AudioMute        { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SINK@" "toggle"; }
+    Mod+Shift+M          hotkey-overlay-title="静音 Toggle mute" { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SINK@" "toggle"; }
 
     // 麦克风静音
-    XF86AudioMicMute { spawn "wpctl" "set-mute" "@DEFAULT_SOURCE@" "toggle"; }
-    Mod+Alt+M        hotkey-overlay-title="麦克风静音 Toggle mic" { spawn "wpctl" "set-mute" "@DEFAULT_SOURCE@" "toggle"; }
-    Alt+XF86AudioMute { spawn "wpctl" "set-mute" "@DEFAULT_SOURCE@" "toggle"; }
+    XF86AudioMicMute { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SOURCE@" "toggle"; }
+    Mod+Alt+M        hotkey-overlay-title="麦克风静音 Toggle mic" { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SOURCE@" "toggle"; }
+    Alt+XF86AudioMute { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SOURCE@" "toggle"; }
 
     // 播放控制（playerctl，直接沿用）
     XF86AudioPlay  { spawn "playerctl" "play-pause"; }

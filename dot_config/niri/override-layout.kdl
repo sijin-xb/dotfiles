@@ -26,6 +26,19 @@ layout {
     focus-ring {
         width 3
     }
+
+    // 新窗口的默认宽度（2026-09-28 补）
+    //
+    // 为什么写在这里：layout.kdl 第 37 行本来就有同一行，但本文件是最后加载的
+    // layout 块，把数值集中到一处，将来 include 顺序变动时不会被冲掉。
+    //
+    // 实测值（HDMI-A-1，1920×1080，gaps 10，DMS 栏 40px）：
+    //   proportion 0.5  → tile 945×1020   ← 正常新窗口
+    //   maximize-column → tile 1900×1020  ← 「最大化列」，占满宽度但保留 gaps/边框/栏
+    //
+    // 注意区分：如果你看到某个窗口几乎铺满屏幕、但四周仍有缝隙，那不是本项失效，
+    // 而是该列处于「最大化列」状态（Mod+D 切换，见 binds-hyprland-migrated.kdl:44）。
+    default-column-width { proportion 0.5; }
 }
 
 // 全局圆角。后匹配的规则覆盖先匹配的同名属性，所以这里写 18，

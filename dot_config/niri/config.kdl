@@ -238,6 +238,18 @@ spawn-sh-at-startup "systemctl --user set-environment XDG_SESSION_CLASS=user"
 // 让位给 quickshell：它自带栏，同开会和 waybar 叠成两条。
 // 想换回 waybar：把下面 quickshell 那行注释掉、把这行取消注释即可。
 //spawn-at-startup "waybar"
+// ---- 会话环境收口（2026-09-28 新增，勿删）----
+// 为什么需要：Hyprland 会话走 uwsm，退出时由 uwsm 清理环境；niri 走 niri-session，
+// 完全不经过 uwsm。一旦上一个 Hyprland 会话异常退出（崩溃），uwsm 的清理跑不完，
+// HYPRLAND_INSTANCE_SIGNATURE / DESKTOP_SESSION / XDG_MENU_PREFIX 等就留在
+// systemd 用户管理器里，被本会话整体继承。
+// 后果：Quickshell / DMS 依据 HYPRLAND_INSTANCE_SIGNATURE 误判「当前是 Hyprland
+// 会话」，去连已经消失的 socket，导致 DMS 反复重启（实测 hyprctl 报
+// Couldn't connect to .../.socket.sock）。
+// 同时把 XDG_CURRENT_DESKTOP 显式置为 niri，让 Omarchy 服务的
+// ConditionEnvironment=XDG_CURRENT_DESKTOP=Hyprland 守卫确定性生效。
+spawn-sh-at-startup "systemctl --user unset-environment HYPRLAND_INSTANCE_SIGNATURE HYPRLAND_CMD HYPRCURSOR_THEME HYPRCURSOR_SIZE DESKTOP_SESSION XDG_MENU_PREFIX UWSM_FINALIZE_VARNAMES UWSM_WAIT_VARNAMES ELECTRON_OZONE_PLATFORM_HINT; systemctl --user set-environment XDG_CURRENT_DESKTOP=niri XDG_SESSION_DESKTOP=niri DESKTOP_SESSION=niri"
+
 // 输入法
 // 输入法：与 Hyprland 的 execs.lua 同逻辑 —— 守护启动 → 等就绪 → 激活并切到 rime
 // → 把变量推进 dbus/systemd（否则后面拉起的应用拿不到，等于没配）。

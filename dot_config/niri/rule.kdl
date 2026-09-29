@@ -41,7 +41,34 @@ window-rule {
     clip-to-geometry true
     // 禁止边框画到背景里
     draw-border-with-background false
+
+    // ── 全局兜底：不许任何窗口「打开即铺满」（2026-09-28 加）──────────────────────
+    //
+    // 为什么放在这条通用规则里：niri 的窗口规则**按出现顺序处理，后出现的覆盖先出现的**
+    // （官方原文："put more generic rules first, then override them for specific windows
+    // later"）。通用规则放最前，个别确实需要铺满的应用在后面的规则里写 true 就能覆盖回来。
+    //
+    // 解决的是什么：Chrome / Chromium / Electron 系会记住自己的窗口状态，启动时向合成器
+    // 请求「最大化」，niri 会照办 —— 窗口变成 1920×1040（输出 1920×1080 减去 DMS 栏
+    // 40px，横向纵向都没有 gaps），观感就是「全屏但不是完整的全屏」。
+    // 单独给 Chrome 加规则只是打补丁，换个会记住最大化的应用又得再加一条，所以改全局兜底。
+    //
+    // 官方文档对 open-maximized-to-edges 的说明明确支持用 false 阻止：
+    //   "You can also set this to false to prevent a window from opening maximized to edges."
+    open-maximized false
+    open-maximized-to-edges false
 }
+
+// ── Chrome 族：不再需要单独规则 ───────────────────────────────────────────────
+// 2026-09-28：先按单个应用打了补丁（open-maximized false + open-maximized-to-edges
+// false + default-column-width），后判定那是治标 —— 换个会记住最大化的应用又得再加一条。
+// 已改为文件顶部那条通用 window-rule 里的全局兜底，本处规则删除。
+// 排查记录（几何值反推 niri 状态，1920×1080 / gaps 10 / DMS 栏 40px）：
+//   proportion 0.5                  → 945×1020   普通新窗口
+//   expand-column-to-available-width → 1900×1020
+//   maximize-column                 → 1900×1020
+//   maximize-window-to-edges        → 1920×1040  ← Chrome 就是这个
+//   fullscreen-window               → 1920×1080
 // 取消图片预览、视频播放器之类的透明度，并且以浮动模式打开
 window-rule {
     match title="图片查看器"
