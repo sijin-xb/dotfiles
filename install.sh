@@ -579,6 +579,40 @@ end4pc_base_missing() {
     return 1
 }
 
+# 把 clone 出来的目录合并进目标目录，**不带 .git**。
+#
+# ⚠ 为什么必须剥掉 .git（以前两处 `cp -a "$src/." "$dst/"` 都漏了）
+# ------------------------------------------------------------------
+# 1) ~/.config/quickshell 是**运行时配置命名空间**，不是放源码的地方。
+#    [5/7] 的部署循环自己就写着 `.git/*) continue`（跳过仓库元数据），
+#    说明 .git 本就不属于这里 —— 唯独漏了 clone 合并这两处。塞进去的是
+#    一个十几 MB 的 pack，既没有任何用处，还会被 [0/7] 的快照/归档整包打包。
+# 2) 更糟的是它会让安装**永久卡死**：一旦这个 .git 的属主或权限不允许当前
+#    用户写入，重跑时 cp 会在 .git/objects/pack/ 上 EACCES 并半途而废，
+#    底盘只拷进去一半 → 下次自检判"不完整"→ 又重拉 → 又在同一个位置失败。
+#    报错指向 .git，看起来像权限问题，真因却是"压根不该拷"。
+merge_clone_into() {
+    local src="$1" dst="$2"
+    rm -rf "$src/.git"
+    mkdir -p "$dst"
+    cp -a "$src/." "$dst/" \
+        || die "合并 $src → $dst 失败（检查磁盘空间，以及 $dst 及其子目录的属主是否为当前用户）"
+}
+
+# 清掉历史上被上面那步误拷进来的 .git（它从来没被用过，可以安全删除）。
+# 属主是 root 时普通用户删不掉（要对 .git/objects/pack 有写权限），这时
+# 提示手工命令而不是假装成功 —— 留着它不影响 shell 运行，但会一直占空间。
+cleanup_stray_git() {
+    local dst="$1"
+    [[ -e "$dst/.git" ]] || return 0
+    if rm -rf "$dst/.git" 2>/dev/null; then
+        echo "    已清理历史遗留的 .git（clone 元数据，不属于配置目录）"
+    else
+        warn "无法删除 $dst/.git（属主可能不是当前用户）"
+        warn "  它没有任何用处，可手动清理：sudo rm -rf '$dst/.git'"
+    fi
+}
+
 # 判断某个**目标相对路径**（相对 $HOME，如 .config/hypr/hyprland/colors.lua）
 # 是否命中 $SRC/.chezmoiignore。命中则输出处理方式，未命中输出空：
 #   keep   精确路径条目   → 目标已存在时**不覆盖**
@@ -1097,6 +1131,9 @@ cmd_install() {
     # 完整性自检见顶层函数 end4pc_base_missing()（放在顶层是为了能单独测）。
     install_end4pc_shell() {
         local dst="$HOME/.config/quickshell/end4-pC"
+        # 无条件先清：即使底盘判定为"完整"而提前 return，历史上误拷进来的
+        # .git 也该走（它从来没被用过，只会占空间并被快照整包打包）。
+        cleanup_stray_git "$dst"
         # ⚠ 命令替换里 set -e 不生效，但赋值语句的退出码取自替换结果，
         #   所以 `|| true` 不能省：end4pc_base_missing 返回 1（=完整）时
         #   会让 `missing=...` 整体非零退出。
@@ -1116,8 +1153,7 @@ cmd_install() {
         # 而 set -e 会让整个安装中断。先克隆到临时目录再合并进去。
         local tmp; tmp="$(mktemp -d)"
         if git clone --depth=1 https://github.com/pctrade/end4-pC.git "$tmp/end4-PC"; then
-            mkdir -p "$dst"
-            cp -a "$tmp/end4-PC/." "$dst/"
+            merge_clone_into "$tmp/end4-PC" "$dst"
         else
             rm -rf "$tmp"
             die "拉取 quickshell 底盘失败（检查网络后重试，或手动 clone 到 $dst）"
@@ -1139,6 +1175,8 @@ cmd_install() {
     #   往这里塞 clone，所以本体得自己拉。
     install_caelestia_shell() {
         local dst="$HOME/.config/quickshell/caelestia"
+        # 同 install_end4pc_shell：先清掉可能存在的历史遗留 .git
+        cleanup_stray_git "$dst"
         if [[ -f "$dst/shell.qml" ]]; then
             echo "    已存在: $dst"
             return 0
@@ -1147,8 +1185,7 @@ cmd_install() {
         # 同 end4-PC：目录可能已存在且非空，先克隆到临时目录再合并。
         local tmp; tmp="$(mktemp -d)"
         if git clone --depth=1 https://github.com/caelestia-dots/shell.git "$tmp/shell"; then
-            mkdir -p "$dst"
-            cp -a "$tmp/shell/." "$dst/"
+            merge_clone_into "$tmp/shell" "$dst"
         else
             rm -rf "$tmp"
             die "拉取 caelestia shell 失败（检查网络后重试，或手动 clone 到 $dst）"

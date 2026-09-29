@@ -39,6 +39,48 @@ QML `Process.command` / `command -v` / shell 脚本真实调用行）；非可�
 
 三个包名都过 Arch 官方包 API 核过（extra / extra / core）。
 
+### 修复：clone 底盘时把 `.git` 一起拷进了配置目录（重跑安装必然失败）
+
+**表现**：重跑 `./install.sh install` 时卡在 `[4/7]`：
+
+```
+cp: 无法创建普通文件 '.../end4-pC/./.git/objects/pack/pack-<hash>.pack': 权限不够
+```
+
+**根因**：`install_end4pc_shell()` / `install_caelestia_shell()` 用
+`cp -a "$tmp/<clone>/." "$dst/"` 把 clone 出来的目录**整个**合并进
+`~/.config/quickshell/`，`.git` 也跟着进去了。两个后果：
+
+1. `~/.config/quickshell` 是**运行时配置命名空间**，不是放源码的地方——
+   `[5/7]` 的部署循环自己就写着 `.git/*) continue`（跳过仓库元数据），
+   说明 `.git` 本就不属于这里，唯独漏了 clone 合并这两处。拷进去的十几 MB
+   pack 没有任何用处，还会被 `[0/7]` 的快照/归档整包打包。
+2. 更糟的是它会让安装**永久卡死**：这个 `.git` 一旦属主或权限不允许当前用户
+   写入，重跑时 `cp` 就在 `.git/objects/pack/` 上 EACCES 并半途而废 → 底盘只
+   拷进去一半 → 下次 `end4pc_base_missing()` 判定"不完整"→ 又重拉 → 又在同一个
+   位置失败。报错指向 `.git`，看着像权限问题，真因却是"压根不该拷"。
+
+⚠ 这处是**读源码读出来的**，与出问题那台机器是物理机还是虚拟机无关。
+
+**改法**：
+
+- 新增 `merge_clone_into()`：先 `rm -rf "$src/.git"` 再 `cp -a`；`cp` 失败时
+  `die` 并提示检查磁盘空间与属主（以前失败会留下一个"看起来装好了"的残缺树）。
+- 新增 `cleanup_stray_git()`：清掉历史遗留的 `.git`。属主是 root 时普通用户删
+  不掉（要对 `.git/objects/pack` 有写权限），这时打印手工命令而不是假装成功。
+  两个 shell 安装函数都在**入口无条件**调用一次 —— 这样即使底盘判定"完整"而
+  提前 return，旧机器上的遗留物也会被清掉。
+
+**验证**：`tests/install-sh-behaviour-test.sh` 新增 I 组，**79/79 通过**。
+I 组用真实临时目录跑 `merge_clone_into`：目标拿到配置文件、目标与源都不再有
+`.git`、历史遗留的 `.git` 被清掉、无 `.git` 时幂等返回 0。
+
+**顺带记录（环境问题，不是脚本 bug）**：`tests/install-sh-dryrun.sh` 在受限
+沙箱里跑必然红，两个原因都与 `install.sh` 无关 —— ① 以 root 运行时会被
+`[[ ${EUID} -eq 0 ]] && die "请勿用 root 运行"`（第 762 行）拦下；
+② 沙箱没有 `/dev/fd`，bash 的进程替换 `< <(...)` 直接失败。以普通用户在正常
+环境里跑不受影响。
+
 ### 修复：dry-run 测试台会污染真实桌面会话
 
 **表现**：跑完 `tests/install-sh-dryrun.sh` 之后，真实会话里弹出一条通知：

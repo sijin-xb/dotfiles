@@ -174,6 +174,26 @@ chk "dms 不装插件 AUR 依赖"        "$( (QS_SHELL=dms; base_aur_pkgs) | wc 
 chk "quickshell 会话拿到插件 pacman 依赖" "$( (QS_SHELL=end4-pC; base_pacman_pkgs) | tr ' ' '\n' | grep -cx libqalculate)" "1"
 chk "dms 不装插件 pacman 依赖"     "$( (QS_SHELL=dms; base_pacman_pkgs) | wc -w)" "0"
 
+say_t "I. clone 合并不带 .git（重跑安装不再被 .git 卡死）"
+# 造一份"刚 clone 出来"的源：带 .git，以及正常的配置文件
+csrc="$ROOT/clone-src"; mkdir -p "$csrc/.git/objects/pack" "$csrc/modules"
+printf 'PACKDATA' > "$csrc/.git/objects/pack/pack-deadbeef.pack"
+printf 'shell\n'  > "$csrc/shell.qml"
+printf 'x\n'      > "$csrc/modules/Config.qml"
+cdst="$HOME/.config/quickshell/end4-pC"; mkdir -p "$cdst"
+merge_clone_into "$csrc" "$cdst"
+chk "目标拿到 shell.qml"           "$([[ -f $cdst/shell.qml ]] && echo yes)" "yes"
+chk "目标拿到 modules/Config.qml"  "$([[ -f $cdst/modules/Config.qml ]] && echo yes)" "yes"
+chk "目标里没有 .git"              "$([[ -e $cdst/.git ]] && echo yes)" ""
+chk "源里的 .git 已剥掉"           "$([[ -e $csrc/.git ]] && echo yes)" ""
+
+# 历史遗留：目标目录里已有一个旧版本拷进去的 .git
+mkdir -p "$cdst/.git/objects/pack"
+printf 'OLD' > "$cdst/.git/objects/pack/pack-old.pack"
+cleanup_stray_git "$cdst"
+chk "历史遗留 .git 被清理"         "$([[ -e $cdst/.git ]] && echo yes)" ""
+chk "没有 .git 时幂等且不报错"     "$(cleanup_stray_git "$cdst"; echo rc=$?)" "rc=0"
+
 say_t "J. 依赖声明：本次补的三个 + 复核「故意不加」那批"
 # 只取包列表本体，先剥掉注释（注释里会提到命令名，不能当声明）
 _inline="$(sed -n '/^    PACMAN_PKGS=(/,/^    )/p' "$REPO/install.sh" | sed 's/#.*//')"
