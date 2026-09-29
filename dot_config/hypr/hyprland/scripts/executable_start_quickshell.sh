@@ -50,13 +50,17 @@ mkdir -p "$STATE_DIR"
 # 一路上抛，最终 qs 直接 "Failed to load configuration"，
 # 表现为**登录后桌面 Shell 起不来**。
 #
-# 插件的 .so 由 install.sh 的 [4a/7] 编译到 ~/src/caelestia-build/qml。
-# 这里把该目录注入 QML2_IMPORT_PATH —— 之前本脚本的注释声称「脚本负责
+# 插件的 .so 由 install.sh 的 [4a/7] 编译到 ~/src/caelestia-build/qml，
+# 源码在 ~/src/caelestia-plugin-src（**不在** ~/.config/quickshell/ 下：
+# 那里是 quickshell 的配置命名空间，放 clone 会凭空多出一套可运行的 shell，
+# 也会被快照/归档整包打进去）。
+# 这里把产物目录注入 QML2_IMPORT_PATH —— 之前本脚本的注释声称「脚本负责
 # QML2_IMPORT_PATH」，但正文从未设置过它，插件对 qs 而言始终不存在。
 #
 # 目录不存在时不注入（保持原行为：不污染其它 Qt 程序），但会记一条日志，
 # 因为那种情况下 end4-pC 的锁屏必然加载失败。
 CAELESTIA_QML="${CAELESTIA_QML_PATH:-$HOME/src/caelestia-build/qml}"
+CAELESTIA_SRC="${CAELESTIA_SRC_PATH:-$HOME/src/caelestia-plugin-src}"
 if [[ -d $CAELESTIA_QML ]]; then
     export QML2_IMPORT_PATH="$CAELESTIA_QML${QML2_IMPORT_PATH:+:$QML2_IMPORT_PATH}"
 fi
@@ -73,7 +77,10 @@ if [[ -d $CAELESTIA_QML ]]; then
 else
     log "警告：$CAELESTIA_QML 不存在，Caelestia 插件未编译。"
     log "      end4-pC 锁屏依赖 import Caelestia.Config，缺它会导致 shell 加载失败。"
-    log "      修复：重跑 install.sh（[4a/7] 会编译），或手动 cmake -S ~/.config/quickshell/caelestia -B ~/src/caelestia-build -G Ninja && cmake --build ~/src/caelestia-build"
+    log "      修复：重跑 install.sh（[4a/7] 会编译），或手动编译："
+    log "            cmake -S $CAELESTIA_SRC -B \$HOME/src/caelestia-build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \\"
+    log "                  -DENABLE_MODULES=plugin -DVERSION=0.0.0 -DGIT_REVISION=unknown"
+    log "            cmake --build \$HOME/src/caelestia-build"
 fi
 
 # --- 1) 候选顺序：首选（$qsConfig）→ end4-pC ---
@@ -100,7 +107,8 @@ preflight_caelestia_dep() {
     log "自检失败：$cfg 的锁屏 $(basename "$lock_surface") 依赖 Caelestia 插件，"
     log "          但 $CAELESTIA_QML 不存在。qs 会报 module \"Caelestia.Config\" is not installed。"
     log "          修复：重跑 install.sh，或手动编译："
-    log "            cmake -S $QS_DIR/caelestia -B \$HOME/src/caelestia-build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo"
+    log "            cmake -S $CAELESTIA_SRC -B \$HOME/src/caelestia-build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \\"
+    log "                  -DENABLE_MODULES=plugin -DVERSION=0.0.0 -DGIT_REVISION=unknown"
     log "            cmake --build \$HOME/src/caelestia-build"
     return 1
 }

@@ -19,9 +19,9 @@ binds {
     //   配置。中途为了留在 spicy 试过 keyd 重映射与 mod-tap 补丁，两者都已随
     //   换回 shorin fork 废弃，别再把它们捡回来。）
     Mod repeat=false hotkey-overlay-title="启动器 Launcher" { spawn "dms" "ipc" "call" "launcher" "toggle"; }
-
-    // 备用：Super+Space 同开启动器
-    Mod+Space hotkey-overlay-title="启动器 Launcher" { spawn "dms" "ipc" "call" "launcher" "toggle"; }
+    // ⚠ 不要再加回 `Mod+Space`：本机用的 shorin-fork 原生支持「单独一个 Mod」，
+    //   轻触 Super 就是启动器；再加一个 Super+Space 是重复绑定，还会白占掉
+    //   「Super+空格」这个组合。
 
     // 网格总览 —— Alt+Tab（shorin-fork 独有，网格预览）
     Alt+Tab hotkey-overlay-title="网格总览 Grid overview" { toggle-grid-overview; }

@@ -101,35 +101,72 @@ git clone https://github.com/sijin-xb/dotfiles.git
 cd dotfiles
 ./install.sh           # TUI 二级菜单
 ./install.sh install   # 直接执行完整安装
+FONTS=0 ./install.sh install   # 不装推荐字体（跳过整条字体链）
 ~~~
+
+**字体是可选项**：不加 `FONTS` 时会在执行到 `[1/7]` 时问一次 `[Y/n]`，
+TUI 的「执行安装」页也能按 `f` 切换。`FONTS=0` 一个字体包都不碰——不装
+pacman 字体包、不装 AUR 字体链、不下载霞鹜臻楷 GB、也不移除
+`65-wqy-zenhei.conf`（跳过字体时文泉驿仍是唯一的中文兜底，删了反而更糟）。
+非交互执行（管道 / 重定向）问不了，默认按 `FONTS=1` 处理。
 
 安装步骤：
 
-1. pacman 基础依赖（kitty、fish、fuzzel、fcitx5、cliphist、xdg portals、
-   qt6 工具链，以及 Caelestia QML 插件编译所需的 aubio / libpipewire /
-   libqalculate / lm_sensors / fftw / spirv-tools），另加合成器相关的包
+1. pacman 基础依赖（starship、kitty、fish、fuzzel、fcitx5、cliphist、
+   xdg portals、qt6 工具链，以及 Caelestia QML 插件编译所需的 aubio /
+   libpipewire / libqalculate / lm_sensors / fftw / spirv-tools），另加合成器相关的包
    —— Hyprland：`hyprland hypridle hyprlock xdg-desktop-portal-hyprland`；
    niri：只有 `xdg-desktop-portal-gnome`（niri 本体走 AUR 的 fork 包，
    见[环境要求](#环境要求)）。**默认只装缺失项，不滚动系统**；需要全量升级时用
-   `FULL_UPGRADE=1 ./install.sh install`
+   `FULL_UPGRADE=1 ./install.sh install`。字体包按 `FONTS` 决定装不装。
 2. AUR 包（niri 本体 `niri-shorin-fork-git`、matugen、mpvpaper、libcava、
-   qt6-m3shapes-git）；无 AUR helper 时自动安装 yay
+   qt6-m3shapes-git，以及 `FONTS=1` 时的 MiSans / Maple Mono NF / 霞鹜文楷）；
+   无 AUR helper 时自动安装 yay
 3. quickshell 三级回退：已有二进制 → pacman → AUR → 源码编译
 4. **Caelestia QML 插件**：clone `caelestia-dots/shell` 并编译到
    `~/src/caelestia-build/qml`（失败中断，不静默跳过）
 5. 部署 `dot_*` 条目到 `$HOME`；有差异的已存在文件先备份到
    `~/.local/state/dotfiles-backup/` 再覆盖
 6. 首次运行克隆 quickshell 底盘（pctrade/end4-pC）
-7. 创建 python venv（pypinyin、dbus-python），供启动器拼音搜索使用
+7. 创建 python venv（pypinyin、dbus-python、kde-material-you-colors），
+   供启动器拼音搜索与 KDE/Qt 取色使用
 
 重复运行幂等。
 
-> **Caelestia QML 插件**：`[4/7]` 步会 clone `caelestia-dots/shell` 并编译
-> 到 `~/src/caelestia-build/qml`，编译失败会中断安装并提示重试命令。编译前先应用
+## 测试
+
+改 `install.sh` 之后跑这两个（都不需要 sudo / 网络 / 真实包管理器）：
+
+```bash
+bash tests/install-sh-behaviour-test.sh   # 纯函数级：chezmoi 前缀、完整性自检、
+                                          # 删除范围、.chezmoiignore 匹配、依赖矩阵
+bash tests/install-sh-dryrun.sh           # 端到端：PATH 前置假命令 + 临时 $HOME，
+                                          # 跑真实 cmd_install 三轮（安装 / 迁移 / 幂等）
+```
+
+两个脚本都会在失败时打印「实际 vs 期望」并以非 0 退出。
+`DRYRUN_ROOT=/tmp/xxx bash tests/install-sh-dryrun.sh` 可保留现场供排查。
+
+> **Caelestia QML 插件**：`[4a/7]` 步会 clone `caelestia-dots/shell` 到
+> `~/src/caelestia-plugin-src`（**不在** `~/.config/quickshell/` 下 —— 那里是
+> quickshell 的配置命名空间，放 clone 会凭空多出一套可运行的 shell），编译到
+> `~/src/caelestia-build/qml`，编译失败会中断安装并提示重试命令。编译前先应用
 > `dot_config/quickshell/caelestia/` 覆盖层（含简体中文 `trs/zh_CN.po`），覆盖层
-> 有变化时自动重编（`.overlay-stamp` 记 hash）。产物由 Hyprland `execs.lua` 与 fish
-> `config.fish` 通过 `QML2_IMPORT_PATH` 自动加载，**不会** `cmake --install` 写入
-> 系统目录。只引入插件本体，不含 Caelestia shell / CLI。
+> 有变化时自动重编（`.overlay-stamp` 记 hash）。
+>
+> 编译只做 `-DENABLE_MODULES=plugin`：上游默认会连 `extras` 与整个 caelestia
+> 桌面 shell 一起编，而我们只要 `plugin/` 下的 QML 模块。构建目录与源码路径
+> 配对检查也在这一层（`CMakeCache.txt` 的 `CMAKE_HOME_DIRECTORY` 与当前源码
+> 路径不一致时自动清空重配），编完还会断言产物真的存在。
+>
+> 产物由 Hyprland `start_quickshell.sh` 与 fish `config.fish` 通过
+> `QML2_IMPORT_PATH` 自动加载，**不会** `cmake --install` 写入系统目录。
+> 只引入插件本体，不含 Caelestia shell / CLI。
+>
+> 插件缺失时 shell **不会整体起不来**：面板族里只有「锁屏」与「灵动岛」硬依赖
+> `import Caelestia.Config`，这两处已改成运行时创建
+> （`panelFamilies/CaelestiaPluginProbe.qml` 探针 + `PanelLoader { source: ... }`），
+> 缺插件只损失这两块，其余面板照常。
 
 ## 脚本命令
 

@@ -128,12 +128,38 @@ cd ~/dotfiles && ./install.sh install
 # 2) 手动编译（需要 libqalculate / aubio / libpipewire / libcava 等依赖）
 sudo pacman -S --needed aubio libpipewire libqalculate lm_sensors fftw spirv-tools
 paru -S --needed libcava qt6-m3shapes-git
-cmake -S ~/.config/quickshell/caelestia -B ~/src/caelestia-build -G Ninja \
-      -DCMAKE_BUILD_TYPE=RelWithDebInfo -DVERSION=0.0.0 -DGIT_REVISION=unknown
+# 源码在 ~/src/caelestia-plugin-src（**不是** ~/.config/quickshell/caelestia ——
+# 那里是 quickshell 的配置命名空间，只该放真正要运行的 shell）
+git clone --depth=1 https://github.com/caelestia-dots/shell.git ~/src/caelestia-plugin-src
+cmake -S ~/src/caelestia-plugin-src -B ~/src/caelestia-build -G Ninja \
+      -DCMAKE_BUILD_TYPE=RelWithDebInfo -DENABLE_MODULES=plugin \
+      -DVERSION=0.0.0 -DGIT_REVISION=unknown
 cmake --build ~/src/caelestia-build
 ```
 
+> `-DENABLE_MODULES=plugin` 不能省：上游根 CMakeLists 默认
+> `ENABLE_MODULES="extras;plugin;shell"`，`shell` 会编译整个 caelestia 桌面 shell
+> 应用 —— 我们只要 QML 模块（`Caelestia.Config` / `.Services` / `.Components` /
+> `.Images` / `.Models` / `.Blobs` / `.I18n`），它们全在 `plugin/` 下。
+> 省掉这一项会白编几分钟、还多一堆只有 shell 才需要的依赖。
+>
+> 另：如果之前用旧路径（`~/.config/quickshell/caelestia`）编过，
+> `~/src/caelestia-build/CMakeCache.txt` 里记的还是老路径，直接复用会配置失败。
+> `install.sh` 会自动检测并清空重配；手动编的话先 `rm -rf ~/src/caelestia-build`。
+
 编译完重启会话，或单独重跑 `bash ~/.config/hypr/hyprland/scripts/start_quickshell.sh`。
+
+**插件缺失时 shell 不再整体起不来**（2026-09-29 起）：面板族里只有「锁屏」与
+「灵动岛」硬依赖 `import Caelestia.Config`，这两处已改成运行时创建
+（`panelFamilies/CaelestiaPluginProbe.qml` 探针 + `PanelLoader { source: ... }`）。
+所以 `qs -c end4-PC` 现在**能正常加载**，只少这两块，日志里会有：
+
+```
+WARN qml: [end4-pC] Caelestia QML 插件不可用（import Caelestia.Config 失败）：…
+WARN qml: [end4-pC]   → 本次只跳过「锁屏」与「灵动岛」，其余面板不受影响。
+```
+
+想拿回锁屏与灵动岛，仍按上面的「修复」编译插件。
 
 **不想用 Caelestia 风格锁屏**：把 `modules/ii/lock/Lock.qml` 里的
 `lockSurface` 从 `CaelestiaLockSurface` 换回 `SerpantinumLockSurface`

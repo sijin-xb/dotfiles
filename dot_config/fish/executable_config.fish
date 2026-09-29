@@ -4,11 +4,18 @@ set -gx PATH "/home/xibie/.local/bin" $PATH
 
 # ===================== Caelestia QML 插件 =====================
 # caelestia-dots/shell 仓库里只有 QML 源码，Caelestia 这个 Qt 插件要自己
-# cmake 编译。构建产物固定在 ~/src/caelestia-build/qml。
+# cmake 编译。源码在 ~/src/caelestia-plugin-src，产物固定在
+# ~/src/caelestia-build/qml（见 install.sh 的 [4a/7]）。
 # 没构建过（目录不存在）就不注入，免得污染其它 Qt 程序。
-# 注意：hyprland/execs.lua 里还有一份同样的注入（给 qs 自己用），两处要一致。
+# 注意：hyprland/scripts/start_quickshell.sh 里还有一份同样的注入（会话自启用），
+# 两处要一致 —— 这里以前写的是 execs.lua，实际早就挪进那个脚本了。
+#
+# 幂等：fish 里再开 fish 会重复执行本文件，不判重的话
+# QML2_IMPORT_PATH 会累积成 "a:a:a"。
 if test -d ~/src/caelestia-build/qml
-    set -gx QML2_IMPORT_PATH ~/src/caelestia-build/qml $QML2_IMPORT_PATH
+    if not contains ~/src/caelestia-build/qml $QML2_IMPORT_PATH
+        set -gx QML2_IMPORT_PATH ~/src/caelestia-build/qml $QML2_IMPORT_PATH
+    end
 end
 
 # ===================== INTERACTIVE =====================

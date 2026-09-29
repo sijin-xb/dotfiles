@@ -205,14 +205,21 @@ apply_snapshot_from_state() {
 #                入口 ~/.config/niri/config.kdl，DMS 配置在 ~/.config/DankMaterialShell
 #
 # ⚠ Caelestia QML 插件（end4-pC 与 caelestia 都要，见 [4a/7]）统一
-#   out-of-source 编译到 ~/src/caelestia-build，由 execs.lua、fish/config.fish
-#   与 start_quickshell.sh 三处读取 QML2_IMPORT_PATH 加载，换位置要同步改这三处。
+#   ~/src/caelestia-plugin-src 取源码、out-of-source 编译到 ~/src/caelestia-build，
+#   由 fish/config.fish 与 start_quickshell.sh 两处读取 QML2_IMPORT_PATH 加载，
+#   换位置要同步改那两处。
 #
 # 可交互选择，也可用环境变量预设：SESSION=caelestia ./install.sh install
 # 兼容旧变量：COMPOSITOR=niri 等价 SESSION=dms，COMPOSITOR=hyprland 等价 SESSION=end4pc
 SESSION="${SESSION:-}"        # end4pc | caelestia | dms
 COMPOSITOR="${COMPOSITOR:-}"  # hyprland | niri（由 SESSION 派生，部署过滤/卸载仍用它）
 QS_SHELL="${QS_SHELL:-}"      # end4-pC | caelestia | dms（由 SESSION 派生）
+
+# 字体是否随安装部署：1=装 / 0=跳过 / 空=执行时询问。
+# 不再无条件塞给用户系统字体（200MB+ 的 AUR 字体链 + 改 /etc/fonts），
+# 想脚本化就 FONTS=0 ./install.sh install。
+FONTS="${FONTS:-}"
+FONTS_ASKED=0                 # 1 = 已经问过/已定，choose_fonts 不再重复问
 
 # SESSION → COMPOSITOR + QS_SHELL。
 # COMPOSITOR 仍被部署过滤 / 卸载范围 / 完成指引使用，所以即使有了 SESSION 也要
@@ -251,7 +258,43 @@ choose_session() {
         *)                        SESSION=end4pc ;;
     esac
     session_to_parts
-    echo "    会话: $SESSION  →  合成器 $COMPOSITOR + shell $QS_SHELL"
+    echo "    会话: $SESSION → 合成器 $COMPOSITOR + shell $QS_SHELL"
+}
+
+# ---------- 字体开关（FONTS=1 装 / 0 跳过 / 空=询问） ----------
+fonts_enabled() { [[ "${FONTS:-1}" == "1" ]]; }
+
+fonts_label() {
+    if fonts_enabled; then printf '安装推荐字体'; else printf '跳过（不改动系统字体）'; fi
+}
+
+fonts_toggle() {
+    if fonts_enabled; then FONTS=0; else FONTS=1; fi
+    FONTS_ASKED=1
+}
+
+# 只问一次：FONTS 预设 → 非 tty 兜底 → 交互询问。
+# 问过就把 FONTS_ASKED 置 1，TUI 与 cmd_install 共用同一个选择，不会问两遍。
+choose_fonts() {
+    if ((FONTS_ASKED)); then return 0; fi
+    FONTS_ASKED=1
+    case "${FONTS,,}" in
+        1|y|yes|true)  FONTS=1; echo "    字体: 安装推荐字体（FONTS 预设）"; return 0 ;;
+        0|n|no|false)  FONTS=0; echo "    字体: 跳过，不改动系统字体（FONTS 预设）"; return 0 ;;
+    esac
+    # 非交互（管道 / 重定向 / 后台执行）不能停下来问，默认装、显式 FONTS=0 可关。
+    if [[ ! -t 0 ]]; then
+        FONTS=1
+        echo "    字体: 非交互运行，默认安装（FONTS=0 可跳过）"
+        return 0
+    fi
+    local ans=""
+    printf '    安装推荐字体？（MiSans / Maple Mono NF / 霞鹜文楷 / Noto CJK，约 200MB）[Y/n] '
+    IFS= read -r ans || true
+    case "${ans,,}" in
+        n|no) FONTS=0; echo "    字体: 跳过，不改动系统字体" ;;
+        *)    FONTS=1; echo "    字体: 安装推荐字体" ;;
+    esac
 }
 
 # 依据 $COMPOSITOR 给出需要装的**官方仓库**包（合成器本体 + 对应 xdg-desktop-portal）。
@@ -300,10 +343,20 @@ compositor_aur_pkgs() {
 #   dms:  DankMaterialShell 本体 + niri 集成包。用 -git 而不是稳定版：
 #         DMS 迭代很快，稳定版往往落后几个小版本，而 niri 侧的
 #         config.kdl / dms/binds.kdl 是按新版写的（键位、ipc 目标会对不上）。
+#
+#         nirius   → niri 的配套工具。niri/binds.kdl 里有 4 个键位直接 spawn 它：
+#                    Mod+Ctrl+G `nirius toggle-follow-mode`
+#                    Mod+Shift+Q/O/W `nirius focus --app-id <QQ|opencode|wechat>`
+#                    缺了这几个键位就是「按了没反应」，且 niri 不会报错。
+#         awww-git → niri 侧的壁纸后端。scripts/niri_set_overview_blur_dark_bg.sh
+#                    里 WALLPAPER_BACKEND="awww"、scripts/matugen-update.sh 用
+#                    `awww query` 取当前壁纸；install.sh 只装了 mpvpaper（视频
+#                    壁纸），静态壁纸后端以前一直是空的。
+#                    ⚠ 包名是 awww-git：AUR 上没有叫 awww 的包。
 shell_aur_pkgs() {
     case "$QS_SHELL" in
         caelestia) echo "" ;;
-        dms)       echo "dms-shell-git dms-shell-niri" ;;
+        dms)       echo "dms-shell-git dms-shell-niri nirius awww-git" ;;
         *)         echo "" ;;
     esac
 }
@@ -348,10 +401,10 @@ base_pacman_pkgs() {
     esac
 }
 
-# 按 $COMPOSITOR 过滤 SNAP_PATHS，输出到 stdout（一行一个）。
+# 按 $COMPOSITOR / $QS_SHELL 过滤 SNAP_PATHS，输出到 stdout（一行一个）。
 #
 # 只用于**删除类**操作（uninstall / archive --delete）：卸载时不该把机器上
-# 另一套合成器的既有配置一起删掉。
+# 另一套合成器、或另一套桌面 shell 的既有配置一起删掉。
 # 快照（snapshot）和打包（archive）**不用**它——那两步是备份，多带无妨，
 # 而且 pre-install 快照发生在 choose_session 之前，过滤它反而会让
 # rollback 少恢复东西。
@@ -366,6 +419,19 @@ active_snap_paths() {
             if [[ "$COMPOSITOR" == "niri" ]]; then printf '%s\n' "$p"; fi
         elif [[ $p == .config/hypr ]]; then
             if [[ "$COMPOSITOR" != "niri" ]]; then printf '%s\n' "$p"; fi
+        # ⚠ quickshell 的两个 shell 也要分开：end4-PC 与 caelestia 在
+        #   ~/.config/quickshell/ 下各占一个目录，卸载其中一套不该顺手删掉
+        #   另一套（以前这里只按合成器过滤，两套 shell 都被算进删除范围）。
+        #   QS_SHELL 为空 = 没指定，保持旧行为（两个都算）。
+        #   值 `both` = 用户在 uninstall_shell_scope 里明确选了"两套都删"。
+        elif [[ $p == .config/quickshell/end4-pC ]]; then
+            if [[ -z ${QS_SHELL:-} || "$QS_SHELL" == "end4-pC" || "$QS_SHELL" == "both" ]]; then
+                printf '%s\n' "$p"
+            fi
+        elif [[ $p == .config/quickshell/caelestia ]]; then
+            if [[ -z ${QS_SHELL:-} || "$QS_SHELL" == "caelestia" || "$QS_SHELL" == "both" ]]; then
+                printf '%s\n' "$p"
+            fi
         else
             printf '%s\n' "$p"
         fi
@@ -390,6 +456,32 @@ uninstall_compositor_scope() {
         3) COMPOSITOR=niri ;;
         *) INSTALL_BOTH_COMPOSITORS=1 ;;
     esac
+}
+
+# 删除类操作的 shell 范围。与 uninstall_compositor_scope 同一套思路：
+# QS_SHELL 已设定（环境变量预设，或本次 install 派生过）就直接用；否则询问。
+#
+# ⚠ 必要性：~/.config/quickshell/end4-pC 与 ~/.config/quickshell/caelestia
+#   是两个独立目录，机器上可能同时存在（例如以前试过 caelestia 又换回
+#   end4-PC）。不做这个区分的话，卸载 end4-PC 会把 caelestia 的配置一起删掉。
+#   选 3 时置为字面量 both —— active_snap_paths 认这个值。
+uninstall_shell_scope() {
+    if [[ -n ${QS_SHELL:-} ]]; then
+        return 0
+    fi
+    echo
+    echo "  要删除哪套桌面 shell 的 quickshell 配置？"
+    echo "    1) 只删 end4-PC    ~/.config/quickshell/end4-pC"
+    echo "    2) 只删 caelestia  ~/.config/quickshell/caelestia"
+    echo "    3) 两套都删"
+    local ans
+    IFS= read -r -p "  请输入 1/2/3 [默认 1]: " ans || true
+    case "$ans" in
+        2) QS_SHELL=caelestia ;;
+        3) QS_SHELL=both ;;
+        *) QS_SHELL=end4-pC ;;
+    esac
+    echo "    shell 范围: $QS_SHELL"
 }
 
 # 依据 $COMPOSITOR 判断仓库内某个相对路径是否**跳过部署**。
@@ -420,7 +512,8 @@ skip_by_compositor() {
 #
 # 三个 shell 的差异层在仓库里的位置不同：
 #   end4-pC   → dot_config/quickshell/end4-pC/**（本仓库跟踪的差异层）
-#   caelestia → 不走 chezmoi 部署，由 [4/7] git clone 到 ~/.config/quickshell/caelestia
+#   caelestia → shell 本体由 [4b/7] clone 到 ~/.config/quickshell/caelestia；
+#               仓库里的 dot_config/quickshell/caelestia/ 只是它的覆盖层
 #   dms       → dot_config/DankMaterialShell/**（插件）
 # 选了 caelestia 就不该把 end4-pC 的差异层覆盖上去（反之亦然）；DMS 插件只在选
 # dms 时部署；illogical-impulse 是 end4-PC 的配置目录，非 end4-pC 时也跳过。
@@ -447,6 +540,186 @@ skip_by_shell() {
     return 1
 }
 
+# 自检 end4-PC 底盘是否**完整**（不只是"入口文件在"）。
+#
+# 为什么不能只看 `shell.qml 存在`
+# ------------------------------
+# 差异层里的 modules/ii/dashboard-caelestia/dashboard/*.qml 写着
+# `import "../components"`，而 components/** 是**底盘**提供的（差异层只跟踪
+# dashboard/ 与 shim/）。底盘残缺时（clone 中断、磁盘写满、上游换过目录结构）
+# 这些 import 解析不到：
+#     WARN qmlscanner: Ignoring unresolvable import ".../dashboard/../components"
+# 接着 FileDialog / Sidebar 之类的类型不可用，最后 `qs -c end4-pC` 报
+# "Failed to load configuration"。
+# 旧写法只判 shell.qml，于是这种残缺树被当成"已安装"永久跳过 —— 重跑安装也
+# 修不好，只能手动删目录。
+#
+# 输出：完整 → 无输出且返回 1；残缺 → 打印**第一个**缺失项并返回 0。
+# ⚠ 返回 1 表示"完整"，调用方用 `x="$(end4pc_base_missing || true)"` 取值，
+#   `|| true` 不能省（赋值语句的退出码取自命令替换结果）。
+end4pc_base_missing() {
+    local dst="$HOME/.config/quickshell/end4-pC"
+    local rel
+    # 清单只放"差异层 import 得到、但文件本身来自底盘"的落点，
+    # 以及 shell.qml 直接 import 的目录。差异层自己提供的文件不在此列
+    # （那些由 [5/7] 部署，缺了会在下一步补上）。
+    for rel in \
+        shell.qml \
+        modules/common/Config.qml \
+        modules/common/Appearance.qml \
+        modules/ii/dashboard-caelestia/dashboard/Content.qml \
+        modules/ii/dashboard-caelestia/components/filedialog/FileDialog.qml \
+        modules/ii/dashboard-caelestia/components/controls/ButtonBase.qml \
+        modules/ii/dashboard-caelestia/shim/qmldir \
+        services \
+        scripts/colors/switchwall.sh
+    do
+        [[ -e "$dst/$rel" ]] || { printf '%s' "$rel"; return 0; }
+    done
+    return 1
+}
+
+# 判断某个**目标相对路径**（相对 $HOME，如 .config/hypr/hyprland/colors.lua）
+# 是否命中 $SRC/.chezmoiignore。命中则输出处理方式，未命中输出空：
+#   keep   精确路径条目   → 目标已存在时**不覆盖**
+#   skip   glob / 目录条目 → 一律跳过
+#
+# 为什么要读 chezmoi 的忽略清单
+# ----------------------------
+# install.sh 与 chezmoi 部署同一份源树，规则必须一致。漏读的后果是**用仓库里的
+# 旧快照覆盖运行时生成物** —— 最典型的是 .config/hypr/hyprland/colors.lua：
+# 那是 matugen 按当前壁纸生成的，仓库里那份只是某次提交时的调色板。实测差异：
+#     仓库  active_border = "rgba(90d5aeAA)"
+#     实机  active_border = "rgba(feb0d3AA)"
+# 也就是说，每重跑一次安装就把用户配色打回旧值。仓库 .chezmoiignore 的注释
+# 本身就写着「install.sh 直接遍历源目录复制…不读取本文件」，这条就是要补的差。
+#
+# 语义与 chezmoi 对齐：
+#   · 精确路径   → 只在目标**不存在**时部署（新机器仍拿到一份可用默认值）
+#   · glob / 目录 → 一律跳过（缓存、字节码、插件 git 元数据、UI 写回的配置）
+chezmoi_ignore_kind() {
+    local target="$1"
+    local ignore_file="$SRC/.chezmoiignore"
+    local line pat tp
+    [[ -f $ignore_file ]] || return 0
+    while IFS= read -r line || [[ -n $line ]]; do
+        pat="${line%%#*}"                                  # 去注释
+        pat="${pat#"${pat%%[![:space:]]*}"}"               # 去首空白
+        pat="${pat%"${pat##*[![:space:]]}"}"               # 去尾空白
+        [[ -z $pat ]] && continue
+        if [[ $pat == */ ]]; then                          # 目录
+            [[ $target == "$pat"* ]] && { printf 'skip'; return 0; }
+            continue
+        fi
+        if [[ $pat == *'**'* ]]; then                      # **/X → 任意深度的 X
+            tp="${pat##*\*\*/}"
+            [[ $target == $tp || $target == */"$tp" || $target == */"$tp"/* ]] \
+                && { printf 'skip'; return 0; }
+            continue
+        fi
+        if [[ $pat == *'*'* ]]; then                       # 单层 glob
+            # shellcheck disable=SC2254
+            case "$target" in $pat) printf 'skip'; return 0 ;; esac
+            continue
+        fi
+        [[ $target == "$pat" ]] && { printf 'keep'; return 0; }
+    done < "$ignore_file"
+    return 0
+}
+
+# 部署单个源文件到 $HOME（[5/7] 的循环体）。
+#
+# $1 = 源文件绝对路径
+# $2 = 目标目录（绝对路径，已含 $HOME 前缀）
+# $3 = 目标文件名（含 chezmoi 属性前缀）
+#
+# 依赖调用方设置的全局量：
+#   $backup_dir  有差异的旧文件备份根
+#   $backed      备份计数（本函数自增）
+#
+# 抽成独立函数是为了**能脱离 pacman / AUR / 网络单独测**：这段逻辑以前内联在
+# [5/7] 的 while 里，只能靠跑一遍完整安装来验证，而完整安装要 sudo。
+deploy_one_file() {
+    local f="$1" dir="$2" base="$3"
+
+    # ── chezmoi 属性前缀 ────────────────────────────────────────────
+    # 本脚本直接遍历源目录复制，不经过 chezmoi，所以得自己认这些前缀；
+    # 漏认的后果是**把前缀当成文件名的一部分部署出去**（静默故障：
+    # 文件在、名字错、程序读不到）。
+    #   executable_ → 剥前缀 + chmod +x
+    #   private_    → 剥前缀 + chmod 600
+    #                 （fcitx5 的 config / conf/*.conf 用它；fcitx5 会写回
+    #                   这些文件，权限不对会改不动）
+    #   symlink_    → 剥前缀 + 建符号链接，文件**内容**就是链接目标
+    #                 （systemd/user/symlink_mako.service 内容为 /dev/null，
+    #                   用来屏蔽系统 mako 服务，避免和 quickshell 的
+    #                   通知服务抢 org.freedesktop.Notifications）
+    # ⚠ create_ **不在此列**，必须保持字面文件名：chezmoi 的 create_ 语义是
+    #   「不存在才创建」并会剥前缀，但 hyprland/services/init.lua 里写的是
+    #   require("hyprland/services/create_custom_config")，剥成
+    #   custom_config.lua 反而 require 不到 —— .chezmoiignore 里记的就是
+    #   这个冲突。所以这里只认上面三个。
+    # 前缀可以叠加（private_executable_xxx），所以用循环而不是 if。
+    local execbit=0 private=0 symlink=0
+    while :; do
+        case "$base" in
+            executable_*) base="${base#executable_}"; execbit=1 ;;
+            private_*)    base="${base#private_}";    private=1 ;;
+            symlink_*)    base="${base#symlink_}";    symlink=1 ;;
+            *) break ;;
+        esac
+    done
+
+    mkdir -p "$dir"
+
+    # ── .chezmoiignore：与 chezmoi 对齐（见 chezmoi_ignore_kind 的说明）──
+    # 必须在备份/写入之前判断：否则既会白备份，又会把运行时生成物
+    # （matugen 配色等）用仓库旧快照覆盖掉。
+    local target_rel
+    if [[ "$dir" == "$HOME" ]]; then target_rel="$base"; else target_rel="${dir#"$HOME"/}/$base"; fi
+    case "$(chezmoi_ignore_kind "$target_rel")" in
+        skip)
+            ignored_skip=$((ignored_skip + 1))
+            return 0
+            ;;
+        keep)
+            # 运行时生成物且目标已存在：保留用户当前值，不动也不备份
+            if [[ -e "$dir/$base" || -L "$dir/$base" ]]; then
+                ignored_keep=$((ignored_keep + 1))
+                return 0
+            fi
+            ;;
+    esac
+
+    # 有差异才备份。符号链接不能直接 cmp（会跟随链接比到目标文件，
+    # 比如 mako.service -> /dev/null 会变成拿 /dev/null 的内容去比），
+    # 得比链接本身。
+    if [[ -e "$dir/$base" || -L "$dir/$base" ]]; then
+        local differs=0
+        if [[ -L "$dir/$base" ]]; then
+            [[ "$(readlink "$dir/$base")" == "$(head -n1 "$f")" ]] || differs=1
+        elif [[ -f "$dir/$base" ]]; then
+            cmp -s "$f" "$dir/$base" || differs=1
+        else
+            differs=1
+        fi
+        if ((differs)); then
+            mkdir -p "$backup_dir/$dir"
+            # -a 而不是 -p：备份符号链接时要保留链接本身，不能解引用
+            cp -a "$dir/$base" "$backup_dir/$dir/$base"
+            backed=$((backed + 1))
+        fi
+    fi
+
+    if ((symlink)); then
+        ln -sfn "$(head -n1 "$f")" "$dir/$base"
+    else
+        cp "$f" "$dir/$base"
+        if ((execbit)); then chmod +x "$dir/$base"; fi
+        if ((private)); then chmod 600 "$dir/$base"; fi
+    fi
+}
+
 # ============================================================
 # 3. 安装（7 步流程，封装进 cmd_install）
 # ============================================================
@@ -466,8 +739,13 @@ cmd_install() {
     say "[1/7] 安装基础工具与会话依赖"
     # 合成器本体与 portal 由 choose_session 的结果决定，单独追加到最后
     choose_session
+    choose_fonts
     PACMAN_PKGS=(
         git base-devel github-cli
+        # starship：fish 默认提示符（config.fish 里 starship init fish | source），
+        # matugen 还有 templates/starship.toml 取色模板。缺了就是
+        # 「有 ~/.config/starship.toml、提示符却是原生 fish」这类静默故障。
+        starship
         kitty jq fish fuzzel
         grim wl-clipboard wtype playerctl
         fcitx5 fcitx5-rime fcitx5-configtool
@@ -480,18 +758,22 @@ cmd_install() {
         # ffmpeg：视频缩略图 / 动态取色（DMS 的 mpvpaper 视频壁纸插件依赖它）。
         # 通用工具，别的 shell 也可能用到，保留在基础列表。
         ffmpeg
+        # wf-recorder：屏幕录制。end4-PC 的录屏实现（scripts/videos/record.sh）
+        # 直接调它，RegionSelection 也用 `pidof wf-recorder` 判断录制状态；
+        # dms 用 gpu-screen-recorder，多装一个不碍事。
+        wf-recorder
+        # wget：fish 的 `wget` 包装函数（下载进度上报灵动岛，见
+        # dot_config/fish/functions/wget.fish）内部是 `command wget`，
+        # 缺了那个函数直接失效。脚本自身只用 curl，以前一直靠依赖顺带带入。
+        wget
+        # songrec（Shazam 客户端）：end4-PC 的音乐识别
+        # （scripts/musicRecognition/recognize-music.sh 硬依赖，翻译表里也写了
+        #   「请确保你已安装 songrec」）。在官方仓库 extra 里。
+        songrec
         # 登录管理器：SDDM（主题用 Catppuccin Mocha，见 docs/login-screen.md）
         # 注意：若机器上用的是 plasmalogin（KDE 新版 DM），两者可共存，
         # 切换只需 systemctl disable/enable，见文档。
         sddm
-        # 字体：kitty 终端用 JetBrains Mono Nerd Font（含 Nerd 图标）；
-        # noto-fonts-cjk 提供按语言切换 CJK 字形所需的全部地区变体
-        # （Noto Sans/Serif CJK 的 JP/KR/TC/HK），装包本身会自动 fc-cache。
-        ttf-jetbrains-mono-nerd ttf-nerd-fonts-symbols
-        noto-fonts noto-fonts-cjk noto-fonts-emoji
-        # 思源黑体（Source Han Sans CN）：**不再走 fontconfig 别名**，但 GTK
-        # settings.ini、fcitx5 classicui.conf 里硬编码了它，保留。
-        adobe-source-han-sans-cn-fonts
         # ---- Neovim 生态 ----
         # 配置在 dot_config/nvim/（LazyVim）。**编辑器本体必须在这里显式声明**：
         # 之前只跟踪了配置、没跟踪包，新机器装完是「有配置、没编辑器」，
@@ -528,6 +810,21 @@ cmd_install() {
         PACMAN_PKGS+=($_base_pkgs)
         say "    Caelestia 插件依赖: $_base_pkgs"
     fi
+    # 字体包是可选项（见 choose_fonts）：不想被塞 200MB+ 的字体链就 FONTS=0。
+    #   ttf-jetbrains-mono-nerd  kitty 终端的 Nerd 图标
+    #   noto-fonts-cjk           按语言切换 CJK 字形的全部地区变体（JP/KR/TC/HK），
+    #                            装包本身会自动 fc-cache
+    #   adobe-source-han-sans-cn 思源黑体 CN：不再走 fontconfig 别名，但 GTK
+    #                            settings.ini 与 fcitx5 classicui.conf 硬编码了它
+    if fonts_enabled; then
+        # shellcheck disable=SC2207
+        PACMAN_PKGS+=(ttf-jetbrains-mono-nerd ttf-nerd-fonts-symbols
+                      noto-fonts noto-fonts-cjk noto-fonts-emoji
+                      adobe-source-han-sans-cn-fonts)
+        say "    字体（pacman）: Nerd Mono / Noto CJK / 思源黑体"
+    else
+        say "    字体: 已跳过（FONTS=0），不安装任何系统字体包"
+    fi
     # 默认只安装缺失的包，不做全系统升级（避免在你没准备时滚动整个系统）。
     # 需要全量升级时：FULL_UPGRADE=1 ./install.sh install
     if [[ "${FULL_UPGRADE:-0}" == "1" ]]; then
@@ -547,9 +844,18 @@ cmd_install() {
         (cd "$tmpdir/yay" && makepkg -si --noconfirm)
         rm -rf "$tmpdir"
     fi
-    # 通用 AUR 包 + 字体（偏好链见 ~/.config/fontconfig/fonts.conf）：
+    # 通用 AUR 包：
     #   matugen                壁纸 → Material 3 全局取色
     #   mpvpaper               视频壁纸
+    #   walker                 Hyprland 侧的启动器/剪贴板前端。三处都依赖它：
+    #                            hypr/custom/keybinds.lua  SUPER+V → `walker -m clipboard`
+    #                            hypr/hyprland/rules.lua   layer rule（namespace="walker"）
+    #                            matugen/config.toml       [templates.walker] → ~/.config/walker/themes/matugen
+    #                          缺了就是「SUPER+V 按了没反应」+ walker 主题目录不存在。
+    # catppuccin-sddm-theme-mocha：SDDM 登录界面主题（Qt6，需 SDDM 走 Wayland）
+    # qt6-svg / qt6-declarative / qt5-quickcontrols2 是它的依赖，AUR 包会带入。
+    AUR_PKGS=(matugen mpvpaper walker catppuccin-sddm-theme-mocha)
+    # 字体链（可选，见 choose_fonts；偏好链在 ~/.config/fontconfig/fonts.conf）：
     #   otf-misans             sans-serif 默认（MiSans）
     #   maplemononormal-nf-cn  monospace 默认（自带 Nerd 图标 + 中文）
     #   ttf-lxgw-wenkai-screen serif 回退链第二位
@@ -557,11 +863,11 @@ cmd_install() {
     #   ttf-lxgw-wenkai        楷体，供硬编码霞鹜文楷的组件回退
     # ⚠ AUR 包名不规则：上游 README 写的 ttf-maplemononormal-nf-cn 并不存在，
     #   实际是 maplemononormal-nf-cn（无 ttf- 前缀）。
-    # catppuccin-sddm-theme-mocha：SDDM 登录界面主题（Qt6，需 SDDM 走 Wayland）
-    # qt6-svg / qt6-declarative / qt5-quickcontrols2 是它的依赖，AUR 包会带入。
-    AUR_PKGS=(matugen mpvpaper otf-misans maplemononormal-nf-cn
-              ttf-lxgw-wenkai ttf-lxgw-wenkai-screen ttf-lxgw-wenkai-tc
-              catppuccin-sddm-theme-mocha)
+    if fonts_enabled; then
+        AUR_PKGS+=(otf-misans maplemononormal-nf-cn
+                   ttf-lxgw-wenkai ttf-lxgw-wenkai-screen ttf-lxgw-wenkai-tc)
+        say "    字体（AUR）  : MiSans / Maple Mono NF / 霞鹜文楷三兄弟"
+    fi
     # 追加合成器本体的 AUR 包（见 compositor_aur_pkgs：
     #   niri → niri-shorin-fork-git，hyprland → 官方仓库已装，无）
     local _comp_aur; _comp_aur="$(compositor_aur_pkgs)"
@@ -652,14 +958,38 @@ cmd_install() {
     # 插件 QML 源码在 caelestia-dots/shell 仓库的 plugin/ 下；本仓库的覆盖层
     # （dot_config/quickshell/caelestia/）提供汉化 po 与改过的 CMakeLists。
     # 所以这里无论如何都要：拿到源码 → 应用覆盖层 → out-of-source 编译到
-    # $HOME/src/caelestia-build。产物路径是硬约定：execs.lua、fish/config.fish
-    # 与 start_quickshell.sh 都从这里读 QML2_IMPORT_PATH，换位置要同步改那三处。
+    # $HOME/src/caelestia-build。
+    #
+    # ── 存放规则（单一事实来源，改这里要连带改下面这张表的所有读者）──────
+    #
+    #   | 用途                | 路径                              | 谁写      | 进快照/归档 |
+    #   |---------------------|-----------------------------------|-----------|-------------|
+    #   | 编译源码（构建输入）| ~/src/caelestia-plugin-src        | [4a/7]    | 否          |
+    #   | 编译产物（QML 模块）| ~/src/caelestia-build/qml         | [4a/7]    | 否          |
+    #   | 覆盖层（仓库内）    | dot_config/quickshell/caelestia/  | 仓库      | —           |
+    #   | end4-PC shell 配置  | ~/.config/quickshell/end4-pC      | [4b/7]+[5/7] | 是       |
+    #   | caelestia shell 配置| ~/.config/quickshell/caelestia    | [4b/7]+[5/7] | 是       |
+    #
+    # 两条硬规则：
+    #   1. **源码与产物都在 $HOME/src，不在 $HOME/.config/quickshell 下。**
+    #      后者是 quickshell 的配置命名空间（quickshell 按
+    #      `<config>/quickshell/<名字>/shell.qml` 发现配置），往里放 clone 等于
+    #      凭空多出一套可运行的 shell（`qs -c caelestia`），而且会被
+    #      SNAP_PATHS / EXTRA_ARCHIVE_PATHS 整包打进快照与归档。
+    #      旧版本正是把源码放在 ~/.config/quickshell/caelestia（复用 caelestia
+    #      shell 的 clone），既污染命名空间，又让"哪些文件是配置、哪些是构建
+    #      输入"彻底糊在一起。
+    #   2. **只有 ~/src/caelestia-build/qml 会被 QML2_IMPORT_PATH 指向。**
+    #      读者只有两处：fish/config.fish（手动跑 qs）与
+    #      hyprland/scripts/start_quickshell.sh（会话自启）。
+    #      换位置要同步改那两处 —— 以前注释里还写着 execs.lua，早就不存在了。
     install_caelestia_plugin() {
-        local src="$HOME/.config/quickshell/caelestia"
+        local src="$HOME/src/caelestia-plugin-src"
         local build="$HOME/src/caelestia-build"
 
-        # 1) 插件源码来源：优先复用已 clone 的 caelestia shell（自带 plugin/），
-        #    否则浅克隆一份。end4-pC 用户不跑 caelestia shell，但需要它的插件源码。
+        # 1) 插件源码来源：浅克隆一份独立的源码树。只用到 plugin/ 子目录
+        #    （编译时由 -DENABLE_MODULES=plugin 限定，见第 3 步），
+        #    不需要 caelestia 的 shell 本体。
         if [[ ! -d "$src/plugin" ]]; then
             say "    克隆 caelestia 源码（为编译 Caelestia QML 插件）"
             mkdir -p "$(dirname "$src")"
@@ -690,6 +1020,23 @@ cmd_install() {
             echo "    已编译: $build/qml（覆盖层无变化）"
             return 0
         fi
+
+        # 3a) 构建目录与源码路径必须配对。
+        #     CMakeCache.txt 里记着 CMAKE_HOME_DIRECTORY（= 上次 -S 的源码目录）。
+        #     源码位置换过（旧版本是 ~/.config/quickshell/caelestia）之后直接复用
+        #     旧构建目录，CMake 会拿缓存里的老路径去找 CMakeLists —— 表现为
+        #     "配置失败" 或更糟：配置通过、链接到已删除的目标文件。
+        #     检测到不匹配就整个清掉重配。这也是"编译流程与存放规则一致"的一部分：
+        #     源码路径是这条链的单一事实来源，改它必须连带作废旧构建。
+        if [[ -f "$build/CMakeCache.txt" ]]; then
+            local _cached_src
+            _cached_src="$(sed -n 's/^CMAKE_HOME_DIRECTORY:INTERNAL=//p' "$build/CMakeCache.txt" | head -1)"
+            if [[ -n "$_cached_src" && "$_cached_src" != "$src" ]]; then
+                warn "构建目录的源码路径已变（$_cached_src → $src），清空后重新配置"
+                rm -rf "$build"
+            fi
+        fi
+
         have cmake && have ninja || die "缺少 cmake/ninja，无法编译 Caelestia 插件（end4-pC 锁屏硬依赖）。"
         # 上游 CMakeLists 对 git 有硬依赖：`git describe --tags` 拿 VERSION、
         # `git rev-parse HEAD` 拿 GIT_REVISION，任一为空就 FATAL_ERROR 中断安装。
@@ -702,47 +1049,99 @@ cmd_install() {
         [[ -z "$_cv" ]] && _cv="0.0.0"
         [[ -z "$_rev" ]] && _rev="unknown"
         say "    编译 Caelestia QML 插件（约 1-3 分钟），version=$_cv rev=${_rev:0:7}"
-        cmake -S "$src" -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-            -DVERSION="${_cv#v}" -DGIT_REVISION="$_rev" \
+        # ⚠ -DENABLE_MODULES=plugin 是必须的，不是优化：
+        #   上游根 CMakeLists 默认 ENABLE_MODULES="extras;plugin;shell"，
+        #   其中 shell 会 add_subdirectory 整个 caelestia shell 应用
+        #   （assets/components/modules/services/utils）。我们要的只是 QML 模块
+        #   （Caelestia.Config / .Services / .Components / .Images / .Models /
+        #   .Blobs / .I18n），它们全在 plugin/ 下，与 shell/ 无依赖关系。
+        #   不限定的话会白编一个用不到的桌面 shell，多花几分钟，还多一堆
+        #   只有 shell 才需要的依赖。
+        local _cmake_args=(
+            -S "$src" -B "$build" -G Ninja
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo
+            -DENABLE_MODULES=plugin
+            -DVERSION="${_cv#v}" -DGIT_REVISION="$_rev"
+        )
+        cmake "${_cmake_args[@]}" \
             || die "Caelestia 插件 CMake 配置失败，见上方输出。"
         cmake --build "$build" --parallel \
-            || die "Caelestia 插件编译失败，见上方输出。手动重试：cmake -S $src -B $build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DVERSION=${_cv#v} -DGIT_REVISION=$_rev && cmake --build $build"
+            || die "Caelestia 插件编译失败，见上方输出。手动重试：cmake ${_cmake_args[*]} && cmake --build $build"
+
+        # 3b) 产物自检。没有它的话，一次"看起来成功但没产出"的编译会把 stamp
+        #     写下去，下一轮直接被当成"已编译"跳过 —— 插件对 qs 而言永远不存在，
+        #     而且是静默的。
+        if ! compgen -G "$build/qml/Caelestia/*.so" >/dev/null; then
+            die "编译结束但 $build/qml/Caelestia/*.so 不存在 —— 插件没有真正产出，见上方 cmake 输出。"
+        fi
         printf '%s\n' "$ovl_hash" > "$stamp"
-        echo "    编译完成: $build/qml（由 execs.lua / config.fish / start_quickshell.sh 自动加载）"
+        echo "    编译完成: $build/qml（由 fish/config.fish 与 start_quickshell.sh 自动加载）"
     }
 
-    # end4-PC 底盘（end-4 illogical-impulse 定制 fork，pctrade/end4-pC）：
+    # end4-PC 底盘（end-4 illogical-impulse 定制 fork，pctrade/end4-PC）：
     # 本仓库只跟踪差异层（dot_config/quickshell/end4-pC），底盘本体从这里拉。
+    # 完整性自检见顶层函数 end4pc_base_missing()（放在顶层是为了能单独测）。
     install_end4pc_shell() {
         local dst="$HOME/.config/quickshell/end4-pC"
-        if [[ -f "$dst/shell.qml" ]]; then
-            echo "    已存在: $dst"
-            return 0
+        # ⚠ 命令替换里 set -e 不生效，但赋值语句的退出码取自替换结果，
+        #   所以 `|| true` 不能省：end4pc_base_missing 返回 1（=完整）时
+        #   会让 `missing=...` 整体非零退出。
+        local missing=""
+        if [[ -e "$dst/shell.qml" ]]; then
+            missing="$(end4pc_base_missing || true)"
+            if [[ -z "$missing" ]]; then
+                echo "    已存在且完整: $dst"
+                return 0
+            fi
+            warn "底盘不完整（缺少 $missing），重新拉取一份覆盖"
+            warn "  旧目录已在 [0/7] 的 pre-install 快照里（$SNAP_ROOT），"
+            warn "  需要还原时跑：./install.sh rollback"
         fi
-        say "    拉取 quickshell 底盘 (pctrade/end4-pC)"
+        say "    拉取 quickshell 底盘 (pctrade/end4-PC)"
         # 注意：不能直接 clone 进 $dst —— 目录已存在且非空时 git clone 会失败，
         # 而 set -e 会让整个安装中断。先克隆到临时目录再合并进去。
         local tmp; tmp="$(mktemp -d)"
-        if git clone --depth=1 https://github.com/pctrade/end4-pC.git "$tmp/end4-pC"; then
+        if git clone --depth=1 https://github.com/pctrade/end4-pC.git "$tmp/end4-PC"; then
             mkdir -p "$dst"
-            cp -a "$tmp/end4-pC/." "$dst/"
+            cp -a "$tmp/end4-PC/." "$dst/"
         else
             rm -rf "$tmp"
             die "拉取 quickshell 底盘失败（检查网络后重试，或手动 clone 到 $dst）"
         fi
         rm -rf "$tmp"
+        # 覆盖完再自检一次：网络中断 / 磁盘满都可能让 cp 半途而废，
+        # 这里把结果说出来，别让用户拿到一个"看起来装好了"的残缺树。
+        missing="$(end4pc_base_missing || true)"
+        if [[ -n "$missing" ]]; then
+            die "底盘拉取后仍缺少 $missing —— 请检查网络与磁盘空间后重跑。"
+        fi
+        echo "    底盘完整"
     }
 
     # caelestia shell：本体 clone（QML 插件由 [4a/7] install_caelestia_plugin 统一处理）。
+    #
+    # ⚠ 这是**唯一**应该出现在 ~/.config/quickshell/ 下的东西，且只在选了
+    #   caelestia 时才 clone。[4a/7] 现在把插件源码放在 $HOME/src，不再顺带
+    #   往这里塞 clone，所以本体得自己拉。
     install_caelestia_shell() {
-        local src="$HOME/.config/quickshell/caelestia"
-        # shell 本体（quickshell 按目录加载：qs -c caelestia）
-        # [4a/7] 已经保证 $src 存在且含 plugin/，这里只做一次确认性检查。
-        if [[ -f "$src/shell.qml" ]]; then
-            echo "    已存在: $src"
-        else
-            die "caelestia shell 本体缺失：$src/shell.qml（[4a/7] 应已 clone）"
+        local dst="$HOME/.config/quickshell/caelestia"
+        if [[ -f "$dst/shell.qml" ]]; then
+            echo "    已存在: $dst"
+            return 0
         fi
+        say "    拉取 caelestia shell 本体"
+        # 同 end4-PC：目录可能已存在且非空，先克隆到临时目录再合并。
+        local tmp; tmp="$(mktemp -d)"
+        if git clone --depth=1 https://github.com/caelestia-dots/shell.git "$tmp/shell"; then
+            mkdir -p "$dst"
+            cp -a "$tmp/shell/." "$dst/"
+        else
+            rm -rf "$tmp"
+            die "拉取 caelestia shell 失败（检查网络后重试，或手动 clone 到 $dst）"
+        fi
+        rm -rf "$tmp"
+        [[ -f "$dst/shell.qml" ]] || die "caelestia shell 本体仍然缺失：$dst/shell.qml"
+        echo "    已拉取: $dst"
     }
 
     install_shell() {
@@ -763,6 +1162,7 @@ cmd_install() {
     say "[5/7] 部署配置文件"
     backup_dir="$BACKUP_ROOT/$(now_ts)"
     installed=0; backed=0; skipped=0; skipped_shell=0
+    ignored_skip=0; ignored_keep=0
     while IFS= read -r -d '' f; do
         rel="${f#"$SRC"/}"
         case "$rel" in
@@ -782,22 +1182,15 @@ cmd_install() {
             continue
         fi
         base="${out##*/}"; dir="${out%/*}"
-        execbit=0
-        if [[ $base == executable_* ]]; then
-            base="${base#executable_}"
-            execbit=1
-        fi
-        mkdir -p "$dir"
-        if [[ -f "$dir/$base" ]] && ! cmp -s "$f" "$dir/$base"; then
-            mkdir -p "$backup_dir/$dir"
-            cp -p "$dir/$base" "$backup_dir/$dir/$base"
-            backed=$((backed + 1))
-        fi
-        cp "$f" "$dir/$base"
-        if ((execbit)); then chmod +x "$dir/$base"; fi
+        deploy_one_file "$f" "$dir" "$base"
         installed=$((installed + 1))
     done < <(find "$SRC" -type f -print0)
     say "已部署 $installed 个文件；$backed 个有差异的旧文件备份于 $backup_dir"
+    if ((ignored_skip || ignored_keep)); then
+        echo "    按 .chezmoiignore 跳过 $ignored_skip 个（缓存/字节码/插件元数据/UI 写回的配置）；"
+        echo "    $ignored_keep 个运行时生成物已存在，保留当前值不覆盖（matugen 配色等）。"
+        echo "    想强制用仓库快照覆盖它们：先删掉目标文件再重跑安装。"
+    fi
     if ((skipped)); then
         if [[ "$COMPOSITOR" == "niri" ]]; then other=hypr; else other=niri; fi
         warn "已跳过 $skipped 个文件：未选择的另一套合成器 ~/.config/$other 原样保留，一个字节都没动。"
@@ -811,20 +1204,24 @@ cmd_install() {
     say "[6/7] 运行环境与歌词缓存"
     # 霞鹜臻楷 GB：serif 别名首选字体，AUR 没有对应包，只能从上游 GitHub Release
     # 取。放在 fc-cache 之前，装完当次就能进缓存；已存在则跳过（不重复下载 17MB）。
-    lxgw_zhenkai="$HOME/.local/share/fonts/LXGWZhenKaiGB-Regular.ttf"
-    if [[ ! -e "$lxgw_zhenkai" ]]; then
-        mkdir -p "$HOME/.local/share/fonts"
-        if have curl && curl -fsSL --retry 3 -o "$lxgw_zhenkai" \
-            https://github.com/lxgw/LxgwZhenKai/releases/download/v0.825/LXGWZhenKaiGB-Regular.ttf; then
-            echo "    已下载霞鹜臻楷 GB（serif 首选字体）"
-        else
-            rm -f "$lxgw_zhenkai"
-            warn "霞鹜臻楷 GB 下载失败；serif 会回退到霞鹜文楷屏幕阅读版"
+    # 与字体链绑定（见 choose_fonts）：FONTS=0 时一个字节都不下。
+    if fonts_enabled; then
+        lxgw_zhenkai="$HOME/.local/share/fonts/LXGWZhenKaiGB-Regular.ttf"
+        if [[ ! -e "$lxgw_zhenkai" ]]; then
+            mkdir -p "$HOME/.local/share/fonts"
+            if have curl && curl -fsSL --retry 3 -o "$lxgw_zhenkai" \
+                https://github.com/lxgw/LxgwZhenKai/releases/download/v0.825/LXGWZhenKaiGB-Regular.ttf; then
+                echo "    已下载霞鹜臻楷 GB（serif 首选字体）"
+            else
+                rm -f "$lxgw_zhenkai"
+                warn "霞鹜臻楷 GB 下载失败；serif 会回退到霞鹜文楷屏幕阅读版"
+            fi
         fi
     fi
 
     # 字体缓存：pacman 装字体包时本身有 hook 会自动跑，这里再显式兜底一次，
     # 让用户手动放进 ~/.local/share/fonts/ 的字体在重跑脚本后也能生效。
+    # 跳过字体时也跑：不动配置，只刷新缓存，对已有字体无副作用。
     if have fc-cache; then
         fc-cache -f >/dev/null 2>&1 || true
         echo "    字体缓存已刷新（fc-cache -f）"
@@ -835,12 +1232,20 @@ cmd_install() {
     # 现在 sans-serif / serif / monospace 都有明确首选（MiSans / 霞鹜臻楷 / Maple Mono），
     # 文泉驿属于更低质量的兜底，去掉它。
     # 失败不影响安装。
-    if [[ -e /etc/fonts/conf.d/65-wqy-zenhei.conf ]]; then
-        if "${SUDO:-sudo}" rm -f /etc/fonts/conf.d/65-wqy-zenhei.conf 2>/dev/null; then
+    # ⚠ 只在装了推荐字体时才动：FONTS=0 时文泉驿是系统里唯一的中文兜底，
+    #   禁掉会让中文衬线/无衬线直接掉回默认字体，比不动更糟。
+    # ⚠ 这里曾经是 `rm -f`：删掉系统文件不可逆，而且 /etc 是**整机共享**的，
+    #   隔壁 niri/DMS 那套会话、甚至其它用户都会跟着变 —— 安装脚本只该管
+    #   自己的 $HOME。改成改名禁用：fontconfig 只加载 `*.conf`，
+    #   后缀一变就不再生效，文件仍在，一条命令就能恢复。
+    wqy_conf="/etc/fonts/conf.d/65-wqy-zenhei.conf"
+    if fonts_enabled && [[ -e $wqy_conf ]]; then
+        if "${SUDO:-sudo}" mv -f "$wqy_conf" "$wqy_conf.disabled-by-dotfiles" 2>/dev/null; then
             have fc-cache && fc-cache -f >/dev/null 2>&1 || true
-            echo "    已移除 /etc/fonts/conf.d/65-wqy-zenhei.conf（避免劫持 serif/中文字体）"
+            echo "    已禁用 /etc/fonts/conf.d/65-wqy-zenhei.conf（避免劫持 serif/中文字体）"
+            echo "    恢复：sudo mv $wqy_conf.disabled-by-dotfiles $wqy_conf"
         else
-            warn "未能移除 65-wqy-zenhei.conf（需要 root）；serif 别名可能仍被文泉驿占用"
+            warn "未能禁用 65-wqy-zenhei.conf（需要 root）；serif 别名可能仍被文泉驿占用"
         fi
     fi
     mkdir -p "$HOME/.cache/quickshell/kugou_lyrics"
@@ -849,8 +1254,15 @@ cmd_install() {
         mkdir -p "$HOME/.local/state/quickshell"
         python -m venv "$VENV"
     fi
-    "$VENV/bin/pip" install --upgrade --quiet pypinyin dbus-python \
-        || warn "venv 依赖安装失败——启动器的 app 中文名拼音搜索暂不可用，其余功能不受影响"
+    # pypinyin            → 启动器的 app 中文名拼音搜索
+    # dbus-python         → 同上（走 D-Bus 拿窗口/应用信息）
+    # kde-material-you-colors → KDE/Qt 取色。switchwall.sh 会调
+    #   matugen/templates/kde/kde-material-you-colors-wrapper.sh，而那个 wrapper
+    #   第 70 行是 `command -v kde-material-you-colors || 跳过` —— 它是个 **pip 包**
+    #   不是系统包，以前 venv 里没装，于是 KDE/Qt 配色每次都被静默跳过
+    #   （日志里只有一句 "not installed in venv, skipping"，很容易漏掉）。
+    "$VENV/bin/pip" install --upgrade --quiet pypinyin dbus-python kde-material-you-colors \
+        || warn "venv 依赖安装失败——启动器的 app 中文名拼音搜索、KDE/Qt 取色会受影响，其余功能不受影响"
 
     # 图标主题：文件夹图标由 matugen 的 [templates.gtk-folder] 每次换壁纸
     # 自动重新着色（生成到 ~/.local/share/icons/Adwaita-Matugen-{A,B}）。
@@ -911,6 +1323,9 @@ EOF
      锁屏依赖的 Caelestia QML 插件已编译到 ~/src/caelestia-build/qml，
      手动跑 qs 前请先在 fish 里开个新终端（config.fish 自动注入
      QML2_IMPORT_PATH），或 export QML2_IMPORT_PATH=~/src/caelestia-build/qml。
+     ⚠ 插件缺失时 shell 不再整体起不来：面板族里的 Lock / IslandHost 已改成
+       运行时创建（panelFamilies/CaelestiaPluginProbe.qml 探针），只会少锁屏
+       与灵动岛，其余面板照常。qs 输出里搜「Caelestia QML 插件不可用」确认。
 EOF
             ;;
     esac
@@ -1080,9 +1495,10 @@ cmd_uninstall() {
         local archive_path="$HOME/dotfiles-archive-uninstall-$(now_ts).tar.gz"
         cmd_archive -o "$archive_path" || warn "存档失败，将继续执行卸载（无备份）"
     }
-    # 只删本次范围内的合成器配置，另一套原样保留（见 active_snap_paths 说明）
+    # 只删本次范围内的合成器 / shell 配置，其余原样保留（见 active_snap_paths 说明）
     uninstall_compositor_scope
-    confirm "确认删除 rice 相关路径？（合成器配置只删上述范围；不会删除其他个人文件）" || return 0
+    uninstall_shell_scope
+    confirm "确认删除 rice 相关路径？（合成器与 shell 配置只删上述范围；不会删除其他个人文件）" || return 0
     local paths=() p
     mapfile -t paths < <(active_snap_paths)
     for p in "${paths[@]}" "${EXTRA_ARCHIVE_PATHS[@]}"; do
@@ -1130,7 +1546,14 @@ sijin-xb's dotfiles 自部署脚本 —— Rice 版本: ${RICE_VERSION}
                              都不碰，避免覆盖机器上已有的配置。
   COMPOSITOR=niri|hyprland   [兼容旧写法] 等价于 SESSION=dms / SESSION=end4pc。
   INSTALL_BOTH_COMPOSITORS=1 两套合成器配置都部署（默认只部署选中的那套）。
-                             机器上同时用 Hyprland 和 niri 时用它。
+                              机器上同时用 Hyprland 和 niri 时用它。
+  FONTS=0|1                   是否安装推荐字体（pacman 字体包 + AUR 字体链 +
+                              霞鹜臻楷 GB 下载 + 移除 65-wqy-zenhei.conf）。
+                              · 不设置：执行到时交互询问 [Y/n]
+                              · FONTS=0：一个字体包都不碰，适合已有字体方案的机器
+                              · FONTS=1：跳过询问直接装（等价旧行为）
+                              · 非交互执行（管道 / 重定向）时无法询问，兜底为 1
+                              TUI 的「执行安装」页按 f 可随时切换。
   FULL_UPGRADE=1             安装时执行 pacman -Syu 全系统升级（默认只装缺失项）
   $0 rollback           回档：还原到最近一次 install 之前的状态
                            （执行前会自动保存 pre-rollback 快照供 restore 用）
@@ -1252,7 +1675,9 @@ show_help() {
     echo "    ├── custom/     用户差异层（blur / shadow 细项在 custom/general.lua）"
     echo "    └── shellOverrides/main.lua    由 quickshell 设置面板写入，优先级最高"
     echo "  ~/.config/quickshell/end4-pC/         quickshell 底盘 + 差异层（end4-PC）"
-    echo "  ~/.config/quickshell/caelestia/       caelestia shell 本体"
+    echo "  ~/.config/quickshell/caelestia/       caelestia shell 本体（仅 caelestia）"
+    echo "  ~/src/caelestia-plugin-src/           Caelestia QML 插件源码（编译用）"
+    echo "  ~/src/caelestia-build/qml/            插件编译产物（QML2_IMPORT_PATH）"
     echo "  ~/.config/niri/config.kdl             niri 配置入口（DMS）"
     echo "  ~/.local/state/dotfiles-backup/       备份根（snapshots/ + state/）"
     echo
@@ -1315,21 +1740,35 @@ EOF
         done
         echo "                 : $cnt / ${#SNAP_PATHS[@]}（新机器通常为 0~2；现有 rice 安装通常 ≥ 10）"
         [[ -r "$STATE_DIR/current" ]] && echo "  · 上次快照基线 : $(<"$STATE_DIR/current")" || echo "  · 快照基线     : 尚未安装过，本次运行将生成 rollback 可用基线"
+        # 字体开关：env FONTS 有预设就沿用，否则默认「装」，按 f 切换。
+        # 这里顺手把 FONTS_ASKED 置 1，下面 ( cmd_install ) 里的 choose_fonts
+        # 才不会再问第二遍（子 shell 会继承 FONTS 与 FONTS_ASKED）。
+        if [[ -z $FONTS ]]; then FONTS=1; fi
+        FONTS_ASKED=1
+        echo "  · 字体安装     : $(fonts_label)（按 f 切换）"
         echo
         printf '%s 注意事项%s：默认只装缺失依赖（首次可能 5-15 分钟）；quickshell 源码编译 5-15 分钟；Caelestia 插件编译 1-3 分钟（end4-pC / caelestia 都要）。\n' "${TC_BOLD}${TC_YELLOW}${TC_BG_BLACK:-}" "${TC_RESET}"
         echo
-        # 二次确认 + 返回
-        case "$(confirm_3way '确认开始执行安装？')" in
-            0) # 用子 shell 包裹：cmd_install 内部的 die 只会退出子 shell，
-               # 不会再连带把 TUI 一起 exit 掉（之前界面"卡死"的根因之一）。
-               local rc=0
-               set +e; ( cmd_install ); rc=$?; set -e
-               ((rc != 0)) && warn "安装返回码 ${rc}（详情见上方输出）" || true
-               tui_clear
-               read -r -p "按回车返回主菜单 ..." _ || true
-               cont=n ;;
-            2) cont=n ;;
-            *) read -r -p "已取消，按回车返回主菜单 ..." _ || true; cont=n ;;
+        # 二次确认 + 字体开关 + 返回
+        # 这里不复用 confirm_3way：安装页要多给一个 f 键做字体切换，
+        # 换选项就得重绘本页（外层 while 重新循环）。
+        local ans=""
+        printf '%s确认开始执行安装？%s [y=开始 / f=切换字体 / b=返回主菜单] ' \
+            "${TC_BOLD}${TC_YELLOW}" "${TC_RESET}"
+        IFS= read -r ans || ans="b"
+        case "$ans" in
+            y|Y|yes|YES|Yes)
+                # 用子 shell 包裹：cmd_install 内部的 die 只会退出子 shell，
+                # 不会再连带把 TUI 一起 exit 掉（之前界面"卡死"的根因之一）。
+                local rc=0
+                set +e; ( cmd_install ); rc=$?; set -e
+                ((rc != 0)) && warn "安装返回码 ${rc}（详情见上方输出）" || true
+                tui_clear
+                read -r -p "按回车返回主菜单 ..." _ || true
+                cont=n ;;
+            f|F) fonts_toggle; continue ;;
+            b|B) cont=n ;;
+            *)   read -r -p "已取消，按回车返回主菜单 ..." _ || true; cont=n ;;
         esac
     done
 }
@@ -1399,7 +1838,9 @@ detail_rollback() {
 【当前状态】
 EOF
         local snap=""
-        if snap="$(read_state current 2>/dev/null || true)"; then
+        # ⚠ 原来这里写的是 `read_state ... || true`，把退出码抹成 0，
+        # 导致下面的 else（"基线快照不存在"）成了死分支，快照缺失时照样往下走。
+        if snap="$(read_state current 2>/dev/null)"; then
             local nfiles
             nfiles="$(tar -tzf "$snap" 2>/dev/null | grep -cv '/$' || echo 0)"
             echo "  · 基线快照   : $(basename "$snap")"
@@ -1417,7 +1858,7 @@ EOF
         fi
         echo
         if [[ -z $snap ]]; then
-            read -r -p "按回车返回主菜单 ..." _; cont=n
+            read -r -p "按回车返回主菜单 ..." _ || true; cont=n
         else
             case "$(confirm_3way '确认执行回档？')" in
                 0) local rc=0
@@ -1489,12 +1930,21 @@ EOF
     done
 }
 
-# 三向确认：返回 0=yes / 1=no / 2=back
+# 三向确认：输出 0=yes / 1=no / 2=back（调用方用 case "$(confirm_3way ...)" 取值）
+# ⚠ 两个坑，改之前先看这里：
+#   1) 必须 echo 数字，不能只 return —— 调用方是 $( )，只捕获 stdout，
+#      用 return 的话 $( ) 恒为空串，case 永远落到 *) 分支（= 按什么键都是取消）。
+#   2) 提示必须写 stderr —— $( ) 连 stdout 一起吞，提示写 stdout 用户永远看不见，
+#      表现就是「按了没反应」。
 confirm_3way() {
     local prompt="${1:-确认？}" ans
-    printf '%s [y/N/b(返回主菜单)] ' "$prompt"
-    IFS= read -r ans
-    case "$ans" in y|Y|yes|YES|Yes) return 0;; b|B) return 2;; *) return 1;; esac
+    printf '%s [y/N/b(返回主菜单)] ' "$prompt" >&2
+    IFS= read -r ans || ans=""
+    case "$ans" in
+        y|Y|yes|YES|Yes) printf '0' ;;
+        b|B)             printf '2' ;;
+        *)               printf '1' ;;
+    esac
 }
 
 main_menu_loop() {

@@ -4,6 +4,331 @@
 
 ## 2026-09-29
 
+### 修复：dry-run 测试台会污染真实桌面会话
+
+**表现**：跑完 `tests/install-sh-dryrun.sh` 之后，真实会话里弹出一条通知：
+
+```
+Wallpaper switcher · 配色生成失败
+material_colors.scss：找不到 quickshell venv（/tmp/tmp.All7KrdeQH/home/.local/state/quickshell/.venv），已跳过
+```
+
+`/tmp/tmp.All7KrdeQH` 就是测试台 `mktemp` 出来的假 `$HOME` —— 通知是从测试里漏出来的。
+
+**根因（两层，都在测试台，不在产品）**：
+
+1. `[6/7]` 会 `nohup switchwall.sh --noswitch &`，那是**真实脚本**。它会
+   `notify-send` 发通知、调 matugen/gsettings 改主题、还会
+   `pkill -x -9 mpvpaper|phonto` 干掉壁纸守护进程。**假 `$HOME` 挡不住 D-Bus**，
+   所以副作用直接落到用户真实会话里；而且 `nohup` 起的进程活过测试，trap 也收不到。
+2. 触发那条通知的直接原因是**假 venv 不完整**：`switchwall.sh:575` 判的是
+   `[[ -f "$QUICKSHELL_VENV/bin/activate" ]]`，而 python 假体只造了
+   `bin/python` + `bin/pip`，于是走了
+   「找不到 quickshell venv」降级分支 → `report_failure` → `notify-send`。
+
+   顺带确认：**这段降级本身是对的**，注释写着「venv 缺失不该拖垮已经成功的 matugen
+   结果」，所以这不是产品 bug，是测试台的假体不够真。
+
+**改法**（`tests/install-sh-dryrun.sh`）：
+
+| 改动 | 作用 |
+|---|---|
+| 开头 `exec dbus-run-session -- "$0" "$@"` 自我重启（`DRYRUN_DBUS_ISOLATED` 防重入） | 整个测试跑在私有 D-Bus 会话里，通知/主题调用出不去 |
+| 新增假体 `notify-send` / `dbus-send` / `busctl` / `matugen` / `gsettings` / `dms` / `mpvpaper` / `phonto` / `pkill` | 兜底：即使 private bus 也挡住"杀壁纸守护进程""改主题"这类本地副作用 |
+| python 假体补齐 `bin/python3` 与 `bin/activate`（含 `deactivate()`） | 去掉假失败分支；`python3` 不再落到系统解释器上真跑生成脚本 |
+| trap 改为 `cleanup()`：`/usr/bin/pkill -f "$ROOT/home/.*switchwall"` + 删目录 | 收掉 `nohup` 活过测试的进程。**必须用绝对路径** —— `$STUB` 里有个假 `pkill`，走 PATH 会调到假体，等于没杀；匹配串带 `$ROOT/home/` 是为了不误杀用户自己的 switchwall |
+
+**验证**（跑测试前后对比，不依赖用户会话）：
+
+```
+通知图片数 ~/.cache/DankMaterialShell/notification_images/ : 12 → 12（未变）
+残留 switchwall 进程                                       : 无
+日志里 "找不到 quickshell venv"                             : 0（未再触发）
+38/38 断言仍全通过
+```
+
+**给产品的结论（不改，只记录）**：`install.sh` 的 `[6/7]` 会执行真实的
+`switchwall.sh --noswitch`，因此**跑一次安装会动到当前的壁纸/配色状态**（`pkill`
+掉视频壁纸守护进程后按新配色重启、跑一遍 matugen）。这是设计意图（注释：
+「已触发一次 matugen 渲染，图标主题会随之生成」），但值得知道：在已经跑着视频
+壁纸的机器上装一次，壁纸会闪一下。
+
+### 修复：Caelestia 插件的编译逻辑与存放规则（并把 niri 的 Super+Space 去掉）
+
+上一节把插件源码从 `~/.config/quickshell/caelestia` 挪到了 `~/src/caelestia-plugin-src`。
+挪完还剩三处"流程与存放规则不一致"，这节一并收掉。
+
+#### 1. 编译范围：默认会连整个 caelestia 桌面 shell 一起编
+
+上游根 `CMakeLists.txt`：
+
+```cmake
+set(ENABLE_MODULES "extras;plugin;shell" CACHE STRING "Modules to build/install")
+...
+if("extras" IN_LIST ENABLE_MODULES)  add_subdirectory(extras)  endif()
+if("plugin" IN_LIST ENABLE_MODULES)  add_subdirectory(plugin)  endif()
+if("shell"  IN_LIST ENABLE_MODULES)  foreach(dir assets components modules services utils) ... endif()
+```
+
+`install.sh` 以前只传 `-DCMAKE_BUILD_TYPE` / `-DVERSION` / `-DGIT_REVISION`，
+**没传 `-DENABLE_MODULES`** → 每次都会额外编译一整个用不到的 caelestia shell 应用
+（多几分钟、多一批只有 shell 才需要的依赖）。
+
+我们要的 QML 模块全在 `plugin/` 下，且 `plugin/` 不引用 `extras`/`shell` 的任何目标：
+
+```
+Caelestia / .Config / .Services / .Components / .Images / .Models / .Blobs / .I18n
+  ← plugin/src/Caelestia/{CMakeLists.txt + Settings,Components,Config,Models,Services,Blobs,Images,I18n}
+```
+
+**改法**：显式传 `-DENABLE_MODULES=plugin`（`start_quickshell.sh` 的排障命令、
+`docs/troubleshooting.md` 的手工编译命令同步加上）。
+
+#### 2. 构建目录与源码路径必须配对
+
+`CMakeCache.txt` 里记着 `CMAKE_HOME_DIRECTORY`（= 上次 `-S` 的源码目录）。
+源码位置换过（`~/.config/quickshell/caelestia` → `~/src/caelestia-plugin-src`）之后
+直接复用旧构建目录，CMake 会拿缓存里的老路径去找 CMakeLists —— 轻则"配置失败"，
+重则配置通过、链接到已删除的目标文件。而旧代码的幂等判据只看
+`qml/Caelestia/*.so` + 覆盖层 hash，**不看源码路径**，所以这种脏状态会被一直沿用。
+
+**改法**：编译前读 `CMAKE_HOME_DIRECTORY`，与当前 `$src` 不一致就 `rm -rf "$build"`
+重新配置，并打日志说明。
+
+#### 3. 编译"看起来成功"但没有产物
+
+没有产物自检时，一次异常退出但 `cmake --build` 返回 0 的编译会把 `.overlay-stamp`
+写下去，下一轮直接被当成"已编译"跳过 —— 插件对 qs 而言永远不存在，而且是静默的。
+
+**改法**：`cmake --build` 之后断言 `$build/qml/Caelestia/*.so` 存在，否则 `die`。
+
+#### 4. 存放规则：写成一张表，并点明两个"读者"
+
+| 用途 | 路径 | 谁写 | 进快照/归档 |
+|---|---|---|---|
+| 编译源码（构建输入） | `~/src/caelestia-plugin-src` | `[4a/7]` clone | 否 |
+| 编译产物（QML 模块） | `~/src/caelestia-build/qml` | `[4a/7]` cmake | 否 |
+| 覆盖层（仓库内） | `dot_config/quickshell/caelestia/` | 仓库 | — |
+| end4-PC shell 配置 | `~/.config/quickshell/end4-pC` | `[4b/7]` + `[5/7]` | 是 |
+| caelestia shell 配置 | `~/.config/quickshell/caelestia` | `[4b/7]` + `[5/7]` | 是 |
+
+两条硬规则：
+
+1. 源码与产物都在 `$HOME/src`，**不在 `$HOME/.config/quickshell` 下**（后者是
+   quickshell 的配置命名空间，放 clone 等于凭空多出一套可运行的 shell）。
+2. **只有 `~/src/caelestia-build/qml` 会被 `QML2_IMPORT_PATH` 指向**，读者只有两处：
+   `fish/config.fish`（手动跑 qs）与 `hyprland/scripts/start_quickshell.sh`（会话自启）。
+   注释里以前还写着 `execs.lua`，早就不是了 —— 一并改掉。
+
+#### 5. niri：去掉 `Super+Space`
+
+`~/.config/niri/dms/binds.kdl` 里 `Mod repeat=false`（轻触 Super 开启动器，
+shorin-fork 的单修饰键绑定）与 `Mod+Space` **绑的是同一个动作**，后者纯属重复，
+还白占掉「Super+空格」这个组合。已删除，并在原位留注释防止再加回来。
+`niri validate` → `config is valid`。
+
+#### 6. `[5/7]` 现在读 `.chezmoiignore`（不再用仓库快照覆盖运行时生成物）
+
+以前 `install.sh` 不读 `.chezmoiignore`，于是会部署那 8 个
+"matugen / quickshell 运行时生成物"。仓库里那份是某次提交时的快照，
+实机那份是当前壁纸生成的 —— **每重跑一次安装就把用户配色打回旧值**。实测：
+
+```
+仓库 dot_config/hypr/hyprland/colors.lua : active_border = "rgba(90d5aeAA)"
+实机 ~/.config/hypr/hyprland/colors.lua  : active_border = "rgba(feb0d3AA)"
+```
+
+**改法**：新增顶层 `chezmoi_ignore_kind()`，在 `deploy_one_file()` 里按目标相对
+`$HOME` 的路径查 `$SRC/.chezmoiignore`，语义与 chezmoi 对齐：
+
+| 条目形式 | 行为 |
+|---|---|
+| 精确路径（如 `.config/hypr/hyprland/colors.lua`） | 目标**已存在**则不动、不备份；不存在则部署（新机器仍有可用默认值） |
+| `**/X`（如 `**/*.pyc`、`**/__pycache__`） | 一律跳过（任意深度） |
+| 单层 glob（如 `.config/niri/dms/*.bak*`） | 一律跳过 |
+| 以 `/` 结尾的目录 | 一律跳过 |
+
+`[5/7]` 结束时会报「按 .chezmoiignore 跳过 N 个 / M 个运行时生成物已存在，
+保留当前值不覆盖」，并提示想强制覆盖就先删目标文件。
+
+**注意 `create_` 不受影响**：`.chezmoiignore` 里那条 `.config/hypr/hyprland/services/custom_config.lua`
+匹配的是 chezmoi 的目标名，而本脚本部署的字面名是 `create_custom_config.lua`
+（`init.lua` 就是这么 require 的），所以照旧部署。
+
+#### 7. 依赖审计：补 6 个配置真正调用、脚本却没装的包
+
+把 `dot_config` 里所有外部命令抽出来（`hl.exec_cmd` / niri `spawn` / QML
+`Process.command` / `command -v` / `shutil.which` / systemd `ExecStart`），
+逐个 `command -v` 核对，再排除"回退链里的备选"与子串误报
+（`rofi` 命中 `profile`、`trans` 命中 `transition`、`howdy` 是 QML 属性名、
+`kvantum` 只出现在脚本路径里、`zsh` 在正则排除表里）。剩下的**真缺口**：
+
+| 包 | 仓库 | 谁在调用 |
+|---|---|---|
+| `wf-recorder` | extra | `scripts/videos/record.sh`（end4-PC 录屏主路径）、`RegionSelection.qml` 的 `pidof wf-recorder` |
+| `wget` | core | `dot_config/fish/functions/wget.fish` 内部 `command wget`（下载进度上报灵动岛） |
+| `songrec` | extra | `scripts/musicRecognition/recognize-music.sh` 硬依赖；翻译表里写着「请确保你已安装 songrec」 |
+| `walker` | AUR | `hypr/custom/keybinds.lua` 的 `SUPER+V → walker -m clipboard`、`rules.lua` 的 layer rule、`matugen/config.toml` 的 walker 主题 |
+| `nirius` | AUR | `niri/binds.kdl` 里 4 个键位（`Mod+Ctrl+G` toggle-follow-mode、`Mod+Shift+Q/O/W` focus） |
+| `awww-git` | AUR | `scripts/niri_set_overview_blur_dark_bg.sh` 的 `WALLPAPER_BACKEND="awww"`、`scripts/matugen-update.sh` 的 `awww query` |
+| `kde-material-you-colors` | **PyPI** | `matugen/templates/kde/kde-material-you-colors-wrapper.sh`；它是 pip 包不是系统包，以前 venv 里没装 → KDE/Qt 取色每次都被静默跳过 |
+
+⚠ 两个包名坑：`awww` 在 AUR 上**不存在**，正确的是 `awww-git`；`songrec` 在
+官方仓库 extra 里（不是 AUR）。两个都用 AUR RPC 核对过。
+
+**未补（判断为可选/非 rice 依赖，故意不加）**：`rofi`（`niri-pick` 里是 fuzzel
+的回退，fuzzel 已装）、`clipse`/`anyrun`（只有窗口/layer 规则，无调用）、
+`satty`（`binds.kdl` 里那两行是注释掉的，且引用的 `niri/scripts/satty-screenshot.sh`
+在仓库里根本不存在）、`ydotool`（wtype 已装）、`firefox`/`micro`/`neovim` 之外的
+编辑器与浏览器（用户自己的选择）、`alacritty`/`wezterm`/`waybar`/`swaybg`/`swayidle`/
+`hyprpaper`/`copyq`/`upscayl` 等（同类工具的备选，主选已装）。
+
+#### 验证
+
+```
+bash tests/install-sh-behaviour-test.sh   # 55/55
+bash tests/install-sh-dryrun.sh           # 38/38（新增，见下）
+bash -n install.sh && bash -n .../start_quickshell.sh && fish --no-execute .../config.fish
+```
+
+`tests/install-sh-dryrun.sh`（新增）：PATH 前置一层假命令
+（`pacman`/`paru`/`sudo`/`git`/`cmake`/`qs`/`fc-cache`/`python`/`curl`），
+`HOME` 指向临时目录，直接跑真实的 `cmd_install` 三轮：
+
+| 轮次 | 场景 | 断言 |
+|---|---|---|
+| 1 | 全新安装 | 走到 `[7/7]`；`-DENABLE_MODULES=plugin` / `-DVERSION` / `-DGIT_REVISION` 确实传给了 cmake；**依赖矩阵**（真实算出来的 pacman/paru 包列表含 `wf-recorder`/`wget`/`songrec`/`walker`，假 pip 的 argv 含 `kde-material-you-colors`）；chezmoi 前缀部署正确；`~/.config/niri` 未被碰；不 clone caelestia shell；全新机器仍拿到配色默认值 |
+| 2 | 构建目录指向旧源码路径 | 报「源码路径已变」→ 清空重配 → 产物自检通过 → 缓存里的源码路径已更新 |
+| 3 | 模拟 matugen 改写配色后重跑 | 编译被跳过；0 备份；install.sh 判定「运行时生成物已存在，保留当前值」 |
+
+`-DENABLE_MODULES` 的开关作用另有独立实证（无需 sudo）：`ENABLE_MODULES=` 空值
+→ 配置成功且什么都不编；`plugin` → build 目录里只有 `plugin/`，且恰好停在
+`plugin/CMakeLists.txt:3` 的 `libqalculate` 缺失；`shell` → 配置通过。说明这个
+参数真的在控制子目录，不是摆设。
+
+### 修复：`FileDialog is not a type` / `module "Caelestia.Config" is not installed` —— 面板族对插件的硬依赖 + 安装脚本前缀与隔离问题
+
+**表现**（本机 `qs -c end4-PC` 实际日志）：
+
+```
+ERROR: Failed to load configuration
+ERROR:   caused by @shell.qml[58:20]: Type IllogicalImpulseFamily unavailable
+ERROR:   caused by @panelFamilies/IllogicalImpulseFamily.qml[39:30]: Type Lock unavailable
+ERROR:   caused by @modules/ii/lock/Lock.qml[40:18]: Type CaelestiaLockSurface unavailable
+ERROR:   caused by @modules/ii/lock/caelestia/CaelestiaLockSurface.qml[5:1]:
+    module "Caelestia.Config" is not installed
+```
+
+另一条更早的日志（同一台机器、同一个 config）停在：
+
+```
+ERROR:   caused by @custom-island/IslandHost.qml[380:13]: FileDialog is not a type
+```
+
+两条是同一条链的不同深度：`IslandHost → FileDialog → Sidebar → import Caelestia.Config`。
+
+**根因（单条）**：Caelestia QML 插件没编译、也没注入 `QML2_IMPORT_PATH`。
+end4-PC 里 132 个 vendor 自 caelestia 的文件写着 `import Caelestia.Config`，
+QML 的 `import <模块>` 是**编译期硬依赖** —— 模块解析不到时这些文件里的类型全部
+unavailable，错误沿 `Sidebar → FileDialog → IslandHost → IllogicalImpulseFamily
+→ shell.qml` 一路上抛。截图里的 `Ignoring unresolvable import ".../dashboard/../components"`
+是同一时期的伴生现象（底盘残缺），见下面第 3 条。
+
+#### 1. 配置层：插件缺失不再拖垮整个 shell
+
+| 文件 | 改动 |
+|---|---|
+| `panelFamilies/CaelestiaPluginProbe.qml` | **新增**。用 `Qt.createQmlObject("import Caelestia.Config; QtObject {}")` + try/catch 在**运行时**探测插件是否可用（静态 `import` 一旦失败就是加载期错误，拦不住；这是唯一能运行时问出「模块装没装」的办法） |
+| `panelFamilies/IllogicalImpulseFamily.qml` | `Lock` 与 `IslandHost` 由 `component: X {}` 改成 `PanelLoader { extraCondition: probe.available; source: "..." }`。内联 `component:` 会在**本文件编译期**解析类型，插件缺失时整份面板族 unavailable；改成运行时按 URL 创建后，缺插件只少这两块 |
+
+面板族里构成硬依赖的只有这两处（`MediaControls` 与 `Services/CaelestiaCava`
+本来就用动态加载，其余面板不碰 Caelestia）。
+
+**验证**：插件仍未编译的前提下 `qs -p <配置副本>/shell.qml` 输出
+`INFO: Configuration Loaded`，只剩 2 条指向 Lock/IslandHost 的 WARN 与探针的
+说明日志；进程不再立即退出（`timeout 15` 的退出码 124 = 被超时杀掉，不是崩）。
+插件补上后两处行为与改动前完全一致。
+
+#### 2. 安装脚本：`install_caelestia_plugin()` 的源码位置（配置隔离）
+
+原来插件源码 clone 到 `~/.config/quickshell/caelestia`，即**复用 caelestia shell
+的 clone**。但 `~/.config/quickshell/` 是 quickshell 的配置命名空间（quickshell
+按 `<config>/quickshell/<名字>/shell.qml` 发现配置），于是：
+
+- 只选 end4-PC 的机器上凭空多出一套可运行的 shell（`qs -c caelestia`）；
+- 该目录被 `SNAP_PATHS` / `EXTRA_ARCHIVE_PATHS` 整包打进快照与归档；
+- `install_caelestia_shell()` 靠「[4a/7] 已经 clone 过了」来省事，两套逻辑
+  作用在同一目录，语义混乱。
+
+改法：源码移到 `$HOME/src/caelestia-plugin-src`（构建产物本来就归 `$HOME/src`），
+`install_caelestia_shell()` 自己 clone shell 本体到 `~/.config/quickshell/caelestia`
+（只在选 caelestia 时跑，且带 `shell.qml` 存在性复核）。
+同步改 `start_quickshell.sh` 与 `config.fish` 里指向源码路径的注释与手工修复命令。
+
+#### 3. 安装脚本：底盘完整性自检（幂等 vs 自愈）
+
+`install_end4pc_shell()` 原来只判 `shell.qml` 存在就 `return 0`。差异层里的
+`modules/ii/dashboard-caelestia/dashboard/*.qml` 写着 `import "../components"`，
+而 `components/**` 由**底盘**提供（差异层只跟踪 `dashboard/` 与 `shim/`）——
+底盘残缺时这些 import 解析不到，且**重跑安装也修不好**（被判为"已安装"）。
+
+改法：新增顶层函数 `end4pc_base_missing()`，按 9 项关键文件清单逐个 `-e` 检查
+（`shell.qml`、`modules/common/Config.qml`、`services`、`dashboard/Content.qml`、
+`components/filedialog/FileDialog.qml`、`components/controls/ButtonBase.qml`、
+`shim/qmldir`、`scripts/colors/switchwall.sh` 等），缺任何一个就重新拉一份覆盖，
+覆盖后再自检一次，仍缺则 `die`（避免 cp 半途而废留下"看起来装好了"的树）。
+
+#### 4. 安装脚本：漏认 chezmoi 前缀（静默故障）
+
+`[5/7]` 部署循环只认 `executable_`。仓库里还有：
+
+| 前缀 | 数量 | 漏认的后果 |
+|---|---|---|
+| `private_` | 6（`fcitx5/config`、`fcitx5/conf/*.conf`） | 部署成 `private_config` 这种**错名字**，fcitx5 读不到自己的配置；且权限不是 0600 |
+| `symlink_` | 1（`systemd/user/symlink_mako.service`，内容 `/dev/null`） | 部署成普通文件 `symlink_mako.service`，`mako.service -> /dev/null` 的屏蔽**根本没生效**，mako 会和 quickshell 抢 `org.freedesktop.Notifications` |
+
+改法：循环剥 `executable_` / `private_` / `symlink_`（可叠加），`symlink_` 建符号
+链接（内容即链接目标），`private_` 追加 `chmod 600`。
+**`create_` 故意不处理**：`hyprland/services/init.lua` 里是
+`require("hyprland/services/create_custom_config")`，剥成 `custom_config.lua`
+反而 require 不到（`.chezmoiignore` 记的就是这个冲突）。
+备份比较也修了：符号链接不能用 `cmp`（会跟随链接比到目标），改用 `readlink`
+比目标串，备份用 `cp -a` 保留链接本身。
+
+顺带把这段循环体抽成顶层函数 `deploy_one_file()`，这样能脱离 pacman/AUR/网络
+单独测（见下）。
+
+#### 5. 安装脚本：删除范围不区分 shell
+
+`active_snap_paths()` 只按 `$COMPOSITOR` 过滤，`~/.config/quickshell/end4-pC`
+与 `~/.config/quickshell/caelestia` 会被一起删 —— 卸载 end4-PC 顺手删掉 caelestia
+的配置。改法：按 `$QS_SHELL` 再过滤一层，并新增 `uninstall_shell_scope()`
+（与 `uninstall_compositor_scope()` 同款询问；`QS_SHELL` 为空时保持旧行为）。
+
+#### 6. 安装脚本：不再 `rm` 系统字体配置
+
+`[6/7]` 原来 `sudo rm -f /etc/fonts/conf.d/65-wqy-zenhei.conf`。`/etc` 是整机共享的，
+隔壁 niri/DMS 会话、甚至其它用户都会跟着变，而且**不可逆**。
+改成 `mv` 到 `65-wqy-zenhei.conf.disabled-by-dotfiles`（fontconfig 只加载
+`*.conf`，改名即失效），并在输出里给出恢复命令。`FONTS=0` 时仍然一步都不碰。
+
+**验证**（可复现）：
+- `bash -n install.sh`、`bash -n start_quickshell.sh`、`fish --no-execute config.fish` 全通过；
+- **`bash tests/install-sh-behaviour-test.sh`**（新增，无需 sudo/pacman/网络）：
+  把 install.sh 去掉最后一行 `main "$@"` 当库 source，用假 `$HOME` + 假源树跑
+  A 前缀 11 项、B 幂等 2 项、C 差异备份 4 项、D 完整性自检 5 项、
+  E 删除范围 6 项、F 部署过滤 4 项 —— **32/32 通过**；
+- `qs -p <配置副本>/shell.qml` 在插件缺失时输出 `INFO: Configuration Loaded`；
+- 把探针强制为 `true`、并把 `source:` 指向一个自报日志的临时组件，
+  qs 输出 `WARN qml: LOADER_SOURCE_WORKS` —— 证明 `PanelLoader { source: ... }`
+  确实会在运行时创建组件（不是只改了写法没生效）。
+
+**未在本机验证的部分**：插件编译本身。本机 sudo 需要密码，`libcava`（AUR）、
+`qt6-m3shapes-git`（AUR）、`libqalculate`、`aubio` 都还没装，`~/src/caelestia-build`
+不存在 —— 也就是说这台机器**从来没跑过 install.sh**（`~/.local/state/dotfiles-backup`
+不存在），配置是用 chezmoi 部署的。要拿回锁屏与灵动岛，需在 TTY 或终端里跑一次
+`./install.sh install`（选 1 / Hyprland + end4-PC），它会装齐依赖并编译插件。
+
 ### 修复：装完 end4-PC 后 Quickshell 起不来 —— `module "Caelestia.Config" is not installed`
 
 **表现**（另一台机器上的实际日志）：

@@ -31,12 +31,24 @@ import qs.modules.ii.keycapDisplay
 import "../custom-island"
 
 Scope {
+    // Caelestia QML 插件（Caelestia.Config）可用性探针 —— 只有「锁屏」与
+    // 「灵动岛」两个面板硬依赖它，见 CaelestiaPluginProbe.qml 的说明。
+    CaelestiaPluginProbe { id: caelestiaPlugin }
+
     PanelLoader { extraCondition: !Config.options.bar.vertical; component: Bar {} }
     // 快捷键管理器：常驻挂载（面板本身按需创建），否则 IPC target 会随面板一起消失
     PanelLoader { component: Cheatsheet {} }
     PanelLoader { component: Background {} }
     PanelLoader { extraCondition: Config.options.dock.enable; component: Dock {} }
-    PanelLoader { component: Lock {} }
+    // ⚠ 必须用 source:（运行时按 URL 创建）而不是 component: Lock {}。
+    //   Lock 内部 → CaelestiaLockSurface → `import Caelestia.Config`，
+    //   内联 component 会在**本文件编译期**解析 Lock 的类型，插件缺失时
+    //   整份 IllogicalImpulseFamily 直接 unavailable，连锁把 shell.qml 拖垮。
+    //   改成运行时创建后，插件缺失只损失锁屏，其余面板照常。
+    PanelLoader {
+        extraCondition: caelestiaPlugin.available
+        source: "../modules/ii/lock/Lock.qml"
+    }
     PanelLoader { component: MediaControls {} }
     PanelLoader { component: NotificationPopup {} }
     PanelLoader { component: OnScreenDisplay {} }
@@ -61,8 +73,13 @@ Scope {
     // 已被 custom-island 的 IslandHost 取代（见下），如需回退取消注释即可
     // PanelLoader { component: ClockDashboard {} }
 
-    // 岛屿 + 仪表盘：常驻挂载，收起时只有一颗胶囊占位
-    PanelLoader { component: IslandHost {} }
+    // 岛屿 + 仪表盘：常驻挂载，收起时只有一颗胶囊占位。
+    // 同 Lock：必须走 source: 运行时创建（IslandHost → FileDialog →
+    // Sidebar → `import Caelestia.Config`）。
+    PanelLoader {
+        extraCondition: caelestiaPlugin.available
+        source: "../custom-island/IslandHost.qml"
+    }
     // 按键显示浮层：只在开启时创建，关掉就不占一个常驻的 layer surface
     PanelLoader { extraCondition: Config.options.keycapDisplay.enable; component: KeycapOverlay {} }
 }
