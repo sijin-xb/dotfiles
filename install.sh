@@ -1648,14 +1648,22 @@ tc() { tput "$@" 2>/dev/null || true; }
 TC_BOLD="$(tc bold)"; TC_RESET="$(tc sgr0)"
 TC_RED="$(tc setaf 1)"; TC_GREEN="$(tc setaf 2)"
 TC_YELLOW="$(tc setaf 3)"; TC_BLUE="$(tc setaf 4)"; TC_MAG="$(tc setaf 5)"; TC_CYAN="$(tc setaf 6)"
+# 行内高亮用的背景色。以前只在详情页写 `${TC_BG_BLACK:-}`，这里却从来没定义过，
+# 于是那个"注意事项"提示永远没有底色（=静默失效）。一并补上。
+TC_BG_BLACK="$(tc setab 0)"
 
 tui_clear() { clear 2>/dev/null || printf '\n\n\n\n'; }
 
 # 逐字符打印分隔线：
 # 旧实现用 `tr ' ' "$ch"`，在多字节 locale 下 tr 按字节替换，
 # '─'(E2 94 80) 会被拆成 3 个字节分别映射，产生非法 UTF-8 乱码。
+# ⚠ 宽度不能用 ${COLUMNS:-80}：bash 只在**交互式** shell 里维护 COLUMNS，
+#   脚本里通常为空 → 分隔线永远是 80 格，宽终端上短一截、窄终端上折行。
+#   改成向终端问一次（tput cols），问不到（重定向 / 非 tty）才退回 80。
 draw_line() {
-    local ch="${1:--}" w="${COLUMNS:-80}" i
+    local ch="${1:--}" w="${COLUMNS:-0}" i
+    if (( w <= 0 )); then w="$(tput cols 2>/dev/null || echo 0)"; fi
+    if (( w <= 0 )); then w=80; fi
     for ((i=0; i<w; i++)); do printf '%s' "$ch"; done
     printf '\n'
 }
@@ -1693,7 +1701,7 @@ EOF
     printf '  %s%s%1s Material 3 取色%s     matugen 壁纸→全局配色（11+ 应用联动）\n'        "${TC_BOLD}" "${TC_RED}" "·" "${TC_RESET}"
     echo
     draw_header "🖥️  适配环境"
-    printf '  OS       : CachyOS / Arch Linux / EndeavourOS（需要 /etc/arch-release）\n'
+    printf '  OS       : Omarchy / CachyOS / Arch Linux / EndeavourOS（需要 /etc/arch-release）\n'
     printf '  会话     : Wayland · Hyprland + end4-PC / caelestia，或 niri + DMS\n'
     printf '  GPU 建议 : Intel 核显 UHD 620+ / AMD Vega 3+ / NVIDIA（需开启 modeset）\n'
     echo
@@ -1707,7 +1715,7 @@ show_help() {
     draw_header "帮助 / 使用说明"
     echo
     echo "【① 适配环境】"
-    echo "  · OS: CachyOS / Arch / EndeavourOS（/etc/arch-release 必须存在）"
+    echo "  · OS: Omarchy / CachyOS / Arch / EndeavourOS（/etc/arch-release 必须存在）"
     echo "  · 会话: Wayland · Hyprland（end4-PC / caelestia）或 niri（DMS）"
     echo "  · 建议 GPU: ≥ Intel UHD 620（模糊 + 壁纸视差要一点 GPU 算力）"
     echo
@@ -1780,7 +1788,16 @@ detail_install() {
 EOF
         echo "  · 用户         : ${USER:-unknown}"
         echo "  · \$HOME       : $HOME"
-        echo "  · Arch 系检测  : $( [[ -f /etc/arch-release ]] && echo ✓' 满足' || echo ✗' 不满足（本脚本将拒绝运行）' )"
+        # 以前这里写的是 `echo ✓' 满足'`，引号错位只是碰巧能跑；而且只报"是不是
+        # Arch 系"、不报**是哪个发行版**，Omarchy 上看着像是没被识别。改为读
+        # os-release 打印真实名字。
+        local osname="未知"
+        [[ -r /etc/os-release ]] && osname="$( . /etc/os-release && printf '%s' "${PRETTY_NAME:-${ID:-未知}}" )"
+        if [[ -f /etc/arch-release ]]; then
+            echo "  · 发行版检测   : ✓ $osname（Arch 系）"
+        else
+            echo "  · 发行版检测   : ✗ $osname（非 Arch 系，本脚本将拒绝运行）"
+        fi
         echo "  · sudo 可用?   : $( have sudo && echo ✓ || echo ✗；将使用 \${SUDO:-sudo} )"
         echo "  · 已存在的 rice 路径数:"
         local cnt=0 p
