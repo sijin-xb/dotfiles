@@ -96,27 +96,45 @@ chk "链接已更新为 /dev/zero"                    "$(readlink "$HOME/.config
 
 say_t "D. end4pc_base_missing：完整 / 残缺"
 D="$HOME/.config/quickshell/end4-pC"
-mkdir -p "$D/modules/common" "$D/modules/ii/dashboard-caelestia/dashboard" \
-         "$D/modules/ii/dashboard-caelestia/components/filedialog" \
-         "$D/modules/ii/dashboard-caelestia/components/controls" \
-         "$D/modules/ii/dashboard-caelestia/shim" "$D/services" "$D/scripts/colors"
+mkdir -p "$D/modules/common" "$D/services" "$D/scripts/colors"
 for f in shell.qml modules/common/Config.qml modules/common/Appearance.qml \
-         modules/ii/dashboard-caelestia/dashboard/Content.qml \
-         modules/ii/dashboard-caelestia/components/filedialog/FileDialog.qml \
-         modules/ii/dashboard-caelestia/components/controls/ButtonBase.qml \
-         modules/ii/dashboard-caelestia/shim/qmldir \
          scripts/colors/switchwall.sh; do
     mkdir -p "$D/$(dirname "$f")"; : > "$D/$f"
 done
 chk "完整底盘 → 无输出"      "$(end4pc_base_missing || true)"   ""
 chk "完整底盘 → 返回 1"      "$(end4pc_base_missing; echo "rc=$?")"  "rc=1"
-rm -f "$D/modules/ii/dashboard-caelestia/components/filedialog/FileDialog.qml"
-chk "缺一个 → 报出该文件"    "$(end4pc_base_missing || true)"   "modules/ii/dashboard-caelestia/components/filedialog/FileDialog.qml"
+rm -f "$D/modules/common/Appearance.qml"
+chk "缺一个 → 报出该文件"    "$(end4pc_base_missing || true)"   "modules/common/Appearance.qml"
 chk "缺文件 → 返回 0"        "$(end4pc_base_missing >/dev/null; echo "rc=$?")"  "rc=0"
+: > "$D/modules/common/Appearance.qml"
 rm -rf "$D/services"
-chk "缺目录也算缺"           "$(end4pc_base_missing || true)"   "modules/ii/dashboard-caelestia/components/filedialog/FileDialog.qml"
-: > "$D/modules/ii/dashboard-caelestia/components/filedialog/FileDialog.qml"
-chk "补回文件后轮到目录"     "$(end4pc_base_missing || true)"   "services"
+chk "缺目录也算缺"           "$(end4pc_base_missing || true)"   "services"
+mkdir -p "$D/services"
+
+# ⚠ 回归：**上游不提供的路径绝不能被列进清单**。
+#   列了就会永远判"缺" → 重拉上游也补不上 → 安装 die。
+#   这四项历史上就在清单里，而 pctrade/end4-PC 的 modules/ii/ 下
+#   根本没有 dashboard-caelestia（用 gh api 核过）。
+for f in modules/ii/dashboard-caelestia/dashboard/Content.qml \
+         modules/ii/dashboard-caelestia/components/filedialog/FileDialog.qml \
+         modules/ii/dashboard-caelestia/components/controls/ButtonBase.qml \
+         modules/ii/dashboard-caelestia/shim/qmldir; do
+    chk "定制层路径不进底盘自检: ${f##*/}" "$(end4pc_base_missing || true)" ""
+done
+
+say_t "D2. base_tree_missing：拿 clone 当基准（不靠硬编码清单）"
+bsrc="$ROOT/base-src"
+mkdir -p "$bsrc/modules/common" "$bsrc/services"
+printf 'a\n' > "$bsrc/shell.qml"
+printf 'b\n' > "$bsrc/modules/common/Config.qml"
+printf 'c\n' > "$bsrc/services/x.qml"
+bdst="$HOME/.config/quickshell/base-dst"; mkdir -p "$bdst"
+cp -a "$bsrc/." "$bdst/"
+chk "clone 全部落地 → 无输出"   "$(base_tree_missing "$bsrc" "$bdst" || true)" ""
+chk "clone 全部落地 → 返回 1"   "$(base_tree_missing "$bsrc" "$bdst"; echo "rc=$?")" "rc=1"
+rm -f "$bdst/services/x.qml"
+chk "漏一个 → 精确报出落点"     "$(base_tree_missing "$bsrc" "$bdst" || true)" "services/x.qml"
+chk "clone 目录不存在 → 算残缺" "$(base_tree_missing "$ROOT/no-such" "$bdst" >/dev/null; echo "rc=$?")" "rc=0"
 
 say_t "E. active_snap_paths：删除范围按 shell 过滤"
 qsp() {

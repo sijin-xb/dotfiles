@@ -542,40 +542,64 @@ skip_by_shell() {
 
 # 自检 end4-PC 底盘是否**完整**（不只是"入口文件在"）。
 #
-# 为什么不能只看 `shell.qml 存在`
-# ------------------------------
-# 差异层里的 modules/ii/dashboard-caelestia/dashboard/*.qml 写着
-# `import "../components"`，而 components/** 是**底盘**提供的（差异层只跟踪
-# dashboard/ 与 shim/）。底盘残缺时（clone 中断、磁盘写满、上游换过目录结构）
-# 这些 import 解析不到：
-#     WARN qmlscanner: Ignoring unresolvable import ".../dashboard/../components"
-# 接着 FileDialog / Sidebar 之类的类型不可用，最后 `qs -c end4-pC` 报
-# "Failed to load configuration"。
-# 旧写法只判 shell.qml，于是这种残缺树被当成"已安装"永久跳过 —— 重跑安装也
-# 修不好，只能手动删目录。
+# ⚠ 清单里**只能放底盘（pctrade/end4-PC）真的提供**的落点。
+#   这里以前还列了 4 项 modules/ii/dashboard-caelestia/**：
+#
+#       modules/ii/dashboard-caelestia/dashboard/Content.qml
+#       modules/ii/dashboard-caelestia/components/filedialog/FileDialog.qml
+#       modules/ii/dashboard-caelestia/components/controls/ButtonBase.qml
+#       modules/ii/dashboard-caelestia/shim/qmldir
+#
+#   但上游 modules/ii/ 下**根本没有 dashboard-caelestia 这个目录**
+#   （本仓库自己的定制层，IslandHost.qml 直接 import
+#    "../modules/ii/dashboard-caelestia/components/filedialog"，由 [5/7] 部署）。
+#   于是自检永远判"缺"→ 重拉上游也补不上 → 在 [4/7] 报
+#   "底盘拉取后仍缺少 …" 直接 die，安装永远走不完。
+#
+#   改清单前先核一遍（有 = 底盘提供，才可以列进来）：
+#     gh api repos/pctrade/end4-PC/contents/<路径>
 #
 # 输出：完整 → 无输出且返回 1；残缺 → 打印**第一个**缺失项并返回 0。
 # ⚠ 返回 1 表示"完整"，调用方用 `x="$(end4pc_base_missing || true)"` 取值，
 #   `|| true` 不能省（赋值语句的退出码取自命令替换结果）。
 end4pc_base_missing() {
-    local dst="$HOME/.config/quickshell/end4-pC"
+    local dst="${1:-$HOME/.config/quickshell/end4-pC}"
     local rel
-    # 清单只放"差异层 import 得到、但文件本身来自底盘"的落点，
-    # 以及 shell.qml 直接 import 的目录。差异层自己提供的文件不在此列
-    # （那些由 [5/7] 部署，缺了会在下一步补上）。
+    # 下面每一项都按上面的办法核过：上游确实提供，缺了才说明 clone 残缺。
     for rel in \
         shell.qml \
         modules/common/Config.qml \
         modules/common/Appearance.qml \
-        modules/ii/dashboard-caelestia/dashboard/Content.qml \
-        modules/ii/dashboard-caelestia/components/filedialog/FileDialog.qml \
-        modules/ii/dashboard-caelestia/components/controls/ButtonBase.qml \
-        modules/ii/dashboard-caelestia/shim/qmldir \
         services \
         scripts/colors/switchwall.sh
     do
         [[ -e "$dst/$rel" ]] || { printf '%s' "$rel"; return 0; }
     done
+    return 1
+}
+
+# 精确自检：clone 里有的每个文件，dst 里都该有。
+#
+# 这才是"cp 半途而废 / 磁盘写满"的**准确**判据 —— 只需要拿 clone 当基准，
+# 上游以后加文件、删目录都不用来改这里（硬编码清单会腐烂，见上面那次事故）。
+# ⚠ 必须在删掉临时 clone 目录**之前**调用。
+# 输出同 end4pc_base_missing：完整 → 无输出且返回 1。
+base_tree_missing() {
+    local src="$1" dst="$2" rel f
+    [[ -d "$src" ]] || { printf '（clone 目录不存在：%s）' "$src"; return 0; }
+    # ⚠ 这里刻意**不用** `< <(find …)` 进程替换：它依赖 /dev/fd，容器 / 精简
+    #   chroot 里可能不存在，一旦不可用整段判据会静默失效 —— 而这是"完整性"
+    #   的最后一道闸，失效就等于放行半残的树。改用临时清单文件。
+    local listf; listf="$(mktemp)"
+    find "$src" -type f -print0 > "$listf" 2>/dev/null
+    while IFS= read -r -d '' f; do
+        rel="${f#"$src"/}"
+        [[ -e "$dst/$rel" ]] && continue
+        printf '%s' "$rel"
+        rm -f "$listf"
+        return 0
+    done < "$listf"
+    rm -f "$listf"
     return 1
 }
 
@@ -1154,14 +1178,16 @@ cmd_install() {
         local tmp; tmp="$(mktemp -d)"
         if git clone --depth=1 https://github.com/pctrade/end4-pC.git "$tmp/end4-PC"; then
             merge_clone_into "$tmp/end4-PC" "$dst"
+            # 覆盖完立刻自检：网络中断 / 磁盘满都可能让 cp 半途而废，
+            # 别让用户拿到一个"看起来装好了"的残缺树。
+            # ⚠ 基准是刚 clone 下来的那份（而不是硬编码清单），并且必须在
+            #   `rm -rf "$tmp"` 之前取值。
+            missing="$(base_tree_missing "$tmp/end4-PC" "$dst" || true)"
         else
             rm -rf "$tmp"
             die "拉取 quickshell 底盘失败（检查网络后重试，或手动 clone 到 $dst）"
         fi
         rm -rf "$tmp"
-        # 覆盖完再自检一次：网络中断 / 磁盘满都可能让 cp 半途而废，
-        # 这里把结果说出来，别让用户拿到一个"看起来装好了"的残缺树。
-        missing="$(end4pc_base_missing || true)"
         if [[ -n "$missing" ]]; then
             die "底盘拉取后仍缺少 $missing —— 请检查网络与磁盘空间后重跑。"
         fi

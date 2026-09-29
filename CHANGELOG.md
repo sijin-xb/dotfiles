@@ -4,6 +4,60 @@
 
 ## 2026-09-29
 
+### 修复：底盘自检列了上游**根本不存在**的路径 —— 安装卡在 `[4/7]` 直接 die
+
+**表现**：
+
+```
+==>   底盘不完整 (缺少 modules/ii/dashboard-caelestia/components/filedialog/FileDialog.qml) , 重新拉取一份覆盖
+==>   拉取 quickshell 底盘 (pctrade/end4-PC)
+正克隆到 '/tmp/tmp.xxxx/end4-pc'...
+<cp 完成>
+==> 底盘拉取后仍缺少 … ← die
+```
+
+**根因**：`end4pc_base_missing()` 的清单里混进了 4 项
+`modules/ii/dashboard-caelestia/**`，而 `pctrade/end4-PC`
+**`modules/ii/` 下根本没有 `dashboard-caelestia` 这个目录**：
+
+```
+$ gh api repos/pctrade/end4-PC/contents/modules/ii --jq '.[].name'
+background bar desktopMenu dock dropover equalizer frame lock
+mediaControls notificationPopup onScreenDisplay onScreenKeyboard overlay
+overview polkit regionSelector screenCorners screenTranslator sessionScreen
+settings sidebarLeft sidebarRight verticalBar wallpaperSelector
+```
+
+它连同 `dashboard/**`、`shim/**` 都是**本仓库自己的定制层**
+（`custom-island/IslandHost.qml:11-13` 直接
+`import "../modules/ii/dashboard-caelestia/components/filedialog"`），由 `[5/7]` 部署。
+于是自检**永远**判"缺"→ 重拉上游也补不上 → `die`，安装永远走不完。
+清单里另 5 项（`shell.qml` / `modules/common/Config.qml` / `Appearance.qml` /
+`services` / `scripts/colors/switchwall.sh`）都逐个用 `gh api` 核过，上游确实提供。
+
+**改法**：
+
+- 清单砍到只剩"上游确实提供"的 5 项；注释里写明**改清单前必须先用
+  `gh api repos/pctrade/end4-PC/contents/<路径>` 核一遍**。
+- 新增 `base_tree_missing()`：**拿刚 clone 下来的那份当基准**，clone 里有的每个
+  文件 `dst` 里都得有。这才是"cp 半途而废 / 磁盘写满"的准确判据 —— 上游以后加
+  文件、删目录都不用来改脚本（硬编码清单会腐烂，这次事故就是）。
+- 该函数刻意不用 `< <(find …)` 进程替换：它依赖 `/dev/fd`，容器 / 精简 chroot
+  里可能不存在，一旦不可用这整段判据会**静默失效** —— 而它是完整性的最后一道
+  闸，失效等于放行半残的树。改用临时清单文件。
+- `[4b/7]` 的自检挪到 `rm -rf "$tmp"` **之前**，基准就是那份 clone。
+
+**顺带坐实一个仓库缺件（未在本节修）**：`dashboard-caelestia/components/**` 的
+56 个文件**既不在仓库、也不在上游**，只存在于作者本机的
+`~/.config/quickshell/end4-pC/`（`git status` 里连未跟踪条目都没有）。
+`IslandHost` 依赖的整个组件目录从未入库 → 全新机器无论如何都拿不到。
+
+**验证**：behaviour 测试台 D / D2 两组：
+
+- D 组新增「定制层路径不进底盘自检」4 项 —— 谁再把上游没有的路径写回清单，立刻红。
+- D2 组 4 项用真实临时目录测 `base_tree_missing`。
+- 总计 **86/86 通过**（原 79）。
+
 ### 修复：TUI 的三处显示 / 交互缺陷
 
 | # | 缺陷 | 原因 | 改法 |
@@ -11,9 +65,6 @@
 | 1 | 详情页「注意事项」那行**永远没有底色** | 用了 `${TC_BG_BLACK:-}`，但这个变量**从未定义**（只定义了 BOLD/RED/GREEN/YELLOW/BLUE/MAG/CYAN），靠 `:-` 静默退化成空串 | 补上 `TC_BG_BLACK="$(tc setab 0)"` |
 | 2 | 分隔线宽度写死 80 格 | `draw_line()` 用 `${COLUMNS:-80}`，而 bash **只在交互式 shell** 里维护 `COLUMNS`，脚本里通常为空 → 宽终端短一截、窄终端折行 | 向终端问一次 `tput cols`，问不到（重定向 / 非 tty）才退回 80 |
 | 3 | 发行版检测只报「是不是 Arch 系」 | 写法是 `echo ✓' 满足'`（引号错位，碰巧能跑），且不报**是哪个发行版** —— 在这台 Omarchy 上看着像没被识别 | 读 `/etc/os-release` 打印 `PRETTY_NAME` → `✓ Omarchy（Arch 系）`；欢迎页 / 帮助页的 OS 列表也补上 Omarchy |
-
-`bash -n` 通过；`draw_line` 在无 tty（重定向）时仍退回 80 格，
-交互终端里跟随实际列宽。
 
 ### 依赖审计复核：「故意不加」那批逐个坐实（补 3 个真缺口）
 
