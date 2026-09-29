@@ -2,6 +2,63 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+## 2026-09-29
+
+### 修复：装完 end4-PC 后 Quickshell 起不来 —— `module "Caelestia.Config" is not installed`
+
+**表现**（另一台机器上的实际日志）：
+
+```
+ERROR: Failed to load configuration
+ERROR: caused by @shell.qml[58:20]: Type IllogicalImpulseFamily unavailable
+ERROR: caused by @panelFamilies/IllogicalImpulseFamily.qml[39:30]: Type Lock unavailable
+ERROR: caused by @modules/ii/lock/Lock.qml[40:15]: Type CaelestiaLockSurface unavailable
+ERROR: caused by @modules/ii/lock/caelestia/CaelestiaLockSurface.qml[5:1]:
+    module "Caelestia.Config" is not installed
+```
+
+最后一行才是根因，上面三行都是被它牵连的。QML 的 `import <模块>` 是**硬依赖**：
+模块解析不到时该文件里的类型全部 unavailable，错误沿
+`CaelestiaLockSurface → Lock → IllogicalImpulseFamily → shell.qml` 一路上抛，
+`qs -c end4-PC` 直接 "Failed to load configuration"。
+
+**根因：install.sh 把 Caelestia 插件当成了 caelestia 专属。**
+
+end4-PC 差异层的锁屏（`modules/ii/lock/caelestia/**`）是从
+caelestia-dots/shell 原样 vendor 过来的，其中 **56 个文件**写着
+`import Caelestia.Config`（`Tokens.anim.*` / `AnimCurves`）。但 install.sh 有三处
+让它只在选 caelestia 时才就位：
+
+| 位置 | 原行为（错） | 后果 |
+|---|---|---|
+| `[4/7] install_shell()` | 只有 `caelestia` 分支编译插件 | end4-PC 机器从来没有插件 |
+| `shell_aur_pkgs()` | `libcava qt6-m3shapes-git` 只在 caelestia | 插件连依赖都装不上 |
+| `shell_pacman_pkgs()` | `libqalculate`/`aubio`/... 只在 caelestia | CMake `pkg_check_modules` 直接 FATAL_ERROR |
+
+**外加一处注释与实现不符**：`execs.lua` 写着「脚本负责：QML2_IMPORT_PATH
+（caelestia 的 C++ 插件）」，但 `start_quickshell.sh` 正文**从未 export 过这个变量**
+—— 即使插件编译好了，`qs` 也看不到它。
+
+**改法**：
+
+| 文件 | 改动 |
+|---|---|
+| `install.sh` | 新增 `install_caelestia_plugin()`，从 `install_caelestia_shell()` 中抽出编译逻辑，`QS_SHELL != dms` 时**无条件**执行（[4a/7]）；`install_caelestia_shell()` 瘦身为只确认 shell 本体存在 |
+| `install.sh` | 新增 `base_aur_pkgs()` / `base_pacman_pkgs()`：`libcava`、`qt6-m3shapes-git`、`aubio`、`libqalculate`、`libpipewire`、`lm_sensors`、`fftw`、`spirv-tools` 提升为 quickshell 会话公共依赖（dms 跳过）；`shell_*_pkgs()` 里对应的 caelestia 分支清空 |
+| `install.sh` | 编译时补传 `-DGIT_REVISION`：上游 CMakeLists 对 `git rev-parse HEAD` 也是硬依赖，shallow clone / 无 `.git` 时会 FATAL_ERROR；现已显式算出并传入，CMake 侧的 git 调用走不到 |
+| `start_quickshell.sh` | **真正 export `QML2_IMPORT_PATH`**（指向 `~/src/caelestia-build/qml`），并在目录缺失时记明确日志；新增 `preflight_caelestia_dep()`：入口引用了 Caelestia 锁屏但插件不存在时，**不启动 qs** 直接报出根因与修复命令，而不是白等 15 秒再抛无指向性的 "Failed to load" |
+
+**验证**：`bash -n` 双脚本通过；用假 `qs` 搭行为测试台跑两个场景 ——
+① 插件存在 → 日志确认 `QML2_IMPORT_PATH` 已注入且子进程 `qs` 继承到该变量
+（修复前为 `<empty>`）；
+② 插件缺失 → preflight 拦截、`qs` 零调用，日志给出根因与两条修复命令。
+另用受控 source 验证三个 shell 的依赖分配：end4-PC 与 caelestia 拿到完全相同的
+插件依赖，dms 只拿自己的两个包。
+
+**影响范围**：选了 end4-PC 的机器现在会多花 1-3 分钟编译插件，并多装
+`libcava`/`qt6-m3shapes-git`（AUR）与 6 个官方仓库包（其中多数本就在基础列表或
+已随其它包带入）。dms（纯 niri）路径完全不受影响。
+
 ## 2026-09-28
 
 ### 修复：登录 Hyprland 后黑屏、只剩鼠标光标

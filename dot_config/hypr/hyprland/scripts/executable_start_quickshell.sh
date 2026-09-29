@@ -38,6 +38,29 @@ MAX_LOG_BYTES=524288
 
 mkdir -p "$STATE_DIR"
 
+# --- 0) Caelestia QML 插件（Caelestia.Config / Caelestia.Services ...） ---
+#
+# ⚠ 这一条是**必需**的，不是可选优化。
+#
+# end4-pC 差异层里的锁屏（modules/ii/lock/caelestia/**）是从
+# caelestia-dots/shell 原样 vendor 过来的，其中 56 个文件写着
+# `import Caelestia.Config`。QML 的 `import <模块>` 是硬依赖：模块解析不到时
+# 该文件里的类型全部 unavailable，错误沿
+#     CaelestiaLockSurface → Lock → IllogicalImpulseFamily → shell.qml
+# 一路上抛，最终 qs 直接 "Failed to load configuration"，
+# 表现为**登录后桌面 Shell 起不来**。
+#
+# 插件的 .so 由 install.sh 的 [4a/7] 编译到 ~/src/caelestia-build/qml。
+# 这里把该目录注入 QML2_IMPORT_PATH —— 之前本脚本的注释声称「脚本负责
+# QML2_IMPORT_PATH」，但正文从未设置过它，插件对 qs 而言始终不存在。
+#
+# 目录不存在时不注入（保持原行为：不污染其它 Qt 程序），但会记一条日志，
+# 因为那种情况下 end4-pC 的锁屏必然加载失败。
+CAELESTIA_QML="${CAELESTIA_QML_PATH:-$HOME/src/caelestia-build/qml}"
+if [[ -d $CAELESTIA_QML ]]; then
+    export QML2_IMPORT_PATH="$CAELESTIA_QML${QML2_IMPORT_PATH:+:$QML2_IMPORT_PATH}"
+fi
+
 # 日志轮转：超过 512 KiB 只留最后 1024 行
 if [[ -f $LOG ]] && [[ $(wc -c <"$LOG") -gt $MAX_LOG_BYTES ]]; then
     tail -n 1024 "$LOG" >"$LOG.tmp" && mv "$LOG.tmp" "$LOG"
@@ -45,17 +68,12 @@ fi
 
 log() { printf '%s [qs] %s\n' "$(date '+%F %T')" "$*" >>"$LOG"; }
 
-# --- 0) Caelestia C++ QML 插件 import path ---
-# end4-pC 的锁屏 `import Caelestia.Config`（以及 caelestia shell 本体）都依赖
-# caelestia-dots/shell 的 C++ 插件，编译产物固定在 ~/src/caelestia-build/qml
-# （见 install.sh [4/7]）。fish config.fish 里有同款注入，但那只覆盖
-# 「从 fish 里手动跑 qs」的场景；Hyprland 由 SDDM/uwsm 拉起时环境里没有它。
-# 这里在启动任何 qs 实例之前补上，兑现 execs.lua 注释里"脚本负责
-# QML2_IMPORT_PATH"的承诺。目录不存在就不注入（未装 caelestia/插件未编译）。
-CAELESTIA_QML="$HOME/src/caelestia-build/qml"
 if [[ -d $CAELESTIA_QML ]]; then
-    export QML2_IMPORT_PATH="$CAELESTIA_QML${QML2_IMPORT_PATH:+:$QML2_IMPORT_PATH}"
     log "注入 QML2_IMPORT_PATH=$QML2_IMPORT_PATH"
+else
+    log "警告：$CAELESTIA_QML 不存在，Caelestia 插件未编译。"
+    log "      end4-pC 锁屏依赖 import Caelestia.Config，缺它会导致 shell 加载失败。"
+    log "      修复：重跑 install.sh（[4a/7] 会编译），或手动 cmake -S ~/.config/quickshell/caelestia -B ~/src/caelestia-build -G Ninja && cmake --build ~/src/caelestia-build"
 fi
 
 # --- 1) 候选顺序：首选（$qsConfig）→ end4-pC ---
@@ -69,6 +87,23 @@ candidates=("$preferred")
 [[ $preferred == "$FALLBACK_SHELL" ]] || candidates+=("$FALLBACK_SHELL")
 
 log "开始启动：首选=$preferred 候选=${candidates[*]}"
+
+# 启动前自检：shell 入口引用了 Caelestia 插件，但插件没编译 —— 这是已知的
+# 致命组合（见本文件开头 [0] 的说明），提前报清楚，别让它退化成
+# 「加载失败」这种没有指向性的错误。
+preflight_caelestia_dep() {
+    local cfg="$1"
+    local lock_surface="$QS_DIR/$cfg/modules/ii/lock/caelestia/CaelestiaLockSurface.qml"
+    # 只有用 Caelestia 风格锁屏（即 vendor 了 caelestia 锁屏）的 shell 才受影响
+    [[ -f $lock_surface ]] || return 0
+    [[ -d $CAELESTIA_QML ]] && return 0
+    log "自检失败：$cfg 的锁屏 $(basename "$lock_surface") 依赖 Caelestia 插件，"
+    log "          但 $CAELESTIA_QML 不存在。qs 会报 module \"Caelestia.Config\" is not installed。"
+    log "          修复：重跑 install.sh，或手动编译："
+    log "            cmake -S $QS_DIR/caelestia -B \$HOME/src/caelestia-build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo"
+    log "            cmake --build \$HOME/src/caelestia-build"
+    return 1
+}
 
 # 启动一个候选；成功返回 0，失败返回 1（失败原因已写日志）
 start_shell() {
@@ -113,6 +148,9 @@ start_shell() {
 }
 
 for cfg in "${candidates[@]}"; do
+    # 已知致命前置缺失（插件没编译）不用再试 —— 试了必然失败，
+    # 只会白白消耗 HEALTH_TIMEOUT_SEC 秒并留下误导性的日志。
+    preflight_caelestia_dep "$cfg" || continue
     if start_shell "$cfg"; then
         if [[ $cfg != "$preferred" ]]; then
             log "已回退到 $cfg（首选 $preferred 不可用）"

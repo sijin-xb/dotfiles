@@ -200,11 +200,14 @@ apply_snapshot_from_state() {
 #   1) end4-pC   Hyprland + quickshell（end4-PC 底盘，pctrade/end4-pC）
 #                入口 ~/.config/hypr/hyprland.lua + ~/.config/quickshell/end4-pC
 #   2) caelestia Hyprland + caelestia shell（caelestia-dots/shell）
-#                shell 本体 clone 到 ~/.config/quickshell/caelestia；
-#                QML 插件 out-of-source 编译到 ~/src/caelestia-build
-#                （execs.lua 与 config.fish 都从这里加载，换位置要同步改那两处）
+#                shell 本体 clone 到 ~/.config/quickshell/caelestia
 #   3) dms       niri + DankMaterialShell（DMS，niri 专属桌面 shell）
 #                入口 ~/.config/niri/config.kdl，DMS 配置在 ~/.config/DankMaterialShell
+#
+# ⚠ Caelestia QML 插件（end4-pC 与 caelestia 都要，见 [4a/7]）统一
+#   out-of-source 编译到 ~/src/caelestia-build，由 execs.lua、fish/config.fish
+#   与 start_quickshell.sh 三处读取 QML2_IMPORT_PATH 加载，换位置要同步改这三处。
+#
 # 可交互选择，也可用环境变量预设：SESSION=caelestia ./install.sh install
 # 兼容旧变量：COMPOSITOR=niri 等价 SESSION=dms，COMPOSITOR=hyprland 等价 SESSION=end4pc
 SESSION="${SESSION:-}"        # end4pc | caelestia | dms
@@ -285,33 +288,63 @@ compositor_aur_pkgs() {
 }
 
 # 各 shell 专属的 AUR 包（通用 AUR 包见 [2/7] 的固定列表）。
-#   caelestia / end4-pC: libcava 供 QML 插件编译；qt6-m3shapes-git 是锁屏形变
-#              动画（MaterialShape）的运行时依赖，两者都只有 AUR 有。
-#              end4-pC 也要：它的锁屏差异层 vendored 了 Caelestia 风格 surface，
-#              `import Caelestia.Config` 指向同一个 C++ 插件（见 install_caelestia_shell）。
-#   dms:       DankMaterialShell 本体 + niri 集成包。用 -git 而不是稳定版：
-#              DMS 迭代很快，稳定版往往落后几个小版本，而 niri 侧的
-#              config.kdl / dms/binds.kdl 是按新版写的（键位、ipc 目标会对不上）。
+#
+# ⚠ libcava / qt6-m3shapes-git **不是 caelestia 专属**：
+#   - libcava           → Caelestia QML 插件编译依赖（pkg_check_modules Cava）
+#   - qt6-m3shapes-git  → 锁屏形变动画（MaterialShape）的运行时依赖
+#   end4-pC 的锁屏就是从 caelestia vendor 来的（modules/ii/lock/caelestia/**），
+#   同时依赖这两者。历史上只在 caelestia 分支装，导致 end4-pC 用户既装不了
+#   插件（锁屏 import Caelestia.Config 失败）也缺 MaterialShape。
+#   现在放到 [2/7] 的公共 AUR 列表里（见 base_aur_pkgs），不再按 shell 分支。
+#
+#   dms:  DankMaterialShell 本体 + niri 集成包。用 -git 而不是稳定版：
+#         DMS 迭代很快，稳定版往往落后几个小版本，而 niri 侧的
+#         config.kdl / dms/binds.kdl 是按新版写的（键位、ipc 目标会对不上）。
 shell_aur_pkgs() {
     case "$QS_SHELL" in
-        caelestia|end4-pC) echo "libcava qt6-m3shapes-git" ;;
+        caelestia) echo "" ;;
         dms)       echo "dms-shell-git dms-shell-niri" ;;
         *)         echo "" ;;
     esac
 }
 
+# **所有** quickshell 会话（end4-pC / caelestia）都需要的 AUR 包。
+# dms 走 niri + DankMaterialShell，不用 quickshell，因此跳过。
+# 见上面 shell_aur_pkgs 的说明：这两者服务于 Caelestia 插件 / 锁屏，与具体
+# 选哪个 quickshell shell 无关。
+base_aur_pkgs() {
+    case "$QS_SHELL" in
+        dms) echo "" ;;
+        *)   echo "libcava qt6-m3shapes-git" ;;
+    esac
+}
+
 # 各 shell 专属的 pacman 包（官方仓库）。
-#   caelestia / end4-pC: QML 插件编译 / 运行依赖（[4/7] 步骤会用到）。
-#              end4-pC 也要，原因同 shell_aur_pkgs：锁屏依赖 caelestia 的 C++ 插件。
-#   dms:       gpu-screen-recorder —— DMS quickCapture 插件录屏**带声音**的前提，
-#              默认键位 Ctrl+Alt+R（见 dot_config/niri/dms/binds.kdl）。不装也能录，
-#              但会回退到 wf-recorder（CPU 编码、纯画面无声音）；插件按
-#              command -v 探测，装了就自动优先用它。
+#
+# ⚠ 同 shell_aur_pkgs：`aubio` / `libqalculate` / `libpipewire` / `lm_sensors` /
+#   `fftw` / `spirv-tools` 是 **Caelestia 插件编译与运行的依赖**
+#   （plugin/CMakeLists.txt 里 pkg_check_modules 要求 libqalculate / aubio /
+#   libpipewire，缺一个 CMake 直接 FATAL_ERROR），而 end4-pC 也编这个插件。
+#   所以它们进了 [2/7] 的公共列表（见 base_pacman_pkgs），不在这里按分支给。
+#
+#   dms:  gpu-screen-recorder —— DMS quickCapture 插件录屏**带声音**的前提，
+#         默认键位 Ctrl+Alt+R（见 dot_config/niri/dms/binds.kdl）。不装也能录，
+#         但会回退到 wf-recorder（CPU 编码、纯画面无声音）；插件按
+#         command -v 探测，装了就自动优先用它。
 shell_pacman_pkgs() {
     case "$QS_SHELL" in
-        caelestia|end4-pC) echo "aubio libpipewire libqalculate lm_sensors fftw spirv-tools" ;;
+        caelestia) echo "" ;;
         dms)       echo "gpu-screen-recorder" ;;
         *)         echo "" ;;
+    esac
+}
+
+# **所有** quickshell 会话（end4-pC / caelestia）都需要的官方仓库包。
+# 即 Caelestia 插件的编译 / 运行依赖。dms 不编插件，跳过。
+base_pacman_pkgs() {
+    case "$QS_SHELL" in
+        dms) echo "" ;;
+        *)   echo "aubio libpipewire libqalculate lm_sensors fftw spirv-tools" ;;
     esac
 }
 
@@ -480,13 +513,20 @@ cmd_install() {
     # shellcheck disable=SC2207
     PACMAN_PKGS+=($(compositor_pkgs))
     say "    合成器相关包: $(compositor_pkgs)"
-    # 追加 shell 专属包（caelestia 的 QML 编译依赖 / dms 的录屏工具；end4-pC 与
-    # caelestia 同一份——锁屏依赖 caelestia 的 C++ 插件，见 shell_pacman_pkgs）
+    # 追加 shell 专属包（dms 的录屏工具；caelestia / end4-pC 无）
     local _shell_pkgs; _shell_pkgs="$(shell_pacman_pkgs)"
     if [[ -n "$_shell_pkgs" ]]; then
         # shellcheck disable=SC2207
         PACMAN_PKGS+=($_shell_pkgs)
         say "    $QS_SHELL 专属包: $_shell_pkgs"
+    fi
+    # 追加 quickshell 会话公共包（Caelestia 插件编译 / 运行依赖）。
+    # ⚠ end4-pC 也编这个插件（锁屏硬依赖），所以不在 shell 分支里。
+    local _base_pkgs; _base_pkgs="$(base_pacman_pkgs)"
+    if [[ -n "$_base_pkgs" ]]; then
+        # shellcheck disable=SC2207
+        PACMAN_PKGS+=($_base_pkgs)
+        say "    Caelestia 插件依赖: $_base_pkgs"
     fi
     # 默认只安装缺失的包，不做全系统升级（避免在你没准备时滚动整个系统）。
     # 需要全量升级时：FULL_UPGRADE=1 ./install.sh install
@@ -543,11 +583,14 @@ cmd_install() {
         say "    合成器本体（AUR）: $_comp_aur"
     fi
     # 追加 shell 专属 AUR 包（见 shell_aur_pkgs：
-    #   caelestia / end4-pC → libcava qt6-m3shapes-git（锁屏插件）
-    #   dms       → dms-shell-git dms-shell-niri
-    #   （历史上 end4-pC 无专属 AUR 包，锁屏接上 Caelestia surface 后就同 caelestia 了）
+    #   caelestia → 无（与 end4-pC 共用公共列表）
+    #   dms       → dms-shell-git dms-shell-niri）
     # shellcheck disable=SC2207
     AUR_PKGS+=($(shell_aur_pkgs))
+    # quickshell 会话公共 AUR 包（libcava / qt6-m3shapes-git）。
+    # ⚠ end4-pC 也需要：Caelestia 插件编译 + 锁屏 MaterialShape 形变动画。
+    # shellcheck disable=SC2207
+    AUR_PKGS+=($(base_aur_pkgs))
     for p in "${AUR_PKGS[@]}"; do
         if pacman -Q "$p" >/dev/null 2>&1; then
             echo "    已安装: $p"
@@ -589,6 +632,85 @@ cmd_install() {
 
     # ---------- [4/7] 桌面 Shell（按 choose_session 的结果三选一） ----------
     say "[4/7] 桌面 Shell（$QS_SHELL）"
+
+    # ---------- [4a/7] Caelestia QML 插件（end4-pC 与 caelestia 都需要） ----------
+    #
+    # ⚠ 这不是 caelestia 专属步骤 —— 它是 end4-pC 的硬前置。
+    #
+    # end4-pC 差异层里的锁屏（modules/ii/lock/caelestia/**）是从
+    # caelestia-dots/shell 原样 vendor 过来的，其中 **56 个文件**写着
+    # `import Caelestia.Config`（Tokens.anim.* / AnimCurves）。QML 的
+    # `import <模块>` 是硬依赖：模块解析不到时，该文件里的类型全部 unavailable，
+    # 错误沿
+    #     CaelestiaLockSurface → Lock → IllogicalImpulseFamily → shell.qml
+    # 一路上抛，最终 `qs -c end4-pC` 直接 "Failed to load configuration"，
+    # 表现为**登录后桌面残缺或只剩光标**。
+    #
+    # 历史写法是按 $QS_SHELL 分支决定编不编这个插件（只在 caelestia 分支编），
+    # 于是选 end4-pC 的机器永远拿不到插件 —— 这就是本次要修的 bug。
+    #
+    # 插件 QML 源码在 caelestia-dots/shell 仓库的 plugin/ 下；本仓库的覆盖层
+    # （dot_config/quickshell/caelestia/）提供汉化 po 与改过的 CMakeLists。
+    # 所以这里无论如何都要：拿到源码 → 应用覆盖层 → out-of-source 编译到
+    # $HOME/src/caelestia-build。产物路径是硬约定：execs.lua、fish/config.fish
+    # 与 start_quickshell.sh 都从这里读 QML2_IMPORT_PATH，换位置要同步改那三处。
+    install_caelestia_plugin() {
+        local src="$HOME/.config/quickshell/caelestia"
+        local build="$HOME/src/caelestia-build"
+
+        # 1) 插件源码来源：优先复用已 clone 的 caelestia shell（自带 plugin/），
+        #    否则浅克隆一份。end4-pC 用户不跑 caelestia shell，但需要它的插件源码。
+        if [[ ! -d "$src/plugin" ]]; then
+            say "    克隆 caelestia 源码（为编译 Caelestia QML 插件）"
+            mkdir -p "$(dirname "$src")"
+            git clone --depth=1 https://github.com/caelestia-dots/shell.git "$src" \
+                || die "克隆 caelestia-dots/shell 失败（Caelestia 插件源码，检查网络后重试）。"
+        else
+            echo "    已存在插件源码: $src/plugin"
+        fi
+
+        # 2) 本地覆盖层（汉化 po / 改过的 CMakeLists）。
+        #    ⚠ 必须在编译前应用：晚一步这些文件赶不上这次编译，翻译会静默不生效。
+        local overlay="$SRC/dot_config/quickshell/caelestia"
+        local ovl_hash=""
+        if [[ -d "$overlay" ]]; then
+            while IFS= read -r -d '' rel; do
+                mkdir -p "$src/$(dirname "${rel#./}")"
+                cp -a "$overlay/$rel" "$src/${rel#./}"
+            done < <(cd "$overlay" && find . -type f -print0)
+            ovl_hash="$(cd "$overlay" && find . -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -c1-16)"
+            echo "    已应用 caelestia 覆盖层（$(cd "$overlay" && find . -type f | wc -l) 个文件）"
+        fi
+
+        # 3) 编译。幂等：已有 .so 产物**且覆盖层没变**才跳过 —— 否则改了
+        #    po/CMakeLists 却不重编，会静默停留在旧版本。
+        local stamp="$build/.overlay-stamp"
+        if compgen -G "$build/qml/Caelestia/*.so" >/dev/null \
+            && [[ -f "$stamp" && "$(cat "$stamp")" == "$ovl_hash" ]]; then
+            echo "    已编译: $build/qml（覆盖层无变化）"
+            return 0
+        fi
+        have cmake && have ninja || die "缺少 cmake/ninja，无法编译 Caelestia 插件（end4-pC 锁屏硬依赖）。"
+        # 上游 CMakeLists 对 git 有硬依赖：`git describe --tags` 拿 VERSION、
+        # `git rev-parse HEAD` 拿 GIT_REVISION，任一为空就 FATAL_ERROR 中断安装。
+        # shallow clone 默认没有 tag；源码若是被拷进来的（无 .git）两个都拿不到。
+        # 所以两个变量都由这里显式算出并传入，CMakeLists 的 git 调用就走不到了。
+        ( cd "$src" && git fetch --tags --depth=1 --quiet 2>/dev/null ) || true
+        local _cv="" _rev=""
+        _cv="$(cd "$src" && git describe --tags --abbrev=0 2>/dev/null || true)"
+        _rev="$(cd "$src" && git rev-parse HEAD 2>/dev/null || true)"
+        [[ -z "$_cv" ]] && _cv="0.0.0"
+        [[ -z "$_rev" ]] && _rev="unknown"
+        say "    编译 Caelestia QML 插件（约 1-3 分钟），version=$_cv rev=${_rev:0:7}"
+        cmake -S "$src" -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DVERSION="${_cv#v}" -DGIT_REVISION="$_rev" \
+            || die "Caelestia 插件 CMake 配置失败，见上方输出。"
+        cmake --build "$build" --parallel \
+            || die "Caelestia 插件编译失败，见上方输出。手动重试：cmake -S $src -B $build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DVERSION=${_cv#v} -DGIT_REVISION=$_rev && cmake --build $build"
+        printf '%s\n' "$ovl_hash" > "$stamp"
+        echo "    编译完成: $build/qml（由 execs.lua / config.fish / start_quickshell.sh 自动加载）"
+    }
+
     # end4-PC 底盘（end-4 illogical-impulse 定制 fork，pctrade/end4-pC）：
     # 本仓库只跟踪差异层（dot_config/quickshell/end4-pC），底盘本体从这里拉。
     install_end4pc_shell() {
@@ -611,80 +733,30 @@ cmd_install() {
         rm -rf "$tmp"
     }
 
-    # caelestia shell：本体 clone + QML 插件 out-of-source 编译。
-    # end4-pC 会话也会调用本函数：锁屏差异层 import 的 Caelestia.Config 出自
-    # 这个插件（见 install_shell 里 end4-pC 分支的说明）。
+    # caelestia shell：本体 clone（QML 插件由 [4a/7] install_caelestia_plugin 统一处理）。
     install_caelestia_shell() {
         local src="$HOME/.config/quickshell/caelestia"
-        local build="$HOME/src/caelestia-build"
-        # 1) shell 本体（quickshell 按目录加载：qs -c caelestia）
-        if [[ ! -f "$src/shell.qml" ]]; then
-            say "    克隆 caelestia shell (caelestia-dots/shell)"
-            mkdir -p "$(dirname "$src")"
-            git clone --depth=1 https://github.com/caelestia-dots/shell.git "$src" \
-                || die "克隆 caelestia-dots/shell 失败（检查网络后重试）。"
-        else
+        # shell 本体（quickshell 按目录加载：qs -c caelestia）
+        # [4a/7] 已经保证 $src 存在且含 plugin/，这里只做一次确认性检查。
+        if [[ -f "$src/shell.qml" ]]; then
             echo "    已存在: $src"
+        else
+            die "caelestia shell 本体缺失：$src/shell.qml（[4a/7] 应已 clone）"
         fi
-
-        # 1.5) 本地覆盖层（汉化 po / 改过的 CMakeLists 等）。
-        #      ⚠ 必须在这里应用：[4/7] 编译在前、[5/7] 部署差异层在后，
-        #      晚一步这些文件就赶不上这次编译，翻译会静默不生效。
-        local overlay="$SRC/dot_config/quickshell/caelestia"
-        local ovl_hash=""
-        if [[ -d "$overlay" ]]; then
-            while IFS= read -r -d '' rel; do
-                mkdir -p "$src/$(dirname "${rel#./}")"
-                cp -a "$overlay/$rel" "$src/${rel#./}"
-            done < <(cd "$overlay" && find . -type f -print0)
-            ovl_hash="$(cd "$overlay" && find . -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -c1-16)"
-            echo "    已应用 caelestia 覆盖层（$(cd "$overlay" && find . -type f | wc -l) 个文件）"
-        fi
-
-        # 2) QML 插件。⚠ 必须编译到 $build（= ~/src/caelestia-build）：
-        #    execs.lua 与 fish/config.fish 都从这个固定路径加载 QML2_IMPORT_PATH，
-        #    编译到别处（例如 in-source 的 $src/build）会静默加载不到插件。
-        #    幂等：已有 .so 产物**且覆盖层没变**才跳过 —— 否则改了 po/CMakeLists
-        #    却不重编，汉化会静默停留在旧版本。
-        local stamp="$build/.overlay-stamp"
-        if compgen -G "$build/qml/Caelestia/*.so" >/dev/null \
-            && [[ -f "$stamp" && "$(cat "$stamp")" == "$ovl_hash" ]]; then
-            echo "    已编译: $build/qml（覆盖层无变化）"
-            return 0
-        fi
-        have cmake && have ninja || die "缺少 cmake/ninja，无法编译 caelestia 插件。"
-        # shallow clone 默认没有 tag，上游 CMakeLists 用 `git describe --tags` 拿版本，
-        # 拿不到就会 FATAL_ERROR 中断整个安装。这里显式拉一次 tags；
-        # 即使拉不到，也给 CMake 传显式版本兜底（配合上游已改为优雅降级）。
-        ( cd "$src" && git fetch --tags --depth=1 --quiet 2>/dev/null ) || true
-        local _cv=""
-        _cv="$(cd "$src" && git describe --tags --abbrev=0 2>/dev/null || true)"
-        [[ -z "$_cv" ]] && _cv="0.0.0"
-        say "    编译 QML 插件（约 1-3 分钟），version=$_cv"
-        cmake -S "$src" -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-            -DVERSION="${_cv#v}" \
-            || die "caelestia 插件 CMake 配置失败，见上方输出。"
-        cmake --build "$build" --parallel \
-            || die "caelestia 插件编译失败，见上方输出。手动重试：cmake -S $src -B $build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo && cmake --build $build"
-        printf '%s\n' "$ovl_hash" > "$stamp"
-        echo "    编译完成: $build/qml（由 execs.lua / config.fish 自动加载）"
     }
 
     install_shell() {
         case "$QS_SHELL" in
             caelestia) install_caelestia_shell ;;
-            end4-pC)
-                # end4-pC 的锁屏差异层（modules/ii/lock/caelestia/CaelestiaLockSurface.qml）
-                # `import Caelestia.Config` —— 这是 caelestia-dots/shell 的 C++ QML 插件，
-                # 只能编译出来，QML 层 vendored 不了。缺了它整个 shell 加载失败：
-                #   ERROR: module "Caelestia.Config" is not installed
-                # 所以 end4-pC 也需要 caelestia 源码 + 插件编译（差异层与底盘照旧）。
-                install_end4pc_shell
-                install_caelestia_shell
-                ;;
             dms)       echo "    DMS 由 AUR 安装（dms-shell-git + dms-shell-niri），无需额外部署" ;;
+            *)         install_end4pc_shell ;;
         esac
     }
+    # ⚠ 顺序：插件必须先于 shell 本体处理（end4-pC 的锁屏硬依赖它，见 [4a/7]）。
+    #    dms 不走 quickshell，跳过 —— 不给纯 niri 用户多拉一份 caelestia 源码。
+    if [[ "$QS_SHELL" != "dms" ]]; then
+        install_caelestia_plugin
+    fi
     install_shell
 
     # ---------- [5/7] 部署 dotfiles ----------
@@ -829,7 +901,10 @@ EOF
             ;;
         *)
             cat <<'EOF'
-  6. end4-PC 岛屿 + 仪表盘：栏中央那颗胶囊，点一下从 Bar 里生长成面板，
+  6. Caelestia QML 插件：已编译到 ~/src/caelestia-build/qml（end4-PC 锁屏
+     （Caelestia 风格）硬依赖它），由 start_quickshell.sh 与 fish config.fish
+     通过 QML2_IMPORT_PATH 自动加载。
+     end4-PC 岛屿 + 仪表盘：栏中央那颗胶囊，点一下从 Bar 里生长成面板，
      Home / System / Weather / GitHub 四页。
      想增删：设置 → 栏 → 组件列表里的「Island」（删掉即整座岛隐藏）。
      命令行：qs -c end4-pC ipc call islanddashboard toggle
@@ -1042,8 +1117,10 @@ sijin-xb's dotfiles 自部署脚本 —— Rice 版本: ${RICE_VERSION}
                                           默认；配置入口 ~/.config/hypr/hyprland.lua
                                           + ~/.config/quickshell/end4-pC
                              · caelestia → Hyprland + caelestia shell
-                                          shell clone 到 ~/.config/quickshell/caelestia，
-                                          QML 插件编译到 ~/src/caelestia-build
+                                          shell clone 到 ~/.config/quickshell/caelestia
+                             ⚠ end4pc 与 caelestia 都会把 Caelestia QML 插件
+                             编译到 ~/src/caelestia-build（end4-PC 的锁屏硬依赖
+                             import Caelestia.Config），dms 不需要。
                              · dms      → niri + DankMaterialShell（DMS）
                                           配置入口 ~/.config/niri/config.kdl
                              设定后跳过交互提问，适合脚本/无人值守重装。
@@ -1209,10 +1286,14 @@ detail_install() {
           niri 本体不在这里，走 [2/7] 的 AUR fork 包 niri-shorin-fork-git
           默认只装缺失项；FULL_UPGRADE=1 ./install.sh install 可全系统升级
     [2/7] AUR 包（niri 本体 niri-shorin-fork-git / matugen / mpvpaper
+          + Caelestia 插件依赖（libcava / qt6-m3shapes-git，end4-pC 也需要）
           + 所选 shell 专属包 + 引导 yay）
     [3/7] quickshell 三级回退（已装→仓库→AUR→源码编译）
-    [4/7] 桌面 Shell：end4-PC 拉底盘 / caelestia clone + 编译 QML 插件
-          （dms 无此步，DMS 由 [2/7] 的 AUR 包提供）
+    [4/7] 桌面 Shell：
+          [4a] Caelestia QML 插件 —— end4-pC 与 caelestia 都编（锁屏硬依赖
+               import Caelestia.Config，跳过会导致 shell 加载失败）
+          [4b] shell 本体：end4-PC 拉底盘 / caelestia clone
+               （dms 无此步，DMS 由 [2/7] 的 AUR 包提供）
     [5/7] dot_ 前缀 → $HOME 部署（按会话过滤）；有差异的旧文件自动备份
     [6/7] 拼音搜索 Python venv + pypinyin / dbus-python
     [7/7] 输出后续指引（注销重新登录 · fish chsh · 键位速览）
@@ -1235,7 +1316,7 @@ EOF
         echo "                 : $cnt / ${#SNAP_PATHS[@]}（新机器通常为 0~2；现有 rice 安装通常 ≥ 10）"
         [[ -r "$STATE_DIR/current" ]] && echo "  · 上次快照基线 : $(<"$STATE_DIR/current")" || echo "  · 快照基线     : 尚未安装过，本次运行将生成 rollback 可用基线"
         echo
-        printf '%s 注意事项%s：默认只装缺失依赖（首次可能 5-15 分钟）；quickshell 源码编译 5-15 分钟；caelestia 插件编译 1-3 分钟（仅选 caelestia 时）。\n' "${TC_BOLD}${TC_YELLOW}${TC_BG_BLACK:-}" "${TC_RESET}"
+        printf '%s 注意事项%s：默认只装缺失依赖（首次可能 5-15 分钟）；quickshell 源码编译 5-15 分钟；Caelestia 插件编译 1-3 分钟（end4-pC / caelestia 都要）。\n' "${TC_BOLD}${TC_YELLOW}${TC_BG_BLACK:-}" "${TC_RESET}"
         echo
         # 二次确认 + 返回
         case "$(confirm_3way '确认开始执行安装？')" in

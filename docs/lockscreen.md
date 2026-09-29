@@ -108,3 +108,21 @@ readonly property real expandedWidth: expandedHeight * (16 / 9)
 - `qt6-m3shapes-git`（AUR）—— Material 3 形状 morph
 - Caelestia QML 插件（`QML2_IMPORT_PATH` 指向 `~/src/caelestia-build/qml`）——
   提供 `Caelestia.Config`（`Tokens.anim.*` 与动画曲线）
+- 插件的编译依赖：`libqalculate` / `aubio` / `libpipewire`（`plugin/CMakeLists.txt`
+  里 `pkg_check_modules` 要求）+ `libcava`（AUR）+ `spirv-tools`
+
+### ⚠ 这两个依赖由 install.sh 的 `[4a/7]` 统一处理
+
+锁屏目录下 **56 个文件**写着 `import Caelestia.Config`，而 QML 的
+`import <模块>` 是**硬依赖**：插件不在，这些类型全部 unavailable，错误沿
+`CaelestiaLockSurface → Lock → IllogicalImpulseFamily → shell.qml` 一路上抛，
+`qs -c end4-PC` 会直接 "Failed to load configuration" —— 桌面 Shell 起不来。
+
+所以 `install.sh` 里编译插件这一步**不是 caelestia 专属**，
+end4-PC 也必须执行（`QS_SHELL != dms` 时无条件跑）。
+
+`start_quickshell.sh` 同时做两件事：export `QML2_IMPORT_PATH`，
+以及在插件缺失时**不启动 qs**、直接报出根因与修复命令。
+
+详见 [troubleshooting.md](troubleshooting.md) 的
+「Quickshell 报 module "Caelestia.Config" is not installed」。

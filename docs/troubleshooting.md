@@ -84,22 +84,66 @@ bash ~/.config/hypr/hyprland/scripts/start_quickshell.sh
 
 ## Quickshell 报「module "Caelestia.Config" is not installed」
 
-`end4-pC` 的锁屏（`modules/ii/lock/caelestia/CaelestiaLockSurface.qml`）
-`import Caelestia.Config` —— 这是 caelestia-dots/shell 的 **C++ QML 插件**，
-QML 层 vendored 不了，必须编译（install.sh [4/7] 会把它编到
-`~/src/caelestia-build/qml`）。缺了它整个 shell 都加载失败，连带报一串
-`Type ... unavailable`（Lock → CaelestiaLockSurface → module not installed）。
+完整错误链长这样，**最后一行才是根因**，上面几行都是被它牵连的：
 
-排查顺序：
+```
+ERROR: Failed to load configuration
+ERROR: caused by @shell.qml[58:20]: Type IllogicalImpulseFamily unavailable
+ERROR: caused by @panelFamilies/IllogicalImpulseFamily.qml[39:30]: Type Lock unavailable
+ERROR: caused by @modules/ii/lock/Lock.qml[40:15]: Type CaelestiaLockSurface unavailable
+ERROR: caused by @modules/ii/lock/caelestia/CaelestiaLockSurface.qml[5:1]:
+    module "Caelestia.Config" is not installed
+```
 
-1. 插件在不在：`ls ~/src/caelestia-build/qml/Caelestia/`（应能看到 `Config/` 等
-   子目录与 `.so`）。不在就重跑安装（SESSION 不限，end4pc 也会编译）。
-2. import path 注入没有：`echo $QML2_IMPORT_PATH`。会话自启走
-   `start_quickshell.sh`（自动注入）；手动跑 `qs` 走 fish
-   config.fish（开新终端即注入）。其它 shell 手动跑需要
-   `export QML2_IMPORT_PATH=~/src/caelestia-build/qml`。
-3. 日志里那几条 `Ignoring unresolvable import` WARN（`..@command:components`、
-   `shim` 之类）来自底盘本身的扫描器，无害，别和这个 ERROR 混在一起看。
+QML 的 `import <模块>` 是**硬依赖**：模块解析不到时，该文件里的类型全部
+`unavailable`，错误一路往上抛到 `shell.qml`，`qs -c end4-PC` 直接
+"Failed to load configuration"，桌面 Shell 起不来。
+
+**原因**：`end4-pC` 的锁屏差异层（`modules/ii/lock/caelestia/**`，从
+caelestia-dots/shell vendor 而来）有 **56 个文件**写着 `import Caelestia.Config`
+—— 那是 caelestia-dots/shell 的 **C++ QML 插件**，QML 层 vendored 不了，
+只能编译出来（install.sh `[4a/7]` 编到 `~/src/caelestia-build/qml`）。
+
+**怎么查**：
+
+```bash
+ls ~/src/caelestia-build/qml/Caelestia/*.so   # 没有 = 插件没编译
+echo $QML2_IMPORT_PATH                        # 会话内应为 ~/src/caelestia-build/qml
+tail -20 ~/.local/state/dotfiles/quickshell-startup.log
+```
+
+启动日志里若出现「自检失败：… 依赖 Caelestia 插件，但 … 不存在」，
+脚本已经定位好了，按它给的命令做即可。
+
+import path 的注入有两个来源：会话自启走 `start_quickshell.sh`（自动注入）；
+手动跑 `qs` 走 fish `config.fish`（开新终端即注入）。用其它 shell 手动跑需要
+自己 `export QML2_IMPORT_PATH=~/src/caelestia-build/qml`。
+
+**修复**（二选一）：
+
+```bash
+# 1) 重跑安装器（[4a/7] 会拉源码 + 编译）
+cd ~/dotfiles && ./install.sh install
+
+# 2) 手动编译（需要 libqalculate / aubio / libpipewire / libcava 等依赖）
+sudo pacman -S --needed aubio libpipewire libqalculate lm_sensors fftw spirv-tools
+paru -S --needed libcava qt6-m3shapes-git
+cmake -S ~/.config/quickshell/caelestia -B ~/src/caelestia-build -G Ninja \
+      -DCMAKE_BUILD_TYPE=RelWithDebInfo -DVERSION=0.0.0 -DGIT_REVISION=unknown
+cmake --build ~/src/caelestia-build
+```
+
+编译完重启会话，或单独重跑 `bash ~/.config/hypr/hyprland/scripts/start_quickshell.sh`。
+
+**不想用 Caelestia 风格锁屏**：把 `modules/ii/lock/Lock.qml` 里的
+`lockSurface` 从 `CaelestiaLockSurface` 换回 `SerpantinumLockSurface`
+（旧文件完整保留），就不需要这个插件了。
+
+**别被 WARN 带偏**：日志里那一堆 `Ignoring unresolvable import`
+（`..@command:components`、`shim`、`dashboard-caelestia/...` 之类）来自底盘
+自带的 QML 扫描器，**无害**，和这个 ERROR 没有因果关系 —— 目录形式的
+`import "..."` 解析不到只是警告，而 `import <模块>` 解析不到才致命。
+先修 ERROR，WARN 不用管。
 
 ## 设置面板某页无法向下滚动（滚到底就回弹）
 
