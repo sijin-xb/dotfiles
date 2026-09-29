@@ -4,7 +4,9 @@ import json
 import re
 from pathlib import Path
 
-ROOT = Path("/home/xibie/.config/quickshell/end4-pC")
+# ⚠ 不能用写死的绝对路径：换用户名/换机器后这里会指向不存在的目录，
+#   脚本静默生成空索引（设置面板搜不到任何东西），且不报错。
+ROOT = Path.home() / ".config/quickshell/end4-pC"
 PAGES = ROOT / "modules/ii/settings/pages"
 
 # SettingsContent.qml 里 pages 列表的顺序 = 侧边栏顺序

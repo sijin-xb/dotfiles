@@ -1,6 +1,8 @@
 # ===================== PATH =====================
 set -gx PATH ~/.npm-global/bin $PATH
-set -gx PATH "/home/xibie/.local/bin" $PATH
+# ⚠ 这里以前写死了 /home/xibie/.local/bin —— 换用户名/换机器就静默失效
+#   （PATH 里多一条不存在的路径，不报错但 ~/.local/bin 下的东西全找不到）。
+set -gx PATH ~/.local/bin $PATH
 
 # ===================== Caelestia QML 插件 =====================
 # caelestia-dots/shell 仓库里只有 QML 源码，Caelestia 这个 Qt 插件要自己

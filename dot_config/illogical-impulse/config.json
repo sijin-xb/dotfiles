@@ -98,17 +98,16 @@
             "workspaceCount": 10,
             "workspaceZoom": 1.12
         },
-        "screenList": [
-        ],
+        "screenList": [],
         "showBlur": false,
         "showGrid": true,
         "showSnapLines": true,
         "splitRatio": "100",
         "splitSide": "left",
-        "thumbnailPath": "/home/xibie/.config/hypr/custom/scripts/mpvpaper_thumbnails/yeqi.mp4.jpg",
+        "thumbnailPath": "",
         "videoBackend": "mpvpaper",
         "wallpaperAnimation": "magic",
-        "wallpaperPath": "/home/xibie/Pictures/Wallpapers/26421608.jpg",
+        "wallpaperPath": "",
         "widgets": {
             "calendar": {
                 "enable": false,
@@ -339,8 +338,7 @@
             "style": "filled",
             "swapWarningThreshold": 85
         },
-        "screenList": [
-        ],
+        "screenList": [],
         "showBackground": true,
         "showFrame": false,
         "tooltips": {
@@ -412,19 +410,12 @@
         "height": 60,
         "hoverRegionHeight": 2,
         "hoverToReveal": true,
-        "ignoredAppRegexes": [
-        ],
+        "ignoredAppRegexes": [],
         "monochromeIcons": false,
         "pinnedApps": [
+            "org.kde.dolphin",
             "kitty",
-            "com.follow.clash",
-            "qq",
-            "org.jackhuang.hmcl.launcher",
-            "com.obsproject.studio",
-            "cn.moekoe.music",
-            "google-chrome",
-            "code",
-            "org.gnome.nautilus"
+            "cmake-gui"
         ],
         "pinnedOnStartup": false,
         "revealOnDesktop": false,
@@ -451,8 +442,7 @@
             "enable": true
         },
         "autostartApps": {
-            "apps": [
-            ],
+            "apps": [],
             "enable": false
         },
         "decoration": {
@@ -601,8 +591,8 @@
         "weeb": 1
     },
     "profile": {
-        "avatarPath": "/home/xibie/Pictures/Wallpapers/",
-        "avatarPicture": "/home/xibie/Pictures/Wallpapers/b_0841f1f02cf25681b0d4fd617f4b8a3d.jpg",
+        "avatarPath": "",
+        "avatarPicture": "",
         "descriptionText": "::distro::",
         "displayName": "",
         "onlinePresets": false
@@ -677,7 +667,7 @@
             "textFadeIn": false
         },
         "banner": true,
-        "bannerImage": "/home/xibie/Pictures/Wallpapers/blapples-a8mc0spbo7gg1.jpg",
+        "bannerImage": "",
         "booru": {
             "allowNsfw": false,
             "defaultProvider": "yandere",
