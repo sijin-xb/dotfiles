@@ -4,6 +4,17 @@
 
 ## 2026-09-30
 
+### 移除 DMS mpvpaper 插件
+
+DMS 的 mpvpaper 插件会在每次登录时自动恢复上次的视频壁纸（`monitorVideos`
+per-monitor 映射），把 DMS 自己的静态壁纸（`session.json` 的 `wallpaperPath`）
+盖掉 —— 这才是「niri 壁纸被接管」的真正来源（不是 Hyprland 进程残留）。
+
+插件已从 `dot_config/DankMaterialShell/plugins/` 移除；实机的
+`plugin_settings.json` 里孤儿 `mpvpaper` 段同步清理。niri 侧壁纸回到 DMS
+内建的静态壁纸管理；会话级隔离脚本（见下节）仍保留，兜底 Hyprland 侧的
+end4-pC 视频壁纸跨会话残留。
+
 ### 壁纸栈会话隔离：Hyprland(end4-pC) ↔ niri(DMS) 不再互相接管
 
 **现象**：Hyprland 里用 mpvpaper 视频壁纸，注销进 niri 后旧 mpvpaper 仍在
