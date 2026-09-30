@@ -120,6 +120,8 @@ PanelWindow {
     property bool enableWindowRegions: Config.options.regionSelector.targetRegions.windows && !isCircleSelection
     property bool enableLayerRegions: Config.options.regionSelector.targetRegions.layers && !isCircleSelection
     property bool enableContentRegions: Config.options.regionSelector.targetRegions.content
+    // 压暗「没被选中的那部分屏幕」（见下面的 dimMask）。关掉则完全不压暗。
+    property bool dimOutside: Config.options.regionSelector.targetRegions.dimOutside ?? true
 
     // Target
     property real targetedRegionX: -1
@@ -180,6 +182,19 @@ PanelWindow {
         root.targetedRegionHeight = 0;
     }
 
+    // 几何变了但鼠标没动时也要重算：窗口被移动 / 缩放后，原先指向它的目标
+    // 矩形会过期，遮罩上的洞就会停在旧位置。
+    // 用 callLater 是因为信号在属性绑定的求值过程中触发，此时 mouseArea
+    // 的坐标还没更新完，同帧重算会拿到上一帧的值。
+    function refreshTargetedRegion() {
+        if (!root.visible) return;
+        if (mouseArea.mouseX < 0 || mouseArea.mouseY < 0) return;
+        root.updateTargetedRegion(mouseArea.mouseX, mouseArea.mouseY);
+    }
+    onWindowRegionsChanged: Qt.callLater(root.refreshTargetedRegion)
+    onLayerRegionsChanged: Qt.callLater(root.refreshTargetedRegion)
+    onImageRegionsChanged: Qt.callLater(root.refreshTargetedRegion)
+
     property real regionWidth: Math.abs(draggingX - dragStartX)
     property real regionHeight: Math.abs(draggingY - dragStartY)
     property real regionX: Math.min(dragStartX, draggingX)
@@ -217,6 +232,9 @@ PanelWindow {
             return;
         }
         root.visible = true;
+        // 打开时光标可能已经停在一个窗口上：不等用户动鼠标就先把目标算出来，
+        // 否则遮罩要等第一次 mousemove 才开洞。
+        Qt.callLater(root.refreshTargetedRegion);
     }
 
     Connections {
@@ -377,6 +395,85 @@ PanelWindow {
             root.points.push({ x: mouse.x, y: mouse.y });
         }
         
+        // ── 暗化遮罩：整屏压暗，把「当前会截进去的那块」挖空 ────────────
+        //
+        // 洞口由上下左右四条矩形拼出来，而不是上游那种「border.width 等于屏幕
+        // 边长的巨大 Rectangle」：
+        //   · 四条矩形直接给出精确边界。上游写法的洞口边界落在
+        //     (x - border.width) + border.width 的浮点累加结果上，缩放屏上会差
+        //     1px，边界对不齐窗口就是这么来的；
+        //   · 不用每帧铺一个比屏幕大好几倍的矩形（4K 下那是 7680×7680 的边框）。
+        //
+        // 洞的来源二选一（互斥，所以不会出现两层暗色叠在一起）：
+        //   拖动中   → 拖出来的选区（draggedAway 为真，目标框此时已淡出）
+        //   没拖动   → 鼠标指到的目标（窗口 / 图层 / 内容区）
+        // 后者正是「点一下截整个窗口」需要的视觉依据：除了它，全屏都暗下去。
+        Item {
+            id: dimMask
+            z: 1
+            anchors.fill: parent
+            // 圆形（自由涂画）模式不接管：那边没有「目标」概念，CircleSelectionDetails
+            // 自带一层整屏暗色，这里再画一层就叠成两层了。
+            visible: root.dimOutside && !root.isCircleSelection && root.phase === RegionSelection.Phase.Select
+
+            readonly property bool useDragRect: root.dragging && (root.regionWidth > 0 || root.regionHeight > 0)
+            readonly property bool useTarget: !root.draggedAway && root.targetedRegionValid()
+            readonly property real rawX: dimMask.useDragRect ? root.regionX : (dimMask.useTarget ? root.targetedRegionX : 0)
+            readonly property real rawY: dimMask.useDragRect ? root.regionY : (dimMask.useTarget ? root.targetedRegionY : 0)
+            readonly property real rawW: dimMask.useDragRect ? root.regionWidth : (dimMask.useTarget ? root.targetedRegionWidth : 0)
+            readonly property real rawH: dimMask.useDragRect ? root.regionHeight : (dimMask.useTarget ? root.targetedRegionHeight : 0)
+
+            // 先取整再算宽高：四条矩形与洞口共用同一组整数边界，
+            // 相邻矩形严丝合缝，不会在洞口边缘留一条 1px 的亮缝 / 暗缝。
+            readonly property int holeX: Math.round(dimMask.rawX)
+            readonly property int holeY: Math.round(dimMask.rawY)
+            readonly property int holeX2: Math.round(dimMask.rawX + dimMask.rawW)
+            readonly property int holeY2: Math.round(dimMask.rawY + dimMask.rawH)
+
+            // 四块全部用绝对几何（x/y/width/height），不混 anchors：
+            // 混用会跟 y / height 抢同一个属性，Qt 只在运行时报一行警告，
+            // 结果就是某条边被 anchor 吃掉、洞对不齐。
+            Rectangle { // 洞口上方
+                x: 0
+                y: 0
+                width: parent.width
+                height: Math.max(0, dimMask.holeY)
+                color: root.overlayColor
+            }
+            Rectangle { // 洞口下方
+                x: 0
+                y: dimMask.holeY2
+                width: parent.width
+                height: Math.max(0, parent.height - dimMask.holeY2)
+                color: root.overlayColor
+            }
+            Rectangle { // 洞口左侧
+                x: 0
+                y: dimMask.holeY
+                width: Math.max(0, dimMask.holeX)
+                height: Math.max(0, dimMask.holeY2 - dimMask.holeY)
+                color: root.overlayColor
+            }
+            Rectangle { // 洞口右侧
+                x: dimMask.holeX2
+                y: dimMask.holeY
+                width: Math.max(0, parent.width - dimMask.holeX2)
+                height: Math.max(0, dimMask.holeY2 - dimMask.holeY)
+                color: root.overlayColor
+            }
+
+            // 指到目标时的尺寸提示：和拖选时那个「W x H」保持同一套读数
+            // （都是 PanelWindow 的逻辑像素，不是乘过 monitorScale 的物理像素）
+            StyledText {
+                z: 5
+                visible: dimMask.useTarget
+                x: Math.max(8, Math.min(dimMask.holeX2 - width - 8, parent.width - width - 8))
+                y: Math.max(8, Math.min(dimMask.holeY2 + 8, parent.height - height - 8))
+                color: root.selectionBorderColor
+                text: `${Math.round(dimMask.rawW)} x ${Math.round(dimMask.rawH)}`
+            }
+        }
+
         Loader {
             z: 2
             anchors.fill: parent
@@ -389,7 +486,9 @@ PanelWindow {
                 mouseX: mouseArea.mouseX
                 mouseY: mouseArea.mouseY
                 color: root.selectionBorderColor
-                overlayColor: root.overlayColor
+                // 遮罩统一交给上面的 dimMask 画：它要同时处理「拖选开洞」和
+                // 「指到目标开洞」两种情况，这里再画一层就会叠成两层暗色。
+                overlayColor: "transparent"
                 breathingBorderOnly: root.phase === RegionSelection.Phase.Post
             }
         }

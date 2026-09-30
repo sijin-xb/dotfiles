@@ -741,6 +741,10 @@ Singleton {
                     property real opacity: 0.3
                     property real contentRegionOpacity: 0.8
                     property int selectionPadding: 5
+                    // 压暗「没被选中的那部分屏幕」：整屏盖一层半透明暗色，
+                    // 再把当前会截进去的那块（拖动选区 / 指到的目标）挖空。
+                    // 关掉 = 完全不压暗，选区界面下屏幕保持原样。
+                    property bool dimOutside: true
                 }
                 property JsonObject rect: JsonObject {
                     property bool showAimLines: true
