@@ -1,4 +1,11 @@
 patch:
+    # ── 方案列表 ────────────────────────────────────────────────
+    # rime-prelude 的 default.yaml 只有 luna_pinyin 一族；rime-ice-git 装进
+    # /usr/share/rime-data 的 rime_ice.schema.yaml 不会自动生效，必须在这里
+    # 显式列出。首项为默认方案。
+    schema_list:
+        - schema: rime_ice
+        - schema: luna_pinyin
     ascii_composer/good_old_caps_lock: true
     ascii_composer/switch_key/Control_L: noop
     ascii_composer/switch_key/Control_R: noop
