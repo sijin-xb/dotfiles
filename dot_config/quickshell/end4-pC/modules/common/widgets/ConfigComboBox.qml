@@ -24,18 +24,38 @@ RowLayout {
     signal selected(var newValue)
 
     // 量一次模型里最长的文案宽度（TextMetrics 不会创建可见元素）
-    readonly property real measuredTextWidth: {
+    //
+    // ⚠ 这里**绝不能写成属性绑定**：绑定体内要给 textMeasurer.text 赋值，而
+    // 返回值又读 textMeasurer.advanceWidth —— 赋值当场把自己标脏，Qt 下一帧
+    // 重新求值、再赋值、再标脏……形成 Binding loop。设置页面一出现这类下拉框，
+    // 日志里就是几百上千条 "Binding loop detected for property
+    // measuredTextWidth"，最后直接把 qs 拖到内存爆掉、SIGSEGV 退出。
+    //
+    // 改成命令式重算：模型 / textRole / 字体变化时算一次并写回普通属性。
+    property real measuredTextWidth: 0
+
+    // 字体是值类型，没有 per-field 的信号可用。用一个只读表达式当触发源
+    // （只读不写，因此不会成环），字体一变就重新量一次。
+    readonly property real fontToken: comboBox.font.pixelSize + comboBox.font.family.length
+
+    function measureTextWidth() {
         let widest = 0;
-        for (let i = 0; i < root.model.length; ++i) {
-            const item = root.model[i];
+        const model = root.model ?? [];
+        for (let i = 0; i < model.length; ++i) {
+            const item = model[i];
             const label = (item && typeof item === "object")
                 ? String(item[root.textRole] ?? "")
                 : String(item ?? "");
             textMeasurer.text = label;
             widest = Math.max(widest, textMeasurer.advanceWidth);
         }
-        return widest;
+        root.measuredTextWidth = widest;
     }
+
+    onModelChanged: Qt.callLater(root.measureTextWidth)
+    onTextRoleChanged: Qt.callLater(root.measureTextWidth)
+    onFontTokenChanged: Qt.callLater(root.measureTextWidth)
+    Component.onCompleted: Qt.callLater(root.measureTextWidth)
     // 图标 + 左右内边距 + 右侧展开箭头
     readonly property real comboChromeWidth: 64
 

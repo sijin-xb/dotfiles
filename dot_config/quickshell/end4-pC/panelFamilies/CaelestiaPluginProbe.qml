@@ -25,10 +25,18 @@ import Quickshell
  * 再由 start_quickshell.sh（会话自启）与 fish config.fish（手动跑 qs）注入
  * QML2_IMPORT_PATH。
  *
- * ── 为什么用 Qt.createQmlObject 探测 ────────────────────────────────
- * 这是唯一能在**运行时**问出「某个 QML 模块装没装」的办法：模块缺失时
- * createQmlObject 抛异常，可以 catch；而静态 import 一旦失败就是加载期错误，
- * 没法拦。探针本身不 import Caelestia.*，所以插件缺失时它自己仍能编译。
+ * ── 为什么 probe 串里必须写 import QtQuick ──────────────────────────
+ * Qt.createQmlObject 不会给内联 QML 加隐式 import（QtQuick/QtQml 都不会），
+ * 所以 `"import Caelestia.Config; QtObject {}"` 里的 QtObject 是**未定义类型**，
+ * 抛的错和插件在不在毫无关系：
+ *     file:///.../inline:1:26: QtObject is not a type
+ * 于是探针恒定返回 false —— 插件明明在位，锁屏和灵动岛照样被整个跳过。
+ * 实测四种写法：
+ *     import Caelestia.Config; QtObject {}                  → FAIL（QtObject is not a type）
+ *     import QtQuick; import Caelestia.Config; QtObject {}  → OK
+ *     import Caelestia.Config; Item {}                      → FAIL（Item is not a type）
+ *     import Totally.Bogus; QtObject {}                     → FAIL（module is not installed，这才是真缺失）
+ * 也就是说：**module not installed 才是「插件不在」的正确信号**，别看类型错误。
  */
 QtObject {
     /**
@@ -39,7 +47,7 @@ QtObject {
      */
     readonly property bool available: {
         try {
-            Qt.createQmlObject("import Caelestia.Config; QtObject {}", this);
+            Qt.createQmlObject("import QtQuick; import Caelestia.Config; QtObject {}", this);
             console.warn("[end4-pC] Caelestia QML 插件就绪：锁屏与灵动岛已挂载。");
             return true;
         } catch (e) {
