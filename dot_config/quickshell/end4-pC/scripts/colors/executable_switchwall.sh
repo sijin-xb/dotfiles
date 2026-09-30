@@ -116,7 +116,7 @@ pre_process() {
     fi
 }
 
-# 收尾：Qt / KDE 配色与编辑器主题。两者互不依赖，后台并行跑。
+# 收尾：Qt / KDE 配色与编辑器主题。互不依赖，后台并行跑。
 # 锁色模式（锁屏临时主题）不改这些常驻配色，直接跳过。
 post_process() {
     local colors_lock_flag="$1"
@@ -127,6 +127,17 @@ post_process() {
 
     handle_kde_material_you_colors >"$CACHE_DIR/kde-colors.log" 2>&1 &
     "$SCRIPT_DIR/code/material-code-set-color.sh" >"$CACHE_DIR/code-set-color.log" 2>&1 &
+
+    # Qt / Kvantum：把刚生成的 material_colors.scss 落到 MaterialAdw 主题上。
+    # ⚠ 这一步以前**没有任何调用方** —— 脚本在 scripts/kvantum/ 里躺着，
+    #    switchwall 只在注释里提过它，于是 scss 生成了也没人用，
+    #    Qt 应用永远停在 Colloid 原色上。这里补上。
+    # 开关沿用 appearance.wallpaperTheming.enableQtApps（缺省视为开启）。
+    local enable_qt
+    enable_qt="$(jq -r '.appearance.wallpaperTheming.enableQtApps // true' "$SHELL_CONFIG_FILE" 2>/dev/null)"
+    if [[ "$enable_qt" != "false" ]]; then
+        "$SCRIPT_DIR/../kvantum/materialQT.sh" >"$CACHE_DIR/kvantum.log" 2>&1 &
+    fi
 }
 
 # 壁纸分辨率低于屏幕时提示上采样。拿不到显示器信息（不在 Hyprland 会话里）
