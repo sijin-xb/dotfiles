@@ -9,7 +9,7 @@ output_path = '~/.local/state/quickshell/user/generated/colors.json'
 # （switchwall.sh 换壁纸、matugen-update.sh 切策略/明暗），
 # 不必逐个改动上游脚本。脚本内部有主色缓存，颜色没变时立即返回，
 # 并尊重 设置 → 界面 → 配色生成 → 光标 开关。
-post_hook = 'nohup "$HOME/.config/hypr/hyprland/scripts/generate_cursor_theme.py" >/dev/null 2>&1 &'
+post_hook = 'nohup "$HOME/.config/scripts/generate_cursor_theme.py" >/dev/null 2>&1 &'
 
 [templates.hyprland]
 input_path = '~/.config/matugen/templates/hyprland/colors.lua'

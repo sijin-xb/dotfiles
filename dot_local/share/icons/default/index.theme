@@ -1,0 +1,5 @@
+[Icon Theme]
+Name=Default
+# 把 libXcursor / Xwayland 的 "default" 回退指到 matugen 动态主题，
+# 覆盖 /usr/share/icons/default 的 Inherits=Adwaita。
+Inherits=Matugen-Cursors
