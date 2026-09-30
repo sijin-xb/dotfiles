@@ -68,7 +68,7 @@ Singleton {
     // ── 状态驱动的目标视觉映射 ──────────────────────────────────────────
     readonly property real targetWidth: {
         switch (root.islandState) {
-            case "dashboard": return root.panelWidth;
+            case "dashboard": return root.capsuleWidth;
             case "media":     return 380;
             case "osd":       return 280;
             default:          return root.capsuleWidth;
@@ -110,7 +110,33 @@ Singleton {
     readonly property int capsuleHeight: Appearance.sizes.baseBarHeight - root.groupInset * 2   // 32
     readonly property int capsuleOffset: root.barEdgeMargin + root.groupInset                   // 9
 
-    // 收起态宽度：对齐 Brain_Shell 中间 notch 的最小宽度
+    // ── 收起态宽度：跟随内容，不再写死 ──────────────────────────────────
+    // 旧实现直接取 Brain_Shell 的 notch 最小宽度（300）。屏幕实测：岛屿胶囊
+    // 300px，里面的时钟文字只有约 135px —— 左右各空 82px；而同一条栏上的邻居
+    // 是**内容自适应**的（media 101 / sysTray 93 / resources 80），内容到边缘
+    // 只留 BarGroup.padding = 5px。两者并排看就是「岛屿又胖又空」。
+    //
+    // 所以收起态宽度改成：内容自然宽度 + 两侧留白，并夹在上下限之间。
+    //   下限 → 保证点击区域不至于小到点不中
+    //   上限 → 内容异常宽时不至于把 Bar 撑爆、盖住左右两组
+    //
+    // ⚠ sidePadding 取 10（= BarGroup.padding 的两倍）而不是直接 5：
+    //   邻居胶囊里放的是**图标**，字形自带约 2px 侧边留白；岛屿里是**文字**，
+    //   数字/汉字的侧边距更小，同样 5px 会明显更挤。10 仍在同一套 5 的刻度上，
+    //   想严格对齐邻居改成 5 即可（一行）。
+    readonly property int capsuleSidePadding: 10
+    readonly property int capsuleMinWidth: 150
+    readonly property int capsuleMaxWidth: 360
+
+    /** 由内容自然宽度算出收起态胶囊宽度 */
+    function capsuleWidthFor(contentWidth) {
+        const inner = (contentWidth > 0) ? contentWidth : root.capsuleMinWidth;
+        return Math.max(root.capsuleMinWidth,
+            Math.min(root.capsuleMaxWidth, Math.round(inner) + root.capsuleSidePadding * 2));
+    }
+
+    // 展开态（dashboard）时 Bar 里那段槽位的基准宽度：保持 Brain_Shell 的 300，
+    // 因为面板是独立窗口、宽度由内容决定，这里只需要一个稳定的占位宽。
     readonly property int capsuleWidth: Theme.cNotchMinWidth    // 300
 
     // ── 动画 ────────────────────────────────────────────────────────────

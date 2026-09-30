@@ -112,9 +112,8 @@ PanelWindow {
     // 收缩动画完全看不到。所以收起后要再留一个动画时长再隐藏。
     property bool closing: false
 
-    // 悬停展开后，是否已经确认「鼠标确实在面板内」。
-    // 防止刚展开那一帧 hovered 还没置位，被误判成「移出」而立刻收起。
-    property bool panelHoverArmed: false
+    // 悬停展开已改为左键单击（见 modules/ii/bar/Island.qml），
+    // 所以这里不再需要「悬停已就位」的防抖标志 panelHoverArmed。
 
     // 注：切页签导致的宽度变化同样走 400ms 动画（见 surface 的 Behavior），
     // 这是刻意保留的视觉，不要为了"即时"改成 0ms。
@@ -305,24 +304,17 @@ PanelWindow {
             onClicked: {}
         }
 
-        // ── 悬停触发：移出面板即收起 ──────────────────────────────────
-        // 展开由 Bar 胶囊的 hover 触发（见 modules/ii/bar/Island.qml），
-        // 这里只负责「移出即收起」。
-        // 面板区域完全覆盖胶囊（胶囊 300 宽居中，面板 ≥846 宽；
-        // 纵向 y=9..41 也落在面板 9..599 内），所以移出面板时必然也离开了
-        // 胶囊，不会出现「收起→又被胶囊 hover 打开」的抖动。
-        HoverHandler {
-            id: panelHover
-            enabled: root.open
-            onHoveredChanged: {
-                if (hovered) {
-                    root.panelHoverArmed = true
-                } else if (root.panelHoverArmed && root.open) {
-                    root.panelHoverArmed = false
-                    IslandState.close()
-                }
-            }
-        }
+        // ── 关闭入口 ────────────────────────────────────────────────────
+        // 展开由 Bar 胶囊的左键单击触发（见 modules/ii/bar/Island.qml），
+        // 这里**不再**挂「移出面板即收起」的 HoverHandler：
+        //   开靠点击、关靠鼠标移出，两套交互语言混在一起，用户没法预判
+        //   —— 想边看面板边操作别处时，鼠标一移出去面板就没了。
+        // 关闭入口统一为三个（都是显式动作）：
+        //   1. 点面板外 —— outsideArea（上面的 MouseArea）
+        //   2. Esc     —— expandedArea 的 Keys.onEscapePressed
+        //   3. 面板内的关闭按钮 —— caelestia Content 自带
+        //
+        // ⚠ 不要再把 hover 收起加回来。要改关闭行为请改上面三个入口。
 
         // ── 顶部条带 = Bar 中间那段 notch ────────────────────────────────
 // 收起态胶囊已交给 Bar 自己绘制（modules/ii/bar/Island.qml），这里再画一份

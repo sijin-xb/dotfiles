@@ -28,6 +28,9 @@ import Quickshell.Io
 // MprisController：用它替代裸 Mpris.players，才能过滤掉浏览器播放（见下方说明）
 // DateTime：收起态默认项要显示纯时间
 import qs.services
+// StyledText：Bar 上所有文字都用它 —— 收起态时钟也走同一个组件，
+// 字体族/字号/variableAxes 才会和邻居完全同源（见下面 Clock 那段的说明）
+import qs.modules.common.widgets
 
 // CenterContent — scrollable dynamic island carousel.
 //
@@ -48,13 +51,26 @@ import qs.services
 Item {
 	id: root
 
-	width:  Theme.cNotchMinWidth
+	// ── 宽度：跟随当前轮播项的内容，不再写死 300 ──────────────────────────
+	// 旧实现固定 Theme.cNotchMinWidth(300)，屏幕实测岛屿胶囊 300px 而时钟文字
+	// 只有约 135px → 左右各空 82px，与同一条栏上内容自适应的邻居（media 101 /
+	// sysTray 93 / resources 80）并排就是「又胖又空」。
+	//
+	// 现在：每个 delegate 上报自己内容的自然宽度（contentWidth），这里取当前项
+	// 的那个值，加上两侧留白。未上报的项返回 -1，退回基准宽，行为与旧版一致。
+	readonly property real currentContentWidth: {
+		const d = statusList.itemAtIndex(root._carouselIndex)
+		return (d && d.contentWidth > 0) ? d.contentWidth : Theme.cNotchMinWidth
+	}
+
+	readonly property int requiredWidth: IslandState.capsuleWidthFor(root.currentContentWidth)
+
+	width:  requiredWidth
 	height: 30
 
 	// ── Required notch width for the current carousel item ────────────────────
 	// TopBar.cWidth reads this so the notch always matches what is visible.
 	readonly property int fw: Theme.notchRadius
-	readonly property int requiredWidth: Theme.cNotchMinWidth
 
 	// ── 秒级时钟 ─────────────────────────────────────────────────────────────
 	// ⚠ 与上游的差异（按需求新增）：
@@ -247,14 +263,45 @@ Item {
 				required property string modelData
 				required property int    index
 
-				width:  Theme.cNotchMinWidth
+				// 跟随容器宽度（容器由本项上报的 contentWidth 反推出来）
+				width:  root.requiredWidth
 				height: 30
+
+				// ── 本项内容的自然宽度 ────────────────────────────────────
+				// 由 root.currentContentWidth 读取，用来决定岛屿胶囊该多宽。
+				// 返回 -1 = 「本项没实现自适应」，root 会退回 Theme.cNotchMinWidth，
+				// 行为与旧版完全一致（宽度固定 300），不会因为没来得及适配而变窄裁字。
+				readonly property real contentWidth: {
+					switch (modelData) {
+					case "clock": return clockText.implicitWidth
+					default:      return -1
+					}
+				}
 
 				// ── Clock ──────────────────────────────────────────────────────
 				// 默认项：日期 + 时间（HH:MM:SS）。**不带日历图标**（按需求）。
 				// 上游这里是"当前窗口标题"，换成时间是因为 Bar 左侧的
 				// activeWindow 组件已经在显示窗口标题了。
-				Text {
+				//
+				// ── 字体：走 StyledText，与 Bar 上其它文字**同一条逻辑** ────────
+				// 以前这里写死 font.family: Theme.clockFontFamily（"Space Grotesk"）
+				// + font.pixelSize: 14，结果：设置面板里改字体对它无效，而且它和
+				// 邻居的字形/字号都不一致 —— 同一排胶囊里两套字体，一眼就能看出。
+				//
+				// 现在用 StyledText，它自带的那套判定就是 Bar 其它组件的判定：
+				//   shouldUseNumberFont = /^\d+$/.test(text)
+				//   → 纯数字用 appearance.fonts.numbers，否则用 appearance.fonts.main
+				//   → 字号 appearance.font.pixelSize.small
+				//   → variableAxes 取 main 的字重/字宽
+				// 时钟是混合文本（「2026年9月30日  20:39:23」），按规则走 main，
+				// 正好和旁边的网络速度、电量那些文字同一套字形。
+				//
+				// ⚠ 不要再给它加 font.family / font.pixelSize —— 一旦硬编码，
+				//   设置面板里的字体配置就对这一项失效了。
+				// ⚠ 颜色仍然显式给 Theme.text：岛屿底色是 colPrimaryContainer，
+				//   不能用 StyledText 的默认色（那是给 colLayer0 背景用的）。
+				StyledText {
+					id: clockText
 					anchors.fill: parent
 					visible:      modelData === "clock"
 					// 日期取秒级 SystemClock 的 date —— 跨零点会自动跳到新的一天。
@@ -263,13 +310,7 @@ Item {
 					text:         Qt.locale().toString(secondClock.date, "yyyy年M月d日")
 					              + "  " + DateTime.hourStr + ":" + DateTime.minuteStr + ":" + root.secondStr
 					color:        Theme.text
-					font.pixelSize: 14
-					// 收起态时钟单独用 Theme.clockFontFamily（默认 Google Sans
-					// Display）。跟 Bar 上其它组件不共享 main —— 这段文字以数字
-					// 为主，换一个数字字形更漂亮的字体观感提升最大；要切回和
-					// 邻居一致，把 Theme.clockFontFamily 改成 mainFontFamily 即可。
 					// tnum 保证秒数跳动时数字宽度不抖（字体不支持时会被忽略）。
-					font.family:  Theme.clockFontFamily
 					font.features: { "tnum": 1 }
 					verticalAlignment:   Text.AlignVCenter
 					horizontalAlignment: Text.AlignHCenter
