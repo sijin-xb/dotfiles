@@ -242,6 +242,11 @@ pacman 字体包、不装 AUR 字体链、不下载霞鹜臻楷 GB、也不移�
   候选框）/ mako / Hyprland 与 niri 联动配色（niri 侧含录屏选区界面的
   `screen-cast-picker`），以及 **Kvantum / Qt 应用**（end4-PC 专属：
   `kvantum` + `kvantum-qt5` + `plasma6-themes-colloid-git`）
+  另有**三个编辑器的原生配色**（模板在 `templates/editors/`，都是各自的原生
+  格式，不走 GTK）：micro 的 `.micro`、Kate / KTextEditor 的
+  KSyntaxHighlighting `.theme`（主题名 `Matugen MD3`）、nvim 的 Lua
+  colorscheme（`~/.config/nvim/colors/matugen.lua`，由 `transparent.lua`
+  在启用透明后 `:colorscheme matugen`）
 - 桌面歌词：逐字计时（酷狗 KRC），适配任意 MPRIS 播放器；SPlayer 可走
   WebSocket 直推。详见 [docs/integrations.md](docs/integrations.md)
 - 区域截图 / 录屏：整屏压暗，把拖动选区或鼠标指到的窗口**挖空**高亮，

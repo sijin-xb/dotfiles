@@ -4,6 +4,83 @@
 
 ## 2026-09-30
 
+### 锁屏瞬间歌曲跳回 0 秒
+
+**现象**：每次进入锁屏，正在播的歌从 0 秒开始播放。
+
+**根因**：锁屏时 `WlSessionLock` 会把指针从灵动岛手上接管走，Qt 给仍握着
+grab 的 `MouseArea` 补一次 `released`。灵动岛的歌词页把这次「不是用户点的
+释放」当成了一次点击：`pillMouse.onReleased` → `MusicActivity.seekAtY(y)`，
+失效坐标（常见 0,0）映射进歌词列后命中第一个槽位 —— 第一行的行时间（减去
+歌词偏移后）常为 0，于是 `seekRequested(0)` 把歌拉回开头。锁屏前后岛可能
+正停在歌词页（听歌时最常见），所以表现为「每次都中」。
+
+**修复**（两道闸门，`DynamicIsland.qml` + `MusicActivity.qml`）：
+
+- `onPressed` / `onReleased` 在 `GlobalStates.screenLocked` 时直接返回
+  （两头都挡，只靠一头挡不住「已按下才开始锁」的情况）；
+- `seekAtY` 拒绝落在歌词项高度之外的坐标（`y < 0 || y > height`），失效
+  坐标从此无法命中任何一行，顺带修掉「点到歌词列之外（如分页点）也被
+  当成点行」的边角。
+
+### 编辑器配色接入 matugen（micro / Kate / nvim）
+
+三个编辑器各加一份 matugen 模板（`dot_config/matugen/templates/editors/`），
+色板与 kitty / fuzzel / walker / GTK 同源，语义按 MD3 角色映射：关键字 /
+控制流 → `primary`，函数名 / 类型 → `secondary`，字符串与数字 →
+`tertiary`，错误 → `error`，注释 → `outline`，背景 → `surface_container_*`。
+
+- **micro**：`~/.config/micro/colorschemes/matugen.micro`，`settings.json`
+  的 `colorscheme` 切到 `matugen`。
+- **Kate**：`~/.local/share/org.kde.syntax-highlighting/themes/matugen-md3.theme`
+  （KSyntaxHighlighting 主题，28 个 editor-colors + 31 个 text-styles），
+  `katerc` 里 `Color Theme=Matugen MD3` 并关掉 `Auto Color Theme Selection`
+  ——否则 Kate 会按系统明暗自己挑（Breeze Dark）把它顶掉。`katerc` 顺带把
+  顶部两根 KDE 味的条子关了（`Show Menu Bar=false` 收成 ☰、
+  `Show Url Nav Bar=false` 面包屑去掉）。
+- **nvim**：`~/.config/nvim/colors/matugen.lua`（~90 个高亮组 + treesitter +
+  LSP 诊断 + 常用插件组 + 终端 16 色，终端映射与 kitty 完全一致），由
+  `transparent.lua` 在 `TransparentEnable` 之后 `:colorscheme matugen` ——
+  顺序不能反：transparent.nvim 是在 ColorScheme autocmd 里清背景的，先注册
+  autocmd 再切主题，新主题才会被清一遍。生成物缺失时回退 habamax 并提示，
+  不让 nvim 开不起来。`ui.lua` 原先的 catppuccin 声明移除。
+
+三个都是**原生格式**，与 GTK 那条链无关（GTK 的 matugen 模板本来就开着，
+这次没动）。改壁纸 / 切明暗后 matugen 会重新渲染，但三个编辑器都不热加载
+主题，重启对应程序才生效。
+
+### 区域截图：选中目标从暗化遮罩里挖空
+
+原来只有拖出来的选区会在暗色遮罩上开洞，鼠标指到窗口时屏幕其余部分并不
+压暗，「点一下截这个窗口」缺少最直观的依据。遮罩改由 `RegionSelection.qml`
+自己画：洞口由上下左右四条矩形拼出，全部用绝对几何（x/y/width/height），
+不再沿用上游 `RectCornersSelectionDetails` 里那个 `border.width = 屏幕边长`
+的巨大 Rectangle —— 旧写法的洞口边界落在浮点累加结果上，缩放屏会差 1px。
+洞的来源二选一且互斥：拖动中 → 拖选区；没拖动 → 指到的目标。圆形模式不
+接管。窗口 / 图层 / 内容区几何变化时重算目标（此前只有 mousemove 才重算，
+窗口移动或缩放后洞会停在旧位置），打开时也先算一次。指到目标时在右下角
+给尺寸提示，读数与拖选的「W x H」一致。新增开关
+`regionSelector.targetRegions.dimOutside`（默认 true）。
+
+### install.sh：update 收尾补跑 QML 模块依赖自检
+
+install 的 `[7/7]` 会跑 `check-qml-deps.py`，update 没有 —— 升级带进来的
+新 QML 文件如果 import 了机器上没有的 Qt 模块，就是「组件静默消失、日志
+只有一行 WARN」。update 现在在写回清单与版本后跑同一段自检，缺失时直接
+打印包名和 `update --with-packages` 的补救命令。
+
+### README 重组
+
+补上缺失的 `update` 子命令与「升级」章节（此前脚本命令表里根本没有
+update，目录也漏了「测试」一节）；「包含内容」按 合成器 / 桌面外壳 /
+外观与集成 / 编辑器与终端 分组；安装步骤按脚本实际的 `[0/7]..[7/7]`
+对齐；Caelestia 插件那段长注释从「测试」挪到「升级」。
+
+### 同步壁纸
+
+新增 7 张（跳过 `cache-niri-overview-blur-dark` —— 那是指向
+`~/.cache/blur-wallpapers/` 的符号链接，不该进仓库）。
+
 ### 移除 DMS mpvpaper 插件
 
 DMS 的 mpvpaper 插件会在每次登录时自动恢复上次的视频壁纸（`monitorVideos`
