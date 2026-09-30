@@ -411,6 +411,35 @@ deploy_and_record() {
     installed=$((installed + 1))
 }
 
+# ── 壁纸目录：把仓库自带的壁纸铺到 ~/Pictures/Wallpapers ────────────────
+# 壁纸选择器（Ctrl+Super+T）读的就是这个目录。仓库根下的 Pictures/Wallpapers
+# 在 .chezmoiignore 里、walk_sources 不会部署它 —— 于是新装机器上目录不存在，
+# 选择器永远显示「No wallpapers found」。
+#
+# 语义是**只补不覆盖**（与 update 的「只补不卸」一致）：
+#   · 目标没有     → 复制过去
+#   · 目标已有同名 → 内容相同就跳过；内容不同说明是用户自己的同名文件，不动
+# 两边（install / update）都调它：往仓库加壁纸后，update 也能把新图带过去。
+sync_wallpapers() {
+    local src="$SRC/Pictures/Wallpapers"
+    local dst="$HOME/Pictures/Wallpapers"
+    [[ -d "$src" ]] || return 0
+    mkdir -p "$dst"
+    local f base n_copied=0 n_kept=0 n_same=0
+    while IFS= read -r -d '' f; do
+        base="$(basename "$f")"
+        if [[ ! -e "$dst/$base" ]]; then
+            cp -p "$f" "$dst/$base"
+            n_copied=$((n_copied + 1))
+        elif cmp -s "$f" "$dst/$base"; then
+            n_same=$((n_same + 1))
+        else
+            n_kept=$((n_kept + 1))
+        fi
+    done < <(find "$src" -maxdepth 1 -type f -print0 | LC_ALL=C sort -z)
+    say "壁纸目录已就绪：~/Pictures/Wallpapers（新铺 $n_copied，仓库与本地一致 $n_same，保留本地版本 $n_kept）"
+}
+
 # ── 计划回调（update 用）────────────────────────────────────────────────
 # 只收集，不落盘。同时记住源路径，用来算「源内容变了没」。
 #
@@ -1615,6 +1644,7 @@ cmd_install() {
     # 里，和 update 共用同一份逻辑（避免两处各维护一遍过滤规则）。
     walk_sources deploy_and_record
     say "已部署 $installed 个文件；$backed 个有差异的旧文件备份于 $backup_dir"
+    sync_wallpapers
     # 写部署清单与版本记录 —— update 靠它们做增量比对。
     # 首次 install 时清单是新建的；重跑 install 会覆盖成最新状态。
     manifest_write "${DEPLOYED_RELPATHS[@]}"
@@ -2037,6 +2067,7 @@ cmd_update() {
     DEPLOYED_RELPATHS=()
     walk_sources deploy_and_record
     say "已部署 $installed 个文件；$backed 个有差异的旧文件备份于 $backup_dir"
+    sync_wallpapers
     (( skipped_conflict )) && say "另有 $skipped_conflict 个冲突文件按计划跳过（见上面的清单）"
 
     # ── 清理：仓库里已删除的文件 ────────────────────────────────────
