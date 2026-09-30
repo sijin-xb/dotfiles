@@ -93,8 +93,12 @@ ensure_dirs() {
 }
 
 session_warning_if_running() {
+    # Hyprland 与 niri 都查：文件覆盖发生在两套合成器共用配置的机器上，
+    # 正跑着的哪个会话都可能被覆盖到。
     if have hyprctl && [[ -n $(hyprctl instances 2>/dev/null || true) ]]; then
         warn "检测到 Hyprland 会话正在运行，建议在 TTY 或其他 Wayland 会话下执行文件覆盖操作，避免进程同时写入导致不一致。继续执行，但后果自负。"
+    elif pgrep -x niri >/dev/null 2>&1; then
+        warn "检测到 niri 会话正在运行，建议在 TTY 或其他 Wayland 会话下执行文件覆盖操作，避免进程同时写入导致不一致。继续执行，但后果自负。"
     fi
 }
 
@@ -224,11 +228,16 @@ FONTS_ASKED=0                 # 1 = 已经问过/已定，choose_fonts 不再重
 # SESSION → COMPOSITOR + QS_SHELL。
 # COMPOSITOR 仍被部署过滤 / 卸载范围 / 完成指引使用，所以即使有了 SESSION 也要
 # 把它派生出来，不能只留一个变量。
+# ⚠ 未知值不静默吞掉：环境变量拼错（如 SESSION=niri）以前会静默落到 end4pc，
+#   装完才发现会话不对。现在显式警告并回退默认。
 session_to_parts() {
     case "$SESSION" in
         caelestia) COMPOSITOR=hyprland; QS_SHELL=caelestia ;;
         dms)       COMPOSITOR=niri;     QS_SHELL=dms ;;
-        *)         SESSION=end4pc; COMPOSITOR=hyprland; QS_SHELL=end4-pC ;;
+        end4pc)    COMPOSITOR=hyprland; QS_SHELL=end4-pC ;;
+        *)
+            [[ -n "$SESSION" ]] && warn "未知的 SESSION 预设值 '$SESSION'（合法：end4pc / caelestia / dms），按默认 end4pc 处理"
+            SESSION=end4pc; COMPOSITOR=hyprland; QS_SHELL=end4-pC ;;
     esac
 }
 
@@ -439,9 +448,14 @@ active_snap_paths() {
 }
 
 # 卸载时的删除范围。COMPOSITOR 已设定（例如本次跑过 install，或用了
-# COMPOSITOR=niri ./install.sh uninstall）就直接用；否则交互询问。
+# COMPOSITOR=niri ./install.sh uninstall）就直接用；用户已在 TUI 卸载页选过
+# 「两套都删」（INSTALL_BOTH_COMPOSITORS=1）时同样视为已定，否则交互询问。
+#
+# ⚠ 第三条早退条件不能省：TUI 的 detail_uninstall 渲染时会先问一次范围，
+#   选「两套都删」只会置 INSTALL_BOTH_COMPOSITORS=1（COMPOSITOR 保持为空），
+#   随后 cmd_uninstall 会再调一次本函数 —— 没有这条就会对同一个问题问两遍。
 uninstall_compositor_scope() {
-    if [[ -n ${COMPOSITOR:-} ]]; then
+    if [[ -n ${COMPOSITOR:-} || "${INSTALL_BOTH_COMPOSITORS:-0}" == "1" ]]; then
         return 0
     fi
     echo
@@ -782,6 +796,11 @@ deploy_one_file() {
 # 3. 安装（7 步流程，封装进 cmd_install）
 # ============================================================
 cmd_install() {
+    # install 不接收位置参数；多打了参数（如 install niri）多半是想表达
+    # SESSION —— 提醒正确的用法，静默忽略会让人以为参数生效了。
+    if (($#)); then
+        warn "install 不接受参数，已忽略: $*（选会话请用 SESSION=dms|caelestia|end4pc $0 install）"
+    fi
     [[ -f /etc/arch-release ]] || die "本安装器仅支持 Arch Linux 系发行版（CachyOS / Arch 等）。"
     [[ ${EUID} -eq 0 ]] && die "请勿用 root 运行（makepkg/AUR 步骤需要普通用户）。"
     have pacman || die "找不到 pacman。"
@@ -807,6 +826,10 @@ cmd_install() {
         kitty jq fish fuzzel
         grim wl-clipboard wtype playerctl
         fcitx5 fcitx5-rime fcitx5-configtool
+        # xorg-xcursorgen：generate_cursor_theme.py 把重着色后的 SVG 重编成
+        #   XCursor 主题的工具（librsvg 的 rsvg-convert 负责前半段渲染）。
+        #   缺了同样卡死光标生成，报错只有一句 "required tool missing"。
+        xorg-xcursorgen
         cliphist easyeffects hypridle hyprlock
         gnome-keyring
         python
@@ -901,7 +924,8 @@ cmd_install() {
     # 需要全量升级时：FULL_UPGRADE=1 ./install.sh install
     if [[ "${FULL_UPGRADE:-0}" == "1" ]]; then
         say "    FULL_UPGRADE=1：执行全系统升级（pacman -Syu）"
-        "${SUDO:-sudo}" pacman -Syu --needed --noconfirm "${PACMAN_PKGS[@]}"
+        "${SUDO:-sudo}" pacman -Syu --needed --noconfirm "${PACMAN_PKGS[@]}" \
+            || die "全系统升级失败。常见原因是镜像未同步或密钥过期：先手动执行 sudo pacman -Syu && sudo pacman -S archlinux-keyring 后重试。"
     else
         "${SUDO:-sudo}" pacman -S --needed --noconfirm "${PACMAN_PKGS[@]}" \
             || die "依赖安装失败。若提示找不到包，先手动执行 sudo pacman -Syu 更新软件库后重试。"
@@ -910,10 +934,12 @@ cmd_install() {
     # ---------- [2/7] AUR 包（通用 + 所选 shell 专属） ----------
     say "[2/7] AUR 依赖"
     if ! have yay && ! have paru; then
-        say "引导安装 yay（AUR helper）"
+        say "    未找到 AUR helper，引导安装 yay（编译约 1-2 分钟，需要 base-devel）"
         tmpdir="$(mktemp -d)"
-        git clone --depth=1 https://aur.archlinux.org/yay.git "$tmpdir/yay"
-        (cd "$tmpdir/yay" && makepkg -si --noconfirm)
+        git clone --depth=1 https://aur.archlinux.org/yay.git "$tmpdir/yay" \
+            || die "克隆 yay 失败（检查网络后重试；也可先手动安装 paru/yay，装好后重跑会跳过本步）"
+        (cd "$tmpdir/yay" && makepkg -si --noconfirm) \
+            || die "yay 编译/安装失败，见上方输出。手动装好 paru 或 yay 后重跑即可跳过本步。"
         rm -rf "$tmpdir"
     fi
     # 通用 AUR 包：
@@ -926,7 +952,11 @@ cmd_install() {
     #                          缺了就是「SUPER+V 按了没反应」+ walker 主题目录不存在。
     # catppuccin-sddm-theme-mocha：SDDM 登录界面主题（Qt6，需 SDDM 走 Wayland）
     # qt6-svg / qt6-declarative / qt5-quickcontrols2 是它的依赖，AUR 包会带入。
-    AUR_PKGS=(matugen mpvpaper walker catppuccin-sddm-theme-mocha)
+    # catppuccin-cursors-mocha：光标主题模板源。generate_cursor_theme.py 以
+    #   catppuccin-mocha-pink-cursors 为底、按 matugen 主色重着色生成
+    #   ~/.local/share/icons/Matugen-Cursors（环境里 XCURSOR_THEME 引用的就是它）。
+    #   缺了脚本直接 "generation failed"，光标永远回退默认。
+    AUR_PKGS=(matugen mpvpaper walker catppuccin-sddm-theme-mocha catppuccin-cursors-mocha)
     # 字体链（可选，见 choose_fonts；偏好链在 ~/.config/fontconfig/fonts.conf）：
     #   otf-misans             sans-serif 默认（MiSans）
     #   maplemononormal-nf-cn  monospace 默认（自带 Nerd 图标 + 中文）
@@ -999,10 +1029,14 @@ cmd_install() {
         "${SUDO:-sudo}" pacman -S --needed --noconfirm cmake ninja qt6-base qt6-declarative qt6-wayland qt6-5compat qt6-shadertools qt6-svg wayland-protocols
         local src; src="$(mktemp -d)"
         git clone --depth=1 --branch v0.3.1 https://github.com/outfoxxed/quickshell.git "$src" \
-            || git clone --depth=1 https://github.com/outfoxxed/quickshell.git "$src"
-        cmake -S "$src" -B "$src/build" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local
-        cmake --build "$src/build" --parallel
-        "${SUDO:-sudo}" cmake --install "$src/build"
+            || git clone --depth=1 https://github.com/outfoxxed/quickshell.git "$src" \
+            || die "克隆 quickshell 源码失败（检查网络后重试；也可以从 GitHub Releases 手动下载二进制放进 PATH）"
+        cmake -S "$src" -B "$src/build" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local \
+            || die "quickshell CMake 配置失败，见上方输出（通常是缺 Qt6 组件）。"
+        cmake --build "$src/build" --parallel \
+            || die "quickshell 编译失败，见上方输出。"
+        "${SUDO:-sudo}" cmake --install "$src/build" \
+            || die "quickshell 安装到 /usr/local 失败，见上方输出。"
         rm -rf "$src"
     }
     install_quickshell
@@ -1329,7 +1363,8 @@ cmd_install() {
     VENV="$HOME/.local/state/quickshell/.venv"
     if [[ ! -x "$VENV/bin/python" ]]; then
         mkdir -p "$HOME/.local/state/quickshell"
-        python -m venv "$VENV"
+        python -m venv "$VENV" \
+            || die "创建 Python venv 失败（$VENV）。检查 python 是否完整（pacman -Q python）与磁盘是否可写。"
     fi
     # pypinyin            → 启动器的 app 中文名拼音搜索
     # dbus-python         → 同上（走 D-Bus 拿窗口/应用信息）
@@ -1457,7 +1492,10 @@ cmd_archive() {
     local out_path="" do_delete=0
     while (($#)); do
         case "$1" in
-            -o) out_path="$2"; shift 2 ;;
+            -o)
+                # -o 必须带路径：set -u 下直接取 $2 会因未绑定变量裸崩
+                [[ $# -ge 2 ]] || die "archive: -o 需要一个输出路径参数，例如：$0 archive -o ~/backup.tar.gz"
+                out_path="$2"; shift 2 ;;
             -o=*) out_path="${1#-o=}"; shift ;;
             --delete) do_delete=1; shift ;;
             --help|-h) print_help; return 0 ;;
@@ -1465,6 +1503,10 @@ cmd_archive() {
         esac
     done
     [[ -z $out_path ]] && out_path="$HOME/dotfiles-archive-$(now_ts).tar.gz"
+    # 输出目录必须已存在且可写：tar 不会自动建父目录，等到 tar 报错再查会难懂得多
+    local out_dir; out_dir="$(dirname "$out_path")"
+    [[ -d $out_dir ]] || die "输出目录不存在：$out_dir（先创建目录，或用 -o 指定别的路径）"
+    [[ -w $out_dir ]] || die "输出目录不可写：$out_dir"
     ensure_dirs
 
     # 组装完整归档路径集 = SNAP_PATHS + EXTRA_ARCHIVE_PATHS
@@ -1824,7 +1866,13 @@ EOF
         else
             echo "  · 发行版检测   : ✗ $osname（非 Arch 系，本脚本将拒绝运行）"
         fi
-        echo "  · sudo 可用?   : $( have sudo && echo ✓ || echo ✗；将使用 \${SUDO:-sudo} )"
+        # sudo 可用性单独一行说明：有 sudo 用 sudo（可用 SUDO 环境变量覆盖），
+        # 没有则明确告知装不了，别再输出一串字面量。
+        if have sudo; then
+            echo "  · sudo 可用?   : ✓（将使用 \${SUDO:-sudo} 提权执行 pacman）"
+        else
+            echo "  · sudo 可用?   : ✗（找不到 sudo，[1/7] 依赖安装会失败）"
+        fi
         echo "  · 已存在的 rice 路径数:"
         local cnt=0 p
         # 注意：不能用 `[[ ... ]] && cnt=$((cnt+1))` 作为 for 体最后一条命令，
@@ -1936,7 +1984,9 @@ EOF
         # 导致下面的 else（"基线快照不存在"）成了死分支，快照缺失时照样往下走。
         if snap="$(read_state current 2>/dev/null)"; then
             local nfiles
-            nfiles="$(tar -tzf "$snap" 2>/dev/null | grep -cv '/$' || echo 0)"
+            # grep -c 计数为 0 时会自己打印 "0" 但返回 1 —— 用 || true 压退出码
+            # 即可，不能写 || echo 0（会追加第二行，变量值变成 "0\n0"）。
+            nfiles="$(tar -tzf "$snap" 2>/dev/null | grep -cv '/$' || true)"
             echo "  · 基线快照   : $(basename "$snap")"
             echo "  · 创建时间   : $(stat -c '%y' "$snap" 2>/dev/null || unknown)"
             echo "  · 约含文件数 : ${nfiles}"

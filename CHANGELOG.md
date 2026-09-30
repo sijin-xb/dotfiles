@@ -4,6 +4,64 @@
 
 ## 2026-09-30
 
+### 光标管线：跨合成器补全（niri 类安装也完整可用）
+
+之前「鼠标一直是默认光标」的根因有三层，全部修掉：
+
+1. **`Matugen-Cursors` 主题从未生成**：matugen 的 `post_hook` 指向
+   `~/.config/hypr/hyprland/scripts/generate_cursor_theme.py`，但该脚本只存在于
+   实机、从未进仓库；且放在 `dot_config/hypr/**` 下会被 [5/7] 的合成器过滤
+   跳过 —— 选 dms（niri）安装的机器上脚本根本不会被部署，换壁纸时挂钩静默
+   失败（`nohup + >/dev/null`），主题永远不存在 → 回退默认光标。
+   修复：脚本挪到会话无关的 `dot_config/scripts/executable_generate_cursor_theme.py`
+   （`executable_` 前缀保证部署时恢复 +x，挂钩是直接执行），`matugen/config.toml`
+   的挂钩路径同步更新。主题本身是标准 XCursor 格式，niri 经
+   `config.kdl` 的 `XCURSOR_THEME/SIZE` 读取，与合成器无关。
+2. **环境四层打架**：niri env 引用不存在的主题且 32 号、environment.d 32 号、
+   systemd 用户环境是一个不存在的 `FireflySpring-*` 主题、Xwayland/libXcursor
+   的 "default" 回退指向 Adwaita。统一为 **Matugen-Cursors / 24**：
+   environment.d（含 HYPRCURSOR_*）、niri config.kdl、`~/.cache/cursor_theme`
+   （Hyprland execs.lua 启动时读）、gsettings，并新增
+   `dot_local/share/icons/default/index.theme`（Inherits=Matugen-Cursors）
+   兜住所有按 "default" 找主题的场景（Xwayland、无环境变量的进程）。
+3. **生成依赖缺失**：`catppuccin-cursors-mocha`（重着色模板源）与
+   `xorg-xcursorgen`（SVG → XCursor 编译工具）此前都不在包列表里，缺任何一个
+   生成脚本直接失败。两者已分别列入 [2/7] AUR 与 [1/7] pacman 通用列表。
+
+依赖包生成链（新机器换壁纸即自动出光标主题）：
+`catppuccin-mocha-pink-cursors`（模板）→ matugen 主色重着色 → `xcursorgen`
+→ `~/.local/share/icons/Matugen-Cursors`。
+
+### install.sh：文案与健壮性重构（功能不变）
+
+修复的逻辑缺陷：
+
+- **TUI 卸载页双重提问**：选「两套合成器都删」只置
+  `INSTALL_BOTH_COMPOSITORS=1`（COMPOSITOR 为空），`cmd_uninstall` 再次调用
+  `uninstall_compositor_scope` 时会再问一遍 —— 该函数现在对这个状态早退。
+- **`detail_rollback` 文件计数双 0**：`grep -cv … || echo 0` 在计数为 0 时输出
+  两行（grep 自打 "0" + echo 补 "0"），改用 `|| true`。
+- **`archive -o` 缺参数裸崩**：`set -u` 下 `$2` 未绑定直接抛 bash 错误，现在
+  给出带示例的友好报错；输出目录不存在/不可写也在打包前拦截。
+- **未知 `SESSION` 预设静默回退 end4pc**：拼错值（如 `SESSION=niri`）现在会
+  警告合法取值，不再无声走默认。
+- **`session_warning_if_running` 不认 niri**：文件覆盖前只在 Hyprland 会话
+  下警告，现在 niri 会话同样警告。
+- **`install` 子命令收到的多余参数被静默忽略**：现在提示正确用法
+  （SESSION=… 环境变量）。
+
+错误处理补齐（原来这些失败路径都是 `set -e` 裸崩，无任何引导）：
+
+- `FULL_UPGRADE=1` 的 `pacman -Syu` 失败 → 提示镜像/密钥排查方向；
+- yay 引导的 clone / makepkg 失败 → 提示手动装 helper 后重跑可跳过；
+- quickshell 源码编译的 CMake 配置 / 编译 / 安装三步失败 → 各自给指引；
+- Python venv 创建失败 → 提示检查 python 包与磁盘。
+
+文案修正：
+
+- TUI 安装页「sudo 可用?」一行原来在 `$()` 里混入全角分号与转义符，输出是
+  字面量乱码；改为分支输出，并说明 `${SUDO:-sudo}` 可覆盖。
+
 ### 修复：end4-pC 壳播放音乐时段错误崩溃循环（Caelestia 插件 FFTW planner 竞态）
 
 #### 现象
