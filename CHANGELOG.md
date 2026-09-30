@@ -4,6 +4,37 @@
 
 ## 2026-09-30
 
+### 壁纸栈会话隔离：Hyprland(end4-pC) ↔ niri(DMS) 不再互相接管
+
+**现象**：Hyprland 里用 mpvpaper 视频壁纸，注销进 niri 后旧 mpvpaper 仍在
+（与 DMS 自己的 `dms-mpvpaper` 叠 layer-shell 背景、互相接管）；kill 掉还会
+被重新拉起。
+
+**根因**（三层叠加）：
+
+1. Arch 的 systemd-logind 默认 `KillUserProcesses=no`，注销后 detached 的
+   mpvpaper / 旧 quickshell 实例 / kde-material-you-colors 不随会话而死
+   （实测旧会话的进程在 niri 里仍存活）；
+2. 旧 `qs -c end4-pC` 实例活着时，其 `Background.qml` 会把被 kill 的
+   mpvpaper 再拉起来 —— 这就是「强制结束也会继续拉起」的来源；
+3. 两套壁纸栈此前没有任何会话级的互相清理。
+
+**修复**：新增 `dot_config/scripts/executable_session-wallpaper-isolation.sh`
+（会话无关路径，两个合成器共用），按 **cmdline 特征** 精确区分两套栈：
+end4-pC 的 mpvpaper 走 `~/.cache/quickshell/mpvpaper` socket，DMS 的走
+`dms-mpvpaper-*` —— 只清对方，互不误杀（特意不用 `pkill -x mpvpaper`，
+避免把当前会话自己的壁纸杀掉）。杀的顺序：先杀会复活的（旧 qs 实例、
+取色守护），再杀壁纸本体，最后清孤儿 socket。
+
+挂载点（两处对称，改动需同步）：
+
+- niri：`config.kdl` 的 `spawn-sh-at-startup … isolation.sh niri`
+- Hyprland：`hyprland/execs.lua` 的 `hl.exec_cmd(… isolation.sh hyprland)`
+
+**验证**：niri 会话空跑脚本无害（无目标时全 no-op）；`pgrep -af
+quickshell/mpvpaper` 只剩 DMS 自己的进程；下次「Hyprland → niri」切换后
+`pgrep -af 'qs -c end4-pC|\.cache/quickshell/mpvpaper'` 应无输出。
+
 ### 光标管线：跨合成器补全（niri 类安装也完整可用）
 
 之前「鼠标一直是默认光标」的根因有三层，全部修掉：

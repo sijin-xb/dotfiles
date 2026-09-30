@@ -252,6 +252,11 @@ spawn-sh-at-startup "systemctl --user set-environment XDG_SESSION_CLASS=user"
 // ConditionEnvironment=XDG_CURRENT_DESKTOP=Hyprland 守卫确定性生效。
 spawn-sh-at-startup "systemctl --user unset-environment HYPRLAND_INSTANCE_SIGNATURE HYPRLAND_CMD HYPRCURSOR_THEME HYPRCURSOR_SIZE DESKTOP_SESSION XDG_MENU_PREFIX UWSM_FINALIZE_VARNAMES UWSM_WAIT_VARNAMES ELECTRON_OZONE_PLATFORM_HINT; systemctl --user set-environment XDG_CURRENT_DESKTOP=niri XDG_SESSION_DESKTOP=niri DESKTOP_SESSION=niri"
 
+// 壁纸栈隔离：会话开始时清掉另一套合成器（Hyprland/end4-pC）遗留的壁纸进程
+// （旧 qs 实例、end4-pC 的 mpvpaper、kde-material-you-colors 取色链）——
+// systemd-logind 默认不杀注销会话的进程，不清的话会与 DMS 的壁纸互相接管，
+// 且 kill 后被旧 qs 实例重新拉起。另一侧挂载在 hyprland/execs.lua，改动需同步。
+spawn-sh-at-startup "$HOME/.config/scripts/session-wallpaper-isolation.sh niri"
 // 输入法
 // 输入法：与 Hyprland 的 execs.lua 同逻辑 —— 守护启动 → 等就绪 → 激活并切到 rime
 // → 把变量推进 dbus/systemd（否则后面拉起的应用拿不到，等于没配）。

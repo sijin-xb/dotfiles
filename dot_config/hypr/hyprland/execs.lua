@@ -8,6 +8,10 @@ hl.on("hyprland.start", function ()
     --   fcitx5 没起来 / DBus 不可用 / fcitx5-remote 缺失时它永远不退出。单独一行时
     --   只是输入法不可用，但历史上同一个循环还串在 Quickshell 启动之前，于是
     --   登录后黑屏只剩光标。任何"等一个东西就绪"的写法都必须有上限。
+    -- 壁纸栈隔离：会话开始时清掉另一套合成器（niri/DMS）遗留的壁纸进程
+    -- （dms run / danklinux quickshell / dms-mpvpaper）。另一侧挂载在
+    -- niri/config.kdl 的 spawn-sh-at-startup，改动需同步。
+    hl.exec_cmd("$HOME/.config/scripts/session-wallpaper-isolation.sh hyprland")
     hl.exec_cmd("$HOME/.config/hypr/hyprland/scripts/fcitx_init.sh")
 
     -- Bar, wallpaper
