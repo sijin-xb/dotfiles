@@ -29,6 +29,19 @@ StyledClippingRect {
         return Math.max(0, Math.min(1, player.position / player.length))
     }
 
+    // ── 防误触 ──────────────────────────────────────────────────────
+    // 进锁屏时 WlSessionLock 接管指针，Qt 给刚创建的 surface 补发一次指针
+    // 事件 —— 那不是用户点的。实测它把 skip_next / skip_previous 两个
+    // StateLayer 各触发了一次，歌被切走再切回来，等于从 0 重播。
+    // 这里等一小段时间再武装按钮。
+    property bool inputArmed: false
+    Timer {
+        interval: 500
+        running: true
+        repeat: false
+        onTriggered: root.inputArmed = true
+    }
+
     function fmtTime(s: real): string {
         const totalSec = Math.max(0, Math.floor(s || 0));
         const m = Math.floor(totalSec / 60);
@@ -181,7 +194,7 @@ StyledClippingRect {
             SecondaryBtn {
                 glyph: "skip_previous"
                 interactable: root.player?.canGoPrevious ?? false
-                onActivate: root.player?.previous()
+                onActivate: if (root.inputArmed) root.player?.previous()
             }
 
             // 主播放按钮
@@ -207,14 +220,14 @@ StyledClippingRect {
                 StateLayer {
                     disabled: !playBtn.interactable
                     radius: Appearance.rounding.full
-                    onClicked: root.player?.togglePlaying()
+                    onClicked: if (root.inputArmed) root.player?.togglePlaying()
                 }
             }
 
             SecondaryBtn {
                 glyph: "skip_next"
                 interactable: root.player?.canGoNext ?? false
-                onActivate: root.player?.next()
+                onActivate: if (root.inputArmed) root.player?.next()
             }
         }
 

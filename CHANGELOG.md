@@ -6,24 +6,56 @@
 
 ### 锁屏瞬间歌曲跳回 0 秒
 
-**现象**：每次进入锁屏，正在播的歌从 0 秒开始播放。
+**现象**：每次进锁屏，正在播的歌从 0 秒开始播放。
 
-**根因**：锁屏时 `WlSessionLock` 会把指针从灵动岛手上接管走，Qt 给仍握着
-grab 的 `MouseArea` 补一次 `released`。灵动岛的歌词页把这次「不是用户点的
-释放」当成了一次点击：`pillMouse.onReleased` → `MusicActivity.seekAtY(y)`，
-失效坐标（常见 0,0）映射进歌词列后命中第一个槽位 —— 第一行的行时间（减去
-歌词偏移后）常为 0，于是 `seekRequested(0)` 把歌拉回开头。锁屏前后岛可能
-正停在歌词页（听歌时最常见），所以表现为「每次都中」。
+**根因（D-Bus 抓包实锤）**：锁屏那一刻，quickshell 向 kugou-tui 连发了
+`Next` + `Previous`（相隔 1ms）——切到下一首再切回来，等于重头播。全量
+插桩（31 个 `next()` / `previous()` 调用点）后第三次锁屏命中：
+`[seekdbg] LockMedia/next` + `[seekdbg] LockMedia/prev` —— 是**锁屏界面
+自己的媒体卡**（`lock/caelestia/content/Media.qml`）。进锁屏时
+`WlSessionLock` 接管指针，Qt 给刚创建的 surface 补发指针事件，把
+skip_next / skip_previous 两个 StateLayer 各触发了一次。
 
-**修复**（两道闸门，`DynamicIsland.qml` + `MusicActivity.qml`）：
+**修复**：媒体卡加 500ms「武装」延时（`inputArmed`），三个按钮（上一首 /
+播放暂停 / 下一首）在武装完成前一律忽略点击。给别人的机器上这是每次锁屏
+必现的，属于必修。
 
-- `onPressed` / `onReleased` 在 `GlobalStates.screenLocked` 时直接返回
-  （两头都挡，只靠一头挡不住「已按下才开始锁」的情况）；
-- `seekAtY` 拒绝落在歌词项高度之外的坐标（`y < 0 || y > height`），失效
-  坐标从此无法命中任何一行，顺带修掉「点到歌词列之外（如分页点）也被
-  当成点行」的边角。
+**附带**：灵动岛的 press/release 在锁屏期间直接返回
+（`DynamicIsland.qml`）。这是在没抓到真凶前的第一道闸门，根因查明后保留
+作纵深防御 —— 锁屏期间任何合成事件都不该被当成用户操作。
 
-### 编辑器配色接入 matugen（micro / Kate / nvim）
+### 壁纸选择器（Ctrl+Super+T）打开即报错 / 列表为空
+
+**现象**：打开选择器日志里必现
+`WallpaperSelectorContent.qml[607]: ReferenceError: filterField is not defined`；
+给别人的新装机器上列表干脆是空的。
+
+**两个独立问题：**
+
+1. `filterField` 的 id 定义在 `Loader.sourceComponent` 里，QML 的 id 作用域
+   出不了那个组件，文件顶层的键盘处理（Backspace / Slash / 任意字符聚焦
+   搜索框）和「打开时聚焦搜索框」全都引用不到它。修复：根上挂
+   `property var localFilterField`，由组件内部 `Component.onCompleted` 把
+   引用交出来、`Component.onDestruction` 置空，外部一律走这个可空属性。
+
+2. 新装机器上列表为空：`~/Pictures/Wallpapers` 根本不存在 —— 仓库根下的
+   `Pictures/Wallpapers` 在 `.chezmoiignore` 里，`walk_sources` 从不部署它。
+   修复：install.sh 新增 `sync_wallpapers()`，install 与 update 都会把仓库
+   自带壁纸铺到 `~/Pictures/Wallpapers`，语义**只补不覆盖**（同名但内容
+   不同的是用户自己的文件，不动）。
+
+### 支持自定义壁纸目录（background.wallpaperDir）
+
+此前选择器默认目录写死 `~/Pictures/Wallpapers`，config.json 里写
+`wallpaperDir` 是**无效的**（schema 里根本没有这个键）。现在：
+
+```json
+"background": { "wallpaperDir": "~/Pictures/walls" }
+```
+
+支持 `~/` 前缀；留空回落 `~/Pictures/Wallpapers`。
+
+### 编辑器配色接入 matugen（micro / Kate / nvim）### 编辑器配色接入 matugen（micro / Kate / nvim）
 
 三个编辑器各加一份 matugen 模板（`dot_config/matugen/templates/editors/`），
 色板与 kitty / fuzzel / walker / GTK 同源，语义按 MD3 角色映射：关键字 /
