@@ -32,6 +32,15 @@ import qs.modules.common.functions
  *   currentText / currentTrans / currentRoman / nextText
  *   currentTime / duration / isPlaying
  *   buildLineHtml(line)   逐字高亮 HTML（供桌面歌词浮层用）
+ *
+ * ── 本轮改动（参考 kugou-tui 的 src/api/lyric.rs）──────────────────────
+ * 1. 逐字高亮从「二值跳变」改为**连续进度插值**（wordProgress / lerpColor），
+ *    对齐 kugou-tui 的 LyricWord::progress_at。
+ * 2. 语言轨按**内容特征**挑（汉字密度 + 假名排除），不再硬编码 type。
+ * 3. 译文/音译按**原始定时行序号**索引，并对齐基准自适应 —— 见 parseLyrics。
+ * 4. 过滤元信息行（作词/作曲/编曲/Written by/翻译声明…）。
+ * 5. 逐字解析改为手写扫描：标记前的字符不再丢；字数与标记数不一致时退回整行高亮。
+ * 6. updateCurrentLine 改为增量推进（摊还 O(1)），插值粒度 100ms → 50ms。
  */
 Singleton {
     id: root
@@ -236,15 +245,23 @@ Singleton {
     }
 
     // ─── 当前行推进 ─────────────────────────────────────────────────────
+    // 增量推进而不是每次全量扫描：正常播放时每 50ms 调一次，全量扫一首 300 行的歌
+    // 是纯浪费。这里只在「当前行已过期」时才从头重算（seek / 换歌 / 换词），
+    // 其余情况从当前行往后走 0~1 步，摊还 O(1)。
     function updateCurrentLine() {
         const t = root.currentTime + root.effectiveOffset;
-        let index = -1;
-        for (let i = 0; i < root.lyricLines.length; i++) {
-            if (root.lyricLines[i].start <= t + 0.05)
-                index = i;
-            else
-                break;
+        const eps = 0.05;
+        const n = root.lyricLines.length;
+        let index = root.currentLineIndex;
+
+        // 越界，或时间回退到当前行之前（seek 回来）→ 丢弃进度重算
+        if (index < -1 || index >= n
+            || (index >= 0 && root.lyricLines[index].start > t + eps)) {
+            index = -1;
         }
+        while (index + 1 < n && root.lyricLines[index + 1].start <= t + eps)
+            index += 1;
+
         if (index !== root.currentLineIndex) {
             root.currentLineIndex = index;
             root.slots = root.buildSlots(index);
@@ -477,7 +494,8 @@ Singleton {
                 }
                 root.lastRawLyrics = lyrics;
                 root.lyricLines = root.parseLyrics(lyrics);
-                const offsetMatch = lyrics.match(/\[offset:(-?\d+)\]/);
+                // [offset:] 大小写/空格容错 —— LRC 里既有 [offset:500] 也有 [OFFSET: 500]
+                const offsetMatch = lyrics.match(/\[\s*offset\s*:\s*(-?\d+)\s*\]/i);
                 root.rawLyricOffset = offsetMatch ? -Number(offsetMatch[1]) / 1000 : 0;
                 if (root.lyricLines.length > 0) {
                     root.source = "kugou";
@@ -539,20 +557,43 @@ Singleton {
         return out;
     }
 
-    // 解析 KRC 的 [language:] 载荷，按块 type 分流成「翻译」和「音译」两组。
+    // ── 语言轨判据（参考 kugou-tui 的 attach_translations）────────────────
+    // ⚠ 不能靠 `type` 硬编码取轨。实测不同 KRC 变体里 type 的含义并不固定：
+    //   本机 29 个样本里 type=1 全是中文译文，但 kugou-tui 明确记录过
+    //   同一首歌 type=1 是罗马音、type=2 才是中文译文的情况。所以按**内容特征**
+    //   判轨：含假名 → 日文（排除，日文也用汉字，光看汉字密度会误判）；
+    //   汉字密度 ≥ 0.2 → 中文译文；其余（拉丁字母）→ 罗马音。
+    function hasKana(s) {
+        return /[\u3040-\u30ff]/.test(s);
+    }
+
+    function hanziRatio(s) {
+        const chars = String(s ?? "").replace(/\s+/g, "");
+        if (chars.length === 0)
+            return 0.0;
+        let hanzi = 0;
+        for (const ch of chars) {
+            if (/[\u3400-\u9fff]/.test(ch))
+                hanzi += 1;
+        }
+        return hanzi / chars.length;
+    }
+
+    function isChineseTrack(s) {
+        return !root.hasKana(s) && root.hanziRatio(s) >= 0.2;
+    }
+
+    // 解析 KRC 的 [language:] 载荷，按内容挑出「译文」和「音译」两条轨。
     //
-    // Kugou 每个 [language:] 块带 type 字段：
-    //   type = 0 → 音译（拉丁 romaji 或汉字谐音，如「可尼嘎 都那嘎哟」）
-    //   type = 1 → 语义翻译（如「她离我远去」）
-    // 旧实现靠「看起来像不像拉丁 romaji」猜，汉字谐音含 CJK 就被误判成
-    // 翻译，翻译位被音译占满、音译位恒空 —— 桌面歌词只剩两行。
-    // 两组都按原文行序 1:1 对齐（非歌词行的位置是空串）。
+    // 返回 { trans, roman }，两个数组都**按原始定时行序号**排列（空位是空串），
+    // 由 parseLyrics 用定时行序号索引 —— 见那里的对齐说明。
     function parseLanguageBlocks(lrcText) {
-        const trans = [];
-        const roman = [];
+        const none = { trans: [], roman: [] };
         const match = lrcText.match(/\[language:([A-Za-z0-9+/=]*)\]/);
         if (!match)
-            return { trans, roman };
+            return none;
+
+        const tracks = [];
         try {
             let b64 = match[1];
             while (b64.length % 4 !== 0) b64 += "=";
@@ -563,34 +604,121 @@ Singleton {
                     lines.push(Array.isArray(line) ? line.join("") : String(line));
                 if (!lines.some(l => l.trim().length > 0))
                     continue;
-                const type = block?.type;
-                // type 缺失时兜底：含 CJK 视为翻译，否则视为音译
-                const isTranslation = (type === 1)
-                    || (type === undefined && /[\u3400-\u9fff]/.test(lines.join(" ")));
-                const target = isTranslation ? trans : roman;
-                if (target.length === 0) {
-                    for (const l of lines)
-                        target.push(l);
-                }
+                tracks.push({ type: block?.type, lines: lines, joined: lines.join("\n") });
             }
         } catch (e) {
             console.log("[LyricsService] language block parse failed:", e);
+            return none;
         }
-        return { trans, roman };
+        if (tracks.length === 0)
+            return none;
+
+        // 中文轨排最前（按汉字密度降序），其余排后面 —— 罗马音密度接近 0，自然垫底
+        tracks.sort((a, b) => {
+            const ac = root.isChineseTrack(a.joined);
+            const bc = root.isChineseTrack(b.joined);
+            if (ac !== bc)
+                return ac ? -1 : 1;
+            return root.hanziRatio(b.joined) - root.hanziRatio(a.joined);
+        });
+
+        const chineseCount = tracks.filter(t => root.isChineseTrack(t.joined)).length;
+        // 译文位：只有存在中文轨时才填；没有就留空，界面退回显示音译
+        // （日语歌常常只有「日文原文 + 罗马音」，此时显示罗马音比重复原文有用）
+        const trans = chineseCount > 0 ? tracks[0].lines : [];
+        // 音译位：取汉字密度最低的那条（排序后落在末尾），且不能与译文轨同一条
+        let roman = [];
+        const last = tracks[tracks.length - 1];
+        if (trans.length === 0) {
+            roman = last.lines;                       // 无中文轨：末尾那条就是罗马音
+        } else if (tracks.length > 1 && last !== tracks[0]) {
+            roman = last.lines;
+        }
+        return { trans: trans, roman: roman };
+    }
+
+    // 元信息行判定：KRC 会把「作词/作曲/编曲/原唱/词/曲/Written by…」以及
+    // 「以下歌词翻译由…提供」这类声明当成**带时间标签的正文行**混在主歌词轨里。
+    // 实测本机 29 个 KRC 样本：1320 行主歌词里有 76 行（5.8%）是这类内容，
+    // 25/29 个文件至少命中一条。不滤掉的话它们会占满桌面歌词浮层和 7 行窗口的
+    // 槽位，把真正的歌词挤出去。
+    function isMetadataLine(text) {
+        if (!text)
+            return false;
+        return /^\s*(作词|作曲|编曲|原唱|制作人|混音|母带|吉他|贝斯|鼓|键盘|录音|监制|出品|发行|策划|统筹|设计|和声|弦乐|词|曲|演唱|歌手|OP|SP)\s*[:：]/.test(text)
+            || /^\s*(lyrics?|composed?|arranged?|produced?|mixed?|written)\s+by\s*[:：]/i.test(text)
+            || /^\s*以下歌词翻译/.test(text)
+            || /^\s*本歌词由/.test(text);
+    }
+
+    // 拆出纯文本与逐字时间戳。
+    //
+    // KRC 的逐字单元写作 `<本行内偏移毫秒,持续毫秒,0>文本` —— **标记在文本前面**，
+    // 文本可以不止一个字（实测见过 `<1600,160,0>Jay`，整段共用一个时间）。
+    // 手写扫描而不是正则，是为了多处理两种情况：
+    //   1. 标记**之前**的字符也是正文。歌里出现「有 `<` 却没有配对 `>`」时
+    //      （比如 `宝贝<3`），正则方案会把这一段整段丢掉 → 那一行直接缺字。
+    //   2. 字数与逐字单元数对不上时**整体清空 words**，退回整行高亮。
+    //      宁可少个效果，也不能让高亮和声音错位。
+    function parseKrcWords(body, lineStart) {
+        const chars = [];
+        const words = [];
+        let rest = body;
+
+        while (true) {
+            const open = rest.indexOf("<");
+            if (open < 0) {
+                chars.push(rest);
+                break;
+            }
+            chars.push(rest.slice(0, open));      // 标记之前的字符也算正文
+            const close = rest.indexOf(">", open + 1);
+            if (close < 0) {
+                // 没有配对的 `>`：剩下的全部当正文收下（它们没有逐字时间，
+                // 下面的一致性校验会清空 words，正好退回整行高亮）
+                chars.push(rest.slice(open));
+                break;
+            }
+            const parts = rest.slice(open + 1, close).split(",");
+            const offset = Number(parts[0]);
+            const dur = Number(parts[1]);
+            const after = rest.slice(close + 1);
+            const nextOpen = after.indexOf("<");
+            const segment = nextOpen < 0 ? after : after.slice(0, nextOpen);
+            chars.push(segment);
+            const wStart = lineStart + (isFinite(offset) ? offset : 0) / 1000;
+            const wDur = isFinite(dur) ? dur / 1000 : 0;
+            for (const ch of segment)
+                words.push({ text: ch, start: wStart, dur: wDur });
+            rest = nextOpen < 0 ? "" : after.slice(nextOpen);
+        }
+
+        const text = chars.join("").trim();
+        if (words.length !== [...text].length)
+            words.length = 0;
+        return { text: text, words: words };
     }
 
     function parseLyrics(lrcText) {
         const lines = [];
         if (!lrcText || typeof lrcText !== "string")
             return lines;
+
         const lang = root.parseLanguageBlocks(lrcText);
         const krcRe = /^\[(\d+),(\d+)(?:,\d+)?\]/;
         const lrcRe = /^\[(\d{1,3}):(\d{1,2})(?:[.:](\d{1,3}))?\]/;
-        let transIndex = 0;
+
+        // ── pass 1：把所有定时行解析出来，并记下它在**全部定时行**里的序号 ──
+        // 语言轨的 lyricContent 是按定时行 1:1 排列的（含空内容行、含元信息行），
+        // 所以序号必须在这里分配，不能等过滤完再数 —— 一旦按「筛后行序」索引，
+        // 只要过滤掉任何一行（空行或元信息行），后面所有行的译文都会整体串位。
+        const rows = [];
+        let timedTotal = 0;
         for (let raw of lrcText.split("\n")) {
             raw = raw.replace(/\r/g, "").trim();
             if (raw.length === 0)
                 continue;
+
             let start = -1;
             let text = "";
             let words = null;
@@ -598,23 +726,9 @@ Singleton {
             const lrc = raw.match(lrcRe);
             if (krc) {
                 start = Number(krc[1]) / 1000;
-                const body = raw.slice(krc[0].length);
-                words = [];
-                const wordRe = /<(\d+),(\d+),\d+>([^<]*)/g;
-                let word;
-                while ((word = wordRe.exec(body)) !== null) {
-                    if (word[3].length === 0)
-                        continue;
-                    // KRC 词偏移相对行首（首个字为 0），直接累加
-                    const wordStart = start + Number(word[1]) / 1000;
-                    words.push({
-                        text: word[3],
-                        start: wordStart,
-                        dur: Number(word[2]) / 1000
-                    });
-                    text += word[3];
-                }
-                text = text.trim();
+                const parsed = root.parseKrcWords(raw.slice(krc[0].length), start);
+                text = parsed.text;
+                words = parsed.words.length > 0 ? parsed.words : null;
             } else if (lrc) {
                 const frac = lrc[3] !== undefined ? Number("0." + lrc[3]) : 0;
                 start = Number(lrc[1]) * 60 + Number(lrc[2]) + frac;
@@ -622,38 +736,94 @@ Singleton {
             } else {
                 continue;
             }
-            if (text.length === 0)
+
+            rows.push({ start: start, text: text, words: words, ordinal: timedTotal });
+            timedTotal += 1;
+        }
+
+        // ── 语言轨的对齐基准自适应 ──────────────────────────────────────
+        // 轨数组长度可能等于「定时行数」（含空行/元信息行）也可能等于「歌词行数」。
+        // 本机 40 个样本里两者恒等，无法据此断言哪种一定对，所以按长度就近判断，
+        // 两种排布都能对齐。
+        const keptCount = rows.filter(r => r.text.length > 0).length;
+        const trackLen = lang.trans.length > 0 ? lang.trans.length : lang.roman.length;
+        const byOrdinal = trackLen > 0
+            && Math.abs(trackLen - timedTotal) <= Math.abs(trackLen - keptCount);
+
+        let keptIndex = 0;
+        for (const row of rows) {
+            if (row.text.length === 0) {
+                // 空内容定时行：不显示，但已经占了一个定时行序号
                 continue;
-            // 翻译 / 音译各自按行序取（两个数组都与原文 1:1 对齐）
-            const trans = lang.trans.length > 0 ? (lang.trans[transIndex] ?? "") : "";
-            const roman = lang.roman.length > 0 ? (lang.roman[transIndex] ?? "") : "";
-            transIndex += 1;
+            }
+            if (root.isMetadataLine(row.text)) {
+                // 元信息行同理：占序号，不显示
+                continue;
+            }
+            const key = byOrdinal ? row.ordinal : keptIndex;
+            keptIndex += 1;
+            const trans = lang.trans.length > 0 ? (lang.trans[key] ?? "") : "";
+            const roman = lang.roman.length > 0 ? (lang.roman[key] ?? "") : "";
             lines.push({
-                start: start,
-                text: text,
-                trans: (trans !== text) ? trans.trim() : "",
-                roman: (roman !== text) ? roman.trim() : "",
-                words: (words && words.length > 0) ? words : null
+                start: row.start,
+                text: row.text,
+                // 译文/音译也可能夹带声明行（实测 725 条译文里有 2 条
+                // 「以下歌词翻译由文曲大模型提供」），一并滤掉。
+                // 注意这里**不能**影响序号 —— 译文是按定时行序号取的，滤掉只清空内容。
+                trans: (trans !== row.text && !root.isMetadataLine(trans)) ? trans.trim() : "",
+                roman: (roman !== row.text && !root.isMetadataLine(roman)) ? roman.trim() : "",
+                words: row.words
             });
         }
+
         lines.sort((a, b) => a.start - b.start);
         return lines;
     }
 
     function escapeHtml(s) {
-        return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
-    // 逐字高亮 HTML（桌面歌词浮层用）
+    // 单个字在 t 时刻「已经唱了多少」，0.0 ~ 1.0。
+    //
+    // 参考 kugou-tui 的 LyricWord::progress_at：用连续比例而不是「未唱 / 已唱」
+    // 两档，边界字取两色之间的插值 —— 看上去是渐变扫过，而不是一格一格硬跳。
+    // 坏字（KRC 里见过 dur <= 0）退化成「唱到 start 就整字亮起」。
+    function wordProgress(w, t) {
+        if (!w)
+            return 0.0;
+        const end = w.start + (w.dur > 0 ? w.dur : 0);
+        if (end <= w.start)
+            return t >= w.start ? 1.0 : 0.0;
+        if (t >= end)
+            return 1.0;
+        if (t <= w.start)
+            return 0.0;
+        return (t - w.start) / (end - w.start);
+    }
+
+    function lerpColor(c1, c2, t) {
+        const k = Math.max(0, Math.min(1, t));
+        const r = Math.round((c1.r + (c2.r - c1.r) * k) * 255);
+        const g = Math.round((c1.g + (c2.g - c1.g) * k) * 255);
+        const b = Math.round((c1.b + (c2.b - c1.b) * k) * 255);
+        const hex = v => v.toString(16).padStart(2, "0");
+        return `#${hex(r)}${hex(g)}${hex(b)}`;
+    }
+
+    // 逐字高亮 HTML（桌面歌词浮层用）。
+    // 已唱 → 主题色，未唱 → 次要色，正在唱的那个字取两者之间的插值。
     function buildLineHtml(line) {
-        if (!line || !line.words)
+        if (!line || !line.words || line.words.length === 0)
             return root.escapeHtml(line?.text ?? "");
         const t = root.adjustedTime;
+        const cold = Appearance.colors.colSecondary;
+        const hot = Appearance.colors.colPrimary;
         let html = "";
         for (const w of line.words) {
-            // 开始唱（含正在唱）即高亮 —— 唱完才亮会滞后整整一个字长
-            const started = t >= w.start;
-            const color = started ? Appearance.colors.colPrimary : Appearance.colors.colSecondary;
+            const p = root.wordProgress(w, t);
+            const color = p >= 1.0 ? hot
+                : (p <= 0.0 ? cold : root.lerpColor(cold, hot, p));
             html += `<font color="${color}">${root.escapeHtml(w.text)}</font>`;
         }
         return html;
@@ -760,14 +930,18 @@ Singleton {
         }
     }
 
-    // 2. 100ms 本地插值：让逐字填色平滑（不依赖 MPRIS 的 350ms 粒度）
+    // 2. 本地插值：让逐字填色平滑（不依赖 MPRIS 的 350ms 粒度）
+    // 50ms（20fps）而不是 100ms —— buildLineHtml 现在是**连续**进度插值，
+    // 10fps 下那个「扫过去」的过渡会看出台阶。20fps 的代价是每秒 20 次
+    // `currentTime += 0.05` + 一次摊还 O(1) 的 updateCurrentLine，可以忽略。
     Timer {
-        interval: 100
+        id: timeInterpolation
+        interval: 50
         running: root.isPlaying && root.hasLyrics
         repeat: true
         onTriggered: {
             if (root.lyricLines.length > 0)
-                root.currentTime += 0.1;
+                root.currentTime += interval / 1000;
         }
     }
 
