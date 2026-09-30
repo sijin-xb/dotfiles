@@ -850,6 +850,11 @@ cmd_install() {
         # notify-send 并列，负责总览模糊底图的高斯模糊与填充着色（IMG_BLUR_*
         # / IMG_COLORIZE_*），缺了同样 exit 1。
         imagemagick
+        # noise-suppression-for-voice：提供 LADSPA 插件 librnnoise_ladspa，
+        #   pipewire.conf.d/99-input-denoising.conf 的麦克风降噪 filter-chain
+        #   依赖它。⚠ 那个模块即使有 ifexists nofail 兜底，缺包也只是「降噪源
+        #   消失」——装上它降噪才真正生效（2026-09-30 音频全栈 failed 的根因）。
+        noise-suppression-for-voice
         # ffmpeg：视频缩略图 / 动态取色（DMS 的 mpvpaper 视频壁纸插件依赖它）。
         # 通用工具，别的 shell 也可能用到，保留在基础列表。
         ffmpeg
