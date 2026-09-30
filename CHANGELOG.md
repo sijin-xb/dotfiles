@@ -2,6 +2,66 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+## 2026-09-30
+
+### 修复：end4-pC 壳播放音乐时段错误崩溃循环（Caelestia 插件 FFTW planner 竞态）
+
+#### 现象
+
+`qs -c end4-pC` 在播放音乐（MPRIS 活跃）时周期性段错误，`~/.cache/quickshell/crashes/`
+一天内积累 9 份报告，崩溃间隔 30–60 秒，表现为壳反复重启：
+
+```
+Signal: 段错误 (11)
+#5  fftw_measure_execution_time   (libfftw3)
+#49 fftw_plan_dft_r2c_1d          (libfftw3)
+#50 cava_init                     (libcava)
+#51 caelestia::services::CavaProcessor::initCava()  cavaprovider.cpp:102
+```
+
+#### 根因
+
+FFTW 的 **planner**（`fftw_plan_*` / `fftw_destroy_plan` / wisdom 管理）是全局且
+**非线程安全**的 —— 官方文档明确只有 `fftw_execute` 系列可并发，建 plan 必须
+先调 `fftw_make_planner_thread_safe()`。
+
+而 shell 里有**两个** `CavaProvider` 实例，各自跑在独立 `QThread` 上：
+
+| 实例 | bars | 位置 |
+|---|---|---|
+| 灵动岛频谱 | 32 | `custom-island/CavaService.qml` |
+| 媒体控件频谱 | 50 | `modules/ii/mediaControls/MediaControls.qml` 的 `cavaBridge` |
+
+两者都跟着「有没有在放音乐」启停。音乐一开始，两个实例几乎同时排队
+`cava_init`（`setBars → reload → initCava` 均为 QueuedConnection），两个线程并发
+进入 FFTW planner，全局 planner 状态被写坏 → 段错误。崩溃 → 自动重启 → 放歌
+→ 再崩，形成循环。上游插件逻辑本身没有别的毛病（此前怀疑的 QML 绑定环经
+崩溃日志核实只有两处良性一次性警告，不是元凶）。
+
+#### 修复
+
+新增覆盖层文件
+`dot_config/quickshell/caelestia/plugin/src/Caelestia/Services/cavaprovider.cpp`
+（上游 `caelestia-dots/shell` 的同名文件 + 一处标注 `CAELESTIA LOCAL` 的补丁）：
+
+- 插件加载时（命名空间作用域动态初始化，dlopen 阶段执行，早于任何
+  `cava_init`）调用 `fftw_make_planner_thread_safe()`，planner 内部自加锁；
+- 符号用 `dlopen` + `dlsym` 运行时解析（主库 `libfftw3.so.3` 优先、
+  `libfftw3_threads.so.3` 兜底）：Arch 的 fftw 包把该符号放在 threads 库
+  （`nm -D` 实测主库没有），硬链接会在 dlopen 阶段报 undefined symbol
+  （已实测踩坑）；运行时解析则对上游/其他发行版把符号挪回主库的布局也兼容。
+
+走既有覆盖层机制（`install_caelestia_plugin` 编译前盖到
+`~/src/caelestia-plugin-src`，覆盖层哈希戳会使构建自动失效重编），
+`install.sh` 无需改动。
+
+#### 验证
+
+- 重新编译后 `journalctl` 出现
+  `FFTW planner 已切换为线程安全模式（via libfftw3_threads.so.3）`；
+- 两个 CavaProvider（bars=32 / 50）**同时**完成初始化并产出首帧 —— 即此前
+  必崩的并发场景，shell 持续稳定运行。
+
 ## 2026-09-29
 
 ### 清理：仓库里的「本机残留」+ 补全 dashboard 缺件（换机器可用的前提）
