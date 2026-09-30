@@ -21,6 +21,10 @@ MouseArea {
     property string selectedColorGroup: ""
     property bool toolbarVisible: showControls || Config.options.wallpaperSelector.showSearchbar
     property bool filterFieldFocused: false
+    // filterField 的 id 作用域在 Loader 的 sourceComponent 里，文件顶层引用不到，
+    // 直接写 filterField 会 ReferenceError（打开选择器必现）。
+    // 这里在组件内部把引用交给根，外部一律走这个可空属性。
+    property var localFilterField: null
 
     property var quickDirs: [
         { icon: "home",       name: "Home   ",       path: `${Directories.home}`,                alwaysVisible: Config.options.wallpaperSelector.showHomePath },
@@ -127,20 +131,20 @@ MouseArea {
             event.accepted = true;
         } else if (event.key === Qt.Key_Backspace) {
             if (!root.filterFieldFocused) {
-                filterField.forceActiveFocus();
+                root.localFilterField?.forceActiveFocus();
             }
             event.accepted = true;
         } else if (event.modifiers & Qt.ControlModifier && event.key === Qt.Key_L) {
             addressBar.focusBreadcrumb();
             event.accepted = true;
         } else if (event.key === Qt.Key_Slash) {
-            filterField.forceActiveFocus();
+            root.localFilterField?.forceActiveFocus();
             event.accepted = true;
         } else {
-            if (event.text.length > 0 && !root.filterFieldFocused) {
-                filterField.text += event.text;
-                filterField.cursorPosition = filterField.text.length;
-                filterField.forceActiveFocus();
+            if (event.text.length > 0 && !root.filterFieldFocused && root.localFilterField) {
+                root.localFilterField.text += event.text;
+                root.localFilterField.cursorPosition = root.localFilterField.text.length;
+                root.localFilterField.forceActiveFocus();
             }
             event.accepted = true;
         }
@@ -531,6 +535,8 @@ MouseArea {
                                     clip: true
                                     font.pixelSize: Appearance.font.pixelSize.small
                                     onTextChanged: Wallpapers.searchQuery = text
+                                    Component.onCompleted: root.localFilterField = filterField
+                                    Component.onDestruction: root.localFilterField = null
                                     onActiveFocusChanged: root.filterFieldFocused = activeFocus
                                     Keys.onPressed: event => {
                                         if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_V) {
@@ -604,7 +610,7 @@ MouseArea {
         function onWallpaperSelectorOpenChanged() {
             if (GlobalStates.wallpaperSelectorOpen && monitorIsFocused) {
                 if (root.source === "local")
-                    filterField.forceActiveFocus()
+                    root.localFilterField?.forceActiveFocus()
                 else
                     root.forceActiveFocus()
             } else if (!GlobalStates.wallpaperSelectorOpen) {

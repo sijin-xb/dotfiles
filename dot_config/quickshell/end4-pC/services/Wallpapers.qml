@@ -23,7 +23,17 @@ Singleton {
     property string videoThumbScriptPath: `${FileUtils.trimFileProtocol(Directories.scriptPath)}/thumbnails/generate-video-thumbnail.sh`
     property alias directory: folderModel.folder
     readonly property string effectiveDirectory: FileUtils.trimFileProtocol(folderModel.folder.toString())
-    property url defaultFolder: Qt.resolvedUrl(`${Directories.pictures}/Wallpapers`)
+    // 选择器默认目录：优先 config.json 的 background.wallpaperDir（~/ 会被展开），
+    // 没配才落到 ~/Pictures/Wallpapers。
+    readonly property string defaultFolderPath: {
+        let p = String(Config.options.background.wallpaperDir ?? "").trim();
+        if (p.startsWith("~/"))
+            p = Directories.home + p.slice(1);
+        if (p.length === 0)
+            p = `${Directories.pictures}/Wallpapers`;
+        return p;
+    }
+    property url defaultFolder: Qt.resolvedUrl(root.defaultFolderPath)
     property alias folderModel: folderModel // Expose for direct binding when needed
     property string searchQuery: ""
     readonly property list<string> extensions: [

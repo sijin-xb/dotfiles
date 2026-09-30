@@ -435,6 +435,10 @@ Singleton {
                 }
                 property list<string> screenList: [] 
                 property string wallpaperPath: ""
+                // 壁纸选择器（Ctrl+Super+T）默认打开的目录。支持 ~/ 前缀；
+                // 留空回落到 ~/Pictures/Wallpapers。install.sh 会把仓库自带的
+                // 壁纸铺到那个默认目录（sync_wallpapers），所以新装机器不再是空列表。
+                property string wallpaperDir: ""
                 // 视频壁纸后端：mpvpaper / phonto / wallr（缺少首选后端时自动回退到 mpvpaper）
                 property string videoBackend: "mpvpaper"
                 property bool centeredWallpaper: false
