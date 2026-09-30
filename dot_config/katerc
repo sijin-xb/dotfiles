@@ -1,0 +1,23 @@
+[General]
+Days Meta Infos=30
+Save Meta Infos=true
+Show Full Path in Title=false
+# 顶部两根「KDE 味」的条子不要：菜单栏收成 ☰ 汉堡按钮，
+# URL 导航条（文件路径面包屑）直接关掉。想调回来把这两项改成 true。
+Show Menu Bar=false
+Show Url Nav Bar=false
+Show Status Bar=true
+Show Tab Bar=true
+
+[KTextEditor Renderer]
+Animate Bracket Matching=false
+# 必须关掉自动：否则 Kate 会按系统明暗自己挑（通常是 Breeze Dark），
+# 把 matugen 生成的主题顶掉。
+Auto Color Theme Selection=false
+# 主题名对应 ~/.local/share/org.kde.syntax-highlighting/themes/matugen-md3.theme
+# 里的 metadata.name，由 matugen 随壁纸重新生成。
+Color Theme=Matugen MD3
+Line Height Multiplier=1
+Show Indentation Lines=false
+Show Whole Bracket Expression=false
+Word Wrap Marker=false

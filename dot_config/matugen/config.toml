@@ -120,3 +120,24 @@ output_path = '~/.config/obs-studio/themes/matugen.obt'
 [templates.vscode]
 input_path = '~/.config/matugen/templates/vscode-inject.json'
 output_path = '~/.cache/matugen_vscode_inject.json'
+
+# ── 编辑器（micro / Kate / nvim）────────────────────────────────────────
+# 这三个都是**原生格式**，不走 GTK：
+#   · Kate  → KSyntaxHighlighting 的 .theme（JSON）。Kate / KWrite / KDevelop
+#             以及所有用 KTextEditor 的 KDE 应用都读它，跟 GTK 无关。
+#             主题名取自文件里的 metadata.name，文件名随便起。
+#   · micro → micro 自己的 .micro colorscheme（color-link 指令）。
+#   · nvim  → 一个普通 Lua colorscheme，放在 ~/.config/nvim/colors/ 下，
+#             由 :colorscheme matugen 加载（见 nvim/lua/plugins/transparent.lua）。
+# 生成完都要重启对应程序才会重新读取（Kate 也不会热加载主题文件）。
+[templates.kate]
+input_path = '~/.config/matugen/templates/editors/kate-matugen.theme'
+output_path = '~/.local/share/org.kde.syntax-highlighting/themes/matugen-md3.theme'
+
+[templates.micro]
+input_path = '~/.config/matugen/templates/editors/micro-matugen.micro'
+output_path = '~/.config/micro/colorschemes/matugen.micro'
+
+[templates.nvim]
+input_path = '~/.config/matugen/templates/editors/nvim-matugen.lua'
+output_path = '~/.config/nvim/colors/matugen.lua'
