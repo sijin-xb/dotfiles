@@ -213,11 +213,17 @@ chk "历史遗留 .git 被清理"         "$([[ -e $cdst/.git ]] && echo yes)" "
 chk "没有 .git 时幂等且不报错"     "$(cleanup_stray_git "$cdst"; echo rc=$?)" "rc=0"
 
 say_t "J. 依赖声明：本次补的三个 + 复核「故意不加」那批"
-# 只取包列表本体，先剥掉注释（注释里会提到命令名，不能当声明）
-_inline="$(sed -n '/^    PACMAN_PKGS=(/,/^    )/p' "$REPO/install.sh" | sed 's/#.*//')"
+# 包列表现在全部由函数产出（原先固定列表是内联的 PACMAN_PKGS=(...) 字面量，
+# 抽成 fixed_pacman_pkgs / font_* 是为了让 `update --with-packages` 复用同一份，
+# 避免两处各维护一半）。所以这里直接调函数取输出。
+#
+# ⚠ 各 fixed_* 函数的文档注释写在函数**外面**（独立的注释块），printf 里只有
+#   包名，所以取到的输出不含「注释里提到的命令名」，不会把注释当声明。
 _funcs="$(compositor_pkgs 2>/dev/null; shell_pacman_pkgs 2>/dev/null; base_pacman_pkgs 2>/dev/null; \
-          base_aur_pkgs 2>/dev/null; shell_aur_pkgs 2>/dev/null; compositor_aur_pkgs 2>/dev/null)"
-_all_pkgs="$(printf '%s\n%s\n' "$_inline" "$_funcs" | tr -s '[:space:]' '\n')"
+          base_aur_pkgs 2>/dev/null; shell_aur_pkgs 2>/dev/null; compositor_aur_pkgs 2>/dev/null; \
+          fixed_pacman_pkgs 2>/dev/null; fixed_aur_pkgs 2>/dev/null; \
+          font_pacman_pkgs 2>/dev/null; font_aur_pkgs 2>/dev/null)"
+_all_pkgs="$(printf '%s\n' "$_funcs" | tr -s '[:space:]' '\n')"
 has_pkg() { printf '%s\n' "$_all_pkgs" | grep -cx "$1"; }
 
 # 本次坐实后新补的：都在可执行上下文里被真实调用

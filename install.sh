@@ -34,6 +34,16 @@ STATE_DIR="$BACKUP_ROOT/state"
 PRE_INSTALL_PREFIX="pre-install"
 PRE_ROLLBACK_PREFIX="pre-rollback"
 
+# ── 自举（单文件运行）──────────────────────────────────────────────────
+# 本脚本的**部署源**是仓库里的 dot_config/**，所以正常用法是「仓库里的
+# install.sh」。但也可以只把 install.sh 这一个文件捞下来就跑（curl | bash），
+# 这时它必须自己去把仓库拉一份 —— 见 ensure_repo()。
+#
+# 仓库缓存位置固定，不放临时目录：install / update 会反复用它，
+# 放临时目录等于每次都重新 clone（几十 MB）。
+REPO_URL="${DOTFILES_REPO_URL:-https://github.com/sijin-xb/dotfiles.git}"
+REPO_CACHE="${DOTFILES_SRC_DIR:-$HOME/.local/share/dotfiles-src}"
+
 # 快照 / 存档涉及的源路径清单（SNAP_PATHS 18 项 + EXTRA_ARCHIVE_PATHS 3 项）
 # 缺失的路径在 tar 时会跳过，不报错
 SNAP_PATHS=(
@@ -77,6 +87,59 @@ die()  { printf '\033[1;31m错误:\033[0m %s\n' "$*" >&2; exit 1; }
 have() { command -v "$1" >/dev/null 2>&1; }
 in_sync_db() { LC_ALL=C pacman -Si "$1" >/dev/null 2>&1; }
 aur_helper() { if have paru; then echo paru; elif have yay; then echo yay; else echo ""; fi; }
+
+# ============================================================
+# 自举：让「只下一个 install.sh」也能跑
+# ============================================================
+#
+# 本脚本的部署源是仓库里的 dot_config/**、.chezmoiignore、check-qml-deps.py，
+# 所以它平时必须和仓库在一起。但也可以只捞这一个文件就跑：
+#
+#     curl -fsSL https://raw.githubusercontent.com/sijin-xb/dotfiles/main/install.sh \
+#         | bash -s -- update
+#
+# 这时 $SRC 指向的不是仓库（`curl | bash` 下 BASH_SOURCE 是空的，$SRC 会落到
+# 当前目录），ensure_repo() 负责把它补上：clone 到 $REPO_CACHE，或者已经 clone
+# 过就 git pull。
+#
+# ⚠ 补完之后**必须 exec 重跑**，而不是就地改 $SRC 继续跑。原因：刚 clone 下来的
+#   install.sh 才是最新的那一份，手上这个可能是几天前的；就地继续跑等于用旧脚本
+#   配新配置。exec 之后 $SRC 变成 $REPO_CACHE，一切照旧。
+#
+# ⚠ 只在「$SRC 不是可用仓库」时才动网络。仓库里正常执行时这一步是 0 开销的
+#   一次文件存在性判断。
+repo_is_usable() {
+    [[ -f "$SRC/.chezmoiignore" && -d "$SRC/dot_config" ]]
+}
+
+ensure_repo() {
+    repo_is_usable && return 0
+
+    have git || die "需要 git 才能自举拉取仓库（sudo pacman -S git）。"
+    ensure_dirs
+    say "当前目录不是本仓库（$SRC），进入自举模式"
+
+    if [[ -d "$REPO_CACHE/.git" ]]; then
+        say "    更新仓库缓存 $REPO_CACHE"
+        git -C "$REPO_CACHE" fetch --depth=1 origin \
+            || die "拉取 $REPO_URL 失败（检查网络 / 代理后重试）。"
+        local branch
+        branch="$(git -C "$REPO_CACHE" rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)"
+        # --ff-only：缓存目录里可能有本脚本的产物（清单等不在这里，但用户可能手改过），
+        # 用 ff-only 保证绝不产生合并冲突、绝不丢本地提交。
+        git -C "$REPO_CACHE" merge --ff-only "origin/$branch" \
+            || warn "仓库缓存不是 fast-forward，保持现状继续（想强制对齐：rm -rf $REPO_CACHE 后重跑）"
+    else
+        say "    克隆 $REPO_URL → $REPO_CACHE"
+        rm -rf "$REPO_CACHE"
+        git clone --depth=1 "$REPO_URL" "$REPO_CACHE" \
+            || die "克隆 $REPO_URL 失败（检查网络 / 代理；或手动 git clone 到 $REPO_CACHE 后重跑）。"
+    fi
+
+    [[ -x "$REPO_CACHE/install.sh" ]] || chmod +x "$REPO_CACHE/install.sh" 2>/dev/null || true
+    say "    改用仓库里的脚本继续：$REPO_CACHE/install.sh"
+    exec bash "$REPO_CACHE/install.sh" "$@"
+}
 
 aur_install() {
     local helper; helper=$(aur_helper)
@@ -197,6 +260,176 @@ apply_snapshot_from_state() {
     tar --numeric-owner -pzxf "$snap_path" -C "$HOME"
     say "已提取完成（约 ${nfiles} 个文件）"
     return 0
+}
+
+# ============================================================
+# 2b. 升级（update）：部署清单 / 版本比对 / 增量同步
+# ============================================================
+#
+# install 与 update 的分工：
+#   install  从零部署：装包 → 拉底盘 → 编插件 → 部署文件。重跑一次好几分钟，
+#            而且会重拉上游底盘（把本地对底盘的改动冲掉）。
+#   update   只做**文件层**的增量同步：比对清单 → 新增/覆盖/清理 → 写回。
+#            默认完全不碰 pacman / AUR / 底盘 clone（要的话加 --with-packages）。
+#
+# ── 为什么需要「部署清单」────────────────────────────────────────────────
+# 没有清单就不知道**哪些文件是本脚本放进去的**，于是两个后果：
+#   1. 仓库里删掉的文件永远留在 $HOME —— 残留的旧配置会让新版本行为诡异，
+#      而且这类问题极难排查（文件在、名字对、内容过期）。
+#   2. 因为不敢确定归属，清理也无从下手：删错了就是删用户的文件。
+# 清单同时记录每个文件**部署时的内容指纹**，用来区分三种情况：
+#   源变了 + 目标 == 清单指纹  → 用户没动过，安全覆盖
+#   源变了 + 目标 != 清单指纹  → 用户在本地改过，覆盖前显式报出来（备份仍在）
+#   源没变                     → 一个字节都不碰
+#
+# ⚠ 清单按「会话 + 合成器」分开存。部署范围本身就跟会话走（skip_by_shell /
+#   skip_by_compositor），换会话就是另一套几百个文件；拿旧清单去 diff 会把
+#   它们全判成「已删除」。分会话之后，换会话退化成「首次部署」：只新增/覆盖，
+#   不做清理。
+#
+# ⚠ 清理（prune）一律**移到备份目录**，绝不 rm。备份根和 rollback 用的是同一个
+#   （$BACKUP_ROOT/update-<时间戳>），出问题一条 cp 就能捞回来。
+
+PRE_UPDATE_PREFIX="pre-update"
+
+# 会话后缀：清单 / 版本记录按它分开
+manifest_suffix() { printf '%s-%s' "${QS_SHELL:-unknown}" "${COMPOSITOR:-unknown}"; }
+manifest_path()   { printf '%s/deployed-%s.tsv' "$STATE_DIR" "$(manifest_suffix)"; }
+revision_path()   { printf '%s/deployed-revision-%s' "$STATE_DIR" "$(manifest_suffix)"; }
+session_path()    { printf '%s/deployed-session' "$STATE_DIR"; }
+
+# 内容指纹。
+# ⚠ 符号链接记**链接目标**而不是跟随：systemd/user/symlink_mako.service 的内容
+#   是 /dev/null，跟随过去会变成「哈希 /dev/null 的内容」，改链接目标检测不出来。
+fingerprint() {
+    local p="$1"
+    if [[ -L "$p" ]]; then
+        printf 'link:%s' "$(readlink "$p")"
+    elif [[ -f "$p" ]]; then
+        sha256sum "$p" 2>/dev/null | cut -d' ' -f1
+    else
+        printf 'absent'
+    fi
+}
+
+# 写清单。$@ = 相对 $HOME 的路径
+manifest_write() {
+    local out; out="$(manifest_path)"
+    ensure_dirs
+    : > "$out"
+    local rel
+    for rel in "$@"; do
+        [[ -n "$rel" ]] || continue
+        printf '%s\t%s\n' "$(fingerprint "$HOME/$rel")" "$rel" >> "$out"
+    done
+}
+
+# 读旧清单到关联数组 OLD_MANIFEST[relpath]=指纹。返回 1 = 没有清单（首次）
+declare -A OLD_MANIFEST=()
+manifest_read() {
+    OLD_MANIFEST=()
+    local f; f="$(manifest_path)"
+    [[ -s "$f" ]] || return 1
+    local fp rel
+    while IFS=$'\t' read -r fp rel; do
+        [[ -n "$rel" ]] && OLD_MANIFEST["$rel"]="$fp"
+    done < "$f"
+    return 0
+}
+
+current_revision() {
+    if have git && [[ -d "$SRC/.git" ]]; then
+        git -C "$SRC" rev-parse --short HEAD 2>/dev/null || echo unknown
+    else
+        echo unknown
+    fi
+}
+
+# 记录本次部署的版本与会话。update 靠它做版本比对、靠 session_path 沿用会话。
+record_revision() {
+    ensure_dirs
+    local rev branch dirty
+    rev="$(current_revision)"
+    branch="$(git -C "$SRC" rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
+    dirty="$(git -C "$SRC" status --porcelain 2>/dev/null | wc -l)"
+    {
+        printf 'revision=%s\n'   "$rev"
+        printf 'branch=%s\n'     "$branch"
+        printf 'dirty=%s\n'      "$dirty"
+        printf 'session=%s\n'    "${QS_SHELL:-unknown}"
+        printf 'compositor=%s\n' "${COMPOSITOR:-unknown}"
+        printf 'time=%s\n'       "$(date -Iseconds)"
+    } > "$(revision_path)"
+    printf '%s|%s\n' "${QS_SHELL:-unknown}" "${COMPOSITOR:-unknown}" > "$(session_path)"
+}
+
+# 把仓库源树遍历一遍，对每个「应该部署」的文件调用回调。
+# 回调参数：源文件 / 目标目录 / 目标文件名 / 仓库内相对路径
+# 过滤规则与 [5/7] 完全一致（chezmoi 前缀在 deploy_one_file 内部剥离）。
+walk_sources() {
+    local cb="$1"
+    local f rel out base dir
+    while IFS= read -r -d '' f; do
+        rel="${f#"$SRC"/}"
+        case "$rel" in
+            .git/*|install.sh|README.md|LICENSE|check-qml-deps.py) continue ;;
+            dot_*) out="$HOME/.${rel#dot_}" ;;
+            *) continue ;;
+        esac
+        skip_by_compositor "$rel" && { skipped=$((skipped + 1)); continue; }
+        skip_by_shell "$rel" && { skipped_shell=$((skipped_shell + 1)); continue; }
+        base="${out##*/}"; dir="${out%/*}"
+        "$cb" "$f" "$dir" "$base" "$rel"
+    done < <(find "$SRC" -type f -print0)
+}
+
+# ── 部署回调（install 的 [5/7] 与 update 共用）────────────────────────────
+# 除了部署，还负责记录「本脚本真正落盘的文件」—— 清单就靠它。
+#
+# ⚠ 被 .chezmoiignore 判定为 skip/keep 的文件**不能**进清单：
+#   · skip 的是缓存 / 字节码 / 插件 git 元数据，本来就不该由我们管；
+#   · keep 的是运行时生成物（matugen 配色等），目标是用户当前的值，
+#     下次 update 拿它去比「已删除」会把用户自己的配置清掉。
+#   所以用 ignored_* 计数器的变化来区分「真部署了」和「被忽略了」。
+DEPLOYED_RELPATHS=()
+# update 用：这批目标路径**不要部署**（首次升级时目标已存在且与源不同，
+# 无法判断是「上次部署的旧版」还是「用户自己的文件」，默认不动）。
+declare -A SKIP_DEPLOY=()
+skipped_conflict=0
+deploy_and_record() {
+    local f="$1" dir="$2" base="$3"
+    local rel="${dir#"$HOME"/}/$base"
+    if [[ -n "${SKIP_DEPLOY[$rel]+x}" ]]; then
+        skipped_conflict=$((skipped_conflict + 1))
+        return 0
+    fi
+    local before_skip=$ignored_skip before_keep=$ignored_keep
+    deploy_one_file "$f" "$dir" "$base"
+    if (( ignored_skip == before_skip && ignored_keep == before_keep )); then
+        DEPLOYED_RELPATHS+=("${dir#"$HOME"/}/$base")
+    fi
+    installed=$((installed + 1))
+}
+
+# ── 计划回调（update 用）────────────────────────────────────────────────
+# 只收集，不落盘。同时记住源路径，用来算「源内容变了没」。
+#
+# ⚠ 这里必须复刻 deploy_one_file 的 .chezmoiignore 判断，否则会出现两类噪声：
+#   · skip 的（缓存 / 字节码 / 插件 git 元数据）根本不会被部署，列进计划纯属多余；
+#   · keep 的（matugen 配色、btop.conf、fastsetup config 这类**运行时生成物**）
+#     目标是用户当前的值，会被判成「目标存在且与源不同」→ 全被列成「冲突」，
+#     把真正需要人工看的几项淹掉。
+PLAN_PATHS=()
+PLAN_SRCS=()
+plan_collect() {
+    local f="$1" dir="$2" base="$3"
+    local rel="${dir#"$HOME"/}/$base"
+    case "$(chezmoi_ignore_kind "$rel")" in
+        skip) return 0 ;;
+        keep) [[ -e "$HOME/$rel" || -L "$HOME/$rel" ]] && return 0 ;;
+    esac
+    PLAN_PATHS+=("$rel")
+    PLAN_SRCS+=("$f")
 }
 
 # ---------- 会话选择：合成器 + 桌面 Shell（三选一） ----------
@@ -362,9 +595,22 @@ compositor_aur_pkgs() {
 #                    `awww query` 取当前壁纸；install.sh 只装了 mpvpaper（视频
 #                    壁纸），静态壁纸后端以前一直是空的。
 #                    ⚠ 包名是 awww-git：AUR 上没有叫 awww 的包。
+#
+#   end4-PC: plasma6-themes-colloid-git —— Kvantum 的 Colloid 基底主题。
+#            end4-pC 的 Qt 配色链路（scripts/kvantum/materialQT.sh）把
+#            material_colors.scss 重着色到 MaterialAdw 主题上，而 MaterialAdw
+#            是 **Colloid 的副本**，没有基底就无从生成。
+#            ⚠ 它提供的是 Colloid-kde（vinceliuice/Colloid-kde），装到
+#               /usr/share/Kvantum/Colloid/。AUR 上**没有**只含 Kvantum 部分的
+#               Colloid 包：colloid-gtk-theme-git 的仓库里根本没有 Kvantum 目录，
+#               所以只能装这个（会顺带带上 aurorae / plasma / sddm 主题，
+#               不用 Plasma 也用不到，属于可接受的代价）。
+#            ⚠ 只有 end4-PC 需要：caelestia 没有 scripts/kvantum/ 这条链路
+#               （见 skip_by_shell 对 dot_config/quickshell/end4-pC/** 的过滤）。
 shell_aur_pkgs() {
     case "$QS_SHELL" in
         caelestia) echo "" ;;
+        end4-PC)   echo "plasma6-themes-colloid-git" ;;
         dms)       echo "dms-shell-git dms-shell-niri nirius awww-git" ;;
         *)         echo "" ;;
     esac
@@ -393,9 +639,39 @@ base_aur_pkgs() {
 #         默认键位 Ctrl+Alt+R（见 dot_config/niri/dms/binds.kdl）。不装也能录，
 #         但会回退到 wf-recorder（CPU 编码、纯画面无声音）；插件按
 #         command -v 探测，装了就自动优先用它。
+#
+#   end4-PC: kvantum + kvantum-qt5 —— Qt 应用的 SVG 主题引擎。
+#         end4-pC 的取色链路末端（switchwall.sh 的 post_process →
+#         scripts/kvantum/materialQT.sh）会把 material_colors.scss 落到
+#         MaterialAdw 主题上，再由 kvantummanager 通知 Qt 应用重新读取。
+#         缺了它，MaterialAdw 写出来也没人读，Qt 应用永远停在 Colloid 原色。
+#         kvantum-qt5 是给 Qt5 应用用的（Qt6 由 kvantum 提供），两者一起装
+#         才覆盖完整。同样只有 end4-PC 需要。
+#
+#         qt6-positioning / kirigami / syntax-highlighting —— QML 模块依赖，
+#         quickshell **不会**带进来（它们不在 quickshell 的依赖列表里）：
+#           qt6-positioning      → services/Weather.qml 的 `import QtPositioning`
+#                                  用的是 PositionSource（GPS 定位）。模块缺失
+#                                  会让整个 Weather.qml 变 unavailable，所有
+#                                  天气组件连带挂掉。
+#           kirigami             → modules/common/widgets/AppIcon.qml 的**根类型**
+#                                  就是 Kirigami.Icon。它一挂，引用它的
+#                                  modules/ii/bar/Workspaces.qml 一起 unavailable
+#                                  → 栏左侧工作区指示器整个消失（没有 ERROR，
+#                                  只有一行 WARN scene: ... unavailable）。
+#           syntax-highlighting  → aiChat/MessageCodeBlock.qml 的代码块高亮。
+#
+#         ⚠ 这三个在本机「看起来不缺」，是因为装了 KDE/Plasma 全家桶
+#           （kirigami 被 36 个 Plasma 包依赖、syntax-highlighting 被 kate 依赖、
+#           qt6-positioning 被 plasma-workspace 依赖）。**纯净安装的机器上会缺。**
+#         ⚠ 别把它们挪进 base_pacman_pkgs()：caelestia 完全不 import 这三个
+#           模块，没有理由让 caelestia 用户多背 19MB。
+#         ⚠ 新增任何 `import <Qt 模块>` 都要回来核一遍这里 —— install.sh 末尾
+#           的 [7/7] 会跑 scripts/check_qml_deps.py 自动扫，缺了会直接报出来。
 shell_pacman_pkgs() {
     case "$QS_SHELL" in
         caelestia) echo "" ;;
+        end4-PC)   echo "kvantum kvantum-qt5 qt6-positioning kirigami syntax-highlighting" ;;
         dms)       echo "gpu-screen-recorder" ;;
         *)         echo "" ;;
     esac
@@ -408,6 +684,128 @@ base_pacman_pkgs() {
         dms) echo "" ;;
         *)   echo "aubio libpipewire libqalculate lm_sensors fftw spirv-tools" ;;
     esac
+}
+
+# ============================================================
+# 固定包列表（与所选会话无关的那部分）
+# ============================================================
+#
+# 抽成函数是为了让 `update --with-packages` 也能用同一份列表：
+# 升级时新版本新增的依赖必须补上，否则就是「配置更新了、依赖没装」的静默故障。
+# 历史上踩过两次：Neovim 只跟踪配置没跟踪包、Caelestia 插件依赖只在
+# caelestia 分支装（end4-pC 用户的锁屏直接加载不出来）。
+#
+# ⚠ 往下面加包之后，已装旧版本的机器要跑一次 `./install.sh update --with-packages`
+#   （或 `install`）才会装上 —— update 只补不卸，不会动其它包。
+
+fixed_pacman_pkgs() {
+    printf '%s\n' \
+        git base-devel github-cli \
+        starship \
+        kitty jq fish fuzzel \
+        grim wl-clipboard wtype playerctl \
+        fcitx5 fcitx5-rime fcitx5-configtool \
+        xorg-xcursorgen \
+        cliphist easyeffects hypridle hyprlock \
+        gnome-keyring \
+        python \
+        procps-ng \
+        psmisc \
+        libnotify \
+        imagemagick \
+        noise-suppression-for-voice \
+        ffmpeg \
+        wf-recorder \
+        wget \
+        songrec \
+        sddm \
+        neovim ripgrep fd fzf lazygit tree-sitter-cli \
+        neovide \
+        cmake ninja \
+        qt6-base qt6-declarative qt6-wayland qt6-5compat qt6-shadertools qt6-svg \
+        wayland-protocols
+}
+
+# 每个包的「为什么必须要」写在这里（原来是内联在 cmd_install 的数组字面量里，
+# 抽出来之后注释跟着列表走，避免两边各留一半）：
+#
+#   starship            fish 默认提示符（config.fish 里 starship init fish | source），
+#                       matugen 还有 templates/starship.toml 取色模板。缺了就是
+#                       「有 ~/.config/starship.toml、提示符却是原生 fish」这类静默故障。
+#   xorg-xcursorgen     generate_cursor_theme.py 把重着色后的 SVG 重编成 XCursor
+#                       主题的工具（librsvg 的 rsvg-convert 负责前半段渲染）。
+#                       缺了同样卡死光标生成，报错只有一句 "required tool missing"。
+#   procps-ng           提供 ps 命令，仪表盘系统页的进程列表依赖它
+#                       （base 组已含，这里显式声明以防万一被精简掉）。
+#   psmisc              提供 killall。hypr 的 CTRL+SUPER+R（重启 quickshell）是
+#                       hl.exec_cmd("killall ydotool qs quickshell; qs -c $qsConfig &")，
+#                       这是真调用不是注释；killall 属 psmisc，与 procps-ng 的
+#                       pkill/pgrep 不是一个包，别指望顺带带入。
+#   libnotify           提供 notify-send：19 个配置文件靠它上报结果与报错
+#                       （switchwall 配色、截图、录屏、随机壁纸、强制关窗……）。
+#                       缺了不只是"少个气泡"——模糊壁纸脚本把它写进 DEPENDENCIES，
+#                       缺失时直接 exit 1，连"缺依赖"这件事都报不出来。
+#   imagemagick         提供 magick：与上面同一个脚本的 DEPENDENCIES 里和
+#                       notify-send 并列，负责总览模糊底图的高斯模糊与填充着色
+#                       （IMG_BLUR_* / IMG_COLORIZE_*），缺了同样 exit 1。
+#   noise-suppression-for-voice
+#                       提供 LADSPA 插件 librnnoise_ladspa，
+#                       pipewire.conf.d/99-input-denoising.conf 的麦克风降噪
+#                       filter-chain 依赖它。⚠ 那个模块即使有 ifexists nofail
+#                       兜底，缺包也只是「降噪源消失」——装上它降噪才真正生效
+#                       （2026-09-30 音频全栈 failed 的根因）。
+#   ffmpeg              视频缩略图 / 动态取色（DMS 的 mpvpaper 视频壁纸插件依赖它）。
+#                       通用工具，别的 shell 也可能用到，保留在基础列表。
+#   wf-recorder         屏幕录制。end4-PC 的录屏实现（scripts/videos/record.sh）
+#                       直接调它，RegionSelection 也用 `pidof wf-recorder` 判断
+#                       录制状态；dms 用 gpu-screen-recorder，多装一个不碍事。
+#   wget                fish 的 `wget` 包装函数（下载进度上报灵动岛，见
+#                       dot_config/fish/functions/wget.fish）内部是 `command wget`，
+#                       缺了那个函数直接失效。脚本自身只用 curl，以前一直靠依赖
+#                       顺带带入。
+#   songrec             Shazam 客户端，end4-PC 的音乐识别
+#                       （scripts/musicRecognition/recognize-music.sh 硬依赖，
+#                       翻译表里也写了「请确保你已安装 songrec」）。在 extra 里。
+#   sddm                登录管理器（主题用 Catppuccin Mocha，见
+#                       docs/login-screen.md）。注意：若机器上用的是 plasmalogin
+#                       （KDE 新版 DM），两者可共存，切换只需 systemctl
+#                       disable/enable，见文档。
+#   neovim 生态         配置在 dot_config/nvim/（LazyVim）。**编辑器本体必须在这里
+#                       显式声明**：之前只跟踪了配置、没跟踪包，新机器装完是
+#                       「有配置、没编辑器」，而且 install.sh 不会报任何错
+#                       —— 和字体漏装是同一类静默故障。
+#                       ripgrep / fd：Telescope 找文件与全局搜索的后端，缺了会
+#                                     静默回退到更慢的 find。
+#                       fzf：fish 的 fzf 绑定，以及 telescope-fzf-native 的构建基础。
+#                       lazygit：<leader>gg 的前提，缺了那个键位根本不存在
+#                                （LazyVim 有 executable 守卫）。
+#                       tree-sitter-cli：手动编译/调试语法解析器用。
+#   neovide             nvim 的 GUI 前端。字体对齐 kitty，见
+#                       dot_config/neovide/config.toml。
+#   cmake ninja         quickshell 源码编译工具链（三级回退时使用，平时不碍事）。
+
+# 固定 AUR 包（matugen 取色 / mpvpaper 视频壁纸 / walker 启动器 /
+# Catppuccin 的 SDDM 主题与光标）。
+fixed_aur_pkgs() {
+    printf '%s\n' matugen mpvpaper walker catppuccin-sddm-theme-mocha catppuccin-cursors-mocha
+}
+
+# 字体链（可选，见 choose_fonts）。分开成函数的原因同上。
+#   ttf-jetbrains-mono-nerd  kitty 终端的 Nerd 图标
+#   noto-fonts-cjk           按语言切换 CJK 字形的全部地区变体（JP/KR/TC/HK）
+#   adobe-source-han-sans-cn 思源黑体 CN：GTK settings.ini 与 fcitx5
+#                            classicui.conf 硬编码了它，不能只靠 fontconfig 别名
+font_pacman_pkgs() {
+    printf '%s\n' ttf-jetbrains-mono-nerd ttf-nerd-fonts-symbols \
+        noto-fonts noto-fonts-cjk noto-fonts-emoji \
+        adobe-source-han-sans-cn-fonts
+}
+
+# ⚠ AUR 包名不规则：上游 README 写的 ttf-maplemononormal-nf-cn 并不存在，
+#   实际是 maplemononormal-nf-cn（无 ttf- 前缀）。
+font_aur_pkgs() {
+    printf '%s\n' otf-misans maplemononormal-nf-cn \
+        ttf-lxgw-wenkai ttf-lxgw-wenkai-screen ttf-lxgw-wenkai-tc
 }
 
 # 按 $COMPOSITOR / $QS_SHELL 过滤 SNAP_PATHS，输出到 stdout（一行一个）。
@@ -805,6 +1203,7 @@ cmd_install() {
     [[ ${EUID} -eq 0 ]] && die "请勿用 root 运行（makepkg/AUR 步骤需要普通用户）。"
     have pacman || die "找不到 pacman。"
 
+    ensure_repo "$@"          # 单文件运行时自举拉仓库并 exec 重跑
     ensure_dirs
     session_warning_if_running
 
@@ -817,80 +1216,9 @@ cmd_install() {
     # 合成器本体与 portal 由 choose_session 的结果决定，单独追加到最后
     choose_session
     choose_fonts
-    PACMAN_PKGS=(
-        git base-devel github-cli
-        # starship：fish 默认提示符（config.fish 里 starship init fish | source），
-        # matugen 还有 templates/starship.toml 取色模板。缺了就是
-        # 「有 ~/.config/starship.toml、提示符却是原生 fish」这类静默故障。
-        starship
-        kitty jq fish fuzzel
-        grim wl-clipboard wtype playerctl
-        fcitx5 fcitx5-rime fcitx5-configtool
-        # xorg-xcursorgen：generate_cursor_theme.py 把重着色后的 SVG 重编成
-        #   XCursor 主题的工具（librsvg 的 rsvg-convert 负责前半段渲染）。
-        #   缺了同样卡死光标生成，报错只有一句 "required tool missing"。
-        xorg-xcursorgen
-        cliphist easyeffects hypridle hyprlock
-        gnome-keyring
-        python
-        # procps-ng 提供 ps 命令，仪表盘系统页的进程列表依赖它
-        # （base 组已含，这里显式声明以防万一被精简掉）
-        procps-ng
-        # psmisc 提供 killall。hypr 的 CTRL+SUPER+R（重启 quickshell）是
-        # hl.exec_cmd("killall ydotool qs quickshell; qs -c $qsConfig &")，
-        # 这是真调用不是注释；killall 属 psmisc，与 procps-ng 的 pkill/pgrep
-        # 不是一个包，别指望顺带带入。
-        psmisc
-        # libnotify 提供 notify-send：19 个配置文件靠它上报结果与报错
-        # （switchwall 配色、截图、录屏、随机壁纸、强制关窗……）。
-        # 缺了不只是"少个气泡"——模糊壁纸脚本把它写进 DEPENDENCIES，
-        # 缺失时直接 exit 1，连"缺依赖"这件事都报不出来。
-        libnotify
-        # imagemagick 提供 magick：与上面同一个脚本的 DEPENDENCIES 里和
-        # notify-send 并列，负责总览模糊底图的高斯模糊与填充着色（IMG_BLUR_*
-        # / IMG_COLORIZE_*），缺了同样 exit 1。
-        imagemagick
-        # noise-suppression-for-voice：提供 LADSPA 插件 librnnoise_ladspa，
-        #   pipewire.conf.d/99-input-denoising.conf 的麦克风降噪 filter-chain
-        #   依赖它。⚠ 那个模块即使有 ifexists nofail 兜底，缺包也只是「降噪源
-        #   消失」——装上它降噪才真正生效（2026-09-30 音频全栈 failed 的根因）。
-        noise-suppression-for-voice
-        # ffmpeg：视频缩略图 / 动态取色（DMS 的 mpvpaper 视频壁纸插件依赖它）。
-        # 通用工具，别的 shell 也可能用到，保留在基础列表。
-        ffmpeg
-        # wf-recorder：屏幕录制。end4-PC 的录屏实现（scripts/videos/record.sh）
-        # 直接调它，RegionSelection 也用 `pidof wf-recorder` 判断录制状态；
-        # dms 用 gpu-screen-recorder，多装一个不碍事。
-        wf-recorder
-        # wget：fish 的 `wget` 包装函数（下载进度上报灵动岛，见
-        # dot_config/fish/functions/wget.fish）内部是 `command wget`，
-        # 缺了那个函数直接失效。脚本自身只用 curl，以前一直靠依赖顺带带入。
-        wget
-        # songrec（Shazam 客户端）：end4-PC 的音乐识别
-        # （scripts/musicRecognition/recognize-music.sh 硬依赖，翻译表里也写了
-        #   「请确保你已安装 songrec」）。在官方仓库 extra 里。
-        songrec
-        # 登录管理器：SDDM（主题用 Catppuccin Mocha，见 docs/login-screen.md）
-        # 注意：若机器上用的是 plasmalogin（KDE 新版 DM），两者可共存，
-        # 切换只需 systemctl disable/enable，见文档。
-        sddm
-        # ---- Neovim 生态 ----
-        # 配置在 dot_config/nvim/（LazyVim）。**编辑器本体必须在这里显式声明**：
-        # 之前只跟踪了配置、没跟踪包，新机器装完是「有配置、没编辑器」，
-        # 而且 install.sh 不会报任何错——和字体漏装是同一类静默故障。
-        # ripgrep / fd：Telescope 找文件与全局搜索的后端，缺了会静默回退到更慢的 find。
-        # fzf：fish 的 fzf 绑定，以及 telescope-fzf-native 的构建基础。
-        # lazygit：<leader>gg 的前提，缺了那个键位根本不存在（LazyVim 有 executable 守卫）。
-        # tree-sitter-cli：手动编译/调试语法解析器用。
-        neovim ripgrep fd fzf lazygit tree-sitter-cli
-        # neovide：nvim 的 GUI 前端。字体对齐 kitty，
-        # 见 dot_config/neovide/config.toml。
-        neovide
-        # quickshell 源码编译工具链（三级回退时使用，平时不碍事）
-        cmake ninja
-        qt6-base qt6-declarative qt6-wayland qt6-5compat qt6-shadertools qt6-svg
-        wayland-protocols
-    )
+    # 固定列表见 fixed_pacman_pkgs()（抽成函数是为了让 update 复用同一份）。
+    # 每个包的「为什么必须要」也记在那里。
+    mapfile -t PACMAN_PKGS < <(fixed_pacman_pkgs)
     # 追加合成器相关包（niri 或 hyprland + 对应 portal）
     # shellcheck disable=SC2207
     PACMAN_PKGS+=($(compositor_pkgs))
@@ -917,10 +1245,11 @@ cmd_install() {
     #   adobe-source-han-sans-cn 思源黑体 CN：不再走 fontconfig 别名，但 GTK
     #                            settings.ini 与 fcitx5 classicui.conf 硬编码了它
     if fonts_enabled; then
-        # shellcheck disable=SC2207
-        PACMAN_PKGS+=(ttf-jetbrains-mono-nerd ttf-nerd-fonts-symbols
-                      noto-fonts noto-fonts-cjk noto-fonts-emoji
-                      adobe-source-han-sans-cn-fonts)
+        # 字体包列表见 font_pacman_pkgs()（见 choose_fonts）：不想被塞 200MB+ 的
+        # 字体链就 FONTS=0。
+        local _font_pkgs
+        mapfile -t _font_pkgs < <(font_pacman_pkgs)
+        PACMAN_PKGS+=("${_font_pkgs[@]}")
         say "    字体（pacman）: Nerd Mono / Noto CJK / 思源黑体"
     else
         say "    字体: 已跳过（FONTS=0），不安装任何系统字体包"
@@ -961,7 +1290,8 @@ cmd_install() {
     #   catppuccin-mocha-pink-cursors 为底、按 matugen 主色重着色生成
     #   ~/.local/share/icons/Matugen-Cursors（环境里 XCURSOR_THEME 引用的就是它）。
     #   缺了脚本直接 "generation failed"，光标永远回退默认。
-    AUR_PKGS=(matugen mpvpaper walker catppuccin-sddm-theme-mocha catppuccin-cursors-mocha)
+    # 固定 AUR 列表见 fixed_aur_pkgs()。
+    mapfile -t AUR_PKGS < <(fixed_aur_pkgs)
     # 字体链（可选，见 choose_fonts；偏好链在 ~/.config/fontconfig/fonts.conf）：
     #   otf-misans             sans-serif 默认（MiSans）
     #   maplemononormal-nf-cn  monospace 默认（自带 Nerd 图标 + 中文）
@@ -971,8 +1301,9 @@ cmd_install() {
     # ⚠ AUR 包名不规则：上游 README 写的 ttf-maplemononormal-nf-cn 并不存在，
     #   实际是 maplemononormal-nf-cn（无 ttf- 前缀）。
     if fonts_enabled; then
-        AUR_PKGS+=(otf-misans maplemononormal-nf-cn
-                   ttf-lxgw-wenkai ttf-lxgw-wenkai-screen ttf-lxgw-wenkai-tc)
+        local _font_aur
+        mapfile -t _font_aur < <(font_aur_pkgs)
+        AUR_PKGS+=("${_font_aur[@]}")
         say "    字体（AUR）  : MiSans / Maple Mono NF / 霞鹜文楷三兄弟"
     fi
     # 追加合成器本体的 AUR 包（见 compositor_aur_pkgs：
@@ -1279,29 +1610,16 @@ cmd_install() {
     backup_dir="$BACKUP_ROOT/$(now_ts)"
     installed=0; backed=0; skipped=0; skipped_shell=0
     ignored_skip=0; ignored_keep=0
-    while IFS= read -r -d '' f; do
-        rel="${f#"$SRC"/}"
-        case "$rel" in
-            .git/*|install.sh|README.md|LICENSE) continue ;;
-            dot_*) out="$HOME/.${rel#dot_}" ;;
-            *) continue ;;
-        esac
-        # 只部署选中的那套合成器配置；另一套一个字节都不碰
-        # （见 skip_by_compositor 的说明，INSTALL_BOTH_COMPOSITORS=1 可两套都装）
-        if skip_by_compositor "$rel"; then
-            skipped=$((skipped + 1))
-            continue
-        fi
-        # 只部署选中 shell 的差异层（见 skip_by_shell）
-        if skip_by_shell "$rel"; then
-            skipped_shell=$((skipped_shell + 1))
-            continue
-        fi
-        base="${out##*/}"; dir="${out%/*}"
-        deploy_one_file "$f" "$dir" "$base"
-        installed=$((installed + 1))
-    done < <(find "$SRC" -type f -print0)
+    DEPLOYED_RELPATHS=()
+    # 遍历 + 过滤 + 部署 + 记录清单，全部收敛在 walk_sources/deploy_and_record
+    # 里，和 update 共用同一份逻辑（避免两处各维护一遍过滤规则）。
+    walk_sources deploy_and_record
     say "已部署 $installed 个文件；$backed 个有差异的旧文件备份于 $backup_dir"
+    # 写部署清单与版本记录 —— update 靠它们做增量比对。
+    # 首次 install 时清单是新建的；重跑 install 会覆盖成最新状态。
+    manifest_write "${DEPLOYED_RELPATHS[@]}"
+    record_revision
+    echo "    部署清单: $(manifest_path)（${#DEPLOYED_RELPATHS[@]} 条）"
     if ((ignored_skip || ignored_keep)); then
         echo "    按 .chezmoiignore 跳过 $ignored_skip 个（缓存/字节码/插件元数据/UI 写回的配置）；"
         echo "    $ignored_keep 个运行时生成物已存在，保留当前值不覆盖（matugen 配色等）。"
@@ -1392,6 +1710,32 @@ cmd_install() {
         echo "    已触发一次 matugen 渲染（后台执行，图标主题会随之生成）"
     fi
 
+    # ---------- QML 模块依赖自检 ----------
+    # QML 的模块依赖是运行时解析的：缺一个 import 不会让 shell 启动失败，只会让
+    # 「那一个文件」unavailable，然后引用它的东西连带失败 —— 日志里只有一行
+    # `WARN scene: ... unavailable`，没有 ERROR，肉眼看到的是「某个组件凭空消失」。
+    # 历史上踩过两次：Caelestia 插件（锁屏整个加载不出来）、kirigami
+    # （AppIcon.qml 的根类型就是 Kirigami.Icon → Bar 的 workspaces 消失）。
+    #
+    # 更麻烦的是这类缺失在**装过 KDE/Plasma 的机器上不会暴露**（被全家桶顺带补上），
+    # 只有纯净安装才看得见。所以这里显式核一遍，把缺的包名和补救命令直接打出来。
+    #
+    # 只对 quickshell 会话跑：dms 不用 quickshell，没有这套 QML 模块。
+    if [[ "$QS_SHELL" != "dms" && -x "$SRC/check-qml-deps.py" ]]; then
+        local qml_report qml_rc
+        qml_report="$("$SRC/check-qml-deps.py" --quiet 2>&1)"
+        qml_rc=$?
+        if (( qml_rc != 0 )); then
+            echo
+            warn "QML 模块依赖不全 —— 下面这些组件启动后会静默消失（不会报错）"
+            printf '%s\n' "$qml_report"
+            echo
+            warn "装上补救命令里的包后重跑本脚本，或手动再跑：$SRC/check-qml-deps.py"
+        else
+            echo "    QML 模块依赖自检：齐全"
+        fi
+    fi
+
     # ---------- [7/7] 完成 ----------
     say "[7/7] 完成！接下来的步骤："
     # 第 1 步与所选合成器相关，单独输出
@@ -1460,6 +1804,267 @@ EOF
 # ============================================================
 # 4. 回档 / 恢复 / 卸载 / 存档
 # ============================================================
+
+# ============================================================
+# 3b. update：增量升级（不重装包、不重拉底盘）
+# ============================================================
+#
+# 用法：
+#   ./install.sh update                    增量同步文件（最常用）
+#   ./install.sh update --dry-run          只看会改什么，一个字节都不写
+#   ./install.sh update --with-packages    顺便补齐新增的依赖包
+#   ./install.sh update --no-prune         不做「已删除文件」清理
+#   ./install.sh update --force            版本没变也照跑
+#   ./install.sh update --yes              不交互确认
+#
+# 与 install 的边界：install 管「装包 → 拉底盘 → 编插件 → 部署」，重跑要几分钟，
+# 而且会把本地对上游底盘的改动冲掉。update 只管**文件层**，且默认连仓库都不拉
+# （拉仓库用 --pull，或直接在仓库里 git pull 后再 update）。
+cmd_update() {
+    local dry_run=0 with_packages=0 force=0 prune=1 assume_yes=0 pull=0
+    while (($#)); do
+        case "$1" in
+            --dry-run|-n)    dry_run=1 ;;
+            --with-packages) with_packages=1 ;;
+            --force)         force=1 ;;
+            --no-prune)      prune=0 ;;
+            --pull)          pull=1 ;;
+            --yes|-y)        assume_yes=1 ;;
+            -h|--help)       print_help; return 0 ;;
+            *) die "update 不认识参数: $1
+    支持：--dry-run / --with-packages / --force / --no-prune / --pull / --yes" ;;
+        esac
+        shift
+    done
+
+    [[ -f /etc/arch-release ]] || die "本安装器仅支持 Arch Linux 系发行版（CachyOS / Arch 等）。"
+    [[ ${EUID} -eq 0 ]] && die "请勿用 root 运行（makepkg/AUR 步骤需要普通用户）。"
+    have pacman || die "找不到 pacman。"
+
+    ensure_repo "$@"          # 单文件运行时自举拉仓库并 exec 重跑
+    ensure_dirs
+    session_warning_if_running
+
+    # ── 可选：先把仓库拉到最新 ──────────────────────────────────────
+    # 默认不拉：多数人是在仓库里改完再跑 update，自动 pull 反而会跟未提交改动打架。
+    if ((pull)); then
+        if [[ -d "$SRC/.git" ]]; then
+            say "拉取仓库最新提交（--pull）"
+            git -C "$SRC" pull --ff-only \
+                || die "git pull 失败（有本地未提交改动或不是 fast-forward）。先手动处理再重试。"
+        else
+            warn "--pull 指定了但 $SRC 不是 git 仓库，跳过"
+        fi
+    fi
+
+    # ── 会话：优先 SESSION 环境变量，其次沿用上次记录 ────────────────
+    # ⚠ 必须显式提示沿用了哪个。部署范围跟会话走（skip_by_shell /
+    #   skip_by_compositor），静默换会话会让清单和实际部署对不上。
+    if [[ -z "${SESSION:-}" && -z "${QS_SHELL:-}" && -f "$(session_path)" ]]; then
+        local saved; saved="$(<"$(session_path)")"
+        local saved_shell="${saved%%|*}" saved_comp="${saved##*|}"
+        if [[ -n "$saved_shell" && "$saved_shell" != "unknown" ]]; then
+            QS_SHELL="$saved_shell"; COMPOSITOR="$saved_comp"
+            echo "    沿用上次的会话：$QS_SHELL + $COMPOSITOR（要换：SESSION=dms $0 update）"
+        fi
+    fi
+    if [[ -z "${QS_SHELL:-}" ]]; then
+        choose_session
+    fi
+
+    # ── 版本比对 ────────────────────────────────────────────────────
+    local old_rev="" new_rev dirty
+    new_rev="$(current_revision)"
+    [[ -f "$(revision_path)" ]] && old_rev="$(sed -n 's/^revision=//p' "$(revision_path)" | head -n1)"
+    dirty="$(git -C "$SRC" status --porcelain 2>/dev/null | wc -l)"
+    [[ -n "$dirty" ]] || dirty=0
+
+    echo "----------------------------------------------------------------------"
+    echo "  部署会话 : $QS_SHELL + $COMPOSITOR"
+    echo "  上次部署 : ${old_rev:-（无记录，按首次升级处理）}"
+    if (( dirty > 0 )); then
+        echo "  仓库当前 : $new_rev  （工作区 $dirty 处未提交改动）"
+    else
+        echo "  仓库当前 : $new_rev"
+    fi
+    if [[ -n "$old_rev" && "$old_rev" == "$new_rev" && $force -eq 0 && $dirty -eq 0 ]]; then
+        echo "  状态     : 没有新提交 —— 仍会按清单核一遍文件（要跳过请 Ctrl-C）"
+    fi
+    echo "----------------------------------------------------------------------"
+
+    # ── 算清单 diff ─────────────────────────────────────────────────
+    local had_manifest=1
+    manifest_read || had_manifest=0
+
+    PLAN_PATHS=()
+    local skipped=0 skipped_shell=0
+    walk_sources plan_collect
+
+    local -a added=() changed=() removed=() local_modified=() conflicts=()
+    local i rel src_fp
+    declare -A NEWSET=()
+    for rel in "${PLAN_PATHS[@]}"; do NEWSET["$rel"]=1; done
+
+    for ((i = 0; i < ${#PLAN_PATHS[@]}; i++)); do
+        rel="${PLAN_PATHS[$i]}"
+        src_fp="$(fingerprint "${PLAN_SRCS[$i]}")"
+        if [[ -z "${OLD_MANIFEST[$rel]+x}" ]]; then
+            # ── 首次升级的安全网 ──────────────────────────────────────
+            # 没有旧清单时，分不清「目标文件是上次部署的」还是「用户自己建的 /
+            # 自己改过的」。直接覆盖可能把用户的修复冲掉 —— 这不是假设：
+            # 本机实测 ConfigComboBox.qml / CaelestiaPluginProbe.qml 两个文件
+            # 仓库里是旧版、live 里是带修复的新版，一次盲覆盖就把修复退回去了。
+            # 所以这类「目标已存在且与源不同」的文件默认**不部署**，列出来让人
+            # 自己决定；确认要按仓库版本覆盖再加 --force。
+            if [[ -e "$HOME/$rel" || -L "$HOME/$rel" ]] \
+               && [[ "$(fingerprint "$HOME/$rel")" != "$src_fp" ]]; then
+                conflicts+=("$rel")
+            else
+                added+=("$rel")
+            fi
+        elif [[ "${OLD_MANIFEST[$rel]}" != "$src_fp" ]]; then
+            changed+=("$rel")
+            # 用户在本地改过？（目标当前内容 != 部署时记下的内容）
+            [[ "$(fingerprint "$HOME/$rel")" != "${OLD_MANIFEST[$rel]}" ]] && local_modified+=("$rel")
+        fi
+    done
+
+    if ((had_manifest && prune)); then
+        for rel in "${!OLD_MANIFEST[@]}"; do
+            [[ -z "${NEWSET[$rel]+x}" ]] && removed+=("$rel")
+        done
+    fi
+
+    # ── 计划 ────────────────────────────────────────────────────────
+    echo
+    echo "  将部署 ${#PLAN_PATHS[@]} 个文件"
+    if (( ! had_manifest )); then
+        echo "  · 没有旧清单（首次升级）→ 全部按新增处理，本次不做删除清理"
+    fi
+    printf '  · 新增   %d\n' "${#added[@]}"
+    printf '  · 更新   %d\n' "${#changed[@]}"
+    if (( ${#local_modified[@]} )); then
+        printf '  · 其中 %d 个你在本地改过（会先备份再覆盖）：\n' "${#local_modified[@]}"
+        printf '      %s\n' "${local_modified[@]:0:8}"
+        (( ${#local_modified[@]} > 8 )) && printf '      …还有 %d 个\n' "$(( ${#local_modified[@]} - 8 ))"
+    fi
+    if (( prune )); then
+        printf '  · 删除   %d（移到备份，不直接 rm）\n' "${#removed[@]}"
+        (( ${#removed[@]} )) && printf '      %s\n' "${removed[@]:0:8}"
+        (( ${#removed[@]} > 8 )) && printf '      …还有 %d 个\n' "$(( ${#removed[@]} - 8 ))"
+    fi
+
+    # ── 冲突：目标已存在且与源不同，且我们不知道它是不是我们部署的 ──
+    SKIP_DEPLOY=()
+    if (( ${#conflicts[@]} )); then
+        if (( force )); then
+            echo
+            warn "以下 ${#conflicts[@]} 个文件目标已存在且与仓库版本不同，--force 已指定 → 会被仓库版本覆盖（覆盖前备份）"
+            printf '      %s\n' "${conflicts[@]:0:8}"
+            (( ${#conflicts[@]} > 8 )) && printf '      …还有 %d 个\n' "$(( ${#conflicts[@]} - 8 ))"
+        else
+            echo
+            warn "以下 ${#conflicts[@]} 个文件目标已存在且与仓库版本不同，本次**不动**它们"
+            printf '      %s\n' "${conflicts[@]:0:8}"
+            (( ${#conflicts[@]} > 8 )) && printf '      …还有 %d 个\n' "$(( ${#conflicts[@]} - 8 ))"
+            echo "    没有旧清单时无法判断这是「上次部署的旧版」还是「你自己的文件」。"
+            echo "    · 想让仓库版本覆盖它们：加 --force"
+            echo "    · 想保留本地版本并让仓库跟上：先 ./sync.sh <对应文件> 再跑 update"
+            for rel in "${conflicts[@]}"; do SKIP_DEPLOY["$rel"]=1; done
+        fi
+    fi
+    echo
+
+    if ((dry_run)); then
+        say "--dry-run：以上只是计划，没有写入任何文件。"
+        return 0
+    fi
+
+    if (( ! assume_yes )); then
+        confirm "确认执行以上变更？" || { say "已取消，未做任何改动。"; return 1; }
+    fi
+
+    # ── 升级前快照（失败安全的底座）──────────────────────────────────
+    say "创建升级前快照（失败时可用 rollback 还原）"
+    if ! snapshot_current "$PRE_UPDATE_PREFIX" before-update; then
+        if (( ! assume_yes )); then
+            confirm "快照创建失败，仍要继续？" || { say "已取消。"; return 1; }
+        else
+            warn "快照创建失败，继续（无法用 rollback 还原本次升级）"
+        fi
+    fi
+
+    # ── 可选：补齐依赖 ──────────────────────────────────────────────
+    if ((with_packages)); then
+        say "补齐依赖包（--with-packages）"
+        local -a _pkg=() _aur=()
+        mapfile -t _pkg < <(fixed_pacman_pkgs)
+        (( fonts_enabled )) && { local -a _f; mapfile -t _f < <(font_pacman_pkgs); _pkg+=("${_f[@]}"); }
+        # shellcheck disable=SC2207
+        _pkg+=($(compositor_pkgs)) ; # shellcheck disable=SC2207
+        _pkg+=($(shell_pacman_pkgs)); # shellcheck disable=SC2207
+        _pkg+=($(base_pacman_pkgs))
+        if "${SUDO:-sudo}" pacman -S --needed --noconfirm "${_pkg[@]}"; then
+            echo "    官方仓库包已就绪（${#_pkg[@]} 个）"
+        else
+            warn "部分 pacman 包安装失败，可稍后手动重跑（不影响文件部署）"
+        fi
+
+        mapfile -t _aur < <(fixed_aur_pkgs)
+        (( fonts_enabled )) && { local -a _fa; mapfile -t _fa < <(font_aur_pkgs); _aur+=("${_fa[@]}"); }
+        # shellcheck disable=SC2207
+        _aur+=($(compositor_aur_pkgs)); # shellcheck disable=SC2207
+        _aur+=($(shell_aur_pkgs));      # shellcheck disable=SC2207
+        _aur+=($(base_aur_pkgs))
+        local p
+        for p in "${_aur[@]}"; do
+            [[ -n "$p" ]] || continue
+            if pacman -Q "$p" >/dev/null 2>&1; then
+                echo "    已安装: $p"
+            elif aur_install "$p"; then
+                echo "    AUR 安装成功: $p"
+            else
+                warn "$p 安装失败（可稍后手动安装）"
+            fi
+        done
+        echo "    注意：update 只补装，不卸载、不升级已装的包。"
+    fi
+
+    # ── 部署 ────────────────────────────────────────────────────────
+    backup_dir="$BACKUP_ROOT/update-$(now_ts)"
+    installed=0; backed=0; skipped=0; skipped_shell=0
+    ignored_skip=0; ignored_keep=0; skipped_conflict=0
+    DEPLOYED_RELPATHS=()
+    walk_sources deploy_and_record
+    say "已部署 $installed 个文件；$backed 个有差异的旧文件备份于 $backup_dir"
+    (( skipped_conflict )) && say "另有 $skipped_conflict 个冲突文件按计划跳过（见上面的清单）"
+
+    # ── 清理：仓库里已删除的文件 ────────────────────────────────────
+    if (( prune )) && (( ${#removed[@]} )); then
+        local n_pruned=0
+        for rel in "${removed[@]}"; do
+            [[ -e "$HOME/$rel" || -L "$HOME/$rel" ]] || continue
+            mkdir -p "$backup_dir/removed/$(dirname "$rel")"
+            mv "$HOME/$rel" "$backup_dir/removed/$rel" 2>/dev/null && n_pruned=$((n_pruned + 1))
+        done
+        say "已移走 $n_pruned 个仓库中已删除的文件（备份在 $backup_dir/removed/，没有 rm）"
+    fi
+
+    # ── 写回清单与版本 ──────────────────────────────────────────────
+    manifest_write "${DEPLOYED_RELPATHS[@]}"
+    record_revision
+    say "清单已更新：$(manifest_path)"
+    say "版本已记录：$(current_revision)（$(revision_path)）"
+
+    echo
+    echo "----------------------------------------------------------------------"
+    echo "  升级完成。"
+    echo "  出问题就回滚：$0 rollback"
+    echo "  回滚后再想回到升级后的状态：$0 restore"
+    echo "----------------------------------------------------------------------"
+    echo "  注：包 / 上游底盘 / Caelestia 插件不在 update 范围内。"
+    echo "      需要时重跑 $0 install（--with-packages 只补装缺失的依赖）。"
+}
 
 cmd_rollback() {
     ensure_dirs
@@ -1649,6 +2254,19 @@ sijin-xb's dotfiles 自部署脚本 —— Rice 版本: ${RICE_VERSION}
   $0 --tui              同上
   $0 install            一键安装（7 步）
                           默认不滚动系统；FULL_UPGRADE=1 $0 install 则执行 pacman -Syu
+  $0 update             增量升级（见下）
+  $0 rollback / restore / archive / uninstall   见下
+
+单文件运行（自举）：
+  只把 install.sh 这一个文件捞下来也能跑 —— 它会自己 clone 仓库到
+  ~/.local/share/dotfiles-src，然后用仓库里那份（更新的）脚本重跑自己：
+
+    curl -fsSL https://raw.githubusercontent.com/sijin-xb/dotfiles/main/install.sh \
+        | bash -s -- update
+
+  · 想换仓库地址：DOTFILES_REPO_URL=... 或改仓库缓存位置 DOTFILES_SRC_DIR=...
+  · 想彻底重置自举缓存：rm -rf ~/.local/share/dotfiles-src
+  · 在仓库里正常执行时这一步是 0 开销（只做一次文件存在性判断）。
 
 环境变量：
   SESSION=end4pc|caelestia|dms
@@ -1679,6 +2297,18 @@ sijin-xb's dotfiles 自部署脚本 —— Rice 版本: ${RICE_VERSION}
                               · 非交互执行（管道 / 重定向）时无法询问，兜底为 1
                               TUI 的「执行安装」页按 f 可随时切换。
   FULL_UPGRADE=1             安装时执行 pacman -Syu 全系统升级（默认只装缺失项）
+  $0 update [选项]       升级：只做**文件层**的增量同步，不重装包、不重拉底盘
+                          默认在仓库里跑（先 git pull 再 update 即可拿到新版配置）
+                          --dry-run         只打印会改什么，一个字节都不写
+                          --pull            先 git pull 拉最新提交再同步
+                          --with-packages   顺便补齐新增的依赖包（只补不卸）
+                          --no-prune        不做「仓库已删除文件」的清理
+                          --force           版本号没变也照跑
+                          --yes, -y         不交互确认
+                          依赖部署清单区分「新增 / 更新 / 删除」：
+                            ~/.local/state/dotfiles-backup/state/deployed-<shell>-<comp>.tsv
+                          删除项一律**移到备份**（$BACKUP_ROOT/update-<时间戳>/removed/），
+                          不 rm；升级前自动快照，出问题 $0 rollback 一条命令还原。
   $0 rollback           回档：还原到最近一次 install 之前的状态
                            （执行前会自动保存 pre-rollback 快照供 restore 用）
   $0 restore            恢复：回档后，还原回 rollback 之前的 rice 状态
@@ -1841,10 +2471,12 @@ detail_install() {
   从零部署 sijin-xb's dotfiles：
     [1/7] pacman 基础依赖（hyprland / kitty / fish / fcitx5 / cmake ...）
           niri 本体不在这里，走 [2/7] 的 AUR fork 包 niri-shorin-fork-git
+          end4-PC 会话额外装 kvantum / kvantum-qt5（Qt 主题引擎）
           默认只装缺失项；FULL_UPGRADE=1 ./install.sh install 可全系统升级
     [2/7] AUR 包（niri 本体 niri-shorin-fork-git / matugen / mpvpaper
           + Caelestia 插件依赖（libcava / qt6-m3shapes-git，end4-pC 也需要）
-          + 所选 shell 专属包 + 引导 yay）
+          + 所选 shell 专属包（end4-PC 的 plasma6-themes-colloid-git 等）
+          + 引导 yay）
     [3/7] quickshell 三级回退（已装→仓库→AUR→源码编译）
     [4/7] 桌面 Shell：
           [4a] Caelestia QML 插件 —— end4-pC 与 caelestia 都编（锁屏硬依赖
@@ -2152,6 +2784,7 @@ main() {
         --tui)       enter_tui ;;
         -h|--help)   print_help ;;
         install)     shift; cmd_install "$@" ;;
+        update)      shift; cmd_update "$@" ;;
         rollback)    shift; cmd_rollback "$@" ;;
         restore)     shift; cmd_restore "$@" ;;
         archive)     shift; cmd_archive "$@" ;;
