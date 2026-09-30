@@ -4,6 +4,8 @@
  *      其余代码、尺寸、动画逐字保留。
  */
 import QtQuick
+// Translation.tr：界面文案走统一翻译表（translations/*.json）
+import qs.services
 
 // Arc gauge component.
 // Name label above the arc, large percent text in the center,
@@ -130,7 +132,7 @@ Item {
         Text {
             anchors.centerIn:             parent
             anchors.verticalCenterOffset: Math.round(6 * root.size)
-            text:           "Off"
+            text:           Translation.tr("Off")
             font.pixelSize: Math.max(8, Math.round(13 * root.size))
             font.weight:    Font.Medium
             color:          Qt.rgba(1, 1, 1, 0.25)

@@ -5,6 +5,8 @@
  */
 import QtQuick
 import QtQuick.Controls.Basic
+// Translation.tr：界面文案走统一翻译表（translations/*.json）
+import qs.services
 
 Item {
     id: root
@@ -27,7 +29,7 @@ Item {
         Text {
             id: headerLabel
             anchors.horizontalCenter: parent.horizontalCenter
-            text:           "Disks"
+            text:           Translation.tr("Disks")
             font.pixelSize: 11
             font.weight:    Font.Medium
             color:          Qt.rgba(1, 1, 1, 0.4)

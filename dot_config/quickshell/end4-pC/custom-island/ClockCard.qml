@@ -139,7 +139,7 @@ StatCard {
             if (a.hour === _currentH && a.minute === _currentM && !a.firedToday) {
                 list[i] = Object.assign({}, a, { firedToday: true })
                 changed = true
-                _notify("Alarm", (a.label !== "" ? a.label : "Alarm") +
+                _notify(Translation.tr("Alarm"), (a.label !== "" ? a.label : Translation.tr("Alarm")) +
                         " — " + _zp(a.hour) + ":" + _zp(a.minute))
             }
             if (a.firedToday && !(a.hour === _currentH && a.minute === _currentM)) {
@@ -435,7 +435,7 @@ StatCard {
                             border.color: Qt.rgba(Theme.active.r, Theme.active.g, Theme.active.b,0.25); border.width: 1
                             Behavior on color { ColorAnimation { duration: 100 } }
                             Text {
-                                anchors.centerIn: parent; text: "Set Timer"
+                                anchors.centerIn: parent; text: Translation.tr("Set Timer")
                                 font.pixelSize: 11; font.weight: Font.Medium
                                 color: Theme.active
                             }
@@ -501,7 +501,7 @@ StatCard {
                         border.color: Qt.rgba(1,1,1,0.1); border.width: 1
                         Behavior on color { ColorAnimation { duration: 100 } }
                         Text {
-                            anchors.centerIn: parent; text: "Reset"
+                            anchors.centerIn: parent; text: Translation.tr("Reset")
                             font.pixelSize: 10; font.weight: Font.Medium
                             color: Qt.rgba(1,1,1,0.4)
                         }
@@ -615,7 +615,7 @@ StatCard {
                             border.color: Qt.rgba(Theme.active.r, Theme.active.g, Theme.active.b,0.25); border.width: 1
                             Behavior on color { ColorAnimation { duration: 100 } }
                             Text {
-                                anchors.centerIn: parent; text: "Set Alarm"
+                                anchors.centerIn: parent; text: Translation.tr("Set Alarm")
                                 font.pixelSize: 11; font.weight: Font.Medium
                                 color: Theme.active
                             }
@@ -762,7 +762,7 @@ StatCard {
                         border.color: Qt.rgba(1,1,1,0.1); border.width: 1
                         Behavior on color { ColorAnimation { duration: 100 } }
                         Text {
-                            anchors.centerIn: parent; text: "Reset"
+                            anchors.centerIn: parent; text: Translation.tr("Reset")
                             font.pixelSize: 10; font.weight: Font.Medium
                             color: Qt.rgba(1,1,1,0.4)
                         }

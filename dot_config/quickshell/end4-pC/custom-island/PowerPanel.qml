@@ -17,6 +17,8 @@
  *      像素结果与 ProfileButton 完全一致。
  */
 import QtQuick
+// Translation.tr：界面文案走统一翻译表（translations/*.json）
+import qs.services
 
 Item {
     id: root
@@ -44,7 +46,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                 }
                 Text {
-                    text:           "Power Profile"
+                    text:           Translation.tr("Power Profile")
                     font.pixelSize: 11
                     font.weight:    Font.Medium
                     color:          Qt.rgba(1, 1, 1, 0.4)

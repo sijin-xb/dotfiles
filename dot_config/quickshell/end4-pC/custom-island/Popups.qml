@@ -15,6 +15,8 @@
 pragma Singleton
 import QtQuick
 import Quickshell
+// Translation.tr：界面文案走统一翻译表（translations/*.json）
+import qs.services
 
 Singleton {
     id: root
@@ -58,7 +60,7 @@ Singleton {
     property bool   confirmOpen:    false
     property string confirmTitle:   ""
     property string confirmMessage: ""
-    property string confirmLabel:   "Confirm"
+    property string confirmLabel:   Translation.tr("Confirm")
     property string confirmAction:  ""
     property string confirmGfxMode: ""
     property bool   confirmRunning: false

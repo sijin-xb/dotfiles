@@ -290,7 +290,7 @@ AbstractBackgroundWidget {
 
                 StyledText {
                     Layout.leftMargin: 3
-                    text: "Convert to:"
+                    text: Translation.tr("Convert to:")
                     font.pixelSize: Appearance.font.pixelSize.small
                     color: Appearance.colors.colOnLayer1
                     opacity: 0.7

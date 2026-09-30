@@ -20,7 +20,7 @@ local qsIpcCall = "qs -c $qsConfig ipc call"
 local qsIsAlive = qsIpcCall .. " TEST_ALIVE"
 local fullScreenshot = "mkdir -p \"$HOME/Pictures/Screenshots/Hyprland-screenshots\" && save_path=\"$HOME/Pictures/Screenshots/Hyprland-screenshots/screenshot-$(date '+%Y-%m-%d_%H-%M-%S').png\" && grim \"$save_path\" && wl-copy -t image/png < \"$save_path\" && notify-send '屏幕截图' '已保存并复制到剪贴板'"
 
-qsBind("SUPER + SUPER_L", hl.dsp.global("quickshell:searchToggleRelease"), { description = "Shell: Toggle search" })
+qsBind("SUPER + SUPER_L", hl.dsp.global("quickshell:searchToggleRelease"), { description = "Shell: 启动器 / 搜索" })
 qsBind("SUPER + SUPER_R", hl.dsp.global("quickshell:searchToggleRelease"))
 
 qsBind("SUPER_L", hl.dsp.global("quickshell:workspaceNumber"), { ignore_mods = true, transparent = true })
@@ -29,7 +29,7 @@ qsBind("SUPER_L", hl.dsp.global("quickshell:workspaceNumber"),
     { ignore_mods = true, transparent = true, release = true })
 qsBind("SUPER_R", hl.dsp.global("quickshell:workspaceNumber"),
     { ignore_mods = true, transparent = true, release = true })
-qsBind("SUPER + Tab", hl.dsp.global("quickshell:overviewWorkspacesToggle"), { description = "Shell: Toggle overview" })
+qsBind("SUPER + Tab", hl.dsp.global("quickshell:overviewWorkspacesToggle"), { description = "Shell: 窗口总览" })
 qsBind("SUPER + V", hl.dsp.global("quickshell:overviewClipboardToggle"))
 qsBind("SUPER + Period", hl.dsp.global("quickshell:overviewEmojiToggle"))
 -- NOTE: hl.dsp.exec_cmd is broken in this Hyprland build (spawns nothing),
@@ -42,13 +42,13 @@ qsBind("SUPER + Period", hl.dsp.global("quickshell:overviewEmojiToggle"))
 qsBind("SUPER + ALT + A", hl.dsp.global("quickshell:sidebarLeftToggleDetach"))
 qsBind("SUPER + B", hl.dsp.global("quickshell:sidebarLeftToggle"))
 qsBind("SUPER + O", hl.dsp.global("quickshell:sidebarLeftToggle"))
-qsBind("SUPER + N", hl.dsp.global("quickshell:sidebarRightToggle"), { description = "Shell: Toggle right sidebar" })
-qsBind("SUPER + Slash", hl.dsp.global("quickshell:cheatsheetToggle"), { description = "Shell: Toggle cheatsheet" })
-qsBind("SUPER + K", hl.dsp.global("quickshell:oskToggle"), { description = "Shell: Toggle on-screen keyboard" })
-qsBind("SUPER + M", hl.dsp.global("quickshell:mediaControlsToggle"), { description = "Shell: Toggle media controls" })
-qsBind("SUPER + G", hl.dsp.global("quickshell:overlayToggle"), { description = "Shell: Toggle widget overlay" })
-qsBind("CTRL + ALT + Delete", hl.dsp.global("quickshell:sessionToggle"), { description = "Shell: Toggle session menu" })
-qsBind("SUPER + J", hl.dsp.global("quickshell:barToggle"), { description = "Shell: Toggle bar" })
+qsBind("SUPER + N", hl.dsp.global("quickshell:sidebarRightToggle"), { description = "Shell: 右侧边栏" })
+qsBind("SUPER + Slash", hl.dsp.global("quickshell:cheatsheetToggle"), { description = "Shell: 快捷键速查表" })
+qsBind("SUPER + K", hl.dsp.global("quickshell:oskToggle"), { description = "Shell: 屏幕键盘" })
+qsBind("SUPER + M", hl.dsp.global("quickshell:mediaControlsToggle"), { description = "Shell: 媒体控制" })
+qsBind("SUPER + G", hl.dsp.global("quickshell:overlayToggle"), { description = "Shell: 桌面组件浮层" })
+qsBind("CTRL + ALT + Delete", hl.dsp.global("quickshell:sessionToggle"), { description = "Shell: 会话菜单" })
+qsBind("SUPER + J", hl.dsp.global("quickshell:barToggle"), { description = "Shell: 显示 / 隐藏栏" })
 hl.bind("CTRL + ALT + Delete", function() hl.exec_cmd(qsIsAlive .. " || pkill wlogout || wlogout -p layer-shell") end)
 hl.bind("SHIFT + SUPER + ALT + Slash", function() hl.exec_cmd("qs -p $HOME/.config/quickshell/$qsConfig/welcome.qml") end)
 
@@ -62,60 +62,60 @@ hl.bind("XF86AudioLowerVolume", function() hl.exec_cmd("wpctl set-volume @DEFAUL
     { locked = true, repeating = true })
 
 qsBind("CTRL + SUPER + T", hl.dsp.global("quickshell:wallpaperSelectorToggle"),
-    { description = "Shell: Change wallpaper" })
+    { description = "Shell: 更换壁纸" })
 qsBind("CTRL + SUPER + ALT + T", hl.dsp.global("quickshell:wallpaperSelectorRandom"),
-    { description = "Shell: Random wallpaper" })
+    { description = "Shell: 随机壁纸" })
 qsBind("CTRL + SUPER + SHIFT + D", hl.dsp.global("quickshell:toggleLightDark"),
-    { description = "Shell: Toggle light/dark mode" })
+    { description = "Shell: 切换明暗模式" })
 hl.bind("CTRL + SUPER + T", function() hl.exec_cmd(qsIsAlive .. " || " .. qsScripts .. "/colors/switchwall.sh") end)
 hl.bind("CTRL + SUPER + R", function() hl.exec_cmd("killall ydotool qs quickshell; qs -c $qsConfig &") end,
-    { description = "Shell: Restart widgets" })
-qsBind("CTRL + SUPER + P", hl.dsp.global("quickshell:panelFamilyCycle"), { description = "Shell: Cycle panel family" })
+    { description = "Shell: 重启组件" })
+qsBind("CTRL + SUPER + P", hl.dsp.global("quickshell:panelFamilyCycle"), { description = "Shell: 切换面板族" })
 
 --##! Utilities
 --# Screenshot, Record, OCR, Color picker, Clipboard history
 hl.bind("SUPER + V", function() hl.exec_cmd(
         qsIsAlive .. " || pkill fuzzel || cliphist list | fuzzel --match-mode fzf --dmenu | cliphist decode | wl-copy") end,
-    { description = "Utilities: Clipboard history >> clipboard" })
+    { description = "Utilities: 剪贴板历史 → 剪贴板" })
 hl.bind("SUPER + Period", function() hl.exec_cmd(
         qsIsAlive .. " || pkill fuzzel || " .. hyprScripts .. "/fuzzel-emoji.sh copy") end,
-    { description = "Utilities: Emoji >> clipboard" })
-qsBind("SUPER + SHIFT + S", hl.dsp.global("quickshell:regionScreenshot"), { description = "Utilities: Screen snip" })
+    { description = "Utilities: Emoji → 剪贴板" })
+qsBind("SUPER + SHIFT + S", hl.dsp.global("quickshell:regionScreenshot"), { description = "Utilities: 截图并编辑" })
 hl.bind("SUPER + SHIFT + S",
     function() hl.exec_cmd(qsIsAlive .. " || pidof slurp || hyprshot --freeze --clipboard-only --mode region --silent") end)
 qsBind("SUPER + SHIFT + A", hl.dsp.global("quickshell:regionSearch"), { description = "Utilities: Google Lens" })
 hl.bind("SUPER + SHIFT + A", function() hl.exec_cmd(qsIsAlive .. " || pidof slurp || " .. hyprScripts .. "/snip_to_search.sh") end)
 --# OCR
 qsBind("SUPER + SHIFT + X", hl.dsp.global("quickshell:regionOcr"),
-    { description = "Utilities: Character recognition >> clipboard" })
+    { description = "Utilities: 文字识别 → 剪贴板" })
 qsBind("SUPER + SHIFT + T", hl.dsp.global("quickshell:screenTranslate"),
-    { description = "Utilities: Translate screen content" })
+    { description = "Utilities: 翻译屏幕内容" })
 hl.bind("SUPER + SHIFT + X", function() hl.exec_cmd(
     qsIsAlive ..
     " || pidof slurp || grim -g \"$(slurp $SLURP_ARGS)\" \"/tmp/ocr_image.png\" && tesseract \"/tmp/ocr_image.png\" stdout -l $(tesseract --list-langs | awk 'NR>1{print $1}' | tr '\\\\n' '+' | sed 's/\\\\+$/\\\\n/') | wl-copy && rm \"/tmp/ocr_image.png\""
 ) end)
 --# Color picker
 hl.bind("SUPER + SHIFT + C", function() hl.exec_cmd("hyprpicker -a") end,
-    { description = "Utilities: Pick color #RRGGBB >> clipboard" })
+    { description = "Utilities: 取色 #RRGGBB → 剪贴板" })
 --# Recording stuff
 qsBind("SUPER + SHIFT + R", hl.dsp.global("quickshell:regionRecord"),
-    { locked = true, description = "Utilities: Record region (no sound)" })
+    { locked = true, description = "Utilities: 区域录屏（无声）" })
 hl.bind("SUPER + SHIFT + R", function() hl.exec_cmd(qsIsAlive .. " || " .. qsScripts .. "/videos/record.sh") end, { locked = true })
 qsBind("SUPER + ALT + R", hl.dsp.global("quickshell:regionRecord"), { locked = true })
 hl.bind("SUPER + ALT + R", function() hl.exec_cmd(qsIsAlive .. " || " .. qsScripts .. "/videos/record.sh") end, { locked = true })
-hl.bind("CTRL + ALT + R", function() hl.exec_cmd(qsScripts .. "/videos/record.sh --fullscreen --sound") end, { locked = true, description = "Utilities: Record screen (system audio only)" })
+hl.bind("CTRL + ALT + R", function() hl.exec_cmd(qsScripts .. "/videos/record.sh --fullscreen --sound") end, { locked = true, description = "Utilities: 全屏录屏（仅系统声）" })
 hl.bind("SUPER + SHIFT + ALT + R", function() hl.exec_cmd(qsScripts .. "/videos/record.sh --fullscreen --sound") end,
-    { locked = true, description = "Utilities: Record screen (with sound)" })
+    { locked = true, description = "Utilities: 全屏录屏（含麦克风）" })
 --# Screenshot entry points use end-4's region selector and action menu.
 qsBind("Print", hl.dsp.global("quickshell:regionScreenshot"),
-    { locked = true, description = "Utilities: Screenshot region" })
+    { locked = true, description = "Utilities: 区域截图" })
 hl.bind("CTRL + Print", function() hl.exec_cmd(fullScreenshot) end,
-    { locked = true, description = "Utilities: Screenshot screen" })
+    { locked = true, description = "Utilities: 全屏截图" })
 qsBind("SHIFT + Print", hl.dsp.global("quickshell:regionScreenshot"),
-    { locked = true, description = "Utilities: Screenshot region" })
+    { locked = true, description = "Utilities: 区域截图" })
 --# AI
 hl.bind("SUPER + SHIFT + ALT + mouse:273", function() hl.exec_cmd(hyprScripts .. "/ai/primary-buffer-query.sh") end,
-    { description = "Utilities: Generate AI summary for selected text" })
+    { description = "Utilities: 为选中文字生成 AI 摘要" })
 -- (requires a running ollama model)
 
 --##! Screen
@@ -130,8 +130,8 @@ local function zoomfunction(value)
         hl.config({ cursor = { zoom_factor = zoomvalue + value } })
     end
 end
-hl.bind("SUPER + Minus", function() zoomfunction(-0.3) end, { repeating = true, description = "Screen: Zoom out" })
-hl.bind("SUPER + Equal", function() zoomfunction(0.3) end, { repeating = true, description = "Screen: Zoom in" })
+hl.bind("SUPER + Minus", function() zoomfunction(-0.3) end, { repeating = true, description = "Screen: 缩小" })
+hl.bind("SUPER + Equal", function() zoomfunction(0.3) end, { repeating = true, description = "Screen: 放大" })
 
 --# Zoom with keypad
 hl.bind("SUPER + code:82", function() zoomfunction(-0.3) end, { repeating = true })
@@ -140,37 +140,37 @@ hl.bind("SUPER + code:86", function() zoomfunction(0.3) end, { repeating = true 
 --##! Media
 local mediaNextCommand =
 "playerctl next || playerctl position `bc <<< \"100 * $(playerctl metadata mpris:length) / 1000000 / 100\"`"
-hl.bind("SUPER + SHIFT + N", function() hl.exec_cmd(mediaNextCommand) end, { locked = true, description = "Media: Next track" })
+hl.bind("SUPER + SHIFT + N", function() hl.exec_cmd(mediaNextCommand) end, { locked = true, description = "Media: 下一首" })
 hl.bind("XF86AudioNext", function() hl.exec_cmd(mediaNextCommand) end, { locked = true })
 hl.bind("XF86AudioPrev", function() hl.exec_cmd("playerctl previous") end, { locked = true })
 hl.bind("SUPER + SHIFT + ALT + mouse:275", function() hl.exec_cmd("playerctl previous") end)
 hl.bind("SUPER + SHIFT + ALT + mouse:276", function() hl.exec_cmd(mediaNextCommand) end)
 hl.bind("SUPER + SHIFT + B", function() hl.exec_cmd("playerctl previous") end,
-    { locked = true, description = "Media: Previous track" })
+    { locked = true, description = "Media: 上一首" })
 hl.bind("SUPER + SHIFT + P", function() hl.exec_cmd("playerctl play-pause") end,
-    { locked = true, description = "Media: Play/pause media" })
+    { locked = true, description = "Media: 播放 / 暂停" })
 hl.bind("XF86AudioPlay", function() hl.exec_cmd("playerctl play-pause") end, { locked = true })
 hl.bind("XF86AudioPause", function() hl.exec_cmd("playerctl play-pause") end, { locked = true })
 hl.bind("XF86AudioMute", function() hl.exec_cmd("wpctl set-mute @DEFAULT_SINK@ toggle") end, { locked = true })
 hl.bind("SUPER + SHIFT + M", function() hl.exec_cmd("wpctl set-mute @DEFAULT_SINK@ toggle") end,
-    { locked = true, description = "Media: Toggle mute" })
+    { locked = true, description = "Media: 静音开关" })
 hl.bind("ALT + XF86AudioMute", function() hl.exec_cmd("wpctl set-mute @DEFAULT_SOURCE@ toggle") end, { locked = true })
 hl.bind("XF86AudioMicMute", function() hl.exec_cmd("wpctl set-mute @DEFAULT_SOURCE@ toggle") end, { locked = true })
 hl.bind("SUPER + ALT + M", function() hl.exec_cmd("wpctl set-mute @DEFAULT_SOURCE@ toggle") end,
-    { locked = true, description = "Media: Toggle mic" })
+    { locked = true, description = "Media: 麦克风开关" })
 
 --#!
 --##! Window
 --# Focusing
-hl.bind("SUPER + mouse:272", hl.dsp.window.drag(), { mouse = true, description = "Window: Move" })
+hl.bind("SUPER + mouse:272", hl.dsp.window.drag(), { mouse = true, description = "Window: 移动" })
 hl.bind("SUPER + mouse:274", hl.dsp.window.drag(), { mouse = true })
-hl.bind("SUPER + mouse:273", hl.dsp.window.resize(), { mouse = true, description = "Window: Resize" })
+hl.bind("SUPER + mouse:273", hl.dsp.window.resize(), { mouse = true, description = "Window: 调整大小" })
 --#/# bind = SUPER + ←/↑/→/↓,, -- Focus in direction
 for i = 1, 4 do
     local arrowkey = { "Left", "Right", "Up", "Down" }
     local focusdir = { "l", "r", "u", "d" }
     hl.bind("SUPER + " .. arrowkey[i], hl.dsp.focus({ direction = focusdir[i] }),
-        { description = "Window: Focus " .. arrowkey[i] })
+        { description = "Window: 焦点切到 " .. arrowkey[i] })
 end
 for i = 1, 2 do
     local arrowkey = { "BracketLeft", "BracketRight" }
@@ -182,7 +182,7 @@ for i = 1, 4 do
     local arrowkey = { "Left", "Right", "Up", "Down" }
     local focusdir = { "l", "r", "u", "d" }
     hl.bind("SUPER + SHIFT + " .. arrowkey[i], hl.dsp.window.move({ direction = focusdir[i] }),
-        { description = "Window: Move " .. arrowkey[i] })
+        { description = "Window: 移动到 " .. arrowkey[i] })
 end
 
 hl.bind("ALT + F4",
@@ -191,28 +191,28 @@ hl.bind("ALT + F4",
             "notify-send \"Wrong close keybind\" \"Super+Q to close. Use Alt+F4 for Windows VMs\" -a Hyprland")
     end,
     { non_consuming = true })
-hl.bind("SUPER + Q", hl.dsp.window.close(), { description = "Window: Close" })
-hl.bind("SUPER + SHIFT + ALT + Q", function() hl.exec_cmd("hyprctl kill") end, { description = "Window: Forcefully zap a window" })
+hl.bind("SUPER + Q", hl.dsp.window.close(), { description = "Window: 关闭" })
+hl.bind("SUPER + SHIFT + ALT + Q", function() hl.exec_cmd("hyprctl kill") end, { description = "Window: 强制关闭（点选）" })
 
 --# Window split ratio
 --#/# binde = SUPER, ;/',, -- Adjust split ratio
 hl.bind("SUPER + Semicolon", hl.dsp.layout("splitratio -0.1"), { repeating = true })
 hl.bind("SUPER + Apostrophe", hl.dsp.layout("splitratio +0.1"), { repeating = true })
 --# Positioning mode
-hl.bind("SUPER + ALT + Space", hl.dsp.window.float({ action = "toggle" }), { description = "Window: Float/Tile" })
+hl.bind("SUPER + ALT + Space", hl.dsp.window.float({ action = "toggle" }), { description = "Window: 浮动 / 平铺" })
 hl.bind("SUPER + D", hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" }),
-    { description = "Window: Maximize" })
+    { description = "Window: 最大化" })
 hl.bind("SUPER + F", hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle" }),
-    { description = "Window: Fullscreen" })
+    { description = "Window: 全屏" })
 hl.bind("SUPER + ALT + F", hl.dsp.window.fullscreen_state({ internal = 0, client = 3, action = "toggle" }),
-    { description = "Window: Fullscreen spoof" })
-hl.bind("SUPER + P", hl.dsp.window.pin(), { description = "Window: Pin" })
+    { description = "Window: 伪全屏" })
+hl.bind("SUPER + P", hl.dsp.window.pin(), { description = "Window: 固定" })
 
 --#/# bind = SUPER+ALT, Hash,, -- Send to workspace -- (1, 2, 3,...)
 for i = 1, 10 do
     hl.bind("SUPER + ALT + " .. (i % 10), function()
         hl.dispatch(hl.dsp.window.move({ workspace = workspace_in_group(i), follow = false }))
-    end, { description = "Window: Send to workspace " .. i })
+    end, { description = "Window: 送往工作区 " .. i })
 end
 --# We also use raw keycodes because some keyboard layouts register number keys as different chars. The codes can be verified with `wev`
 -- for i = 1, 10 do
@@ -242,7 +242,7 @@ for i = 1, 2 do
     local keydirs = { "Up", "Down" }
     local prefix = { "r-", "r+" }
     local descdir = { "left", "right" }
-    hl.bind("SUPER + SHIFT + Page_" .. keydirs[i], hl.dsp.window.move({ workspace = prefix[i] .. "1" }), {description = "Window: Send to workspace " .. descdir[i]})
+    hl.bind("SUPER + SHIFT + Page_" .. keydirs[i], hl.dsp.window.move({ workspace = prefix[i] .. "1" }), {description = "Window: 送往工作区 " .. descdir[i]})
 end
 for i = 1, 4 do
     local key = { "SUPER + ALT + Page_", "CTRL + SUPER + SHIFT + " }
@@ -252,7 +252,7 @@ for i = 1, 4 do
 end
 
 hl.bind("SUPER + ALT + S",
-    hl.dsp.window.move({ workspace = "special:special", follow = false }), { description = "Window: Send to scratchpad" })
+    hl.dsp.window.move({ workspace = "special:special", follow = false }), { description = "Window: 送入暂存区" })
 hl.bind("CTRL + SUPER + S", hl.dsp.workspace.toggle_special("special"))
 
 --##! Workspace
@@ -261,7 +261,7 @@ hl.bind("CTRL + SUPER + S", hl.dsp.workspace.toggle_special("special"))
 for i = 1, 10 do
     hl.bind("SUPER + " .. (i % 10), function()
         hl.dispatch(hl.dsp.focus({ workspace = workspace_in_group(i) }))
-    end, { description = "Workspace: Focus " .. i })
+    end, { description = "Workspace: 切换到 " .. i })
 end
 --# We also use raw keycodes because some keyboard layouts register number keys as different chars. The codes can be verified with `wev`
 for i = 1, 10 do
@@ -284,7 +284,7 @@ for i = 1, 2 do
     local keys = { "Left", "Right" }
     local prefix = { "r-", "r+" }
     local descdir = { "left", "right" }
-    hl.bind("CTRL + SUPER + " .. keys[i], hl.dsp.focus({ workspace = prefix[i] .. "1" }), {description = "Workspace: Focus " .. descdir[i]})
+    hl.bind("CTRL + SUPER + " .. keys[i], hl.dsp.focus({ workspace = prefix[i] .. "1" }), {description = "Workspace: 切换到 " .. descdir[i]})
 end
 for i = 1, 2 do
     local keys = { "Left", "Right" }
@@ -306,7 +306,7 @@ for i = 1, 4 do
     hl.bind(keycombos[i], hl.dsp.focus({ workspace = prefix[i] .. "1" }))
 end
 --## Special
-hl.bind("SUPER + S", hl.dsp.workspace.toggle_special("special"), { description = "Workspace: Toggle scratchpad" })
+hl.bind("SUPER + S", hl.dsp.workspace.toggle_special("special"), { description = "Workspace: 暂存区开关" })
 hl.bind("SUPER + mouse:275", hl.dsp.workspace.toggle_special("special"))
 for i = 1, 4 do
     local key = { "BracketLeft", "BracketRight", "Up", "Down" }
@@ -345,28 +345,28 @@ hl.bind("SUPER + ALT + Equal",
     function() hl.exec_cmd("notify-send 'Urgent notification' 'Ah hell no' -u critical -a 'Hyprland keybind'") end) -- # [hidden]
 
 --##! Session
-hl.bind("SUPER + L", function() hl.exec_cmd("loginctl lock-session") end, { description = "Session: Lock" })
+hl.bind("SUPER + L", function() hl.exec_cmd("loginctl lock-session") end, { description = "Session: 锁屏" })
 hl.bind("SUPER + SHIFT + L", function() hl.exec_cmd("systemctl suspend || loginctl suspend") end,
-    { locked = true, description = "Session: Sleep" }) -- Sleep
+    { locked = true, description = "Session: 睡眠" }) -- Sleep
 -- hl.bind("switch:on:Lid Switch", function() hl.exec_cmd("systemctl suspend || loginctl suspend") end, {locked = true} ) -- # [hidden] Suspend when laptop lid is closed, uncomment if for whatever reason it's not the default behavior
 
 hl.bind("CTRL + SHIFT + ALT + SUPER + Delete", function() hl.exec_cmd("systemctl poweroff || loginctl poweroff") end,
-    { description = "Session: Shut down" }) -- # [hidden] Power off
+    { description = "Session: 关机" }) -- # [hidden] Power off
 
 
 --##! Apps
-hl.bind("SUPER + Return", function() hl.exec_cmd(terminal) end, { description = "App: Terminal" })
+hl.bind("SUPER + Return", function() hl.exec_cmd(terminal) end, { description = "App: 终端" })
 hl.bind("SUPER + T", function() hl.exec_cmd(qsScripts .. "/hyprland/term-summon.sh") end, { description = "App: 终端召唤（special:quake 浮动居中，再按隐藏）" })
 qsBind("CTRL + ALT + T", hl.dsp.global("quickshell:wallpaperSelectorToggle"),
-    { description = "Shell: Wallpaper selector" })
-hl.bind("SUPER + E", function() hl.exec_cmd(fileManager) end, { description = "App: File manager" })
-hl.bind("SUPER + W", function() hl.exec_cmd(browser) end, { description = "App: Browser" })
-hl.bind("SUPER + C", function() hl.exec_cmd(codeEditor) end, { description = "App: Code editor" })
-hl.bind("CTRL + SUPER + SHIFT + ALT + W", function() hl.exec_cmd(officeSoftware) end, { description = "App: Office software" })
-hl.bind("SUPER + X", function() hl.exec_cmd(textEditor) end, { description = "App: Text editor" })
-hl.bind("CTRL + SUPER + V", function() hl.exec_cmd(volumeMixer) end, { description = "App: Volume mixer" })
-qsBind("SUPER + I", hl.dsp.global("quickshell:settingsToggle"), { description = "Shell: Toggle settings" })
-hl.bind("CTRL + SHIFT + Escape", function() hl.exec_cmd(taskManager) end, { description = "App: Task manager" })
+    { description = "Shell: 壁纸选择器" })
+hl.bind("SUPER + E", function() hl.exec_cmd(fileManager) end, { description = "App: 文件管理器" })
+hl.bind("SUPER + W", function() hl.exec_cmd(browser) end, { description = "App: 浏览器" })
+hl.bind("SUPER + C", function() hl.exec_cmd(codeEditor) end, { description = "App: 代码编辑器" })
+hl.bind("CTRL + SUPER + SHIFT + ALT + W", function() hl.exec_cmd(officeSoftware) end, { description = "App: 办公软件" })
+hl.bind("SUPER + X", function() hl.exec_cmd(textEditor) end, { description = "App: 文本编辑器" })
+hl.bind("CTRL + SUPER + V", function() hl.exec_cmd(volumeMixer) end, { description = "App: 音量混合器" })
+qsBind("SUPER + I", hl.dsp.global("quickshell:settingsToggle"), { description = "Shell: 设置" })
+hl.bind("CTRL + SHIFT + Escape", function() hl.exec_cmd(taskManager) end, { description = "App: 任务管理器" })
 
 --# Cursed stuff
 --## Make window not amogus large

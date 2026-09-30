@@ -934,7 +934,7 @@ ContentPage {
                 Layout.topMargin: 10
                 visible: settingsClock.cookiePresent
                 ConfigSelectionArray {
-                    text: "Dial Style"
+                    text: Translation.tr("Dial Style")
                     icon: "graph_6"
                     currentValue: Config.options.background.widgets.clock.cookie.dialNumberStyle
                     onSelected: newValue => {

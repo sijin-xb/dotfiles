@@ -4,6 +4,8 @@
  *       service 由 NetService 提供（iface / upSpeed / downSpeed）。
  */
 import QtQuick
+// Translation.tr：界面文案走统一翻译表（translations/*.json）
+import qs.services
 
 Item {
     id: root
@@ -17,7 +19,7 @@ Item {
 
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text:           "Network"
+            text:           Translation.tr("Network")
             font.pixelSize: 11
             font.weight:    Font.Medium
             color:          Qt.rgba(1, 1, 1, 0.4)
@@ -29,7 +31,7 @@ Item {
 
             StatRow {
                 width:      parent.width
-                label:      "Interface"
+                label:      Translation.tr("Interface")
                 value:      root.service.iface
             }
 
