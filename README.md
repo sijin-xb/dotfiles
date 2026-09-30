@@ -1,85 +1,80 @@
 # sijin-xb's dotfiles
 
 个人桌面配置：Arch 系（开发环境 CachyOS）+ Wayland 合成器 + Quickshell。
-合成器支持 **Hyprland**（默认）与 **niri**（滚动平铺），安装时二选一
-（`COMPOSITOR=niri ./install.sh install`）。
+合成器与桌面外壳按**会话**整体三选一（安装时选，或用 `SESSION=` 预设），
+装哪套就只部署哪套，不会去动机器上另一套的配置。
 源码树使用 chezmoi 风格命名（`dot_`、`executable_` 前缀），但安装由自带
 bash 脚本完成，不需要 chezmoi 二进制。
 
 > **English (brief)**: Personal desktop configuration for Arch-based systems
 > with Hyprland (default) or niri, plus Quickshell. Clone the repo and run
 > `./install.sh` (TUI) or `./install.sh install`; the same script provides
-> `rollback`, `restore`, `archive` and `uninstall`. Full documentation below is
-> in Chinese.
+> `update`, `rollback`, `restore`, `archive` and `uninstall`. Full
+> documentation below is in Chinese.
 
 ## 目录
 
-- [包含内容](#包含内容)
+- [快速开始](#快速开始)
+- [会话三选一](#会话三选一)
 - [环境要求](#环境要求)
 - [安装](#安装)
+- [升级](#升级)
 - [脚本命令](#脚本命令)
+- [包含内容](#包含内容)
 - [快捷键（节选）](#快捷键节选)
 - [目录结构](#目录结构)
+- [测试](#测试)
 - [说明](#说明)
 - [文档与更新日志](#文档与更新日志)
 - [致谢与上游](#致谢与上游)
 - [许可证](#许可证)
 
-## 包含内容
+## 快速开始
 
-- **Hyprland** 配置（Lua）。`hyprland/` 为模板层，`custom/` 为个人覆盖层
-  （同名文件在模板之后加载并覆盖模板）
-- **niri** 配置（KDL）。`config.kdl` 为入口，按功能拆到 `binds` / `rule` /
-  `layout` / `animations` / `blur` / `debug` 等文件；键位已从 Hyprland 迁移，
-  桌面外壳由 DankMaterialShell（DMS）承担，DMS 自动生成的部分放在 `dms/`。
-  间距 / 边框 / 焦点环 / 圆角由 `override-layout.kdl` 统一覆盖 DMS 的值
-  ⚠️ 需要 SHORiN fork，见[环境要求](#环境要求)
-- Quickshell（end4-pC fork）差异层：栏、侧边栏、启动器、总览、设置面板
-- **岛屿 + 仪表盘**：栏中央一颗胶囊（时间 / 音乐 / 计时器 / 秒表 / 录屏 轮播），
-  点击从 Bar 里生长成面板，再点缩回。五页（页签由 Caelestia 的 `Content` 提供）：
-  - **仪表盘**：头像 / 主机 · 天气小卡 · 日期时间 · 月历 · 系统资源 · 媒体卡
-  - **媒体**：封面 + 曲目 + 进度 + 控制 + 歌词（含翻译 / 音译副标题），
-    与桌面歌词浮层**同源**
-  - **Performance**：CPU / GPU / 内存 / 磁盘 / 网络 / 电池
-  - **进程**：进程列表，支持搜索、按 CPU / 内存 / GPU / 名称排序、kill
-    （左键 TERM / 右键 KILL），可点行改键
-  - **天气**：当前天气 + 逐时 + 多日
+~~~bash
+git clone https://github.com/sijin-xb/dotfiles.git
+cd dotfiles
+./install.sh                 # TUI 二级菜单（推荐第一次用）
+./install.sh install         # 直接执行完整安装（7 步）
+~~~
 
-  可在 设置 → 栏 的组件列表里增删（组件名 `Island`），删掉即整座岛隐藏。
-  详见 [docs/bar-and-dashboard.md](docs/bar-and-dashboard.md)
-- **快捷键管理器**：`Super + /` 弹出速查表，列出配置里真实存在的快捷键，
-  可搜索、**可点行改键**（按下后先预览，按 Enter 才写入）。详见
-  [docs/keybind-manager.md](docs/keybind-manager.md)
-- GitHub 项目页：填用户名列出该用户仓库（名称 / 描述 / 语言 / Star / 更新时间），
-  点击跳转。入口：设置 → GitHub。详见 [docs/github-page.md](docs/github-page.md)
-- 锁屏：Caelestia 风格三栏布局（居中圆角方块 → 点击展开成横条，Material 3
-  形状 morph 动画），按屏幕高度自适应并支持密码框自动 / 唤醒重聚焦；quickshell
-  未运行时回退 hyprlock。依赖 `qt6-m3shapes-git`（AUR）与 Caelestia QML 插件。
-  详见 [docs/lockscreen.md](docs/lockscreen.md)
-- 桌面歌词：逐字计时（酷狗 KRC），适配任意 MPRIS 播放器；SPlayer 可走
-  WebSocket 直推。详见 [docs/integrations.md](docs/integrations.md)
-- 灵动岛：音乐 / 音量 / 录屏活动的顶部动态胶囊，详见
-  [docs/dynamic-island.md](docs/dynamic-island.md)
-- 壁纸视差与多后端视频壁纸，详见 [docs/appearance.md](docs/appearance.md)
-- matugen 壁纸取色：kitty / alacritty / foot / fastfetch / fcitx5（含 fcitx5-rime
-  候选框）/ mako / Hyprland 与 niri 联动配色（niri 侧含录屏选区界面的
-  `screen-cast-picker`）
-- fish（fzf 绑定、nvm）、btop、fastfetch、fuzzel、mako 配置
-- **nvim（LazyVim，取向是「边用边学 vim」）**：保留不是 vim 动词的 Ctrl 系快捷键
-  （`Ctrl+S` 存盘、`Ctrl+P` 找文件、`Ctrl+B` 文件树、``Ctrl+` `` 终端、`Ctrl+/` 注释），
-  把 vim 动词（`yy` / `p` / `u` / `ggVG`）还给 vim 本身；picker / 文件树用
-  Telescope + Neo-tree，中文输入法自动中英切换，光标形状随模式变色；
-  GUI 前端 neovide，字体对齐 kitty。
-  详见 [docs/nvim-keymaps.md](docs/nvim-keymaps.md)（速查表）与
-  [docs/nvim-learning.md](docs/nvim-learning.md)（学习清单）
+日常升级**不要**重跑 `install`（它会重装包、重拉上游底盘并冲掉本地改动）：
+
+~~~bash
+cd dotfiles && git pull
+./install.sh update                    # 只做文件层增量同步
+./install.sh update --with-packages    # 顺便补齐本次新增的依赖包
+~~~
+
+只捞一个文件也能跑（自举）：
+
+~~~bash
+curl -fsSL https://raw.githubusercontent.com/sijin-xb/dotfiles/main/install.sh \
+    | bash -s -- update
+~~~
+
+## 会话三选一
+
+| `SESSION=` | 合成器 | 桌面外壳 | 配置入口 |
+|---|---|---|---|
+| `end4pc`（默认） | Hyprland | Quickshell（end4-PC 底盘） | `~/.config/hypr/hyprland.lua`、`~/.config/quickshell/end4-pC` |
+| `caelestia` | Hyprland | caelestia shell | `~/.config/quickshell/caelestia` |
+| `dms` | niri | DankMaterialShell（DMS） | `~/.config/niri/config.kdl` |
+
+- `end4pc` 与 `caelestia` 都会把 **Caelestia QML 插件**编译到
+  `~/src/caelestia-build`（end4-PC 的锁屏硬依赖 `import Caelestia.Config`），
+  `dms` 不需要。
+- `COMPOSITOR=niri|hyprland` 是旧写法，等价于 `SESSION=dms` / `SESSION=end4pc`。
+- 两套合成器都要用：`INSTALL_BOTH_COMPOSITORS=1`。
 
 ## 环境要求
 
 - Arch 系发行版（存在 `/etc/arch-release`）
-- Wayland 会话，合成器二选一（安装时选，或 `COMPOSITOR=` 预设）：
-  - **Hyprland**（默认）
-  - **niri**：必须是 [SHORiN-KiWATA/niri](https://github.com/SHORiN-KiWATA/niri)
-    fork（AUR `niri-shorin-fork-git`）。本仓库的 niri 配置用到该 fork 独有的：
+- Wayland 会话，合成器二选一（随会话决定，见上表）：
+  - **Hyprland**（`end4pc` / `caelestia`）
+  - **niri**（`dms`）：必须是
+    [SHORiN-KiWATA/niri](https://github.com/SHORiN-KiWATA/niri) fork
+    （AUR `niri-shorin-fork-git`）。本仓库的 niri 配置用到该 fork 独有的：
     `magnifier`（屏幕放大镜）、`grid-overview`（**「窗口总览」**，把所有窗口
     排成网格）、`cursor shake-to-enlarge`（晃鼠标放大光标）、内置 screencast
     portal 的 `screen-cast-picker` 配色、以及**单独一个 `Mod` 键的绑定**
@@ -96,21 +91,7 @@ bash 脚本完成，不需要 chezmoi 二进制。
 
 ## 安装
 
-~~~bash
-git clone https://github.com/sijin-xb/dotfiles.git
-cd dotfiles
-./install.sh           # TUI 二级菜单
-./install.sh install   # 直接执行完整安装
-FONTS=0 ./install.sh install   # 不装推荐字体（跳过整条字体链）
-~~~
-
-**字体是可选项**：不加 `FONTS` 时会在执行到 `[1/7]` 时问一次 `[Y/n]`，
-TUI 的「执行安装」页也能按 `f` 切换。`FONTS=0` 一个字体包都不碰——不装
-pacman 字体包、不装 AUR 字体链、不下载霞鹜臻楷 GB、也不移除
-`65-wqy-zenhei.conf`（跳过字体时文泉驿仍是唯一的中文兜底，删了反而更糟）。
-非交互执行（管道 / 重定向）问不了，默认按 `FONTS=1` 处理。
-
-安装步骤：
+安装前会自动创建一次快照（回档基线），然后走 7 步：
 
 1. pacman 基础依赖（starship、kitty、fish、fuzzel、fcitx5、cliphist、
    xdg portals、qt6 工具链，以及 Caelestia QML 插件编译所需的 aubio /
@@ -123,31 +104,61 @@ pacman 字体包、不装 AUR 字体链、不下载霞鹜臻楷 GB、也不移�
    qt6-m3shapes-git，以及 `FONTS=1` 时的 MiSans / Maple Mono NF / 霞鹜文楷）；
    无 AUR helper 时自动安装 yay
 3. quickshell 三级回退：已有二进制 → pacman → AUR → 源码编译
-4. **Caelestia QML 插件**：clone `caelestia-dots/shell` 并编译到
+4. **桌面 Shell**：end4-PC 底盘克隆 + **Caelestia QML 插件**编译到
    `~/src/caelestia-build/qml`（失败中断，不静默跳过）
 5. 部署 `dot_*` 条目到 `$HOME`；有差异的已存在文件先备份到
    `~/.local/state/dotfiles-backup/` 再覆盖
-6. 首次运行克隆 quickshell 底盘（pctrade/end4-pC）
-7. 创建 python venv（pypinyin、dbus-python、kde-material-you-colors），
-   供启动器拼音搜索与 KDE/Qt 取色使用
+6. 运行环境：python venv（pypinyin、dbus-python、kde-material-you-colors，
+   供启动器拼音搜索与 KDE/Qt 取色）与歌词缓存
+7. 收尾：跑一遍 **QML 模块依赖自检**，输出后续指引
 
 重复运行幂等。
 
-## 测试
+**字体是可选项**：不加 `FONTS` 时会在执行到 `[1/7]` 时问一次 `[Y/n]`，
+TUI 的「执行安装」页也能按 `f` 切换。`FONTS=0` 一个字体包都不碰——不装
+pacman 字体包、不装 AUR 字体链、不下载霞鹜臻楷 GB、也不移除
+`65-wqy-zenhei.conf`（跳过字体时文泉驿仍是唯一的中文兜底，删了反而更糟）。
+非交互执行（管道 / 重定向）问不了，默认按 `FONTS=1` 处理。
 
-改 `install.sh` 之后跑这两个（都不需要 sudo / 网络 / 真实包管理器）：
+### 环境变量
 
-```bash
-bash tests/install-sh-behaviour-test.sh   # 纯函数级：chezmoi 前缀、完整性自检、
-                                          # 删除范围、.chezmoiignore 匹配、依赖矩阵
-bash tests/install-sh-dryrun.sh           # 端到端：PATH 前置假命令 + 临时 $HOME，
-                                          # 跑真实 cmd_install 三轮（安装 / 迁移 / 幂等）
-```
+| 变量 | 作用 |
+|---|---|
+| `SESSION=end4pc\|caelestia\|dms` | 选择会话，设定后跳过交互提问 |
+| `COMPOSITOR=niri\|hyprland` | 旧写法，等价于 `SESSION=dms` / `SESSION=end4pc` |
+| `INSTALL_BOTH_COMPOSITORS=1` | 两套合成器配置都部署（默认只部署选中的那套） |
+| `FONTS=0\|1` | 是否安装推荐字体；不设置则交互询问 |
+| `FULL_UPGRADE=1` | 安装时执行 `pacman -Syu`（默认只装缺失项） |
+| `DOTFILES_REPO_URL=...` | 自举时换仓库地址 |
+| `DOTFILES_SRC_DIR=...` | 自举时换仓库缓存位置（默认 `~/.local/share/dotfiles-src`） |
 
-两个脚本都会在失败时打印「实际 vs 期望」并以非 0 退出。
-`DRYRUN_ROOT=/tmp/xxx bash tests/install-sh-dryrun.sh` 可保留现场供排查。
+## 升级
 
-> **Caelestia QML 插件**：`[4a/7]` 步会 clone `caelestia-dots/shell` 到
+`update` 只做**文件层**的增量同步，不重装包、不重拉底盘（拉仓库用 `--pull`，
+或在仓库里 `git pull` 后再 `update`）。它靠部署清单
+（`~/.local/state/dotfiles-backup/state/deployed-<shell>-<comp>.tsv`）
+区分「新增 / 更新 / 删除」：
+
+| 选项 | 作用 |
+|---|---|
+| `--dry-run`、`-n` | 只打印会改什么，一个字节都不写 |
+| `--pull` | 先 `git pull` 拉最新提交再同步 |
+| `--with-packages` | 顺便补齐新增的依赖包（**只补不卸**，不会动已装的包） |
+| `--no-prune` | 不做「仓库已删除文件」的清理 |
+| `--force` | 版本号没变也照跑 |
+| `--yes`、`-y` | 不交互确认 |
+
+删除项一律**移到备份**（`~/.local/state/dotfiles-backup/update-<时间戳>/removed/`），
+不做 `rm`。升级前会先建一份快照，出问题 `./install.sh rollback` 就能还原。
+
+> **新增依赖必须靠 `--with-packages` 补**：`update` 默认一个包都不碰。
+> 例如后来加进来的 `kvantum` / `kvantum-qt5` / `qt6-positioning` /
+> `kirigami` / `syntax-highlighting`（pacman）与 `plasma6-themes-colloid-git`
+> （AUR，end4-PC 专属），已装旧版本的机器上要跑一次
+> `./install.sh update --with-packages` 才会到位。
+> 收尾还会自动跑一遍 QML 模块自检，缺了直接把包名和补救命令打出来。
+
+> **Caelestia QML 插件**：`[4/7]` 步会 clone `caelestia-dots/shell` 到
 > `~/src/caelestia-plugin-src`（**不在** `~/.config/quickshell/` 下 —— 那里是
 > quickshell 的配置命名空间，放 clone 会凭空多出一套可运行的 shell），编译到
 > `~/src/caelestia-build/qml`，编译失败会中断安装并提示重试命令。编译前先应用
@@ -172,7 +183,8 @@ bash tests/install-sh-dryrun.sh           # 端到端：PATH 前置假命令 + �
 
 | 命令 | 功能 |
 |---|---|
-| `install` | 完整安装；开始前创建 pre-install 快照 |
+| `install` | 完整安装（7 步）；开始前创建 pre-install 快照 |
+| `update [选项]` | 增量升级：只做文件层同步，见上 |
 | `rollback` | 还原到 pre-install 快照；开始前创建 pre-rollback 快照 |
 | `restore` | 重新应用 pre-rollback 快照（撤销回档） |
 | `archive [-o PATH] [--delete]` | 打包配置 / 状态 / 缓存为 tar.gz（含 MANIFEST.txt）；`--delete` 打包后清理源文件 |
@@ -181,6 +193,70 @@ bash tests/install-sh-dryrun.sh           # 端到端：PATH 前置假命令 + �
 | `-h` | 帮助 |
 
 快照仅覆盖脚本内受管理路径清单（`SNAP_PATHS`），清单外的文件不会被改动。
+
+## 包含内容
+
+### 合成器配置
+
+- **Hyprland** 配置（Lua）。`hyprland/` 为模板层，`custom/` 为个人覆盖层
+  （同名文件在模板之后加载并覆盖模板）
+- **niri** 配置（KDL）。`config.kdl` 为入口，按功能拆到 `binds` / `rule` /
+  `layout` / `animations` / `blur` / `debug` 等文件；键位已从 Hyprland 迁移，
+  桌面外壳由 DankMaterialShell（DMS）承担，DMS 自动生成的部分放在 `dms/`。
+  间距 / 边框 / 焦点环 / 圆角由 `override-layout.kdl` 统一覆盖 DMS 的值
+  ⚠️ 需要 SHORiN fork，见[环境要求](#环境要求)
+
+### 桌面外壳（Quickshell end4-pC 差异层）
+
+栏、侧边栏、启动器、总览、设置面板，以及下列功能：
+
+- **岛屿 + 仪表盘**：栏中央一颗胶囊（时间 / 音乐 / 计时器 / 秒表 / 录屏 轮播），
+  点击从 Bar 里生长成面板，再点缩回。五页（页签由 Caelestia 的 `Content` 提供）：
+  - **仪表盘**：头像 / 主机 · 天气小卡 · 日期时间 · 月历 · 系统资源 · 媒体卡
+  - **媒体**：封面 + 曲目 + 进度 + 控制 + 歌词（含翻译 / 音译副标题），
+    与桌面歌词浮层**同源**
+  - **Performance**：CPU / GPU / 内存 / 磁盘 / 网络 / 电池
+  - **进程**：进程列表，支持搜索、按 CPU / 内存 / GPU / 名称排序、kill
+    （左键 TERM / 右键 KILL），可点行改键
+  - **天气**：当前天气 + 逐时 + 多日
+
+  可在 设置 → 栏 的组件列表里增删（组件名 `Island`），删掉即整座岛隐藏。
+  详见 [docs/bar-and-dashboard.md](docs/bar-and-dashboard.md)
+- **快捷键管理器**：`Super + /` 弹出速查表，列出配置里真实存在的快捷键，
+  可搜索、**可点行改键**（按下后先预览，按 Enter 才写入）。详见
+  [docs/keybind-manager.md](docs/keybind-manager.md)
+- **锁屏**：Caelestia 风格三栏布局（居中圆角方块 → 点击展开成横条，Material 3
+  形状 morph 动画），按屏幕高度自适应并支持密码框自动 / 唤醒重聚焦；quickshell
+  未运行时回退 hyprlock。依赖 `qt6-m3shapes-git`（AUR）与 Caelestia QML 插件。
+  详见 [docs/lockscreen.md](docs/lockscreen.md)
+- **灵动岛**：音乐 / 音量 / 录屏活动的顶部动态胶囊，详见
+  [docs/dynamic-island.md](docs/dynamic-island.md)
+- GitHub 项目页：填用户名列出该用户仓库（名称 / 描述 / 语言 / Star / 更新时间），
+  私有仓库要看自己的就走 gh 登录。点击跳转。入口：设置 → GitHub。详见
+  [docs/github-page.md](docs/github-page.md)
+
+### 外观与集成
+
+- 壁纸视差与多后端视频壁纸，详见 [docs/appearance.md](docs/appearance.md)
+- matugen 壁纸取色：kitty / alacritty / foot / fastfetch / fcitx5（含 fcitx5-rime
+  候选框）/ mako / Hyprland 与 niri 联动配色（niri 侧含录屏选区界面的
+  `screen-cast-picker`），以及 **Kvantum / Qt 应用**（end4-PC 专属：
+  `kvantum` + `kvantum-qt5` + `plasma6-themes-colloid-git`）
+- 桌面歌词：逐字计时（酷狗 KRC），适配任意 MPRIS 播放器；SPlayer 可走
+  WebSocket 直推。详见 [docs/integrations.md](docs/integrations.md)
+- 区域截图 / 录屏：整屏压暗，把拖动选区或鼠标指到的窗口**挖空**高亮，
+  点一下即截该窗口（可关，见 `regionSelector.targetRegions.dimOutside`）
+
+### 编辑器与终端
+
+- **nvim（LazyVim，取向是「边用边学 vim」）**：保留不是 vim 动词的 Ctrl 系快捷键
+  （`Ctrl+S` 存盘、`Ctrl+P` 找文件、`Ctrl+B` 文件树、``Ctrl+` `` 终端、`Ctrl+/` 注释），
+  把 vim 动词（`yy` / `p` / `u` / `ggVG`）还给 vim 本身；picker / 文件树用
+  Telescope + Neo-tree，中文输入法自动中英切换，光标形状随模式变色；
+  GUI 前端 neovide，字体对齐 kitty。
+  详见 [docs/nvim-keymaps.md](docs/nvim-keymaps.md)（速查表）与
+  [docs/nvim-learning.md](docs/nvim-learning.md)（学习清单）
+- fish（fzf 绑定、nvm）、btop、fastfetch、fuzzel、mako 配置
 
 ## 快捷键（节选）
 
@@ -257,9 +333,24 @@ dot_local/share/fcitx5/
     default.custom.yaml   全局按键 / 翻页设置
     rime_ice.custom.yaml  雾凇拼音语法权重调整 + `/` 符号候选框
 dot_vimrc                 vim（非 nvim）配置：fcitx5 自动切换 + 剪贴板降级
-install.sh                安装 / 卸载 / 回档 / 存档 / TUI
+install.sh                安装 / 升级 / 卸载 / 回档 / 存档 / TUI
+check-qml-deps.py         QML 模块依赖自检（install 与 update 收尾各跑一次）
 docs/                     设计说明与排障文档（见下）
 ~~~
+
+## 测试
+
+改 `install.sh` 之后跑这两个（都不需要 sudo / 网络 / 真实包管理器）：
+
+```bash
+bash tests/install-sh-behaviour-test.sh   # 纯函数级：chezmoi 前缀、完整性自检、
+                                          # 删除范围、.chezmoiignore 匹配、依赖矩阵
+bash tests/install-sh-dryrun.sh           # 端到端：PATH 前置假命令 + 临时 $HOME，
+                                          # 跑真实 cmd_install 三轮（安装 / 迁移 / 幂等）
+```
+
+两个脚本都会在失败时打印「实际 vs 期望」并以非 0 退出。
+`DRYRUN_ROOT=/tmp/xxx bash tests/install-sh-dryrun.sh` 可保留现场供排查。
 
 ## 说明
 
