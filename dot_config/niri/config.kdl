@@ -24,12 +24,15 @@ screenshot-path "~/Pictures/Screenshots/Niri-screenshots/%Y-%m-%d %H-%M-%S.png"
 environment {
     LANGUAGE "zh_CN:en"
     LANG "zh_CN.UTF-8"
-    // 光标：主题与尺寸的唯一来源是 DMS（DankMaterialShell/settings.json 的
-    // cursorSettings → 生成 dms/cursor.kdl）。这里的环境变量必须跟它一致，
-    // 否则 Qt、Electron 等读环境变量的程序会和 Wayland 原生程序对不上
-    // （LinuxQQ 就是这样）。改主题/尺寸请改 DMS 设置，然后同步这两行。
-    XCURSOR_THEME "Matugen-Cursors"
-    XCURSOR_SIZE "32"
+    // 光标：粉色（catppuccin mocha 的 pink 变体），24 号。
+    // 2026-09-30 之前这里写的是 Matugen-Cursors（matugen 按壁纸主色重着色的
+    // 动态主题，由 hyprland/scripts/generate_cursor_theme.py 生成），但该主题
+    // 从未生成成功（catppuccin 光标包没装），一直回退默认光标。现固定为
+    // catppuccin-mocha-pink-cursors / 24，与 Hyprland 侧 execs.lua 读的
+    // ~/.cache/cursor_theme 保持一致。Qt、Electron 等读环境变量的程序会和
+    // Wayland 原生程序对不上（LinuxQQ 就是这样），主题/尺寸改动要同步这里。
+    XCURSOR_THEME "catppuccin-mocha-pink-cursors"
+    XCURSOR_SIZE "24"
     // 输入法环境变量（与 Hyprland 的 hyprland/env.lua 保持一致，四个都要有。
     // 原先 niri 这边漏了 GTK_IM_MODULE / QT_IM_MODULE，GTK 与 Qt 程序不会走 fcitx）
     XMODIFIERS "@im=fcitx"
