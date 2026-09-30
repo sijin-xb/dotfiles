@@ -28,6 +28,16 @@ Item {
     function seekAtY(y) {
         if (!lyricRepeater || lyricRepeater.count === 0)
             return false
+        // 越界坐标不命中。锁屏瞬间指针会被锁屏 surface 接管，Qt 给 MouseArea
+        // 合成的 released 带着失效坐标（常见 0,0），映射进来会落到第一个槽位上；
+        // 没有这道闸门就会被当成「点了第一行」而 seek 到 0 秒。
+        if (y < 0 || y > root.height)
+            return false
+        // 越界坐标不命中。锁屏瞬间指针会被锁屏 surface 接管，Qt 给 MouseArea
+        // 合成的 released 带着失效坐标（常见 0,0），映射进来会落到第一个槽位上；
+        // 没有这道闸门就会被当成「点了第一行」而 seek 到 0 秒。
+        if (y < 0 || y > root.height)
+            return false
         for (let i = 0; i < lyricRepeater.count; i++) {
             const it = lyricRepeater.itemAt(i)
             // 越界槽位高度为 0，跳过

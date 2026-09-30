@@ -1,4 +1,5 @@
 import QtQuick
+import qs
 import qs.services
 
 // 灵动岛主容器。
@@ -311,7 +312,13 @@ Item {
             property real lastRightX: 0
             property real lastRightY: 0
 
+            // 锁屏期间不处理指针。
+            // 进锁屏时 WlSessionLock 会接管指针，Qt 给还握着 grab 的 MouseArea
+            // 补一次 released；那不是用户点击，落到歌词页就会被当成「点行 seek」
+            // ——表现就是「一锁屏，歌就跳回 0 秒」。press / release 两头都挡住，
+            // 只靠一头挡不住已经按下才开始锁的情况。
             onPressed: (e) => {
+                if (GlobalStates.screenLocked) return
                 if (e.button === Qt.RightButton) {
                     rightDragging = true
                     const rp = pillMouse.mapToItem(root, e.x, e.y)
@@ -362,6 +369,7 @@ Item {
             }
 
             onReleased: (e) => {
+                if (GlobalStates.screenLocked) return
                 if (rightDragging) {
                     rightDragging = false
                     return
