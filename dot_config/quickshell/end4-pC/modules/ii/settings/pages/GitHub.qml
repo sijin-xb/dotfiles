@@ -19,8 +19,11 @@ ContentPage {
     id: page
     forceWidth: true
 
-    // 输入框本地状态：停顿一下再提交，避免每敲一个字母发一次请求
+    // 手动覆盖用的输入框本地状态：停顿一下再提交，避免每敲一个字母发一次请求
     property string usernameInput: Config.options.github.username
+    // PAT 登录输入框（只在「改用访问令牌」折叠区里）
+    property string tokenInput: ""
+    property bool tokenPanelOpen: false
 
     Timer {
         id: usernameDebounce
@@ -40,23 +43,281 @@ ContentPage {
         Layout.fillHeight: true
         spacing: 20
 
-        // ── 账号 ────────────────────────────────────────────────────────
+        // ── 账号（登录走 gh，不再让用户手输账号当登录）──────────────────
         ContentSection {
             icon: "person"
             shape: MaterialShape.Shape.Cookie9Sided
             title: Translation.tr("GitHub account")
 
             GroupedList {
+                // ── 1. gh 未安装 ────────────────────────────────────────
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+                    visible: GitHub.authChecked && !GitHub.ghInstalled
+
+                    MaterialSymbol {
+                        Layout.alignment: Qt.AlignVCenter
+                        text: "error"
+                        iconSize: Appearance.font.pixelSize.large
+                        color: Appearance.colors.colError
+                    }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: Translation.tr("GitHub CLI (gh) is not installed.")
+                            color: Appearance.colors.colOnLayer1
+                            font.pixelSize: Appearance.font.pixelSize.small
+                        }
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: "sudo pacman -S github-cli"
+                            color: Appearance.colors.colOnSurfaceVariant
+                            font.family: Appearance.font.family.monospace
+                            font.pixelSize: Appearance.font.pixelSize.smaller
+                            wrapMode: Text.WrapAnywhere
+                        }
+                    }
+                    RippleButtonWithIcon {
+                        Layout.alignment: Qt.AlignVCenter
+                        materialIcon: "content_copy"
+                        mainText: Translation.tr("Copy")
+                        onClicked: Quickshell.clipboardText = "sudo pacman -S github-cli"
+                    }
+                }
+
+                // ── 2. 已登录 ───────────────────────────────────────────
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 12
+                    visible: GitHub.loggedIn
+
+                    Rectangle {
+                        Layout.alignment: Qt.AlignVCenter
+                        implicitWidth: 44
+                        implicitHeight: 44
+                        radius: Appearance.rounding.full
+                        color: Appearance.colors.colPrimaryContainer
+                        clip: true
+
+                        Image {
+                            id: avatarImage
+                            anchors.fill: parent
+                            source: GitHub.loginAvatar
+                            fillMode: Image.PreserveAspectCrop
+                            asynchronous: true
+                            visible: status === Image.Ready
+                        }
+                        MaterialSymbol {
+                            anchors.centerIn: parent
+                            visible: !avatarImage.visible
+                            text: "account_circle"
+                            iconSize: 28
+                            color: Appearance.colors.colOnPrimaryContainer
+                        }
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+
+                        RowLayout {
+                            spacing: 6
+                            StyledText {
+                                text: `@${GitHub.loginName}`
+                                color: Appearance.colors.colOnLayer1
+                                font.pixelSize: Appearance.font.pixelSize.normal
+                                font.weight: Font.DemiBold
+                            }
+                            Rectangle {
+                                Layout.alignment: Qt.AlignVCenter
+                                implicitWidth: badgeRow.implicitWidth + 12
+                                implicitHeight: 18
+                                radius: Appearance.rounding.full
+                                color: Appearance.colors.colPrimaryContainer
+                                RowLayout {
+                                    id: badgeRow
+                                    anchors.centerIn: parent
+                                    spacing: 4
+                                    MaterialSymbol {
+                                        text: "verified"
+                                        iconSize: 12
+                                        color: Appearance.colors.colOnPrimaryContainer
+                                    }
+                                    StyledText {
+                                        text: Translation.tr("Signed in via GitHub CLI")
+                                        color: Appearance.colors.colOnPrimaryContainer
+                                        font.pixelSize: Appearance.font.pixelSize.smallest
+                                    }
+                                }
+                            }
+                        }
+
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: GitHub.authError.length > 0
+                                ? GitHub.authError
+                                : Translation.tr("Token is managed by gh and stored in its own credential store.")
+                            color: GitHub.authError.length > 0
+                                ? Appearance.colors.colError
+                                : Appearance.colors.colOnSurfaceVariant
+                            font.pixelSize: Appearance.font.pixelSize.smallest
+                            wrapMode: Text.WordWrap
+                        }
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    visible: GitHub.loggedIn
+
+                    RippleButtonWithIcon {
+                        Layout.fillWidth: true
+                        materialIcon: "swap_horiz"
+                        mainText: Translation.tr("Switch account in terminal")
+                        onClicked: GitHub.login()
+                    }
+                    RippleButtonWithIcon {
+                        Layout.fillWidth: true
+                        materialIcon: "logout"
+                        mainText: Translation.tr("Sign out")
+                        enabled: !GitHub.authBusy
+                        onClicked: GitHub.logout()
+                    }
+                }
+
+                // ── 3. 未登录 ───────────────────────────────────────────
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+                    visible: GitHub.ghInstalled && GitHub.authChecked && !GitHub.loggedIn
+
+                    MaterialLoadingIndicator {
+                        Layout.alignment: Qt.AlignVCenter
+                        visible: GitHub.awaitingTerminalLogin
+                        loading: GitHub.awaitingTerminalLogin
+                        implicitSize: 18
+                        colBg: Appearance.colors.colPrimaryContainer
+                        colShape: Appearance.colors.colOnPrimaryContainer
+                    }
+                    MaterialSymbol {
+                        Layout.alignment: Qt.AlignVCenter
+                        visible: !GitHub.awaitingTerminalLogin
+                        text: "login"
+                        iconSize: Appearance.font.pixelSize.large
+                        color: Appearance.colors.colPrimary
+                    }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: GitHub.awaitingTerminalLogin
+                                ? Translation.tr("Waiting for the terminal to finish `gh auth login`…")
+                                : Translation.tr("Not signed in. Sign in with GitHub CLI to list your repositories.")
+                            color: Appearance.colors.colOnLayer1
+                            font.pixelSize: Appearance.font.pixelSize.small
+                            wrapMode: Text.WordWrap
+                        }
+                        StyledText {
+                            Layout.fillWidth: true
+                            visible: GitHub.authError.length > 0
+                            text: GitHub.authError
+                            color: Appearance.colors.colError
+                            font.pixelSize: Appearance.font.pixelSize.smallest
+                            wrapMode: Text.WordWrap
+                        }
+                    }
+                }
+
+                RippleButtonWithIcon {
+                    Layout.fillWidth: true
+                    visible: GitHub.ghInstalled && GitHub.authChecked && !GitHub.loggedIn
+                    materialIcon: "login"
+                    mainText: Translation.tr("Sign in with GitHub CLI")
+                    enabled: !GitHub.awaitingTerminalLogin
+                    onClicked: GitHub.login()
+                }
+
+                // ── 4. PAT 兜底（同样落到 gh 的凭据存储）────────────────
+                RippleButtonWithIcon {
+                    Layout.fillWidth: true
+                    visible: GitHub.ghInstalled && GitHub.authChecked && !GitHub.loggedIn
+                    materialIcon: page.tokenPanelOpen ? "expand_less" : "expand_more"
+                    mainText: Translation.tr("Use an access token instead")
+                    onClicked: page.tokenPanelOpen = !page.tokenPanelOpen
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    visible: GitHub.ghInstalled && GitHub.authChecked
+                        && !GitHub.loggedIn && page.tokenPanelOpen
+
+                    ConfigTextArea {
+                        Layout.fillWidth: true
+                        buttonIcon: "key"
+                        text: Translation.tr("Personal access token")
+                        placeholderText: "ghp_… / github_pat_…"
+                        value: page.tokenInput
+                        onValueChanged: page.tokenInput = value
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: Translation.tr("Needs `repo` scope. Stored by gh, never written to the shell config.")
+                        color: Appearance.colors.colOnSurfaceVariant
+                        font.pixelSize: Appearance.font.pixelSize.smallest
+                        wrapMode: Text.WordWrap
+                    }
+                    RippleButtonWithIcon {
+                        Layout.fillWidth: true
+                        materialIcon: "login"
+                        mainText: Translation.tr("Sign in with token")
+                        enabled: page.tokenInput.trim().length > 0 && !GitHub.authBusy
+                        onClicked: GitHub.loginWithToken(page.tokenInput)
+                    }
+                }
+
+                // ── 5. 手动覆盖（可选，留空则用 gh 当前账号）────────────
                 ConfigTextArea {
                     Layout.fillWidth: true
                     buttonIcon: "alternate_email"
-                    text: Translation.tr("GitHub username")
+                    text: Translation.tr("Override username (optional)")
+                    description: GitHub.loggedIn
+                        ? Translation.tr("Leave empty to use the gh account: %1").arg(GitHub.loginName)
+                        : Translation.tr("Leave empty to use the signed-in gh account.")
                     placeholderText: Translation.tr("e.g. torvalds")
                     value: page.usernameInput
                     onValueChanged: {
                         page.usernameInput = value;
                         usernameDebounce.restart();
                     }
+                }
+
+                ConfigSwitch {
+                    buttonIcon: "lock"
+                    text: Translation.tr("Include private repositories")
+                    checked: Config.options.github.includePrivate
+                    onCheckedChanged: {
+                        Config.options.github.includePrivate = checked;
+                        GitHub.fetch();
+                    }
+                }
+
+                StyledText {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 12
+                    Layout.rightMargin: 12
+                    text: GitHub.isSelf
+                        ? Translation.tr("Fetching through the authenticated endpoint, so your private repositories show up.")
+                        : Translation.tr("Private repositories only appear while showing the signed-in gh account (%1).").arg(
+                            GitHub.loggedIn ? GitHub.loginName : Translation.tr("none"))
+                    color: Appearance.colors.colOnSurfaceVariant
+                    font.pixelSize: Appearance.font.pixelSize.smallest
+                    wrapMode: Text.WordWrap
                 }
 
                 ConfigSwitch {
@@ -87,14 +348,14 @@ ContentPage {
                         Layout.fillWidth: true
                         materialIcon: "refresh"
                         mainText: Translation.tr("Reload")
-                        enabled: GitHub.username.length > 0 && !GitHub.loading
+                        enabled: GitHub.effectiveUser.length > 0 && !GitHub.loading
                         onClicked: GitHub.fetch()
                     }
                     RippleButtonWithIcon {
                         Layout.fillWidth: true
                         materialIcon: "open_in_new"
                         mainText: Translation.tr("Open profile")
-                        enabled: GitHub.username.length > 0
+                        enabled: GitHub.effectiveUser.length > 0
                         onClicked: GitHub.openProfile()
                     }
                 }
@@ -130,8 +391,8 @@ ContentPage {
                                 return Translation.tr("Loading…");
                             if (GitHub.errorText.length > 0)
                                 return GitHub.errorText;
-                            if (GitHub.username.length === 0)
-                                return Translation.tr("Enter a username above to list repositories.");
+                            if (GitHub.effectiveUser.length === 0)
+                                return Translation.tr("Sign in with GitHub CLI above to list your repositories.");
                             return `${GitHub.visibleRepos.length} / ${GitHub.repos.length} ` + Translation.tr("repositories");
                         }
                         color: GitHub.errorText.length > 0
@@ -168,8 +429,8 @@ ContentPage {
                         }
                         StyledText {
                             Layout.alignment: Qt.AlignHCenter
-                            text: GitHub.username.length === 0
-                                ? Translation.tr("No username set")
+                            text: GitHub.effectiveUser.length === 0
+                                ? Translation.tr("Not signed in")
                                 : Translation.tr("Nothing to show")
                             color: Appearance.colors.colOnSurfaceVariant
                             font.pixelSize: Appearance.font.pixelSize.smaller

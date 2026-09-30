@@ -180,10 +180,14 @@ Singleton {
 
             // GitHub 项目页（设置 → GitHub）。仓库列表用 gh CLI 拉，见 pages/GitHub.qml
             property JsonObject github: JsonObject {
-                property string username: ""       // 要展示的 GitHub 用户名
+                property string username: ""       // 手动覆盖的展示用户名（留空则用 gh 当前账号）
                 property int repoLimit: 30         // 最多拉多少个仓库
                 property bool includeForks: false  // 是否把 fork 也列出来
                 property bool includeArchived: false
+                // 私有仓库：只在「展示的账号 == gh 当前登录账号」时有效。
+                // GitHub 的 users/<login>/repos 是公开端点，无论是否带 token
+                // 都只返回公开仓库；要拿私有仓库必须走已认证的 user/repos。
+                property bool includePrivate: true
             }
 
             // 顶部灵动岛（音乐 / 音量 / 录屏等活动胶囊）。

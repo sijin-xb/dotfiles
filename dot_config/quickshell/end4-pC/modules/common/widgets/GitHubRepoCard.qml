@@ -67,6 +67,13 @@ Rectangle {
             }
 
             StyledText {
+                visible: card.repo.private === true
+                text: Translation.tr("private")
+                color: Appearance.colors.colTertiary
+                font.pixelSize: Appearance.font.pixelSize.smallest
+            }
+
+            StyledText {
                 visible: card.repo.archived === true
                 text: Translation.tr("archived")
                 color: Appearance.colors.colError
