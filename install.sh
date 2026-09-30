@@ -2056,6 +2056,27 @@ cmd_update() {
     say "清单已更新：$(manifest_path)"
     say "版本已记录：$(current_revision)（$(revision_path)）"
 
+    # ── QML 模块依赖自检 ─────────────────────────────────────────────
+    # 与 install 的 [7/7] 同一段逻辑（那边有完整注释，这里不再重复）。
+    # update 也必须跑：升级会带进**新的 QML 文件**，新文件可能 import 了机器上
+    # 还没有的 Qt 模块 —— 缺了照样是「组件静默消失、日志只有一行 WARN」。
+    # 典型场景就是 qt6-positioning / kirigami / syntax-highlighting：
+    # 装过 Plasma 的机器永远不缺，纯净机器 update 完就少一块。
+    if [[ "$QS_SHELL" != "dms" && -x "$SRC/check-qml-deps.py" ]]; then
+        local qml_report qml_rc
+        qml_report="$("$SRC/check-qml-deps.py" --quiet 2>&1)"
+        qml_rc=$?
+        if (( qml_rc != 0 )); then
+            echo
+            warn "QML 模块依赖不全 —— 下面这些组件启动后会静默消失（不会报错）"
+            printf '%s\n' "$qml_report"
+            echo
+            warn "补齐办法：$0 update --with-packages，或手动跑：$SRC/check-qml-deps.py"
+        else
+            echo "    QML 模块依赖自检：齐全"
+        fi
+    fi
+
     echo
     echo "----------------------------------------------------------------------"
     echo "  升级完成。"
