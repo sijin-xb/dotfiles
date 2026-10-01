@@ -1,5 +1,113 @@
+# =============================================================================
+#  ~/.config/matugen/config.toml
+#
+#  这是**唯一生效**的 matugen 配置。
+#
+#  调用链（本机实测）：
+#    · ~/.local/bin/matugen 是一个按会话分派的包装脚本，真身是 /usr/bin/matugen。
+#      它在 XDG_CURRENT_DESKTOP 含 Hyprland 时会尝试注入
+#      ~/.config/matugen/config.hyprland.toml —— 该文件当前**不存在**，脚本里的
+#      `[ -f "$HYPR_CFG" ] || exec` 兜底会让它退回读本文件。所以两个会话实际
+#      都跑这一份配置。若要恢复双配置，把本文件复制成 config.hyprland.toml 再删
+#      掉你不想要的段落即可。
+#    · ~/.config/matugen/config.niri.toml 是指向本文件的软链（保持不动）。
+#    · ~/.config/scripts/matugen-update.sh 调的是 `matugen image <壁纸> -t ... -m ...`，
+#      不带 -c，读的也是本文件。
+#
+#  语法依据：matugen 4.2.0。模板引擎是自研的（Chumsky），不是 Mustache/Jinja：
+#    · 取值      {{ colors.primary.default.hex }}
+#    · 块        <* ... *>        （循环、条件、include）
+#    · 条件      <* if {{ cond }} *> ... <* else *> ... <* endif *>
+#                注意条件里必须再套一层 {{ }}，写成 <* if cond *> 会解析失败。
+#    · 循环      <* for name, value in colors *> ... <* endfor *>
+#    · 过滤器    {{ colors.primary.default.hex | lighten: 20.0 | invert }}
+#    · 转义      \{{ ... }}        （输出字面量，不求值）
+#
+#  颜色取值格式（三选一）：
+#    .default  —— 跟随本次的明暗模式，绝大多数场合用这个
+#    .light / .dark —— 强制取亮色/暗色，用于同一份文件里同时给出两套值
+#  可用格式：hex / hex_stripped / rgb / rgba / hsl / hsla
+#           red / green / blue / alpha / hue / saturation / lightness
+#
+#  全部 50 个 Material You 角色（模板里写 colors.<角色>.default.hex）：
+#    background  on_background  surface  surface_dim  surface_bright
+#    surface_container_lowest  surface_container_low  surface_container
+#    surface_container_high  surface_container_highest  surface_variant
+#    on_surface  on_surface_variant  inverse_surface  inverse_on_surface
+#    outline  outline_variant  shadow  scrim  surface_tint
+#    primary  on_primary  primary_container  on_primary_container
+#    primary_fixed  primary_fixed_dim  on_primary_fixed  on_primary_fixed_variant
+#    secondary  on_secondary  secondary_container  on_secondary_container
+#    secondary_fixed  secondary_fixed_dim  on_secondary_fixed  on_secondary_fixed_variant
+#    tertiary  on_tertiary  tertiary_container  on_tertiary_container
+#    tertiary_fixed  tertiary_fixed_dim  on_tertiary_fixed  on_tertiary_fixed_variant
+#    error  on_error  error_container  on_error_container
+#    inverse_primary  source_color
+# =============================================================================
+
+
 [config]
+# 关掉联网检查更新：本机 matugen 由 pacman 管，CLI 自检只会白等一次网络超时。
 version_check = false
+
+# ── 以下都是**默认值**，写出来只是为了留档，改动前先确认真的需要 ──────────
+#
+# 取不出好颜色时的兜底源色（任意 CSS 颜色格式）：
+# fallback_color = "#ffbf9b"
+#
+# 一张图里挑出多个候选色时选哪个：
+#   可选 darkness / lightness / saturation / less-saturation / value / closest-to-fallback
+# prefer = "closest-to-fallback"
+#
+# 按图片哈希缓存配色结果到 $XDG_CACHE_HOME/matugen/images/。
+# 调试配色时建议保持 false —— 缓存命中会让你以为「改了参数没生效」。
+# caching = false
+#
+# 全局对比度，-1（最低）~ 0（MD3 规范值）~ 1（最高）。
+# contrast = 0.0
+#
+# 明暗两端的亮度微调（只在需要压/提对比时用）：
+# lightness_dark  = 0.0
+# lightness_light = 0.0
+#
+# 额外导入的 JSON 文件（相对路径以本文件所在目录为基准），
+# 内容可用 {{ custom.<key> }} 取到：
+# import_json_files = []
+#
+# 模板定界符。默认就是下面这组，除非要和别的工具共用模板文件，否则别动：
+# expr_prefix   = "{{"
+# expr_postfix  = "}}"
+# block_prefix  = "<*"
+# block_postfix = "*>"
+#
+# ⚠ 不要在这里写 source_color_index / type / mode。
+#   matugen-update.sh 会通过 -t / -m / --source-color-index 显式传入，
+#   CLI 参数优先，写在这里只会造成「配置和实际不一致」的困惑。
+
+# ── 壁纸接管 ────────────────────────────────────────────────────────────
+# 本机壁纸由 DMS（niri 会话）/ Omarchy（Hyprland 会话）自己管，matugen 只负责
+# 取色，不负责贴壁纸。这里保持注释状态 = 不干预。真要交给 matugen 时再打开，
+# 并把 command 改成 awww 的调用（本机已装 awww / mpvpaper）。
+#
+# [config.wallpaper]
+# set = false
+# command = "awww img --transition-type center {{ image }}"
+
+# ── 自定义关键字 ────────────────────────────────────────────────────────
+# 模板里用 {{ custom.<key> }} 取。适合放字体名、圆角半径这类随主题走的值。
+# [config.custom_keywords]
+# font1 = "Google Sans"
+
+# ── 自定义颜色 ──────────────────────────────────────────────────────────
+# 会做 MD3 harmonization，生成 on_color / on_color_container。
+# 想用原色不做协调，取 {{ <name>_source }}。
+# [config.custom_colors]
+# red = "#ff0000"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  §1  颜色数据源
+# ═══════════════════════════════════════════════════════════════════════════
 
 [templates.m3colors]
 input_path = '~/.config/matugen/templates/colors.json'
@@ -11,6 +119,44 @@ output_path = '~/.local/state/quickshell/user/generated/colors.json'
 # 并尊重 设置 → 界面 → 配色生成 → 光标 开关。
 post_hook = 'nohup "$HOME/.config/scripts/generate_cursor_theme.py" >/dev/null 2>&1 &'
 
+# KDE / Qt 全局配色方案。
+#
+# 生成到 ~/.local/share/color-schemes/ 后，谁读它由 ~/.config/kdeglobals 的
+# `[General] ColorScheme=` 决定。**生成 ≠ 生效**，这一点本机踩过：
+#
+#   2026-10-02 实测：kdeglobals 里是 `ColorScheme=MaterialYouDark`，
+#   而 MaterialYouDark.colors 的调色板是 #1c1d23，当前 matugen 产出的是 #171216。
+#   也就是说这份产物写出来了，但没有任何程序在读。
+#
+#   两个会话的情况还不一样：
+#     · niri 会话    → DMS 管这条链。DMS 二进制里有 `DATA_DIR/kdeglobals` 和
+#                      `qt6ct.conf`，它会写 DankMatugen{,Dark,Light}.colors
+#                      并更新 qt6ct.conf。跟它抢 kdeglobals 会被覆盖。
+#     · Hyprland 会话 → 没有进程在更新 kdeglobals，用的是旧值。
+#
+# 所以这份产物目前只在 Hyprland 会话有意义。想让 matugen 两个会话都接管，
+# 把下面这行解注释到 hooks/post_hook.sh 里（那边有现成的注释块）：
+#     sed -i 's/^ColorScheme=.*/ColorScheme=Matugen/' ~/.config/kdeglobals
+#
+# Kvantum 的 SVG 里那段 <style id="current-color-scheme"> 由 Kvantum 自己按
+# 当前配色方案覆写，所以**不需要**给 SVG 做模板（见 §4 的说明）。
+[templates.kde_colorscheme]
+input_path = '~/.config/matugen/templates/Matugen.colors'
+output_path = '~/.local/share/color-schemes/Matugen.colors'
+
+[templates.kde_colors]
+input_path = '~/.config/matugen/templates/kde/color.txt'
+output_path = '~/.local/state/quickshell/user/generated/color.txt'
+
+[templates.wallpaper]
+input_path = '~/.config/matugen/templates/wallpaper.txt'
+output_path = '~/.local/state/quickshell/user/generated/wallpaper/path.txt'
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  §2  窗口管理器
+# ═══════════════════════════════════════════════════════════════════════════
+
 [templates.hyprland]
 input_path = '~/.config/matugen/templates/hyprland/colors.lua'
 output_path = '~/.config/hypr/hyprland/colors.lua'
@@ -18,6 +164,103 @@ output_path = '~/.config/hypr/hyprland/colors.lua'
 [templates.hyprlock]
 input_path = '~/.config/matugen/templates/hyprland/hyprlock-colors.conf'
 output_path = '~/.config/hypr/hyprlock/colors.conf'
+
+# niri 会话的 hyprlock 用的是**另一套变量名**（$primary / $surface / $on_surface …），
+# 和上面那份完全不重叠，所以必须单独生成一份。
+# 消费方：~/.config/niri/binds.kdl:60（Mod+Alt+L）、
+#        ~/.config/niri/scripts/powermenu:29 与 :38
+#        都用 `hyprlock -c ~/.config/niri/hyprlock.conf`，该文件第 3 行 source 本产物。
+# 2026-10-02 之前这条一直缺失：主配置 source 的是 ~/.cache/matugen/hypr/colors.conf，
+# 而没有任何模板写这个路径，niri 锁屏的 $primary 等变量全部解析不到。
+[templates.hyprlock_niri]
+input_path = '~/.config/matugen/templates/hyprland/hyprlock-colors-niri.conf'
+output_path = '~/.cache/matugen/hypr/colors.conf'
+
+[templates.niri]
+input_path = '~/.config/matugen/templates/niri-colors.kdl'
+output_path = '~/.config/niri/matugen-colors.kdl'
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  §3  GTK
+# ═══════════════════════════════════════════════════════════════════════════
+
+[templates.gtk3]
+input_path = '~/.config/matugen/templates/gtk-3.0/gtk.css'
+output_path = '~/.config/gtk-3.0/gtk.css'
+
+# GTK4 模板里同时写了两套入口：老式的 @define-color（GTK3 风格选择器用）
+# 和新式的 CSS 自定义属性 --accent-bg-color / --window-bg-color 等
+# （libadwaita 1.6+ 及只用 var(--...) 的第三方样式用）。两者值保持一致。
+[templates.gtk4]
+input_path = '~/.config/matugen/templates/gtk-4.0/gtk.css'
+output_path = '~/.config/gtk-4.0/gtk.css'
+
+[templates.gtk-folder]
+# 把 Adwaita 文件夹 / 部分 mimetypes 图标按 matugen 主色重新着色。
+# recolor.sh 是模板（含 {{colors.*}} 占位符），matugen 渲染出真实 hex 到
+# 缓存目录后再由 post_hook 执行。生成到 ~/.local/share/icons/Adwaita-Matugen-{A,B}
+# （A/B 交替绕开 GTK/Qt 的图标缓存），并把 gsettings icon-theme 切过去。
+input_path = '~/.config/matugen/templates/gtk-folder/recolor.sh'
+output_path = '~/.local/state/quickshell/user/generated/recolor-folders.sh'
+post_hook = 'nohup bash "$HOME/.local/state/quickshell/user/generated/recolor-folders.sh" >/dev/null 2>&1 &'
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  §4  Qt 5 / Qt 6 —— 统一走 Kvantum
+#
+#  为什么不做 qt5ct / qt6ct 调色板：本机装的是 kvantum + kvantum-qt5，两个包
+#  分别提供 Qt6 和 Qt5 的 style plugin，一个 Kvantum 主题同时覆盖 Qt5 与 Qt6。
+#  qt6ct / qt5ct **都没装**，再引一套调色板只会多一个会漂移的颜色源。
+#
+#  为什么不做 Kvantum 的 SVG 模板：
+#    MaterialAdw.svg 里有一段 <style id="current-color-scheme">，定义了
+#    .ColorScheme-Highlight / -Background / -ViewText / -ButtonBackground 等类。
+#    这段是 Kvantum 的**自动替换**机制 —— 它按当前配色方案（即上面 §1 生成的
+#    ~/.local/share/color-schemes/Matugen.colors）在渲染时覆写这些类。
+#    给 SVG 做模板会做两件坏事：① 和 Kvantum 自己的替换打架，谁最后写谁赢；
+#    ② SVG 里 365 处 #FFFFFF 是 opacity 蒙版用的，替换掉会直接把控件画糊。
+#    所以正确做法是「SVG 不动，改配色方案 + kvconfig 的 [GeneralColors]」。
+# ═══════════════════════════════════════════════════════════════════════════
+
+[templates.kvantum]
+# 模板 = 现有 MaterialAdw.kvconfig 的完整副本（569 行），只把 23 个颜色键、
+# 共 59 处赋值换成 MD3 角色，其余全是 Kvantum 的几何/行为参数，原样保留。
+#
+# 变量映射（[GeneralColors] 段）：
+#   window.color                -> surface_container_low      窗口底
+#   base.color                  -> surface                    输入框/列表底
+#   alt.base.color              -> surface_container_low      交替行底
+#   button.color                -> surface_container_high     按钮底
+#   light.color                 -> surface_container_highest  亮边
+#   mid.light.color             -> surface_container_high
+#   dark.color                  -> surface_container_lowest   暗边/凹陷
+#   mid.color                   -> surface_container
+#   highlight.color             -> primary                    选中/强调
+#   inactive.highlight.color    -> primary
+#   text.color                  -> on_surface
+#   window.text.color           -> on_surface
+#   button.text.color           -> on_surface
+#   disabled.text.color         -> on_surface_variant
+#   tooltip.text.color          -> on_surface
+#   highlight.text.color        -> on_primary                 强调底上的字
+#   link.color                  -> primary
+#   link.visited.color          -> tertiary
+#   progress.indicator.text.color -> on_surface
+# 各控件 section 里重复出现的状态字色：
+#   text.normal.color / text.focus.color -> on_surface
+#   text.press.color  / text.toggle.color -> on_primary
+#   （press/toggle 的底色是 highlight = primary，按 MD3 对比度要求取 on_primary）
+input_path = '~/.config/matugen/templates/kvantum/MaterialAdw.kvconfig'
+output_path = '~/.config/Kvantum/MaterialAdw/MaterialAdw.kvconfig'
+# Kvantum 只在收到 dbus 通知时重读主题，没有信号接口。改完文件后正在运行的
+# Qt 程序不会立刻换色，重启对应程序即可 —— 这里只提示，不杀进程。
+post_hook = 'echo "[matugen] Kvantum 主题已更新，Qt 程序需重启才生效"'
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  §5  启动器
+# ═══════════════════════════════════════════════════════════════════════════
 
 [templates.fuzzel]
 input_path = '~/.config/matugen/templates/fuzzel/fuzzel_theme.ini'
@@ -29,17 +272,71 @@ output_path = '~/.config/fuzzel/fuzzel_theme.ini'
 input_path = '~/.config/matugen/templates/walker/style.css'
 output_path = '~/.config/walker/themes/matugen/style.css'
 
-[templates.alacritty]
-input_path = '~/.config/matugen/templates/alacritty/matugen-theme.toml'
-output_path = '~/.config/alacritty/matugen-theme.toml'
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  §6  状态栏与通知
+# ═══════════════════════════════════════════════════════════════════════════
+
+# waybar 的样式是「手写 style.css + 生成 colors.css」的组合：
+# style.css 第 1 行就是 @import "colors.css"，所以**只生成颜色变量**，
+# 绝不去覆盖 style.css —— 那会把用户手写的布局规则全冲掉。
+# 模板对 colors 做全量遍历，50 个角色全部导出成 @define-color，
+# style.css 里可以直接写 @primary / @on_surface_container / @outline。
+[templates.waybar_colors]
+input_path = '~/.config/matugen/templates/colors.css'
+output_path = '~/.config/waybar/colors.css'
+
+[templates.waybar_niri_colors]
+input_path = '~/.config/matugen/templates/colors.css'
+output_path = '~/.config/waybar-niri-Win11Like/colors.css'
+
+# swaync 同理：只生成颜色变量文件，不动手写的 style.css。
+# 用之前在 ~/.config/swaync/style.css 顶部加一行 @import "colors.css";
+# 注意本机当前**没装 swaync**（通知由 DMS 接管），这条属于预置。
+[templates.swaync]
+input_path = '~/.config/matugen/templates/swaync/colors.css'
+output_path = '~/.config/swaync/colors.css'
+
+# mako（Hyprland 会话用；niri 侧 mako.service 已 mask）
+[templates.mako]
+input_path = '~/.config/matugen/templates/mako/colors.conf'
+output_path = '~/.config/mako/colors.conf'
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  §7  终端与 TUI
+# ═══════════════════════════════════════════════════════════════════════════
+
+# kitty 主配置里已有 include current-theme.conf，所以只生成被 include 的那一份。
+# 热重载依赖 allow_remote_control（见 post_hook.sh 的提示），当前 kitty.conf
+# 里**没有**这一项，需要手动补：allow_remote_control socket-only
 [templates.kitty]
 input_path = '~/.config/matugen/templates/kitty/current-theme.conf'
 output_path = '~/.config/kitty/current-theme.conf'
 
+[templates.alacritty]
+input_path = '~/.config/matugen/templates/alacritty/matugen-theme.toml'
+output_path = '~/.config/alacritty/matugen-theme.toml'
+
 [templates.foot]
 input_path = '~/.config/matugen/templates/foot/foot.ini'
 output_path = '~/.config/foot/matugen.ini'
+
+# fish 的语法高亮配色。输出到 conf.d/ 下，fish 启动时自动 source。
+# ⚠ source 顺序：fish 先按字母序读 conf.d/*.fish，最后才读 config.fish。
+#   所以 config.fish 里第 33-35 行那几句硬编码的 fish_color_* 会覆盖本文件，
+#   启用后请把那几行删掉。
+[templates.fish]
+input_path = '~/.config/matugen/templates/fish/matugen-colors.fish'
+output_path = '~/.config/fish/conf.d/matugen-colors.fish'
+
+[templates.starship]
+input_path = '~/.config/matugen/templates/starship.toml'
+output_path = '~/.config/starship.toml'
+
+[templates.fastfetch]
+input_path = '~/.config/matugen/templates/fastfetch-config.jsonc'
+output_path = '~/.config/fastfetch/config.jsonc'
 
 [templates.btop]
 input_path = '~/.config/matugen/templates/btop.theme'
@@ -48,42 +345,9 @@ output_path = '~/.config/btop/themes/ii-auto.theme'
 # 主题，正在跑的实例立刻换色，不需要重启。没有实例时 pkill 返回 1，忽略即可。
 post_hook = 'pkill -SIGUSR2 -x btop 2>/dev/null || true'
 
-[templates.mako]
-input_path = '~/.config/matugen/templates/mako/colors.conf'
-output_path = '~/.config/mako/colors.conf'
-
-[templates.fastfetch]
-input_path = '~/.config/matugen/templates/fastfetch-config.jsonc'
-output_path = '~/.config/fastfetch/config.jsonc'
-
-[templates.gtk3]
-input_path = '~/.config/matugen/templates/gtk-3.0/gtk.css'
-output_path = '~/.config/gtk-3.0/gtk.css'
-
-[templates.gtk4]
-input_path = '~/.config/matugen/templates/gtk-4.0/gtk.css'
-output_path = '~/.config/gtk-4.0/gtk.css'
-
-[templates.kde_colors]
-input_path = '~/.config/matugen/templates/kde/color.txt'
-output_path = '~/.local/state/quickshell/user/generated/color.txt'
-
-[templates.gtk-folder]
-# 把 Adwaita 文件夹 / 部分 mimetypes 图标按 matugen 主色重新着色。
-# recolor.sh 是模板（含 {{colors.*}} 占位符），matugen 渲染出真实 hex 到
-# 缓存目录后再由 post_hook 执行。生成到 ~/.local/share/icons/Adwaita-Matugen-{A,B}
-# （A/B 交替绕开 GTK/Qt 的图标缓存），并把 gsettings icon-theme 切过去。
-input_path = '~/.config/matugen/templates/gtk-folder/recolor.sh'
-output_path = '~/.local/state/quickshell/user/generated/recolor-folders.sh'
-post_hook = 'nohup bash "$HOME/.local/state/quickshell/user/generated/recolor-folders.sh" >/dev/null 2>&1 &'
-
-[templates.wallpaper]
-input_path = '~/.config/matugen/templates/wallpaper.txt'
-output_path = '~/.local/state/quickshell/user/generated/wallpaper/path.txt'
-
-[templates.niri]
-input_path = '~/.config/matugen/templates/niri-colors.kdl'
-output_path = '~/.config/niri/matugen-colors.kdl'
+[templates.yazi]
+input_path = '~/.config/matugen/templates/yazi-theme.toml'
+output_path = '~/.config/yazi/theme.toml'
 
 [templates.cava]
 input_path = '~/.config/matugen/templates/cava-colors.ini'
@@ -95,21 +359,25 @@ output_path = '~/.local/share/fcitx5/themes/Matugen/theme.conf'
 # 主题生成后重启 fcitx5，使新配色立即生效（否则 fcitx5 不会热重载主题文件）
 post_hook = 'fcitx5-remote -r'
 
-[templates.waybar_colors]
-input_path = '~/.config/matugen/templates/colors.css'
-output_path = '~/.config/waybar/colors.css'
 
-[templates.waybar_niri_colors]
-input_path = '~/.config/matugen/templates/colors.css'
-output_path = '~/.config/waybar-niri-Win11Like/colors.css'
+# ═══════════════════════════════════════════════════════════════════════════
+#  §8  桌面应用
+# ═══════════════════════════════════════════════════════════════════════════
 
-[templates.starship]
-input_path = '~/.config/matugen/templates/starship.toml'
-output_path = '~/.config/starship.toml'
+# Firefox 的 userChrome.css 必须落在 profile 目录里，而 profile 名是随机串
+# （xxxxxxxx.default-release），「刷新 Firefox」还会换名字。所以这里只生成
+# 内容到固定位置，由 hooks/post_hook.sh 按当前 profile 复制过去。
+# 前置：about:config 里 toolkit.legacyUserProfileCustomizations.stylesheets = true
+[templates.firefox]
+input_path = '~/.config/matugen/templates/firefox/userChrome.css'
+output_path = '~/.config/matugen/generated/firefox-userChrome.css'
 
-[templates.yazi]
-input_path = '~/.config/matugen/templates/yazi-theme.toml'
-output_path = '~/.config/yazi/theme.toml'
+# mpv 的 OSC 配色。注意 osc-* 是脚本选项，写进 mpv.conf 会报 option not found，
+# 必须走 script-opts 通道。本文件输出到 script-opts/ 下按脚本名自动加载，
+# 与 mpv.conf 里的 script-opts-append=osc-xxx=yyy 并存不冲突。
+[templates.mpv]
+input_path = '~/.config/matugen/templates/mpv/osc.conf'
+output_path = '~/.config/mpv/script-opts/osc.conf'
 
 [templates.obs]
 input_path = '~/.config/matugen/templates/obs-matugen.obt'
@@ -121,15 +389,19 @@ output_path = '~/.config/obs-studio/themes/matugen.obt'
 input_path = '~/.config/matugen/templates/vscode-inject.json'
 output_path = '~/.cache/matugen_vscode_inject.json'
 
-# ── 编辑器（micro / Kate / nvim）────────────────────────────────────────
-# 这三个都是**原生格式**，不走 GTK：
-#   · Kate  → KSyntaxHighlighting 的 .theme（JSON）。Kate / KWrite / KDevelop
-#             以及所有用 KTextEditor 的 KDE 应用都读它，跟 GTK 无关。
-#             主题名取自文件里的 metadata.name，文件名随便起。
-#   · micro → micro 自己的 .micro colorscheme（color-link 指令）。
-#   · nvim  → 一个普通 Lua colorscheme，放在 ~/.config/nvim/colors/ 下，
-#             由 :colorscheme matugen 加载（见 nvim/lua/plugins/transparent.lua）。
-# 生成完都要重启对应程序才会重新读取（Kate 也不会热加载主题文件）。
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  §9  编辑器（micro / Kate / nvim）
+#  这三个都是**原生格式**，不走 GTK：
+#    · Kate  → KSyntaxHighlighting 的 .theme（JSON）。Kate / KWrite / KDevelop
+#              以及所有用 KTextEditor 的 KDE 应用都读它，跟 GTK 无关。
+#              主题名取自文件里的 metadata.name，文件名随便起。
+#    · micro → micro 自己的 .micro colorscheme（color-link 指令）。
+#    · nvim  → 一个普通 Lua colorscheme，放在 ~/.config/nvim/colors/ 下，
+#              由 :colorscheme matugen 加载（见 nvim/lua/plugins/transparent.lua）。
+#  生成完都要重启对应程序才会重新读取（Kate 也不会热加载主题文件）。
+# ═══════════════════════════════════════════════════════════════════════════
+
 [templates.kate]
 input_path = '~/.config/matugen/templates/editors/kate-matugen.theme'
 output_path = '~/.local/share/org.kde.syntax-highlighting/themes/matugen-md3.theme'
@@ -141,3 +413,20 @@ output_path = '~/.config/micro/colorschemes/matugen.micro'
 [templates.nvim]
 input_path = '~/.config/matugen/templates/editors/nvim-matugen.lua'
 output_path = '~/.config/nvim/colors/matugen.lua'
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  §10  收尾钩子
+#
+#  matugen 没有「全局 post_hook」，只能挂在某个模板上。用 index 排序：
+#  index 默认 0，正值排在后面，负值排在前面。这里给 1000，保证它一定是
+#  最后一个被处理的模板 —— 此时所有颜色文件都已写盘，重载才有意义。
+#
+#  post_hook.sh 做什么、为什么这么写，见文件自身的注释。
+# ═══════════════════════════════════════════════════════════════════════════
+
+[templates.hooks]
+input_path = '~/.config/matugen/templates/hook-anchor.txt'
+output_path = '~/.local/state/matugen/last-run.txt'
+index = 1000
+post_hook = 'bash "$HOME/.config/matugen/hooks/post_hook.sh"'

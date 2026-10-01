@@ -19,6 +19,11 @@
 .config/gtk-3.0/gtk.css
 .config/gtk-4.0/gtk.css
 
+# Firefox userChrome：matugen 生成到 .config/matugen/generated/，
+# 再由 matugen 的 post_hook 按当前 profile 复制进 ~/.mozilla/firefox/<profile>/chrome/。
+# 是运行时产物，不部署；profile 名随机，也没法静态部署。
+.config/matugen/generated/
+
 # ---- quickshell 运行时生成物 ----
 .config/hypr/hyprland/shellOverrides/main.lua
 .config/hypr/hyprland/shellOverrides/animations.lua

@@ -1,0 +1,12 @@
+# matugen hook anchor
+#
+# 这个文件没有实际用途。它存在的唯一理由，是给 hooks/post_hook.sh 提供一个
+# 挂载点：matugen 没有「全局 post_hook」，只能挂在某个模板上。这里用
+# index = 1000 把本模板排到最后，保证 post_hook.sh 在所有模板都写完之后才跑。
+#
+# 顺便把本次生成的元信息落盘，排查问题时可以直接看：
+#   mode         当前明暗模式（dark / light）
+#   source       源颜色（取自壁纸或 --source-color-index）
+mode={{ mode }}
+source={{ colors.source_color.default.hex }}
+image={{ image }}

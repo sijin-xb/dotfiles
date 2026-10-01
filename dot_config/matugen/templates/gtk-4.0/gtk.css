@@ -541,3 +541,125 @@ tooltip {
 .image-button.flat arrow {
   background: transparent;
 }
+
+/* ===========================================================================
+ * libadwaita 命名颜色的 CSS 自定义属性形式
+ *
+ * libadwaita 1.6 起，命名颜色除了 @define-color 之外，还暴露成 CSS 自定义
+ * 属性（下划线换成连字符：accent_bg_color -> --accent-bg-color）。两者是同一
+ * 套颜色的两个入口：
+ *   · 老代码 / GTK3 风格样式  -> @define-color accent_bg_color
+ *   · 新代码 / 想在 :root 里覆盖 -> var(--accent-bg-color)
+ *
+ * 为什么两种都写：只写 @define-color 的话，libadwaita 自己的新组件（以及
+ * 那些只用 var(--...) 的第三方 CSS）拿不到值；只写 --* 的话，GTK3 风格的
+ * 选择器会失效。这里保持与上面完全一致的值，避免两套入口对不上。
+ * ========================================================================= */
+
+@media (prefers-color-scheme: light) {
+  :root {
+    /* 强调色 / 状态色 */
+    --accent-color:                  {{colors.primary.light.hex}};
+    --accent-bg-color:               {{colors.primary.light.hex}};
+    --accent-fg-color:               {{colors.on_primary.light.hex}};
+    --destructive-color:             {{colors.error.light.hex}};
+    --destructive-bg-color:          {{colors.error_container.light.hex}};
+    --destructive-fg-color:          {{colors.on_error_container.light.hex}};
+    --success-color:                 #374B3E;
+    --success-bg-color:              #B5CCBA;
+    --success-fg-color:              #213528;
+
+    /* 窗口 / 视图 */
+    --window-bg-color:               {{colors.background.light.hex}};
+    --window-fg-color:               {{colors.on_background.light.hex}};
+    --view-bg-color:                 {{colors.surface_container_lowest.light.hex}};
+    --view-fg-color:                 {{colors.on_surface.light.hex}};
+    --headerbar-bg-color:            {{colors.surface_container.light.hex}};
+    --headerbar-fg-color:            {{colors.on_surface.light.hex}};
+    --headerbar-backdrop-color:      {{colors.surface_container.light.hex}};
+    --headerbar-border-color:        {{colors.outline_variant.light.hex}};
+    --headerbar-shade-color:         rgba({{colors.scrim.light.red}}, {{colors.scrim.light.green}}, {{colors.scrim.light.blue}}, 0.12);
+
+    /* 侧栏 */
+    --sidebar-bg-color:              {{colors.background.light.hex}};
+    --sidebar-fg-color:              {{colors.on_surface.light.hex}};
+    --sidebar-backdrop-color:        {{colors.surface_container_low.light.hex}};
+    --sidebar-border-color:          {{colors.outline_variant.light.hex}};
+    --secondary-sidebar-bg-color:    {{colors.surface_container_low.light.hex}};
+    --secondary-sidebar-fg-color:    {{colors.on_surface_variant.light.hex}};
+    --secondary-sidebar-backdrop-color: {{colors.surface_container_low.light.hex}};
+    --secondary-sidebar-border-color:   {{colors.outline_variant.light.hex}};
+
+    /* 卡片 / 弹层 */
+    --card-bg-color:                 {{colors.surface_container.light.hex}};
+    --card-fg-color:                 {{colors.on_surface.light.hex}};
+    --card-shade-color:              rgba({{colors.scrim.light.red}}, {{colors.scrim.light.green}}, {{colors.scrim.light.blue}}, 0.12);
+    --popover-bg-color:              {{colors.surface_container_highest.light.hex}};
+    --popover-fg-color:              {{colors.on_surface.light.hex}};
+    --popover-shade-color:           rgba({{colors.scrim.light.red}}, {{colors.scrim.light.green}}, {{colors.scrim.light.blue}}, 0.12);
+    --dialog-bg-color:               {{colors.surface_container_high.light.hex}};
+    --dialog-fg-color:               {{colors.on_surface.light.hex}};
+    --thumbnail-bg-color:            {{colors.surface_container_high.light.hex}};
+    --thumbnail-fg-color:            {{colors.on_surface.light.hex}};
+    --overview-bg-color:             {{colors.surface_container_lowest.light.hex}};
+    --overview-fg-color:             {{colors.on_surface.light.hex}};
+
+    /* 其他 */
+    --shade-color:                   rgba({{colors.scrim.light.red}}, {{colors.scrim.light.green}}, {{colors.scrim.light.blue}}, 0.07);
+    --scrollbar-outline-color:       {{colors.outline_variant.light.hex}};
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* 强调色 / 状态色 */
+    --accent-color:                  {{colors.primary.dark.hex}};
+    --accent-bg-color:               {{colors.primary.dark.hex}};
+    --accent-fg-color:               {{colors.on_primary.dark.hex}};
+    --destructive-color:             {{colors.error.dark.hex}};
+    --destructive-bg-color:          {{colors.error_container.dark.hex}};
+    --destructive-fg-color:          {{colors.on_error_container.dark.hex}};
+    --success-color:                 #B5CCBA;
+    --success-bg-color:              #374B3E;
+    --success-fg-color:              #D1E9D6;
+
+    /* 窗口 / 视图 */
+    --window-bg-color:               {{colors.background.dark.hex}};
+    --window-fg-color:               {{colors.on_background.dark.hex}};
+    --view-bg-color:                 {{colors.surface_container_lowest.dark.hex}};
+    --view-fg-color:                 {{colors.on_surface.dark.hex}};
+    --headerbar-bg-color:            {{colors.surface_container.dark.hex}};
+    --headerbar-fg-color:            {{colors.on_surface.dark.hex}};
+    --headerbar-backdrop-color:      {{colors.surface_container.dark.hex}};
+    --headerbar-border-color:        {{colors.outline_variant.dark.hex}};
+    --headerbar-shade-color:         rgba({{colors.scrim.dark.red}}, {{colors.scrim.dark.green}}, {{colors.scrim.dark.blue}}, 0.24);
+
+    /* 侧栏 */
+    --sidebar-bg-color:              {{colors.background.dark.hex}};
+    --sidebar-fg-color:              {{colors.on_surface.dark.hex}};
+    --sidebar-backdrop-color:        {{colors.surface_container_low.dark.hex}};
+    --sidebar-border-color:          {{colors.outline_variant.dark.hex}};
+    --secondary-sidebar-bg-color:    {{colors.surface_container_low.dark.hex}};
+    --secondary-sidebar-fg-color:    {{colors.on_surface_variant.dark.hex}};
+    --secondary-sidebar-backdrop-color: {{colors.surface_container_low.dark.hex}};
+    --secondary-sidebar-border-color:   {{colors.outline_variant.dark.hex}};
+
+    /* 卡片 / 弹层 */
+    --card-bg-color:                 {{colors.surface_container.dark.hex}};
+    --card-fg-color:                 {{colors.on_surface.dark.hex}};
+    --card-shade-color:              rgba({{colors.scrim.dark.red}}, {{colors.scrim.dark.green}}, {{colors.scrim.dark.blue}}, 0.24);
+    --popover-bg-color:              {{colors.surface_container_highest.dark.hex}};
+    --popover-fg-color:              {{colors.on_surface.dark.hex}};
+    --popover-shade-color:           rgba({{colors.scrim.dark.red}}, {{colors.scrim.dark.green}}, {{colors.scrim.dark.blue}}, 0.24);
+    --dialog-bg-color:               {{colors.surface_container_high.dark.hex}};
+    --dialog-fg-color:               {{colors.on_surface.dark.hex}};
+    --thumbnail-bg-color:            {{colors.surface_container_high.dark.hex}};
+    --thumbnail-fg-color:            {{colors.on_surface.dark.hex}};
+    --overview-bg-color:             {{colors.surface_container_lowest.dark.hex}};
+    --overview-fg-color:             {{colors.on_surface.dark.hex}};
+
+    /* 其他 */
+    --shade-color:                   rgba({{colors.scrim.dark.red}}, {{colors.scrim.dark.green}}, {{colors.scrim.dark.blue}}, 0.2);
+    --scrollbar-outline-color:       {{colors.outline_variant.dark.hex}};
+  }
+}

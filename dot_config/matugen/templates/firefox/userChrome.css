@@ -1,0 +1,181 @@
+/* ============================================================================
+ *  Firefox userChrome.css —— matugen 生成，不要手改
+ *  模板：~/.config/matugen/templates/firefox/userChrome.css
+ *
+ *  为什么输出到 ~/.config/matugen/generated/ 而不是直接写进 profile：
+ *  Firefox 的 profile 目录名是随机字符串（xxxxxxxx.default-release），
+ *  每次「刷新 Firefox」还会换名字。把 matugen 的 output_path 写死成某个
+ *  profile 路径，profile 一变模板就写到一个没人读的地方。
+ *  所以这里只生成内容，由 hooks/post_hook.sh 按当前 profile 复制过去。
+ *
+ *  前置条件（about:config）：
+ *      toolkit.legacyUserProfileCustomizations.stylesheets = true
+ *  改完要重启 Firefox（userChrome 不支持热重载）。
+ *
+ *  只覆盖浏览器外壳（chrome），不动网页内容。
+ * ========================================================================= */
+
+:root {
+  /* ── Material You 角色 ─────────────────────────────────────────────── */
+  --md-primary:                 {{colors.primary.default.hex}};
+  --md-on-primary:              {{colors.on_primary.default.hex}};
+  --md-primary-container:       {{colors.primary_container.default.hex}};
+  --md-on-primary-container:    {{colors.on_primary_container.default.hex}};
+  --md-secondary:               {{colors.secondary.default.hex}};
+  --md-secondary-container:     {{colors.secondary_container.default.hex}};
+  --md-on-secondary-container:  {{colors.on_secondary_container.default.hex}};
+  --md-tertiary:                {{colors.tertiary.default.hex}};
+  --md-error:                   {{colors.error.default.hex}};
+
+  --md-background:              {{colors.background.default.hex}};
+  --md-on-background:           {{colors.on_background.default.hex}};
+  --md-surface:                 {{colors.surface.default.hex}};
+  --md-on-surface:              {{colors.on_surface.default.hex}};
+  --md-surface-container:       {{colors.surface_container.default.hex}};
+  --md-surface-container-high:  {{colors.surface_container_high.default.hex}};
+  --md-surface-container-highest: {{colors.surface_container_highest.default.hex}};
+  --md-surface-variant:         {{colors.surface_variant.default.hex}};
+  --md-on-surface-variant:      {{colors.on_surface_variant.default.hex}};
+  --md-outline:                 {{colors.outline.default.hex}};
+  --md-outline-variant:         {{colors.outline_variant.default.hex}};
+
+  --md-hover:    color-mix(in srgb, var(--md-on-surface) 8%, transparent);
+  --md-active:   color-mix(in srgb, var(--md-on-surface) 16%, transparent);
+  --md-radius:   12px;
+}
+
+/* ── 整体外壳 ──────────────────────────────────────────────────────────── */
+:root,
+#main-window,
+#navigator-toolbox,
+#browser {
+  background-color: var(--md-background) !important;
+  color: var(--md-on-surface) !important;
+}
+
+/* 关掉那块最容易和主题打架的「动态取色」底图 */
+#navigator-toolbox {
+  background-image: none !important;
+  border-bottom: 1px solid var(--md-outline-variant) !important;
+}
+
+/* ── 标签栏 ────────────────────────────────────────────────────────────── */
+.tabbrowser-tab {
+  border-radius: var(--md-radius) var(--md-radius) 0 0 !important;
+  color: var(--md-on-surface-variant) !important;
+}
+
+.tabbrowser-tab[selected] {
+  background-color: var(--md-surface-container) !important;
+  color: var(--md-on-surface) !important;
+}
+
+.tabbrowser-tab:hover:not([selected]) {
+  background-color: var(--md-hover) !important;
+}
+
+/* 选中标签的顶部指示条 */
+.tabbrowser-tab[selected] .tab-background::before {
+  background-color: var(--md-primary) !important;
+}
+
+.tab-close-button:hover {
+  background-color: var(--md-error) !important;
+  fill: var(--md-background) !important;
+}
+
+/* ── 地址栏 ────────────────────────────────────────────────────────────── */
+#urlbar,
+#urlbar-background,
+#searchbar {
+  background-color: var(--md-surface-container-high) !important;
+  color: var(--md-on-surface) !important;
+  border: 1px solid transparent !important;
+  border-radius: 999px !important;
+}
+
+#urlbar[focused] > #urlbar-background,
+#urlbar:focus-within > #urlbar-background {
+  border-color: var(--md-primary) !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* 地址栏弹出结果面板 */
+.urlbarView {
+  background-color: var(--md-surface-container-highest) !important;
+  color: var(--md-on-surface) !important;
+  border-radius: var(--md-radius) !important;
+}
+
+.urlbarView-row[selected],
+.urlbarView-row:hover {
+  background-color: var(--md-hover) !important;
+}
+
+.urlbarView-url,
+.urlbarView-title-separator {
+  color: var(--md-on-surface-variant) !important;
+}
+
+/* ── 工具栏按钮 ────────────────────────────────────────────────────────── */
+toolbarbutton > .toolbarbutton-icon,
+toolbarbutton > .toolbarbutton-text {
+  border-radius: var(--md-radius) !important;
+  color: var(--md-on-surface) !important;
+}
+
+toolbarbutton:hover > .toolbarbutton-icon,
+toolbarbutton:hover > .toolbarbutton-text {
+  background-color: var(--md-hover) !important;
+}
+
+toolbarbutton[open] > .toolbarbutton-icon {
+  background-color: var(--md-primary-container) !important;
+  fill: var(--md-on-primary-container) !important;
+}
+
+/* ── 侧栏 / 书签 / 历史 ────────────────────────────────────────────────── */
+#sidebar-box,
+.sidebar-panel,
+#sidebar-header {
+  background-color: var(--md-surface-container) !important;
+  color: var(--md-on-surface) !important;
+}
+
+/* ── 弹出面板（主菜单、书签菜单、右键菜单）───────────────────────────── */
+panel,
+menupopup,
+.panel-arrowcontent,
+#appMenu-popup,
+#unified-extensions-panel {
+  --panel-background: var(--md-surface-container-highest) !important;
+  --panel-color: var(--md-on-surface) !important;
+  --panel-border-color: var(--md-outline-variant) !important;
+  --panel-border-radius: var(--md-radius) !important;
+}
+
+menupopup > menuitem,
+menupopup > menu {
+  border-radius: 8px !important;
+  margin-inline: 4px !important;
+}
+
+menupopup > menuitem[_moz-menuactive],
+menupopup > menu[_moz-menuactive] {
+  background-color: var(--md-hover) !important;
+  color: var(--md-on-surface) !important;
+}
+
+/* ── 查找栏 / 提示条 ───────────────────────────────────────────────────── */
+findbar {
+  background-color: var(--md-surface-container) !important;
+  color: var(--md-on-surface) !important;
+  border-top: 1px solid var(--md-outline-variant) !important;
+}
+
+notification-message,
+.notificationbox-stack {
+  background-color: var(--md-surface-container-high) !important;
+  color: var(--md-on-surface) !important;
+}

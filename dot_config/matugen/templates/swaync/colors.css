@@ -1,0 +1,44 @@
+/* ============================================================================
+ *  swaync 配色 —— matugen 生成，不要手改
+ *  模板：~/.config/matugen/templates/swaync/colors.css
+ *
+ *  用法：在 ~/.config/swaync/style.css 顶部加一行
+ *      @import "colors.css";
+ *  这样你自己的布局规则保持不动，只有颜色随壁纸走。
+ *
+ *  swaync 用的是 GTK CSS（libgtk 的 CSS provider），支持 @import 和
+ *  自定义属性，所以这里两种都给：先暴露全部 MD3 角色，再把 swaync 自己的
+ *  语义变量映射上去。
+ * ========================================================================= */
+
+:root {
+  /* ── 全部 Material You 角色（自定义规则里可直接 var(--primary)）────── */
+<* for name, value in colors *>
+  --{{name}}: {{value.default.hex}};
+<* endfor *>
+
+  /* ── swaync 语义变量 ──────────────────────────────────────────────── */
+  --text-color:            {{colors.on_surface.default.hex}};
+  --text-color-disabled:   {{colors.on_surface_variant.default.hex}};
+
+  --noti-bg:               {{colors.surface_container.default.hex}};
+  --noti-bg-hover:         {{colors.surface_container_high.default.hex}};
+  --noti-bg-focus:         {{colors.surface_container_highest.default.hex}};
+  --noti-bg-alt:           {{colors.surface_container_low.default.hex}};
+
+  --noti-close-bg:         {{colors.error_container.default.hex}};
+  --noti-close-bg-hover:   {{colors.error.default.hex}};
+
+  --bg-selected:           {{colors.primary.default.hex}};
+
+  --border:                {{colors.outline_variant.default.hex}};
+  --border-color:          {{colors.outline_variant.default.hex}};
+  --border-radius:         16px;
+
+  /* 悬浮通知的投影：用 scrim 的 RGB 而不是 hex，避免出现不透明黑块 */
+  --notification-shadow:   0 4px 12px rgba({{colors.scrim.default.red}}, {{colors.scrim.default.green}}, {{colors.scrim.default.blue}}, 0.35);
+
+  --widget-title:          {{colors.primary.default.hex}};
+  --font-size-body:        14px;
+  --font-size-summary:     15px;
+}
