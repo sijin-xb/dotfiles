@@ -24,6 +24,17 @@
 # 是运行时产物，不部署；profile 名随机，也没法静态部署。
 .config/matugen/generated/
 
+# Konsole 配色：colorscheme 与 profile 都是 matugen 生成的运行时产物；
+# 「选中哪个」由 matugen 的 post_hook 写 ~/.config/konsolerc 决定，那个文件
+# 是 Konsole 自己管的 UI 状态，不进仓库。
+.local/share/konsole/Matugen.colorscheme
+.local/share/konsole/Matugen.profile
+
+# ---- rime 编译产物 ----
+# rime_deployer / fcitx5-rime 生成的二进制与合并后的 yaml。
+# 源是 dot_local/share/fcitx5/rime/ 下的 *.yaml 与 *.custom.yaml。
+.local/share/fcitx5/rime/build/
+
 # ---- quickshell 运行时生成物 ----
 .config/hypr/hyprland/shellOverrides/main.lua
 .config/hypr/hyprland/shellOverrides/animations.lua

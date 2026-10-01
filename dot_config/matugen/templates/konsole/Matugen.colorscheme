@@ -1,0 +1,116 @@
+# =============================================================================
+#  Konsole 配色方案 —— matugen 生成，不要手改
+#  模板：~/.config/matugen/templates/konsole/Matugen.colorscheme
+#
+#  Konsole 的 Color 值是十进制 "R,G,B"（不是 hex），所以每个通道分别取
+#  colors.<角色>.default 的 red / green / blue 字段拼出来。
+#
+#  ⚠ 注释里也不能出现双花括号加内容 —— matugen 连注释都会去解析模板语法，
+#  写了会直接 ResolveError 让整个 matugen 失败。要举例就用文字描述。
+#
+#  角色映射（ANSI 0-7 / 亮色 / 暗色三档）：
+#    0 black   -> outline / outline_variant / surface_container_lowest
+#    1 red     -> error / error_container / on_error_container
+#    2 green   -> primary / primary_container / on_primary_container
+#    3 yellow  -> tertiary / tertiary_container / on_tertiary_container
+#    4 blue    -> primary_fixed_dim / primary / primary_fixed
+#    5 magenta -> tertiary_fixed_dim / tertiary / tertiary_fixed
+#    6 cyan    -> secondary / secondary_container / on_secondary_container
+#    7 white   -> on_surface_variant / on_surface / surface_variant
+#  全部来自 Material You 语义角色，不掺硬编码色。
+# =============================================================================
+
+[Background]
+Color={{colors.background.default.red}},{{colors.background.default.green}},{{colors.background.default.blue}}
+
+[BackgroundIntense]
+Color={{colors.surface_container_low.default.red}},{{colors.surface_container_low.default.green}},{{colors.surface_container_low.default.blue}}
+
+[BackgroundFaint]
+Color={{colors.surface_container_highest.default.red}},{{colors.surface_container_highest.default.green}},{{colors.surface_container_highest.default.blue}}
+
+[Color0]
+Color={{colors.outline.default.red}},{{colors.outline.default.green}},{{colors.outline.default.blue}}
+
+[Color0Intense]
+Color={{colors.outline_variant.default.red}},{{colors.outline_variant.default.green}},{{colors.outline_variant.default.blue}}
+
+[Color0Faint]
+Color={{colors.surface_container_lowest.default.red}},{{colors.surface_container_lowest.default.green}},{{colors.surface_container_lowest.default.blue}}
+
+[Color1]
+Color={{colors.error.default.red}},{{colors.error.default.green}},{{colors.error.default.blue}}
+
+[Color1Intense]
+Color={{colors.error_container.default.red}},{{colors.error_container.default.green}},{{colors.error_container.default.blue}}
+
+[Color1Faint]
+Color={{colors.on_error_container.default.red}},{{colors.on_error_container.default.green}},{{colors.on_error_container.default.blue}}
+
+[Color2]
+Color={{colors.primary.default.red}},{{colors.primary.default.green}},{{colors.primary.default.blue}}
+
+[Color2Intense]
+Color={{colors.primary_container.default.red}},{{colors.primary_container.default.green}},{{colors.primary_container.default.blue}}
+
+[Color2Faint]
+Color={{colors.on_primary_container.default.red}},{{colors.on_primary_container.default.green}},{{colors.on_primary_container.default.blue}}
+
+[Color3]
+Color={{colors.tertiary.default.red}},{{colors.tertiary.default.green}},{{colors.tertiary.default.blue}}
+
+[Color3Intense]
+Color={{colors.tertiary_container.default.red}},{{colors.tertiary_container.default.green}},{{colors.tertiary_container.default.blue}}
+
+[Color3Faint]
+Color={{colors.on_tertiary_container.default.red}},{{colors.on_tertiary_container.default.green}},{{colors.on_tertiary_container.default.blue}}
+
+[Color4]
+Color={{colors.primary_fixed_dim.default.red}},{{colors.primary_fixed_dim.default.green}},{{colors.primary_fixed_dim.default.blue}}
+
+[Color4Intense]
+Color={{colors.primary.default.red}},{{colors.primary.default.green}},{{colors.primary.default.blue}}
+
+[Color4Faint]
+Color={{colors.primary_fixed.default.red}},{{colors.primary_fixed.default.green}},{{colors.primary_fixed.default.blue}}
+
+[Color5]
+Color={{colors.tertiary_fixed_dim.default.red}},{{colors.tertiary_fixed_dim.default.green}},{{colors.tertiary_fixed_dim.default.blue}}
+
+[Color5Intense]
+Color={{colors.tertiary.default.red}},{{colors.tertiary.default.green}},{{colors.tertiary.default.blue}}
+
+[Color5Faint]
+Color={{colors.tertiary_fixed.default.red}},{{colors.tertiary_fixed.default.green}},{{colors.tertiary_fixed.default.blue}}
+
+[Color6]
+Color={{colors.secondary.default.red}},{{colors.secondary.default.green}},{{colors.secondary.default.blue}}
+
+[Color6Intense]
+Color={{colors.secondary_container.default.red}},{{colors.secondary_container.default.green}},{{colors.secondary_container.default.blue}}
+
+[Color6Faint]
+Color={{colors.on_secondary_container.default.red}},{{colors.on_secondary_container.default.green}},{{colors.on_secondary_container.default.blue}}
+
+[Color7]
+Color={{colors.on_surface_variant.default.red}},{{colors.on_surface_variant.default.green}},{{colors.on_surface_variant.default.blue}}
+
+[Color7Intense]
+Color={{colors.on_surface.default.red}},{{colors.on_surface.default.green}},{{colors.on_surface.default.blue}}
+
+[Color7Faint]
+Color={{colors.surface_variant.default.red}},{{colors.surface_variant.default.green}},{{colors.surface_variant.default.blue}}
+
+[Foreground]
+Color={{colors.on_surface.default.red}},{{colors.on_surface.default.green}},{{colors.on_surface.default.blue}}
+
+[ForegroundIntense]
+Color={{colors.on_surface.default.red}},{{colors.on_surface.default.green}},{{colors.on_surface.default.blue}}
+
+[ForegroundFaint]
+Color={{colors.on_surface_variant.default.red}},{{colors.on_surface_variant.default.green}},{{colors.on_surface_variant.default.blue}}
+
+[General]
+Description=Matugen
+Opacity=1.0
+Blur=false

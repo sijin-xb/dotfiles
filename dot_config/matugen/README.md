@@ -347,44 +347,69 @@ cp ~/.config/matugen/config.toml ~/.config/matugen/config.hyprland.toml
 消费方（niri 会话）：`binds.kdl:60`（Mod+Alt+L）、`scripts/powermenu:29`、`:38`，
 都用 `hyprlock -c ~/.config/niri/hyprlock.conf`。
 
-#### A2 不改：Qt 在 niri 下本来就有色
+#### A2 不改：Qt 在 niri 下本来就有色，改过去反而会坏
 
 `/usr/lib/qt6/plugins/platformthemes/libqgtk3.so` 与 Qt5 的同名插件**都已安装**，
 所以 `QT_QPA_PLATFORMTHEME=gtk3` 是有效的：Qt 程序走 GTK 平台主题，
 颜色来自 GTK 主题（matugen 生成的 `gtk-3.0/gtk.css`）。**不是没色，是走另一条路。**
 
-Kvantum 只在 Hyprland 会话生效（那边是 `QT_QPA_PLATFORMTHEME=kde` +
-`kdeglobals widgetStyle=kvantum-dark`）。
+**为什么不能照抄 Hyprland 的 `QT_QPA_PLATFORMTHEME=kde`：**
 
-要让 niri 也走 Kvantum，把 `~/.config/niri/config.kdl` 的 environment 段改成：
+| | Qt6 | Qt5 |
+|---|---|---|
+| 插件目录 | `/usr/lib/qt6/plugins/platformthemes/` | `/usr/lib/qt/plugins/platformthemes/` |
+| 实际内容 | `KDEPlasmaPlatformTheme6.so` ✓ `libqgtk3.so` ✓ | `libqgtk3.so` ✓ **无 KDE 平台主题** |
 
-```kdl
-QT_QPA_PLATFORMTHEME "kde"
-QT_QPA_PLATFORMTHEME_QT6 "kde"
-QT_STYLE_OVERRIDE "kvantum"
+`plasma-integration 6.7.5` 只提供 Qt6 的 `KDEPlasmaPlatformTheme6.so`；
+KDE6 已放弃 Qt5，没有 `plasma-integration-qt5` 这个包。
+所以在 niri 里写 `QT_QPA_PLATFORMTHEME=kde` 会让**所有 Qt5 程序找不到平台主题**
+而退回默认样式 —— 那是实打实的退化。
+
+只加 `QT_STYLE_OVERRIDE=kvantum` 也不推荐：平台主题仍从 GTK 取调色板，
+而控件由 Kvantum 用自己的 `[GeneralColors]` 绘制，两套色源容易对不上。
+
+**结论：niri 保持 `gtk3`，Kvantum 只服务 Hyprland 会话**（那边
+`QT_QPA_PLATFORMTHEME=kde` + `kdeglobals widgetStyle=kvantum-dark` 是一条完整链路）。
+Kvantum 模板本身没问题，只是 niri 不消费它。
+
+#### A3 已修：post_hook 同步 kdeglobals
+
+**先纠正一个之前的错误判断。** 我早前说「DMS 在管这条链」，那是错的：
+
+- DMS 的 `~/.config/caelestia/cli.json` 里 `theme.enableQt = false`，
+  **全部** DMS 主题集成（`enableTerm` / `enableGtk` / `enableQt` …）都是关的
+- DMS 二进制里的配色方案名是 `DankMatugen*`，而 `kdeglobals` 里写的是
+  `MaterialYouDark` —— 说明这个值不是 DMS 写的
+
+真正写 `kdeglobals` + `MaterialYouDark.colors` 的是 **`kde-material-you-colors`**
+（装在 `~/.local/state/quickshell/.venv/bin/`，由
+`~/.config/quickshell/end4-pC/scripts/colors/switchwall.sh` 调用）。
+而它只在**换壁纸**时跑；DMS 直接调 matugen 的场景它不参与，
+于是两条链的种子色会分叉（实测 06:31 用 `#3456ad`、06:37 用 `#e94bee`）。
+
+现在 `hooks/post_hook.sh` §6 会在每次 matugen 运行后把
+`kdeglobals` 的 `[General] ColorScheme` 指向 `Matugen`，并删掉
+`ColorSchemeHash`（方案内容的缓存键，留着会让 KDE 继续用旧色）。
+用 `kwriteconfig6` 而不是 sed —— 它能正确处理「段不存在」和值转义。
+
+关掉：`MATUGEN_HOOK_KDE_SCHEME=0`（例如你更想让 kmyc 独占这条链）。
+
+#### A4 已设置：OBS
+
+OBS 的主题键是 `[Appearance] CurrentTheme3`，值取主题的 **id** 而不是 name
+（内置主题的 id 形如 `com.obsproject.Yami`）。已在
+`~/.config/obs-studio/user.ini` 写入：
+
+```ini
+[Appearance]
+FontScale=10
+Density=-4
+CurrentTheme3=com.obsproject.matugen
 ```
 
-代价：Qt 程序的控件渲染从 GTK/Fusion 风格变成 Kvantum 的 MaterialAdw 风格，
-观感会变。这是你的选择，没有替你改。
-
-#### A3 不改：DMS 在管这条链
-
-DMS 二进制里含 `DATA_DIR/kdeglobals` 和 `qt6ct.conf` 两个路径字符串 ——
-**niri 会话下 DMS 会写 kdeglobals 与 qt6ct.conf**（它也写
-`DankMatugen{,Dark,Light}.colors`）。跟它抢同一个文件只会互相覆盖。
-
-所以 `Matugen.colors` 目前只在 Hyprland 会话有意义（那边没有进程更新 kdeglobals）。
-`hooks/post_hook.sh` 里 §3.6 有一段注释好的同步代码，要用再解注释。
-
-#### A4 待确认：OBS
-
-OBS 的主题键是 `[Appearance] CurrentTheme3`（在 `~/.config/obs-studio/user.ini`，
-该段已存在，含 `FontScale` / `Density`）。值应该填主题 id
-`com.obsproject.matugen`（见 `themes/matugen.obt` 第 3 行）。
-
-**没有替你改**：`~/.config/obs-studio/` 不在 dotfiles 仓库的跟踪范围内，
-写错了也验证不了。最稳的是开 OBS → 设置 → 外观 → 主题，手动选一次 Matugen，
-OBS 自己会把键写对。
+`~/.config/obs-studio/` 不在 dotfiles 仓库跟踪范围，所以这个改动只在本机。
+**OBS 没在运行，无法实测确认键名。** 如果启动后主题没变，去
+设置 → 外观 → 主题 手动选一次 Matugen，OBS 会自己把键写对。
 
 A2 的对照：Hyprland 侧是 `hl.env("QT_QPA_PLATFORMTHEME", "kde")` +
 `kdeglobals widgetStyle=kvantum-dark`，**Kvantum 在 Hyprland 会话是生效的**。
@@ -417,7 +442,11 @@ A2 的对照：Hyprland 侧是 `hl.env("QT_QPA_PLATFORMTHEME", "kde")` +
 - `steam.css` —— 内容是 GTK4 的 `:root` 变量版，看名字给 Steam 客户端 CSS 用
 - `niriswitcher-colors.css` —— niriswitcher 未装（niri 配置里有注释掉的自启行）
 
-**重复或过期，建议删/归档：**
+**2026-10-02 做了一轮清理：** 已被取代的旧变体移到
+`~/.cache/matugen/deprecated-templates-<时间戳>/`，并从仓库删除。
+原始内容仍在 commit `7884109` 里，可 `git show 7884109:<路径>` 取回。
+
+已清理 8 项（每项都能指出取代者）：
 
 | 文件 | 取代者 |
 |---|---|
@@ -426,13 +455,24 @@ A2 的对照：Hyprland 侧是 `hl.env("QT_QPA_PLATFORMTHEME", "kde")` +
 | `mako-colors.conf` | `mako/colors.conf` |
 | `starship-colors.toml` | `starship.toml` |
 | `swaync-colors.css` | `swaync/colors.css` |
-| `fuzzel.ini` | 是主配置（含 include），放错位置 |
-| `neovim/init.lua`、`neovim/template.lua` | 整个 nvim 配置的引导，不是配色模板 |
-| `miyu-theme.css` | miyu 未装；注释引用的同目录 README.md 也不存在 |
-| `kde/kde-material-you-colors-wrapper.sh` | DMS 接管后已不需要 |
-| `style.css` | 用 `--bg-color`/`--urgency-color`，归属不明 |
+| `fuzzel.ini` | `fuzzel/fuzzel_theme.ini`（前者是颜色专用旧版；真实 `fuzzel.ini` 已 include 后者） |
+| `neovim/init.lua`、`neovim/template.lua` | `editors/nvim-matugen.lua`（前者是整个 nvim 引导，不是配色模板） |
 
-**素材（不是模板，正常）：** `gtk-folder/Adwaita-Matugen/**` 是 `recolor.sh` 的输入。
+**保留的孤儿，以及为什么留：**
+
+| 文件 | 说明 |
+|---|---|
+| `kde/kde-material-you-colors-wrapper.sh` | **不是孤儿模板，是活脚本。** `~/.config/quickshell/end4-pC/scripts/colors/switchwall.sh:92` 直接按这个路径执行它并检查 `-x`。删了会静默跳过 Hyprland 侧的 KDE/Qt 配色。⚠ 本文档早前说它「DMS 接管后已不需要」是**错的**，已更正 |
+| `scripts/inject_vscode.sh` | **是完整的 VSCode 注入器**（用 jq 把 `~/.cache/matugen_vscode_inject.json` 合并进 `~/.config/Code/User/settings.json`），但当前**没有任何地方调用它**，且 VS Code 未安装。⚠ 它会**重写** settings.json，而该文件是 JSONC，jq 会丢掉注释与原有格式 —— 启用前先备份 |
+| `qtct-colors.conf` | qt5ct/qt6ct 调色板，21 色顺序完整。qt6ct 装上即可用；考虑到 Qt5 没有 KDE 平台主题，这是让 Qt5 走 MD3 的可行备选 |
+| `steam.css` | GTK4 的 `:root` 变量版，看名字给 Steam 客户端 CSS 皮肤用 |
+| `style.css` | **niriswitcher 的完整样式**（含 `#niriswitcher` 选择器），比 `niriswitcher-colors.css` 更全。niriswitcher 未装 |
+| `niriswitcher-colors.css` | 同上的颜色专用版 |
+| `swaylock-colors`、`ghostty-colors.conf`、`pywalfox-colors.json` | 对应软件未装 |
+| `miyu-theme.css` | Miyu WebUI 配色，miyu 未装；注释引用的同目录 README.md 也不存在 |
+| `wlogout/recolor.sh` + `wlogout/icons/*.png` | wlogout 未装；`icons/*.png` 是 `recolor.sh` 的输入素材 |
+
+**素材（不是模板，正常）：** `gtk-folder/Adwaita-Matugen/**` 是 `gtk-folder/recolor.sh` 的输入。
 
 ### 7.4 配色方案文件冗余
 
@@ -441,6 +481,190 @@ A2 的对照：Hyprland 侧是 `hl.env("QT_QPA_PLATFORMTHEME", "kde")` +
 - matugen → `Matugen.colors`
 - DMS → `DankMatugen.colors` / `DankMatugenDark.colors` / `DankMatugenLight.colors`
 - 旧的 `MaterialYou*`（6 个）→ 残留，但 `kdeglobals` 偏偏指着其中一个
+
+### 7.5 post_hook.sh 的加固与测试
+
+2026-10-02 重写了一遍，加了四件事：
+
+**1. `--check` 模式（只读自检）**
+
+```bash
+bash ~/.config/matugen/hooks/post_hook.sh --check
+```
+
+报告环境（图形会话、WM、`NIRI_SOCKET` 是否有效、`kwriteconfig6` 是否可用）
+以及**将会做什么**，绝不落任何改动。
+
+⚠ 不变量：所有会产生副作用的语句都在 `[ "$EXEC" = 1 ]` 分支里，`chk` 只打印。
+写这个脚本时踩过一次 —— 第一版 `chk` 只负责打印，但执行语句没 gate，
+结果 `--check` 真的改了 `kdeglobals`、还真的跑了 `niri msg action`。
+**改这个脚本时务必保持这个不变量。**
+
+**2. 并发锁**
+
+连续换壁纸时两次 matugen 的钩子会重叠，导致 niri 两次 reload 抢同一个配置、
+Firefox 的 `cmp`+`cp` 序列交错写出半截文件。
+用 `mkdir` 做锁（不是 `flock` 的 fd 形式 —— `exec 9>file` 失败会让非交互 bash
+直接退出，因为 `exec` 是特殊内建），`trap ... EXIT` 释放，
+超过 60s 的残留锁自动抢占。
+
+**3. 陈旧 `NIRI_SOCKET` 回退**
+
+`niri msg` 只认 `$NIRI_SOCKET`，**不会自己找 socket**。而 niri 重启后
+（换会话、崩溃恢复），从旧会话继承来的值会指向已消失的路径。
+
+2026-10-02 实测踩到：用户在 06:37:40 重启了 niri（PID 929 → 25602），
+此后钩子里的 `NIRI_SOCKET` 仍指向 `niri.wayland-1.929.sock`，
+`niri msg action load-config-file` 一直报 `error connecting to the niri socket`。
+
+现在失败后会退回「`$XDG_RUNTIME_DIR` 下最新的 `niri.*.sock`」再试一次。
+
+**4. 产物存在性检查**
+
+reload 之前先确认配色产物在（`niri/matugen-colors.kdl` /
+`hypr/hyprland/colors.lua`）。让合成器去读一个不存在的 include 只会刷错误。
+
+**测试结果**（`/tmp/mtest/test_hook.sh`，27 项全通过）：
+
+| # | 场景 | 结果 |
+|---|---|---|
+| 0 | `bash -n` 语法 | PASS |
+| 1 | 幂等：第二次运行跳过 kdeglobals、锁已释放 | PASS |
+| 2 | 无图形会话：早退、exit 0、不执行 reload | PASS |
+| 3 | `--check` 在无图形会话下也安全 | PASS |
+| 4 | 未知参数：告警但不崩、exit 0 | PASS |
+| 5 | `--help` 含用法与 `--check` 说明 | PASS |
+| 6 | `MATUGEN_HOOK_KDE_SCHEME=0` 关闭同步且不改文件 | PASS |
+| 7 | 默认把脏值改回 Matugen 并删掉 `ColorSchemeHash` | PASS |
+| 8 | 并发：预先占锁时跳过，且不误删别人的锁 | PASS |
+| 9 | 陈旧锁（5 分钟）可抢占，跑完释放 | PASS |
+| 10 | `--check` 只读：kdeglobals 的 mtime 与内容都不变 | PASS |
+| 11 | 陈旧 `NIRI_SOCKET` 触发回退 | PASS |
+
+### 7.6 光标主题的颜色覆盖链
+
+光标不是 matugen 直接生成的，而是一条**后处理链**：
+`generate_cursor_theme.py` 读 matugen 写出的 `colors.json`，把 catppuccin
+光标模板里的强调色替换成 matugen 的 `primary`，再重建成一个 XCursor 主题。
+
+#### 完整链路
+
+```
+matugen 跑完
+  └─ [templates.m3colors].post_hook
+       └─ ~/.config/scripts/generate_cursor_theme.py
+            ├─ 读 ~/.local/state/quickshell/user/generated/colors.json 的 primary
+            ├─ 核对 DMS 的 cursorSettings.theme（见下）
+            ├─ 若 primary 与缓存不同 → 用 rsvg-convert + xcursorgen 重建
+            │    ~/.local/share/icons/Matugen-Cursors
+            │    （XCursor + cursors_scalable + hyprcursors/*.hlc 三份都重建）
+            ├─ gsettings set cursor-theme / cursor-size
+            ├─ 有 HYPRLAND_INSTANCE_SIGNATURE 时 hyprctl setcursor
+            └─ niri：交替 dms/cursor.kdl 里的主题名，逼 niri 重载纹理缓存
+```
+
+消费方：
+
+| 会话 | 读什么 |
+|---|---|
+| niri 合成器 | `~/.config/niri/dms/cursor.kdl` 的 `xcursor-theme` |
+| niri 启动的程序 | `~/.config/niri/config.kdl` 的 `environment { XCURSOR_THEME }` |
+| 经 systemd/dbus 启动的程序 | `~/.config/environment.d/cursor.conf` |
+| Hyprland | `~/.config/hypr/hyprland/execs.lua` 读 `~/.cache/cursor_theme` 首行 |
+| GTK | `gsettings org.gnome.desktop.interface cursor-theme` |
+
+#### 修掉的两个问题
+
+**问题 1：niri 合成器用的根本不是这个主题。**
+
+DMS 的 `~/.config/DankMaterialShell/settings.json` 里
+`cursorSettings.theme` 是 **`catppuccin-mocha-pink-cursors`** ——
+这是**旧实现的残留**：旧的 `apply_cursor_theme.py` 从 14 个 catppuccin
+accent 里挑「最近的一个」，于是 DMS 里记下的是那个 accent 的名字。
+换成精确取色的新实现后生成的是 `Matugen-Cursors`，但没人去改 DMS 的那个值。
+
+后果：niri 合成器画的是**未经改色的原始 catppuccin 光标**，
+而 `XCURSOR_THEME` 指向 `Matugen-Cursors` —— 合成器和程序两套光标。
+`refresh_niri_cursor()` 的交替机制也因为「名字不是自家的」而**从未启用**
+（`Matugen-Cursors-alt` 一直不存在，就是这个证据）。
+
+修法：`generate_cursor_theme.py` 新增 `reconcile_dms_cursor()`，
+每轮核对一次 —— 只有当值是 `catppuccin-*-cursors` 这种 stock 残留时才改写，
+用户如果选了别的主题（Bibata 之类）就原样保留。写入用临时文件 + rename
+的原子方式，避免和正在运行的 DMS 抢写。
+
+**问题 2：光标尺寸两套。**
+
+`~/.config/environment.d/cursor.conf` 写的是 `XCURSOR_SIZE=32`，
+而另外五处全是 24：
+
+| 位置 | 值 |
+|---|---|
+| `~/.config/niri/config.kdl` | 24 |
+| `~/.config/hypr/custom/env.lua` | 24 |
+| `~/.config/hypr/hyprland/execs.lua` | 24 |
+| DMS `cursorSettings.size` | 24 |
+| `generate_cursor_theme.py` 的 `SIZE` | 24 |
+| **`environment.d/cursor.conf`** | **32（漏改）** |
+
+后果：经 systemd/dbus 启动的程序（DMS 自己、Electron 应用等）拿 32 号光标，
+合成器画 24 号。已统一为 24。
+
+顺带把该文件里那段「唯一来源是 DMS 设置（当前 Matugen-Cursors / 32）」的
+过期注释改成与实际一致。
+
+#### 顺手加的一处健壮性
+
+`refresh_niri_cursor()` 原来在 `NIRI_SOCKET` 未设置时**整个函数早退** ——
+但写 `cursor.kdl` 根本不需要 socket（niri 自己监视配置文件）。
+现在只有显式的 `niri msg action load-config-file` 那一步才依赖它。
+
+#### 验证
+
+```bash
+# 1. 主题缓存源色 == matugen 当前 primary
+python3 -c "
+import json,os
+from pathlib import Path
+pal=json.load(open(os.path.expanduser('~/.local/state/quickshell/user/generated/colors.json')))
+cache=Path(os.path.expanduser('~/.local/share/icons/Matugen-Cursors/.source-color'))
+print(pal['primary'], cache.read_text().strip(), pal['primary']==cache.read_text().strip())
+"
+
+# 2. 生成的 SVG 里用的是 matugen primary，没有 catppuccin pink 残留
+python3 -c "
+import re,os
+from pathlib import Path
+from collections import Counter
+c=Counter()
+for s in Path(os.path.expanduser('~/.local/share/icons/Matugen-Cursors/cursors_scalable')).rglob('*.svg'):
+    for h in re.findall(r'#[0-9a-fA-F]{6}', s.read_text()): c[h.lower()]+=1
+print(c.most_common(5))
+"
+
+# 3. 全链路的主题名/尺寸一致
+python3 /tmp/mtest/state.py
+```
+
+实测结果（2026-10-02）：
+
+- 源色 `#efb4e8` == matugen primary ✓
+- SVG 颜色分布 `#efb4e8 ×123`（primary）、`#1e1e2e ×154`（深色描边）、
+  `#333333 ×68`（阴影），**无 `#f5c2e7` 残留** ✓
+  —— 描边和阴影是结构色，本来就不该被替换
+- DMS / niri cursor.kdl / niri config.kdl / environment.d 四处都是
+  `Matugen-Cursors` + `24` ✓
+- `generate_cursor_theme.py` 的逻辑测试 13/13 通过
+  （stock 残留→改写、已是自家→幂等不动、第三方主题→尊重不动、
+  `-alt` 也认作自家、交替机制、settings.json 结构完整、还原）
+
+#### 已知限制
+
+`dms/cursor.kdl` 的文件头写着 `DO NOT EDIT / AUTO-GENERATED`，但交替机制
+必须改它 —— DMS 只在设置变更或启动时重写该文件，所以平时改动能留住。
+**唯一的竞态**：如果同一轮里既改了 DMS 的 `settings.json` 又交替了名字，
+DMS 的重新生成可能后到并覆盖交替。代码里已经处理：`reconcile_dms_cursor()`
+返回 True 的那一轮会主动跳过交替。
 
 ---
 

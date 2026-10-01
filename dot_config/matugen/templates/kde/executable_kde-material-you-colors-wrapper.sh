@@ -73,5 +73,11 @@ if ! command -v kde-material-you-colors >/dev/null 2>&1; then
     exit 0
 fi
 
-kde-material-you-colors "$mode_flag" --color "$color" -sv "$sv_num"
+# --disable-konsole：Konsole 的配色改由 matugen 统一出（见
+# ~/.config/matugen/templates/konsole/ 与 hooks/post_hook.sh §6.5）。
+# 两边都管的话，konsolerc 指向的 profile 和实际颜色会对不上 ——
+# 本机就踩过：konsolerc 是 Profile 1.profile，而 kmyc 用另一个种子写
+# MaterialYou.colorscheme，终端颜色和 matugen 的调色板一直不是一套。
+# 该参数只关「自动应用」，不影响其它 KDE/Qt 配色。
+kde-material-you-colors "$mode_flag" --color "$color" -sv "$sv_num" --disable-konsole
 deactivate

@@ -322,6 +322,24 @@ output_path = '~/.config/alacritty/matugen-theme.toml'
 input_path = '~/.config/matugen/templates/foot/foot.ini'
 output_path = '~/.config/foot/matugen.ini'
 
+# ── Konsole（KDE 终端）──────────────────────────────────────────────────────
+# 本机装了 konsole，但它的配色一直由 kde-material-you-colors 单独生成
+# （~/.local/share/konsole/MaterialYou.colorscheme，种子和 matugen 不是同一个），
+# 会和 matugen 的调色板脱节。这里改成由 matugen 统一出。
+#
+# 两份文件缺一不可：colorscheme 是颜色本体，profile 把 ColorScheme 指过去。
+# 真正「选中」还需要 konsolerc 的 DefaultProfile 指到这个 profile ——
+# 那一步不在 matugen 的模板体系里，由 hooks/post_hook.sh §7 负责。
+#
+# 注意：Konsole 在新建会话时读 profile，已在跑的会话不会立刻换色。
+[templates.konsole_scheme]
+input_path = '~/.config/matugen/templates/konsole/Matugen.colorscheme'
+output_path = '~/.local/share/konsole/Matugen.colorscheme'
+
+[templates.konsole_profile]
+input_path = '~/.config/matugen/templates/konsole/Matugen.profile'
+output_path = '~/.local/share/konsole/Matugen.profile'
+
 # fish 的语法高亮配色。输出到 conf.d/ 下，fish 启动时自动 source。
 # ⚠ source 顺序：fish 先按字母序读 conf.d/*.fish，最后才读 config.fish。
 #   所以 config.fish 里第 33-35 行那几句硬编码的 fish_color_* 会覆盖本文件，
