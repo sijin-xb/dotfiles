@@ -1,20 +1,20 @@
 layout{
     focus-ring{
-        active-gradient from="#d1c2d2cc" to="#d4c0d7cc" angle=135
+        active-gradient from="#efb4e8cc" to="#f6b8a9cc" angle=135
         urgent-color "#ffb4ab"
 
         }
 }
 recent-windows {
     highlight {
-        active-color "#3b383a"
+        active-color "#3e373c"
         urgent-color "#ffb4ab"
     }
 }
 // 内置screencast portal选择器的配色（shorin-fork 独有，2026-09-26 换回后恢复）
 screen-cast-picker {
-    background-color "#211f20"
-    accent-color "#d1c2d2"
-    text-color "#e7e1e3"
-    accent-text-color "#372d3a"
+    background-color "#241e22"
+    accent-color "#efb4e8"
+    text-color "#ebdfe6"
+    accent-text-color "#4b1f4b"
 }
