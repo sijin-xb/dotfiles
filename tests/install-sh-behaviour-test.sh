@@ -34,8 +34,10 @@ printf 'REPO_SNAPSHOT_PALETTE\n'                 > "$ROOT/src/dot_config/hypr/hy
 # 用**真实的**忽略清单，这样测的是真模式而不是自造的玩具模式。
 cp "$REPO/.chezmoiignore" "$ROOT/.chezmoiignore"
 
-# 去掉最后的 `main "$@"`，剩下的当库用（SRC 会取 lib.sh 所在目录 = $ROOT）
-head -n -1 "$REPO/install.sh" > "$ROOT/lib.sh"
+# 整个文件拷过去当库 source。install.sh 末尾有 BASH_SOURCE 守卫，
+# source 时不会执行 main —— 以前靠 `head -n -1` 剥掉入口行，那依赖
+# 「入口恰好是最后一行」，脆弱且会在末尾加注释时静默失效。
+cp "$REPO/install.sh" "$ROOT/lib.sh"
 
 export HOME="$ROOT/home"
 # shellcheck disable=SC1090

@@ -58,7 +58,11 @@ mkdir -p "$STUB" "$FAKEHOME" "$REPOCOPY"
 cp "$REPO/install.sh" "$REPOCOPY/install.sh"
 cp "$REPO/.chezmoiignore" "$REPOCOPY/.chezmoiignore"   # [5/7] 会读它，漏了测不出忽略行为
 cp -a "$REPO/dot_config" "$REPOCOPY/dot_config"
-head -n -1 "$REPOCOPY/install.sh" > "$REPOCOPY/lib.sh"
+# 整个文件拷过去当库 source。install.sh 末尾有 BASH_SOURCE 守卫，source 时
+# 不会执行 main —— 以前靠 `head -n -1` 剥掉入口行，那依赖「入口恰好是最后
+# 一行」：给入口加个 if 包一层，剥掉的就变成 `fi`，if 块失去闭合 → 语法错误
+# → 整个测试静默失败（实测 34 项 FAIL）。
+cp "$REPOCOPY/install.sh" "$REPOCOPY/lib.sh"
 
 # ---------- 假命令 ----------
 mk() { printf '%s\n' "$2" > "$STUB/$1"; chmod +x "$STUB/$1"; }

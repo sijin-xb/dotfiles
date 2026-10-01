@@ -88,6 +88,43 @@ have() { command -v "$1" >/dev/null 2>&1; }
 in_sync_db() { LC_ALL=C pacman -Si "$1" >/dev/null 2>&1; }
 aur_helper() { if have paru; then echo paru; elif have yay; then echo yay; else echo ""; fi; }
 
+# ── 是否「直接执行」（而非被 tests/ source 进来）──────────────────────────
+# 两个用途：
+#   1. 决定要不要接管 EXIT/INT/TERM trap —— 被 source 时不能抢调用方的
+#      （tests/*.sh 自己就 `trap 'rm -rf "$ROOT"' EXIT`，被覆盖会漏临时目录）。
+#   2. 末尾决定要不要跑 main。
+# ⚠ curl | bash 场景下 BASH_SOURCE[0] 为空、$0 是 bash，两者不等 ——
+#   那种情况下必须仍然算「直接执行」，所以空值也算。
+INSTALL_SH_IS_MAIN=0
+if [[ -z ${BASH_SOURCE[0]:-} || ${BASH_SOURCE[0]} == "${0}" ]]; then
+    INSTALL_SH_IS_MAIN=1
+fi
+
+# ── 临时文件登记 + 统一清理 ──────────────────────────────────────────────
+# 全脚本有 8 处 mktemp / mktemp -d（yay clone、quickshell 源码、底盘 clone、
+# 归档临时目录……）。以前没有 trap：Ctrl-C 或中途 die 会在 /tmp 留下几十 MB。
+#
+# ⚠ 不能用「数组登记」的方案：所有调用点都写成 `x="$(mktmp)"`，而命令替换会
+#   起一个子 shell —— `TMPFILES+=()` 加进的是**子 shell 的数组**，父 shell
+#   永远是空的，清理函数等于没做事（实测踩到）。
+#   改成「统一 run 目录」：路径由 $$ 推出，父子 shell 看到的是同一个值
+#   （bash 在子 shell 里保留 $$），清理就是一次 rm -rf。
+TMPRUN="${TMPDIR:-/tmp}/dotfiles-install.$$"
+
+mktmp()  { mkdir -p "$TMPRUN" 2>/dev/null; mktemp    "$TMPRUN/XXXXXX"; }
+mktmpd() { mkdir -p "$TMPRUN" 2>/dev/null; mktemp -d "$TMPRUN/XXXXXX"; }
+
+cleanup_tmpfiles() {
+    [[ -n ${TMPRUN:-} ]] && rm -rf -- "$TMPRUN" 2>/dev/null
+    return 0
+}
+
+if (( INSTALL_SH_IS_MAIN )); then
+    trap cleanup_tmpfiles EXIT
+    trap 'cleanup_tmpfiles; exit 130' INT
+    trap 'cleanup_tmpfiles; exit 143' TERM
+fi
+
 # ============================================================
 # 自举：让「只下一个 install.sh」也能跑
 # ============================================================
@@ -216,7 +253,7 @@ snapshot_current() {
     ensure_dirs
     local ts; ts=$(now_ts)
     local snap_path="$SNAP_ROOT/${prefix}-${ts}.tar.gz"
-    local tmp_list; tmp_list="$(mktemp)"
+    local tmp_list; tmp_list="$(mktmp)"
     local p rel
     # 筛选真实存在的路径，相对 $HOME
     for p in "${SNAP_PATHS[@]}"; do
@@ -228,8 +265,12 @@ snapshot_current() {
         return 1
     fi
     say "创建快照 [${prefix}] → $(basename "$snap_path")（$(wc -l < "$tmp_list") 个顶级路径）"
-    tar --numeric-owner -pzcf "$snap_path" -C "$HOME" --files-from="$tmp_list" 2>/dev/null \
-        || tar --numeric-owner -pzcf "$snap_path" -C "$HOME" --files-from="$tmp_list"
+    # ⚠ 不要 2>/dev/null 后重试：那会把「权限不足 / 磁盘满」这类真错误藏起来，
+    #   只在第二次（不抑制）才暴露；而第一次若是部分写入后失败，第二次会覆盖，
+    #   用户看到的错误可能指向别的原因。
+    #   这里改成只抑制已知的无害告警（打包时文件被改 / 被删）。
+    tar --numeric-owner -pzcf "$snap_path" -C "$HOME" --files-from="$tmp_list" \
+        --warning=no-file-changed --warning=no-file-removed
     rm -f "$tmp_list"
     [[ -n $state_key ]] && write_state "$state_key" "$snap_path"
     say "快照完成，大小：$(du -h "$snap_path" | cut -f1)"
@@ -252,9 +293,22 @@ apply_snapshot_from_state() {
     echo "  创建时间 : $(stat -c '%y' "$snap_path" 2>/dev/null || unknown)"
     echo "  覆盖目标 : $HOME（只覆盖快照内包含的约 ${nfiles} 个文件，不会删除快照外的文件）"
     echo "----------------------------------------------------------------------"
-    case "$allow_back" in
-        back) local _r; confirm "确认从该快照覆盖写入 $HOME？" "allow_back"; _r=$?; ((_r==2)) && return 2; ((_r==0)) || return 1;;
-        *)    confirm "确认从该快照覆盖写入 $HOME？" || return 1;;
+    # ⚠ 不要写成 `confirm ...; _r=$?`。confirm 返回 1（用户答 n）是个**裸的
+    #   失败命令**，而本脚本开头是 set -euo pipefail。现在能跑只是因为两个
+    #   调用点都写成 `apply_snapshot_from_state ... || { ... }` —— bash 对
+    #   `||` 列表左侧的整个函数体禁用 -e。新增一个不带 `||` 的调用点，表现就是
+    #   「在确认处按 n → 脚本无声退出」，看起来像崩溃。
+    #   用 `|| _r=$?` 显式取码：成功时 _r 保持 0，失败时 _r 是该退出码。
+    local _r=0
+    if [[ "$allow_back" == "back" ]]; then
+        confirm "确认从该快照覆盖写入 $HOME？" "allow_back" || _r=$?
+    else
+        confirm "确认从该快照覆盖写入 $HOME？" || _r=$?
+    fi
+    case "$_r" in
+        0) ;;
+        2) return 2 ;;
+        *) return 1 ;;
     esac
     say "开始提取 $(basename "$snap_path") ..."
     tar --numeric-owner -pzxf "$snap_path" -C "$HOME"
@@ -380,7 +434,9 @@ walk_sources() {
         skip_by_shell "$rel" && { skipped_shell=$((skipped_shell + 1)); continue; }
         base="${out##*/}"; dir="${out%/*}"
         "$cb" "$f" "$dir" "$base" "$rel"
-    done < <(find "$SRC" -type f -print0)
+    # ⚠ -path … -prune：仓库的 .git 可能有几千个对象文件，不剪枝的话每个都会被
+    #   走一遍再被下面的 case 丢弃。功能上 case 挡得住，但白跑一遍。
+    done < <(find "$SRC" -path "$SRC/.git" -prune -o -type f -print0)
 }
 
 # ── 部署回调（install 的 [5/7] 与 update 共用）────────────────────────────
@@ -405,10 +461,13 @@ deploy_and_record() {
     fi
     local before_skip=$ignored_skip before_keep=$ignored_keep
     deploy_one_file "$f" "$dir" "$base"
+    # 只有「真的落盘了」才计数与记录 —— ignored_* 计数器没变就说明这个文件被
+    # .chezmoiignore 判成 skip/keep 了，既不该进清单（否则下次 update 会拿它
+    # 去比「已删除」），也不该算进「已部署 N 个」的 N（那会让数字虚高）。
     if (( ignored_skip == before_skip && ignored_keep == before_keep )); then
         DEPLOYED_RELPATHS+=("${dir#"$HOME"/}/$base")
+        installed=$((installed + 1))
     fi
-    installed=$((installed + 1))
 }
 
 # ── 壁纸目录：把仓库自带的壁纸铺到 ~/Pictures/Wallpapers ────────────────
@@ -1031,7 +1090,7 @@ base_tree_missing() {
     # ⚠ 这里刻意**不用** `< <(find …)` 进程替换：它依赖 /dev/fd，容器 / 精简
     #   chroot 里可能不存在，一旦不可用整段判据会静默失效 —— 而这是"完整性"
     #   的最后一道闸，失效就等于放行半残的树。改用临时清单文件。
-    local listf; listf="$(mktemp)"
+    local listf; listf="$(mktmp)"
     find "$src" -type f -print0 > "$listf" 2>/dev/null
     while IFS= read -r -d '' f; do
         rel="${f#"$src"/}"
@@ -1298,7 +1357,7 @@ cmd_install() {
     say "[2/7] AUR 依赖"
     if ! have yay && ! have paru; then
         say "    未找到 AUR helper，引导安装 yay（编译约 1-2 分钟，需要 base-devel）"
-        tmpdir="$(mktemp -d)"
+        tmpdir="$(mktmpd)"
         git clone --depth=1 https://aur.archlinux.org/yay.git "$tmpdir/yay" \
             || die "克隆 yay 失败（检查网络后重试；也可先手动安装 paru/yay，装好后重跑会跳过本步）"
         (cd "$tmpdir/yay" && makepkg -si --noconfirm) \
@@ -1392,7 +1451,7 @@ cmd_install() {
         fi
         echo "    从源码编译（tag v0.3.1，需要几分钟）"
         "${SUDO:-sudo}" pacman -S --needed --noconfirm cmake ninja qt6-base qt6-declarative qt6-wayland qt6-5compat qt6-shadertools qt6-svg wayland-protocols
-        local src; src="$(mktemp -d)"
+        local src; src="$(mktmpd)"
         git clone --depth=1 --branch v0.3.1 https://github.com/outfoxxed/quickshell.git "$src" \
             || git clone --depth=1 https://github.com/outfoxxed/quickshell.git "$src" \
             || die "克隆 quickshell 源码失败（检查网络后重试；也可以从 GitHub Releases 手动下载二进制放进 PATH）"
@@ -1574,7 +1633,7 @@ cmd_install() {
         say "    拉取 quickshell 底盘 (pctrade/end4-PC)"
         # 注意：不能直接 clone 进 $dst —— 目录已存在且非空时 git clone 会失败，
         # 而 set -e 会让整个安装中断。先克隆到临时目录再合并进去。
-        local tmp; tmp="$(mktemp -d)"
+        local tmp; tmp="$(mktmpd)"
         if git clone --depth=1 https://github.com/pctrade/end4-pC.git "$tmp/end4-PC"; then
             merge_clone_into "$tmp/end4-PC" "$dst"
             # 覆盖完立刻自检：网络中断 / 磁盘满都可能让 cp 半途而废，
@@ -1608,7 +1667,7 @@ cmd_install() {
         fi
         say "    拉取 caelestia shell 本体"
         # 同 end4-PC：目录可能已存在且非空，先克隆到临时目录再合并。
-        local tmp; tmp="$(mktemp -d)"
+        local tmp; tmp="$(mktmpd)"
         if git clone --depth=1 https://github.com/caelestia-dots/shell.git "$tmp/shell"; then
             merge_clone_into "$tmp/shell" "$dst"
         else
@@ -2177,7 +2236,7 @@ cmd_archive() {
     for p in "${SNAP_PATHS[@]}"; do all_paths+=("$p"); done
     for p in "${EXTRA_ARCHIVE_PATHS[@]}"; do all_paths+=("$p"); done
 
-    local tmp_list; tmp_list="$(mktemp)"
+    local tmp_list; tmp_list="$(mktmp)"
     local total_size=0
     for p in "${all_paths[@]}"; do
         if [[ -e "$HOME/$p" ]]; then
@@ -2201,10 +2260,13 @@ cmd_archive() {
     done
     echo "  输出文件：$out_path"
     echo "----------------------------------------------------------------------"
-    confirm "确认开始打包？" || return 0
+    # 2 = 用户主动取消，区别于 1 = 真的失败。调用方必须能区分这两者：
+    # cmd_uninstall 里「拒绝存档」被当成「存档成功」会让用户以为已有备份，
+    # 接着就去删文件了。
+    confirm "确认开始打包？" || { say "已取消打包，未写入任何文件。"; return 2; }
 
     # 打包：包含一个 MANIFEST.txt
-    local tmpdir; tmpdir="$(mktemp -d)"
+    local tmpdir; tmpdir="$(mktmpd)"
     local manifest="$tmpdir/MANIFEST.txt"
     {
         echo "# sijin-xb's dotfiles archive MANIFEST"
@@ -2219,26 +2281,33 @@ cmd_archive() {
             [[ -e "$HOME/$p" ]] && echo "  [PRESENT]  $p" || echo "  [MISSING]  $p"
         done
         echo
+        echo "注意：.local/state/dotfiles-backup/snapshots/ 已排除。"
+        echo "      那些快照覆盖的正是同一批路径，包含进来会让本包体积"
+        echo "      随安装/回档次数接近平方增长。需要历史快照请单独备份该目录。"
+        echo
         echo "归档内实际包含的文件列表（前 50 项）："
         sort "$tmp_list" | head -50
     } > "$manifest"
     say "打包中 ..."
-    # 把 MANIFEST.txt 放根目录，然后再把 rice 文件从 $HOME 加进来
-    (
-        cd "$tmpdir"
-        tar --numeric-owner -pzcf "$out_path" "MANIFEST.txt"
-    )
-    # 追加 rice 文件
-    tar --numeric-owner -pzrf "$out_path" -C "$HOME" --files-from="$tmp_list" 2>/dev/null \
-        || {
-            # 追加失败（一些 tar 版本对 -r 和 -z 组合兼容差）就回退到重新整包
-            rm -f "$out_path"
-            cp "$manifest" "$HOME/.ARCHIVE-MANIFEST.tmp"
-            printf '.ARCHIVE-MANIFEST.tmp\n' > "$tmp_list.manifest"
-            cat "$tmp_list" >> "$tmp_list.manifest"
-            tar --numeric-owner -pzcf "$out_path" -C "$HOME" --files-from="$tmp_list.manifest"
-            rm -f "$HOME/.ARCHIVE-MANIFEST.tmp" "$tmp_list.manifest"
-        }
+    # ⚠ 一次成型，**不要**「先建只含 MANIFEST 的包、再 -r 追加配置」。
+    #   GNU tar 对压缩归档**从不支持**追加 —— 实测
+    #       tar -pzrf x.tgz y   →  tar: 无法更新压缩归档文件（exit 2）
+    #   所以那条路是死代码，每次都会掉进回退分支；而回退要把 MANIFEST 复制成
+    #   $HOME/.ARCHIVE-MANIFEST.tmp —— 中途 Ctrl-C 就把它留在 $HOME，
+    #   还会被后续快照和下次归档一起打进去。
+    #
+    #   这里用两个 -C 在同一个 tar 进程里指定不同基准目录：先收 tmpdir 里的
+    #   MANIFEST.txt，再收 $HOME 下的配置。
+    #   ⚠ 两个 -C 必须给**绝对路径**：GNU tar 的 -C 是相对前一个 -C 解析的，
+    #     相对路径会拼成 tartest/tmpd/tartest/home 这种不存在的路径。
+    # ⚠ --exclude 是**位置敏感**的（只影响它之后列出的文件），必须放在
+    #   --files-from 之前。
+    #   排除 snapshots/：里面的快照覆盖的正是同一批 SNAP_PATHS，不排除的话
+    #   每次归档都会把之前所有快照再打一遍，体积随安装次数接近平方增长。
+    tar --numeric-owner -pzcf "$out_path" \
+        --exclude='.local/state/dotfiles-backup/snapshots' \
+        -C "$tmpdir" MANIFEST.txt \
+        -C "$HOME" --files-from="$tmp_list"
     rm -rf "$tmpdir" "$tmp_list"
     say "打包完成 → $out_path ($(du -h "$out_path" | cut -f1))"
 
@@ -2272,10 +2341,18 @@ cmd_uninstall() {
     echo "卸载 rice 配置：建议先打包存档作为备份。"
     local do_archive=1
     confirm "是否先打包存档？" || do_archive=0
-    ((do_archive)) && {
+    if ((do_archive)); then
         local archive_path="$HOME/dotfiles-archive-uninstall-$(now_ts).tar.gz"
-        cmd_archive -o "$archive_path" || warn "存档失败，将继续执行卸载（无备份）"
-    }
+        local arc_rc=0
+        cmd_archive -o "$archive_path" || arc_rc=$?
+        case "$arc_rc" in
+            0) ;;
+            2) # 用户在打包确认处按了 n —— 必须说清楚，否则他以为有备份
+               warn "你取消了存档 —— 本次卸载**没有备份**。"
+               confirm "仍然继续卸载？" || { say "已中止，未删除任何文件。"; return 0; } ;;
+            *) warn "存档失败，将继续执行卸载（无备份）" ;;
+        esac
+    fi
     # 只删本次范围内的合成器 / shell 配置，其余原样保留（见 active_snap_paths 说明）
     uninstall_compositor_scope
     uninstall_shell_scope
@@ -2847,4 +2924,13 @@ main() {
     esac
 }
 
-main "$@"
+# 只在「直接执行」时进入入口；被 source 时只提供函数。
+#
+# ⚠ 加这个守卫是为了让 tests/ 能把本文件当库加载（以前测试靠
+#   `head -n -1` 剥掉这一行 —— 那依赖「入口恰好是最后一行」，末尾多一行
+#   注释就会把 main 一起 source 进去，行为从「加载库」变成「加载即执行」）。
+# ⚠ curl | bash 场景下 BASH_SOURCE[0] 为空、$0 是 bash，两者不等 —— 那种
+#   情况下必须仍然执行 main，所以「空值」也算直接执行。
+if [[ -z ${BASH_SOURCE[0]:-} || ${BASH_SOURCE[0]} == "${0}" ]]; then
+    main "$@"
+fi
