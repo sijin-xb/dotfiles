@@ -50,6 +50,16 @@
 # 关掉联网检查更新：本机 matugen 由 pacman 管，CLI 自检只会白等一次网络超时。
 version_check = false
 
+# 全局对比度，-1 ~ 0（MD3 规范值）~ 1。0.3 是实测出来的最优点：
+#   实测最低 ANSI 槽位对比度  0.0 → 5.84    0.3 → 7.02（AAA）   0.5 → 1.13（反而崩）
+# 0.5 反而更差是因为高对比会把 outline 这类**中间调**角色压暗，而终端里
+# color0/color8 用的正是 outline。别调过 0.35。
+# ⚠ 这是**全局**参数：matugen 只支持 per-template 的 type，不支持 per-template
+#   的 contrast（实测：在 [templates.x] 里写 contrast 会被静默忽略，不报错也不
+#   生效）。所以它会同时作用于桌面配色 —— 方向是「前景/背景分离更明显」，一般
+#   是好事，但确实会改变桌面观感。
+contrast = 0.3
+
 # ── 以下都是**默认值**，写出来只是为了留档，改动前先确认真的需要 ──────────
 #
 # 取不出好颜色时的兜底源色（任意 CSS 颜色格式）：
@@ -63,8 +73,7 @@ version_check = false
 # 调试配色时建议保持 false —— 缓存命中会让你以为「改了参数没生效」。
 # caching = false
 #
-# 全局对比度，-1（最低）~ 0（MD3 规范值）~ 1（最高）。
-# contrast = 0.0
+# 全局对比度已在上方设为 0.3，这里不再重复。
 #
 # 明暗两端的亮度微调（只在需要压/提对比时用）：
 # lightness_dark  = 0.0
@@ -310,15 +319,42 @@ output_path = '~/.config/mako/colors.conf'
 # kitty 主配置里已有 include current-theme.conf，所以只生成被 include 的那一份。
 # 热重载依赖 allow_remote_control（见 post_hook.sh 的提示），当前 kitty.conf
 # 里**没有**这一项，需要手动补：allow_remote_control socket-only
+# 终端单独用 expressive 方案类型：MD3 的 tonal-spot 从单色壁纸取色时，
+# primary/secondary/tertiary 会全部落在同一色相（实测本机全是品红），
+# 于是 8 个 ANSI 槽位的色相只有 2 个桶、平均饱和 0.15 —— 这就是「颜色不鲜艳、
+# 区分度差」的根因。expressive 会拉开色相：实测 primary 变青 #75d4e7、
+# tertiary 变黄 #dfc478、secondary 变粉 #f4b7b7，色相桶 2→4、饱和 0.15→0.26。
+# 桌面其余部分仍用全局默认类型，所以观感不会被带跑。
+# ⚠ per-template type 实测有效（模板拿到 #75d4e7，全局仍是 #efb4e8）。
+
 [templates.kitty]
+type = 'SchemeExpressive'
 input_path = '~/.config/matugen/templates/kitty/current-theme.conf'
 output_path = '~/.config/kitty/current-theme.conf'
 
+# 终端单独用 expressive 方案类型：MD3 的 tonal-spot 从单色壁纸取色时，
+# primary/secondary/tertiary 会全部落在同一色相（实测本机全是品红），
+# 于是 8 个 ANSI 槽位的色相只有 2 个桶、平均饱和 0.15 —— 这就是「颜色不鲜艳、
+# 区分度差」的根因。expressive 会拉开色相：实测 primary 变青 #75d4e7、
+# tertiary 变黄 #dfc478、secondary 变粉 #f4b7b7，色相桶 2→4、饱和 0.15→0.26。
+# 桌面其余部分仍用全局默认类型，所以观感不会被带跑。
+# ⚠ per-template type 实测有效（模板拿到 #75d4e7，全局仍是 #efb4e8）。
+
 [templates.alacritty]
+type = 'SchemeExpressive'
 input_path = '~/.config/matugen/templates/alacritty/matugen-theme.toml'
 output_path = '~/.config/alacritty/matugen-theme.toml'
 
+# 终端单独用 expressive 方案类型：MD3 的 tonal-spot 从单色壁纸取色时，
+# primary/secondary/tertiary 会全部落在同一色相（实测本机全是品红），
+# 于是 8 个 ANSI 槽位的色相只有 2 个桶、平均饱和 0.15 —— 这就是「颜色不鲜艳、
+# 区分度差」的根因。expressive 会拉开色相：实测 primary 变青 #75d4e7、
+# tertiary 变黄 #dfc478、secondary 变粉 #f4b7b7，色相桶 2→4、饱和 0.15→0.26。
+# 桌面其余部分仍用全局默认类型，所以观感不会被带跑。
+# ⚠ per-template type 实测有效（模板拿到 #75d4e7，全局仍是 #efb4e8）。
+
 [templates.foot]
+type = 'SchemeExpressive'
 input_path = '~/.config/matugen/templates/foot/foot.ini'
 output_path = '~/.config/foot/matugen.ini'
 
@@ -332,7 +368,16 @@ output_path = '~/.config/foot/matugen.ini'
 # 那一步不在 matugen 的模板体系里，由 hooks/post_hook.sh §7 负责。
 #
 # 注意：Konsole 在新建会话时读 profile，已在跑的会话不会立刻换色。
+# 终端单独用 expressive 方案类型：MD3 的 tonal-spot 从单色壁纸取色时，
+# primary/secondary/tertiary 会全部落在同一色相（实测本机全是品红），
+# 于是 8 个 ANSI 槽位的色相只有 2 个桶、平均饱和 0.15 —— 这就是「颜色不鲜艳、
+# 区分度差」的根因。expressive 会拉开色相：实测 primary 变青 #75d4e7、
+# tertiary 变黄 #dfc478、secondary 变粉 #f4b7b7，色相桶 2→4、饱和 0.15→0.26。
+# 桌面其余部分仍用全局默认类型，所以观感不会被带跑。
+# ⚠ per-template type 实测有效（模板拿到 #75d4e7，全局仍是 #efb4e8）。
+
 [templates.konsole_scheme]
+type = 'SchemeExpressive'
 input_path = '~/.config/matugen/templates/konsole/Matugen.colorscheme'
 output_path = '~/.local/share/konsole/Matugen.colorscheme'
 
