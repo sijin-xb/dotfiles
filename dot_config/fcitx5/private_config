@@ -1,83 +1,100 @@
 [Hotkey]
 # 按住切换键的修饰键时进行轮换切换
-EnumerateWithTriggerKeys=True
+# EnumerateWithTriggerKeys=True
+# 忽略重复的激活/取消激活键
+# ConsumeRedundantActivateKeys=False
 # 向前切换输入法
-EnumerateForwardKeys=
+# EnumerateForwardKeys=
 # 向后切换输入法
-EnumerateBackwardKeys=
+# EnumerateBackwardKeys=
 # 轮换输入法时跳过第一个输入法
-EnumerateSkipFirst=False
+# EnumerateSkipFirst=False
 # 触发修饰键快捷键的时限 (毫秒)
-ModifierOnlyKeyTimeout=250
+# ModifierOnlyKeyTimeout=250
 
 [Hotkey/TriggerKeys]
 0=Shift_L
 1=Zenkaku_Hankaku
 2=Hangul
 
-[Hotkey/ActivateKeys]
-0=Hangul_Hanja
+# [Hotkey/ActivateKeys]
+# 0=Hangul_Hanja
 
-[Hotkey/DeactivateKeys]
-0=Hangul_Romaja
+# [Hotkey/DeactivateKeys]
+# 0=Hangul_Romaja
 
-[Hotkey/AltTriggerKeys]
-0=Shift_L
+# [Hotkey/AltTriggerKeys]
+# 0=Shift_L
 
-[Hotkey/EnumerateGroupForwardKeys]
-0=Super+space
+# [Hotkey/EnumerateGroupForwardKeys]
+# 0=Super+space
 
-[Hotkey/EnumerateGroupBackwardKeys]
-0=Shift+Super+space
+# [Hotkey/EnumerateGroupBackwardKeys]
+# 0=Shift+Super+space
 
-[Hotkey/PrevPage]
-0=Up
+# [Hotkey/PrevPage]
+# 0=Up
 
-[Hotkey/NextPage]
-0=Down
+# [Hotkey/NextPage]
+# 0=Down
 
-[Hotkey/PrevCandidate]
-0=Shift+Tab
+# [Hotkey/PrevCandidate]
+# 0=Shift+Tab
 
-[Hotkey/NextCandidate]
-0=Tab
+# [Hotkey/NextCandidate]
+# 0=Tab
 
-[Hotkey/TogglePreedit]
-0=Control+Alt+P
+# [Hotkey/TogglePreedit]
+# 0=Control+Alt+P
+
+# [Behavior]
+# 默认激活输入法
+# ActiveByDefault=False
+# 重新聚焦时重置状态
+# resetStateWhenFocusIn=No
+# 共享输入状态
+# ShareInputState=No
+# 在程序中显示预编辑文本
+# PreeditEnabledByDefault=True
+# 切换输入法时显示输入法信息
+# ShowInputMethodInformation=True
+# 在焦点更改时显示输入法信息
+# showInputMethodInformationWhenFocusIn=False
+# 显示紧凑的输入法信息
+# CompactInputMethodInformation=True
+# 显示第一个输入法的信息
+# ShowFirstInputMethodInformation=True
+# 缺省每页候选词
+# DefaultPageSize=5
+# 覆盖 XKB 选项
+# OverrideXkbOption=False
+# 自定义 XKB 选项
+# CustomXkbOption=
+# Force Enabled Addons
+# EnabledAddons=
+# Force Disabled Addons
+# DisabledAddons=
+# Preload input method to be used by default
+# PreloadInputMethod=True
+# 允许在密码框中使用输入法
+# AllowInputMethodForPassword=False
+# 输入密码时显示预编辑文本
+# ShowPreeditForPassword=False
+# 保存用户数据的时间间隔（以分钟为单位）
+# AutoSavePeriod=30
 
 [Behavior]
-# 默认激活输入法
+# 2026-10-02 显式打开这两项，解决「每开一个新窗口输入法都是中文」。
+#
+# 成因：Wayland 下客户端窗口是异步创建的，fcitx5 的输入状态会在窗口之间被动
+# 继承 —— 在浏览器里处于中文时，新开的窗口也继承中文。默认值
+# ShareInputState=No 并不阻止这种继承。
+#
+# ShareInputState=Program 让状态按「程序」隔离：浏览器保持中文、终端保持英文，
+# 互不污染。这是 omarchy + rime-ice 场景下验证过的取值。
+ShareInputState=Program
+
+# 新程序启动时输入法处于「未激活」状态，按键直接交给 XKB —— 也就是纯英文。
+# 与 profile 里的 DefaultIM=keyboard-us 配套：即使激活了也是英文起步。
 ActiveByDefault=False
-# 重新聚焦时重置状态
-resetStateWhenFocusIn=No
-# 共享输入状态
-ShareInputState=No
-# 在程序中显示预编辑文本
-PreeditEnabledByDefault=True
-# 切换输入法时显示输入法信息
-ShowInputMethodInformation=True
-# 在焦点更改时显示输入法信息
-showInputMethodInformationWhenFocusIn=False
-# 显示紧凑的输入法信息
-CompactInputMethodInformation=True
-# 显示第一个输入法的信息
-ShowFirstInputMethodInformation=True
-# 缺省每页候选词
-DefaultPageSize=5
-# 覆盖 XKB 选项
-OverrideXkbOption=False
-# 自定义 XKB 选项
-CustomXkbOption=
-# Force Enabled Addons
-EnabledAddons=
-# Force Disabled Addons
-DisabledAddons=
-# Preload input method to be used by default
-PreloadInputMethod=True
-# 允许在密码框中使用输入法
-AllowInputMethodForPassword=False
-# 输入密码时显示预编辑文本
-ShowPreeditForPassword=False
-# 保存用户数据的时间间隔（以分钟为单位）
-AutoSavePeriod=30
 

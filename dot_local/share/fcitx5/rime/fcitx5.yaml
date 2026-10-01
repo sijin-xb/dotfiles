@@ -1,0 +1,44 @@
+# =============================================================================
+#  fcitx5 前端的 rime 配置 —— 让终端默认处于英文（ASCII）状态
+#  路径：~/.local/share/fcitx5/rime/fcitx5.yaml
+#
+#  为什么放在这里而不是 default.custom.yaml / rime_ice.custom.yaml：
+#  app_options 写在 schema 的 custom 文件里会被 Rime 引擎层当成「硬锁 ASCII」，
+#  按 Shift 也切不回中文。fcitx5.yaml 由 **前端** 接管，只在窗口会话创建时把
+#  初始状态置为英文，之后仍可自由切换。
+#
+#  改完必须重新编译，否则完全不生效：
+#      rime_deployer --build ~/.local/share/fcitx5/rime \
+#                    /usr/share/rime-data ~/.local/share/fcitx5/rime/build
+#  然后 fcitx5-remote -r（或重启 fcitx5）。
+#
+#  app 名按窗口的 app_id / class 匹配，不同发行版/版本大小写不一致，
+#  所以常见的几种写法都列上，多写不匹配的条目没有副作用。
+# =============================================================================
+
+config_version: "0.22"
+
+app_options:
+  # ── 已安装的终端 ───────────────────────────────────────────────────────
+  kitty:
+    ascii_mode: true
+  alacritty:
+    ascii_mode: true
+  Alacritty:
+    ascii_mode: true
+  konsole:
+    ascii_mode: true
+  org.kde.konsole:
+    ascii_mode: true
+
+  # ── 预留：装了就能生效，没装也无副作用 ────────────────────────────────
+  foot:
+    ascii_mode: true
+  footclient:
+    ascii_mode: true
+  ghostty:
+    ascii_mode: true
+  wezterm:
+    ascii_mode: true
+  org.wezfurlong.wezterm:
+    ascii_mode: true
