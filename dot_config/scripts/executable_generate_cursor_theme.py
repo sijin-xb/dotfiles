@@ -19,6 +19,14 @@ theme when the *value* of its cursor config changes, so a same-named theme
 whose files were rewritten keeps rendering with the old cached textures.
 refresh_niri_cursor() therefore flips the theme name between two equivalent
 names (the second one a symlink to the first) in DMS's generated cursor.kdl.
+
+That flip only works if niri is actually pointing at our theme. In the niri
+session the authoritative value is DMS's cursorSettings.theme, and it was
+still holding a stock catppuccin name left over from the old
+nearest-accent implementation -- so the compositor kept drawing the
+unmodified catppuccin cursor while XCURSOR_THEME pointed at Matugen-Cursors.
+reconcile_dms_cursor() repairs that on every run (it is a no-op once the
+value is ours, and it leaves a deliberately chosen third-party theme alone).
 """
 
 import json
@@ -79,6 +87,19 @@ SOURCE_ACCENT = "#f5c2e7"
 ALT_THEME_NAME = THEME_NAME + "-alt"
 NIRI_CURSOR_KDL = Path.home() / ".config/niri/dms/cursor.kdl"
 CURSOR_THEME_RE = re.compile(r'xcursor-theme\s+"([^"]*)"')
+
+# DMS 的光标设置是 niri 会话里真正生效的来源（它据此生成 dms/cursor.kdl）。
+DMS_SETTINGS_PATH = Path.home() / ".config/DankMaterialShell/settings.json"
+
+# 旧实现 apply_cursor_theme.py 从 14 个 catppuccin mocha accent 里挑「最近的
+# 一个」，所以 DMS 里记下的是 catppuccin-mocha-<accent>-cursors。换成精确取色
+# 的新实现后，生成的是 Matugen-Cursors，但没人去改 DMS 的那个值 ——
+# 结果 niri 合成器一直画原始 catppuccin 光标，而 XCURSOR_THEME 指向
+# Matugen-Cursors，合成器和程序看到的是两套光标。
+#
+# 只在这种「stock catppuccin 残留」的情况下改写。用户如果在 DMS 界面里选了
+# 别的主题（Bibata 之类），那是明确的选择，不动。
+STOCK_CURSOR_RE = re.compile(r'^catppuccin-[a-z0-9-]*-cursors$')
 
 
 def log(msg):
@@ -285,9 +306,11 @@ def refresh_niri_cursor():
     Only touches the theme *name* in DMS's cursor.kdl, and only when it is
     currently one of our two equivalent names -- if the user picked a different
     cursor theme in DMS, the file is left for DMS to own.
+
+    Note the name flip does not need NIRI_SOCKET: writing cursor.kdl is enough,
+    because niri watches its own config file. The explicit `niri msg` below is
+    just to make it immediate, so it is the only part that needs the socket.
     """
-    if not os.environ.get("NIRI_SOCKET"):
-        return
     if not NIRI_CURSOR_KDL.is_file():
         return
 
@@ -312,15 +335,75 @@ def refresh_niri_cursor():
     )
     log(f"niri cursor theme name -> {new_name}")
 
-    # niri 自己会监视配置文件，这里再显式重载一次保证及时。
-    if shutil.which("niri") is not None:
+    # niri 自己会监视配置文件，这一步只是让它立刻生效。NIRI_SOCKET 缺失
+    # （从 TTY 跑）或指向已消失的旧会话时跳过即可，改名仍会随文件监视生效。
+    if os.environ.get("NIRI_SOCKET") and shutil.which("niri") is not None:
         subprocess.run(
             ["niri", "msg", "action", "load-config-file"],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
 
 
-def apply_theme():
+def reconcile_dms_cursor():
+    """把 DMS 的 cursorSettings.theme 从 stock catppuccin 残留改成 Matugen-Cursors。
+
+    返回 True 表示确实改过。原子写（临时文件 + rename），避免和正在运行的
+    DMS 抢写导致 settings.json 出现半截内容。
+    """
+    if not DMS_SETTINGS_PATH.is_file():
+        return False
+
+    try:
+        data = json.loads(DMS_SETTINGS_PATH.read_text())
+    except Exception as e:
+        log(f"cannot read DMS settings ({DMS_SETTINGS_PATH}): {e}")
+        return False
+
+    cursor_settings = data.get("cursorSettings")
+    if not isinstance(cursor_settings, dict):
+        return False
+
+    current = cursor_settings.get("theme")
+    if not isinstance(current, str):
+        return False
+    if current in (THEME_NAME, ALT_THEME_NAME):
+        return False
+    if not STOCK_CURSOR_RE.match(current):
+        log(f"DMS cursor theme is '{current}' (not a stock catppuccin name), leaving it alone")
+        return False
+
+    cursor_settings["theme"] = THEME_NAME
+    try:
+        tmp = DMS_SETTINGS_PATH.with_name(DMS_SETTINGS_PATH.name + ".tmp")
+        tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n")
+        tmp.replace(DMS_SETTINGS_PATH)
+    except Exception as e:
+        log(f"cannot write DMS settings: {e}")
+        return False
+
+    log(f"DMS cursorSettings.theme: {current} -> {THEME_NAME}")
+    return True
+
+
+def write_niri_cursor_kdl(name=THEME_NAME):
+    """把 dms/cursor.kdl 的主题名直接写成 name。
+
+    该文件头写着 DO NOT EDIT / AUTO-GENERATED，但 DMS 只在设置变更或启动时
+    重写它。这里立刻写一份，省得等 DMS 重新生成；而 settings.json 已经改好，
+    所以 DMS 下次写回时不会退回旧值。
+    """
+    if not NIRI_CURSOR_KDL.is_file():
+        return False
+    text = NIRI_CURSOR_KDL.read_text()
+    new = CURSOR_THEME_RE.sub(f'xcursor-theme "{name}"', text, count=1)
+    if new == text:
+        return False
+    NIRI_CURSOR_KDL.write_text(new)
+    log(f"niri cursor.kdl -> {name}")
+    return True
+
+
+def apply_theme(skip_niri_flip=False):
     if not (DST_THEME / "cursors").is_dir():
         log("generated theme missing, not applying")
         return
@@ -343,7 +426,12 @@ def apply_theme():
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
 
-    refresh_niri_cursor()
+    # 如果这一轮已经把 cursor.kdl 从「stock catppuccin」改成 Matugen-Cursors，
+    # 那次改名本身就会让 niri 重载，不需要再交替一次。
+    if skip_niri_flip:
+        log("niri cursor.kdl 刚改写过，跳过本次交替")
+    else:
+        refresh_niri_cursor()
 
 
 def main():
@@ -355,10 +443,16 @@ def main():
     if primary is None:
         return 0
 
+    # DMS 的设置可能还停在旧实现的 stock catppuccin 名字上。每轮都核对一次 ——
+    # 用户在 DMS 界面里动一次光标设置就会把它写回去，只有这里能纠回来。
+    reconciled = reconcile_dms_cursor()
+    if reconciled:
+        write_niri_cursor_kdl()
+
     cache = DST_THEME / CACHE_NAME
     if cache.is_file() and cache.read_text().strip().lower() == primary:
         log(f"accent unchanged ({primary}), skipping rebuild")
-        apply_theme()
+        apply_theme(skip_niri_flip=reconciled)
         return 0
 
     if not generate(primary):
@@ -366,7 +460,7 @@ def main():
         return 0
 
     (DST_THEME / CACHE_NAME).write_text(primary + "\n")
-    apply_theme()
+    apply_theme(skip_niri_flip=reconciled)
     return 0
 
 
