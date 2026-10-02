@@ -10,7 +10,12 @@ WINIT_X11_SCALE_FACTOR = "1.0"
 [window]
 dimensions = { columns = 100, lines = 30 }
 dynamic_padding = true
-decorations = "Full"
+# 不画窗口装饰（标题栏 + 边框）。tiling WM 自己管边框，终端再画一层标题栏
+# 纯属浪费垂直空间。Full 是 alacritty 的默认值，本机原来是 Full ——
+# 三个终端里只有 alacritty 会画标题栏（kitty 已 hide_window_decorations，
+# foot 本身不画 CSD）。
+# 可选值：Full / Transparent / Buttonless / None
+decorations = "None"
 opacity = 0.8
 title = "Alacritty@CachyOS"
 class = { instance = "Alacritty", general = "Alacritty" }

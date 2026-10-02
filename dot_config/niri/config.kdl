@@ -42,6 +42,11 @@ environment {
     // qt主题
     QT_QPA_PLATFORMTHEME "gtk3"
     QT_QPA_PLATFORMTHEME_QT6 "gtk3"
+    // Qt 应用不画客户端装饰（标题栏）。niri 是 tiling WM，边框由合成器管，
+    // Konsole 这类 Qt 终端在 Wayland 下会自己画一层 CSD 标题栏。
+    // 这是 Qt 的官方开关，作用于所有 Qt 应用 —— tiling WM 下没有哪个
+    // Qt 程序需要 CSD，所以全局关掉是合适的。
+    QT_WAYLAND_DISABLE_WINDOWDECORATION "1"
     // 解决quickshell图标主题缺失问题
     QS_ICON_THEME "Adwaita"
     // GTK软件使用的渲染器，可以解决n卡双显卡导致的GTK应用启动缓慢问题，AMD或Intel单显卡不需要这行设置可以注释掉

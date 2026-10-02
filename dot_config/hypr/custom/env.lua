@@ -8,3 +8,8 @@ hl.env("XCURSOR_THEME", "FireflySpring-Missives-Pixel-Cursors")
 hl.env("XCURSOR_SIZE", "24")
 hl.env("HYPRCURSOR_THEME", "FireflySpring-Missives-Pixel-Cursors")
 hl.env("HYPRCURSOR_SIZE", "24")
+
+-- Qt 应用不画客户端装饰（标题栏）。与 niri 的 config.kdl 保持一致 ——
+-- Konsole 这类 Qt 终端在 Wayland 下会自己画一层 CSD 标题栏，tiling WM
+-- 下没有哪个 Qt 程序需要它。
+hl.env("QT_WAYLAND_DISABLE_WINDOWDECORATION", "1")

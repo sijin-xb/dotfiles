@@ -81,9 +81,17 @@ EXTRA_ARCHIVE_PATHS=(
 # ============================================================
 # 1. 输出 / 工具函数
 # ============================================================
-say()  { printf '\033[1;32m==>\033[0m %s\n' "$*"; }
-warn() { printf '\033[1;33m ->\033[0m %s\n' "$*"; }
-die()  { printf '\033[1;31m错误:\033[0m %s\n' "$*" >&2; exit 1; }
+# 颜色。设了 NO_COLOR（https://no-color.org）或 stdout 不是终端时全部关掉 ——
+# `./install.sh update --dry-run > plan.txt` 以前会把 ANSI 码写进文件。
+if [[ -n ${NO_COLOR:-} || ! -t 1 ]]; then
+    C_GREEN=""; C_YELLOW=""; C_RED=""; C_RESET=""
+else
+    C_GREEN=$'\033[1;32m'; C_YELLOW=$'\033[1;33m'
+    C_RED=$'\033[1;31m';   C_RESET=$'\033[0m'
+fi
+say()  { printf '%s==>%s %s\n' "$C_GREEN" "$C_RESET" "$*"; }
+warn() { printf '%s ->%s %s\n' "$C_YELLOW" "$C_RESET" "$*"; }
+die()  { printf '%s错误:%s %s\n' "$C_RED" "$C_RESET" "$*" >&2; exit 1; }
 have() { command -v "$1" >/dev/null 2>&1; }
 in_sync_db() { LC_ALL=C pacman -Si "$1" >/dev/null 2>&1; }
 aur_helper() { if have paru; then echo paru; elif have yay; then echo yay; else echo ""; fi; }
@@ -202,16 +210,41 @@ session_warning_if_running() {
     fi
 }
 
+# 安全输入：把「读一行」收敛到一个地方，避免裸 read 挂死。
+#
+# 交互终端下正常等待（用户想看多久看多久）；非交互下最多等 $2 秒
+# （默认 3s），拿不到输入就留空串让调用方走默认值。
+#
+# ⚠ 必要性：以前 confirm 与三处菜单是裸 `read`。stdin 若是**打开着但一直
+#   不给数据**的管道 —— 测试台继承工具链的管道、IDE 托管的 shell、某些 CI
+#   ——read 会永久阻塞。实测 `bash tests/install-sh-cli-test.sh` 卡死 10 分钟
+#   无任何输出（`read` 无 tty 时并不会自动 EOF，这点常被误解）。
+#
+# 用法：read_answer <变量名> [超时秒数]
+read_answer() {
+    local __var="$1" __tmo="${2:-3}" __rc=0
+    if [[ -t 0 ]]; then
+        IFS= read -r "$__var" || true
+        return 0
+    fi
+    IFS= read -r -t "$__tmo" "$__var" || __rc=$?
+    printf '\n'
+    if (( __rc > 128 )); then
+        warn "非交互环境，${__tmo} 秒内无输入，按默认值处理。"
+    fi
+    return 0
+}
+
 # 通用交互确认：返回 0=yes, 1=no, 2=back（调用方决定 back 语义）
 # 用法：if confirm "继续？"; then ... fi
 #       或：confirm "继续？" "允许返回(b键)" && case $? in 2) return;; esac
 confirm() {
     local prompt="${1:-是否继续？}" allow_back="${2:-}"
-    local ans
+    local ans=""
     local opts="[y/N]"
     [[ -n $allow_back ]] && opts="[y/N/b(返回)]"
     printf '%s %s ' "$prompt" "$opts"
-    IFS= read -r ans
+    read_answer ans
     case "$ans" in
         y|Y|yes|YES|Yes) return 0 ;;
         b|B) [[ -n $allow_back ]] && return 2 ;;
@@ -235,9 +268,10 @@ read_state() {
 write_state() {
     local key="$1" snap_path="$2"
     ensure_dirs
+    # 只写这一个文件：read_state 读的就是它。
+    # （以前还写一个 ${key}.withtime，里面是「# 时间戳 + 路径」两行 —— 全脚本
+    #   搜不到读者，而 detail_rollback 展示时间用的是 stat 快照文件本身。）
     echo "$snap_path" > "$STATE_DIR/$key"
-    # 附带一个时间戳行方便人看
-    { echo "# $(date -Iseconds)"; echo "$snap_path"; } > "$STATE_DIR/${key}.withtime"
 }
 
 # ============================================================
@@ -580,8 +614,9 @@ choose_session() {
     echo "    1) Hyprland + end4-pC    quickshell（end4-PC 底盘），本仓库主配置"
     echo "    2) Hyprland + caelestia  caelestia shell（clone + 编译 QML 插件）"
     echo "    3) niri + DMS            DankMaterialShell（niri 专属桌面 shell）"
-    local ans
-    read -r -p "  请输入 1/2/3 [默认 1]: " ans || true
+    local ans=""
+    printf '  请输入 1/2/3 [默认 1]: '
+    read_answer ans
     case "$ans" in
         2|caelestia|Caelestia)    SESSION=caelestia ;;
         3|dms|DMS|niri|Niri|NIRI) SESSION=dms ;;
@@ -620,7 +655,7 @@ choose_fonts() {
     fi
     local ans=""
     printf '    安装推荐字体？（MiSans / Maple Mono NF / 霞鹜文楷 / Noto CJK，约 200MB）[Y/n] '
-    IFS= read -r ans || true
+    read_answer ans
     case "${ans,,}" in
         n|no) FONTS=0; echo "    字体: 跳过，不改动系统字体" ;;
         *)    FONTS=1; echo "    字体: 安装推荐字体" ;;
@@ -949,8 +984,9 @@ uninstall_compositor_scope() {
     echo "    1) 两套都删    ~/.config/hypr + ~/.config/niri"
     echo "    2) 只删 Hyprland  ~/.config/hypr"
     echo "    3) 只删 niri      ~/.config/niri"
-    local ans
-    IFS= read -r -p "  请输入 1/2/3 [默认 1]: " ans || true
+    local ans=""
+    printf '  请输入 1/2/3 [默认 1]: '
+    read_answer ans
     case "$ans" in
         2) COMPOSITOR=hyprland ;;
         3) COMPOSITOR=niri ;;
@@ -974,8 +1010,9 @@ uninstall_shell_scope() {
     echo "    1) 只删 end4-PC    ~/.config/quickshell/end4-pC"
     echo "    2) 只删 caelestia  ~/.config/quickshell/caelestia"
     echo "    3) 两套都删"
-    local ans
-    IFS= read -r -p "  请输入 1/2/3 [默认 1]: " ans || true
+    local ans=""
+    printf '  请输入 1/2/3 [默认 1]: '
+    read_answer ans
     case "$ans" in
         2) QS_SHELL=caelestia ;;
         3) QS_SHELL=both ;;
@@ -1931,7 +1968,15 @@ cmd_update() {
     have pacman || die "找不到 pacman。"
 
     ensure_repo "$@"          # 单文件运行时自举拉仓库并 exec 重跑
-    ensure_dirs
+    # --dry-run 承诺「一个字节都不写」，所以不建备份目录。
+    # manifest_read 只读 $STATE_DIR，目录不存在时返回「没有旧清单」，行为正确。
+    # ⚠ ensure_repo 无法避免：没有源树就算不出计划。单文件自举模式下它会
+    #   clone 仓库再 exec 重跑 —— 那种情况下 dry-run 确实会动网络与磁盘。
+    if ((dry_run)); then
+        warn "--dry-run：不会写任何配置文件；但仓库源树仍是必需的（可能已 clone/拉取）。"
+    else
+        ensure_dirs
+    fi
     session_warning_if_running
 
     # ── 可选：先把仓库拉到最新 ──────────────────────────────────────
@@ -1965,8 +2010,8 @@ cmd_update() {
     local old_rev="" new_rev dirty
     new_rev="$(current_revision)"
     [[ -f "$(revision_path)" ]] && old_rev="$(sed -n 's/^revision=//p' "$(revision_path)" | head -n1)"
+    # wc -l 永远有输出（哪怕是 0），所以这里不需要「空则置 0」的兜底。
     dirty="$(git -C "$SRC" status --porcelain 2>/dev/null | wc -l)"
-    [[ -n "$dirty" ]] || dirty=0
 
     echo "----------------------------------------------------------------------"
     echo "  部署会话 : $QS_SHELL + $COMPOSITOR"
@@ -2178,6 +2223,13 @@ cmd_update() {
 }
 
 cmd_rollback() {
+    # 与其他子命令统一：认 -h，多余参数显式告警而不是静默忽略
+    # （以前 `./install.sh rollback --dry-run` 既不报错也不生效）。
+    case "${1:-}" in
+        -h|--help) print_help; return 0 ;;
+        "") ;;
+        *) warn "rollback 不接受参数，已忽略: $*" ;;
+    esac
     ensure_dirs
     if ! read_state current >/dev/null; then
         die "还没有 pre-install 快照，请先至少运行一次 ./install.sh install 来生成回档基线。"
@@ -2194,6 +2246,13 @@ cmd_rollback() {
 }
 
 cmd_restore() {
+    # 与其他子命令统一：认 -h，多余参数显式告警而不是静默忽略
+    # （以前 `./install.sh rollback --dry-run` 既不报错也不生效）。
+    case "${1:-}" in
+        -h|--help) print_help; return 0 ;;
+        "") ;;
+        *) warn "restore 不接受参数，已忽略: $*" ;;
+    esac
     ensure_dirs
     if ! read_state before-rollback >/dev/null; then
         die "没有找到 pre-rollback 快照：还没执行过 rollback？或者快照文件已被手动删除？（不执行任何文件操作，退出）"
@@ -2337,6 +2396,13 @@ cmd_archive() {
 
 # 卸载：先让用户选"是否顺便存档"，然后存档 → 执行 --delete（可选）
 cmd_uninstall() {
+    # 与其他子命令统一：认 -h，多余参数显式告警而不是静默忽略
+    # （以前 `./install.sh rollback --dry-run` 既不报错也不生效）。
+    case "${1:-}" in
+        -h|--help) print_help; return 0 ;;
+        "") ;;
+        *) warn "uninstall 不接受参数，已忽略: $*" ;;
+    esac
     ensure_dirs
     echo "卸载 rice 配置：建议先打包存档作为备份。"
     local do_archive=1
@@ -2493,11 +2559,14 @@ tui_clear() { clear 2>/dev/null || printf '\n\n\n\n'; }
 #   脚本里通常为空 → 分隔线永远是 80 格，宽终端上短一截、窄终端上折行。
 #   改成向终端问一次（tput cols），问不到（重定向 / 非 tty）才退回 80。
 draw_line() {
-    local ch="${1:--}" w="${COLUMNS:-0}" i
+    local ch="${1:--}" w="${COLUMNS:-0}" pad
     if (( w <= 0 )); then w="$(tput cols 2>/dev/null || echo 0)"; fi
     if (( w <= 0 )); then w=80; fi
-    for ((i=0; i<w; i++)); do printf '%s' "$ch"; done
-    printf '\n'
+    # 一次成型，不用 for 逐字符 printf（300 列终端 = 300 次 fork 级调用）。
+    # 也不用 tr：多字节 locale 下 tr 按字节替换，'─'(E2 94 80) 会被拆成
+    # 3 个字节分别映射，产生非法 UTF-8。bash 自己的参数展开没这个问题。
+    printf -v pad '%*s' "$w" ''
+    printf '%s\n' "${pad// /$ch}"
 }
 
 # 打印一个带标题的分隔框；参数：标题
@@ -2892,9 +2961,11 @@ main_menu_loop() {
 }
 
 enter_tui() {
-    if [[ ! -t 0 ]]; then
-        warn "标准输入不是终端，无法进入 TUI。请直接使用子命令：$0 install | rollback | restore | archive | uninstall"
-        warn "（如果你在管道里调用 ./install.sh 想走 TUI，那是不行的）"
+    # stdin 与 stdout 都要是终端：只查 stdin 的话，`./install.sh > log` 会把
+    # clear 与所有 ANSI 码写进文件。
+    if [[ ! -t 0 || ! -t 1 ]]; then
+        warn "标准输入/输出不是终端，无法进入 TUI。请直接使用子命令："
+        warn "  $0 install | update | rollback | restore | archive | uninstall"
         exit 1
     fi
     show_splash

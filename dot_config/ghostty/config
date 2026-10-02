@@ -1,0 +1,13 @@
+# ghostty 配置
+#
+# 本体尚未安装（装包名 ghostty），先把终端相关设置备好，装完即生效。
+#
+# 不画窗口装饰（标题栏 / 边框）。tiling WM 自己管窗口边界，CSD 是多余的
+# 一条横杠，还会吃掉几十像素的行高。
+# 与 kitty 的 hide_window_decorations、alacritty 的 decorations="None" 对齐。
+window-decoration = false
+
+# 配色由 matugen 生成到别处再 include 进来（模板见
+# ~/.config/matugen/templates/ghostty-colors.conf）。等本体装好、
+# 模板接进 config.toml 之后再打开下面这行：
+# config-file = ~/.config/ghostty/matugen-theme.conf
