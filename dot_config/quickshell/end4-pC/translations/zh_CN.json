@@ -1435,5 +1435,19 @@
   "Dial Style": "表盘样式",
   "Disks": "磁盘",
   "Set Alarm": "设置闹钟",
-  "Set Timer": "设置计时器"
+  "Set Timer": "设置计时器",
+  "Apply": "应用",
+  "Change accent color": "更换强调色",
+  "Clickable when pinned": "固定后可点击",
+  "Countdown": "倒计时",
+  "Funny number": "赞助作者",
+  "Kernel ": "内核 ",
+  "MangoHud FPS": "MangoHud 帧率",
+  "Next page": "下一页",
+  "Packages": "软件包",
+  "Remove": "移除",
+  "Select icon": "选择图标",
+  "Shell": "外壳",
+  "Type your note...": "输入笔记…",
+  "Type your task...": "输入待办…"
 }
