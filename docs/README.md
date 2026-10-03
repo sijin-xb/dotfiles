@@ -12,6 +12,7 @@
 | [backdrop-blur.md](backdrop-blur.md) | 限定范围内的 QML 自绘背景模糊（`GlassBackdrop`），不依赖合成器全局模糊 |
 | [login-screen.md](login-screen.md) | 登录界面：SDDM + Catppuccin Mocha 主题 |
 | [lockscreen.md](lockscreen.md) | 锁屏：`modules/ii/lock/` |
+| [easyeffects-styling.md](easyeffects-styling.md) | Easy Effects 样式溯源与 MD3 配色接入（Qt6/Kirigami → matugen KDE color scheme） |
 
 ## 栏 · 岛屿 · 仪表盘
 
