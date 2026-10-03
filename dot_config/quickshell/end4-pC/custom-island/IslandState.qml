@@ -120,12 +120,16 @@ Singleton {
     //   下限 → 保证点击区域不至于小到点不中
     //   上限 → 内容异常宽时不至于把 Bar 撑爆、盖住左右两组
     //
-    // ⚠ sidePadding 取 10（= BarGroup.padding 的两倍）而不是直接 5：
-    //   邻居胶囊里放的是**图标**，字形自带约 2px 侧边留白；岛屿里是**文字**，
-    //   数字/汉字的侧边距更小，同样 5px 会明显更挤。10 仍在同一套 5 的刻度上，
-    //   想严格对齐邻居改成 5 即可（一行）。
-    readonly property int capsuleSidePadding: 10
-    readonly property int capsuleMinWidth: 150
+    // ⚠ sidePadding 定格在 14：
+    //   10 是 300 时代的虚胖；但收到 5/8 用户实测「太窄、无感」—— 这个胶囊的
+    //   内容只有一行小字，两侧需要明显的空气感才不显得局促。14 = 内容 107px
+    //   时胶囊约 135px，比全部邻居都宽一档，视觉上是「从容」而不是「空旷」。
+    readonly property int capsuleSidePadding: 14
+    // 下限从 150 收到 100：短日期 + 12 号字后 clock 内容自然宽约 110px，
+    // 若下限还是 150，胶囊永远被卡在 150 ——「跟随内容」就名存实亡。
+    // 100 仍够点按区域（≈ 3 颗邻居胶囊的宽度），music/record_setup 等
+    // 未上报宽度的项走 Theme.cNotchMinWidth(300)，不受这个下限影响。
+    readonly property int capsuleMinWidth: 100
     readonly property int capsuleMaxWidth: 360
 
     /** 由内容自然宽度算出收起态胶囊宽度 */

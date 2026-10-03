@@ -31,6 +31,9 @@ import qs.services
 // StyledText：Bar 上所有文字都用它 —— 收起态时钟也走同一个组件，
 // 字体族/字号/variableAxes 才会和邻居完全同源（见下面 Clock 那段的说明）
 import qs.modules.common.widgets
+// Appearance：clockMeasure / clockText 的字号令牌（pixelSize.smaller）要用。
+// 之前漏了这条 import，字号绑定 ReferenceError 静默失败，字号实际没降下来。
+import qs.modules.common
 
 // CenterContent — scrollable dynamic island carousel.
 //
@@ -56,17 +59,66 @@ Item {
 	// 只有约 135px → 左右各空 82px，与同一条栏上内容自适应的邻居（media 101 /
 	// sysTray 93 / resources 80）并排就是「又胖又空」。
 	//
-	// 现在：每个 delegate 上报自己内容的自然宽度（contentWidth），这里取当前项
-	// 的那个值，加上两侧留白。未上报的项返回 -1，退回基准宽，行为与旧版一致。
+	// ⚠⚠ v3：clock 的宽度测量改用隐藏 StyledText（clockMeasure）直读。
+	// 之前（52cb1f9）走的是 statusList.itemAtIndex(index) 读 delegate 上报——
+	// **itemAtIndex() 不是响应式绑定**：冷启动首帧求值时 delegate 尚未实例化，
+	// 返回 null → 永远退回 300，之后绑定不再重算。于是「自适应」只在编辑器
+	// 触发热重载（delegate 已在）时碰巧生效，每次重启 qs 都打回 300 原形。
+	// 隐藏 Text 与显示的 clockText 同源（同 StyledText / 同令牌 / 同 tnum），
+	// implicitWidth 恒可用且绑定恒响应式，彻底摆脱 ListView 的实例化时机。
+	readonly property real clockNaturalWidth: clockMeasure.implicitWidth
+
+	// ── 多形态宽度（对齐「其他组件各有各的宽」的体系）────────────────────────
+	// 每个轮播项有自己的形态宽：clock 贴内容、timer/stopwatch 跟随计时文本、
+	// music 给 cava 一个舒适的下限、record_setup 维持基准宽（三按钮 + 弹性
+	// spacer 的固定布局，收窄会挤爆）。切换时宽度走 Island.qml 的标准曲线动画。
 	readonly property real currentContentWidth: {
-		const d = statusList.itemAtIndex(root._carouselIndex)
-		return (d && d.contentWidth > 0) ? d.contentWidth : Theme.cNotchMinWidth
+		switch (root._items[root._carouselIndex]) {
+		case "clock":     return root.clockNaturalWidth
+		case "timer":     return Math.max(180, root.timerNaturalWidth + 115)
+		case "stopwatch": return Math.max(180, root.swNaturalWidth + 115)
+		case "music":     return 150
+		default:          return Theme.cNotchMinWidth  // record_setup
+		}
 	}
 
 	readonly property int requiredWidth: IslandState.capsuleWidthFor(root.currentContentWidth)
 
 	width:  requiredWidth
 	height: 30
+
+	// ── 隐藏测量 Text（不参与布局与渲染，只当尺子用）────────────────────────
+	// ⚠ 每把尺子都必须与显示端逐属性同源（同组件/同字号/同字重/同字体族），
+	//   显示端改样式时这里必须同步，否则测量失真。
+	// clock 尺：与显示的 clockText 同源（StyledText 判定 + smaller + tnum）。
+	StyledText {
+		id: clockMeasure
+		visible: false
+		text: Qt.locale().toString(secondClock.date, "M月d日")
+		      + "  " + DateTime.hourStr + ":" + DateTime.minuteStr + ":" + root.secondStr
+		font.pixelSize: Appearance.font.pixelSize.smaller
+		font.features: { "tnum": 1 }
+	}
+	// timer / stopwatch 尺：与显示端同参（15 bold mono）。
+	// +115 的常数 = 结构留白：左图标 15+16、文本侧隙 8+8、右按钮区 47+15。
+	Text {
+		id: timerMeasure
+		visible: false
+		text: ClockState.timerDisplay
+		font.pixelSize: 15
+		font.weight: Font.Bold
+		font.family: Theme.monoFontFamily
+	}
+	Text {
+		id: swMeasure
+		visible: false
+		text: ClockState.swDisplay
+		font.pixelSize: 15
+		font.weight: Font.Bold
+		font.family: Theme.monoFontFamily
+	}
+	readonly property real timerNaturalWidth: timerMeasure.implicitWidth
+	readonly property real swNaturalWidth: swMeasure.implicitWidth
 
 	// ── Required notch width for the current carousel item ────────────────────
 	// TopBar.cWidth reads this so the notch always matches what is visible.
@@ -263,20 +315,10 @@ Item {
 				required property string modelData
 				required property int    index
 
-				// 跟随容器宽度（容器由本项上报的 contentWidth 反推出来）
+				// 跟随容器宽度（容器由根上的 currentContentWidth 反推出来；
+				// clock 的测量已改走根上的隐藏 Text，见 clockNaturalWidth 注释）
 				width:  root.requiredWidth
 				height: 30
-
-				// ── 本项内容的自然宽度 ────────────────────────────────────
-				// 由 root.currentContentWidth 读取，用来决定岛屿胶囊该多宽。
-				// 返回 -1 = 「本项没实现自适应」，root 会退回 Theme.cNotchMinWidth，
-				// 行为与旧版完全一致（宽度固定 300），不会因为没来得及适配而变窄裁字。
-				readonly property real contentWidth: {
-					switch (modelData) {
-					case "clock": return clockText.implicitWidth
-					default:      return -1
-					}
-				}
 
 				// ── Clock ──────────────────────────────────────────────────────
 				// 默认项：日期 + 时间（HH:MM:SS）。**不带日历图标**（按需求）。
@@ -296,20 +338,26 @@ Item {
 				// 时钟是混合文本（「2026年9月30日  20:39:23」），按规则走 main，
 				// 正好和旁边的网络速度、电量那些文字同一套字形。
 				//
-				// ⚠ 不要再给它加 font.family / font.pixelSize —— 一旦硬编码，
-				//   设置面板里的字体配置就对这一项失效了。
 				// ⚠ 颜色仍然显式给 Theme.text：岛屿底色是 colPrimaryContainer，
 				//   不能用 StyledText 的默认色（那是给 colLayer0 背景用的）。
+				//
+				// ── 2026-10-04 紧凑化：短日期 + 小字号 ─────────────────────────
+				// 1. 日期去掉年份（yyyy → 只保留 M月d日）—— 全量日期是胶囊
+				//    占地方的大头，年份在 Bar 这个位置没有信息量；
+				// 2. 字号从 StyledText 默认的 small(15) 显式降到 smaller(12)。
+				//    注意这里用的是 Appearance 令牌引用而非字面量，仍跟随主题；
+				//    font.family 保持不写（那条警告仍然成立）。
 				StyledText {
 					id: clockText
 					anchors.fill: parent
 					visible:      modelData === "clock"
 					// 日期取秒级 SystemClock 的 date —— 跨零点会自动跳到新的一天。
-					// 格式按需求用中文「年月日」；汉字不是 Qt 的格式字符（y/M/d/H…），
+					// 格式按需求用中文「月日」；汉字不是 Qt 的格式字符（y/M/d/H…），
 					// 所以直接写在格式串里就会原样输出，不需要单引号转义。
-					text:         Qt.locale().toString(secondClock.date, "yyyy年M月d日")
+					text:         Qt.locale().toString(secondClock.date, "M月d日")
 					              + "  " + DateTime.hourStr + ":" + DateTime.minuteStr + ":" + root.secondStr
 					color:        Theme.text
+					font.pixelSize: Appearance.font.pixelSize.smaller
 					// tnum 保证秒数跳动时数字宽度不抖（字体不支持时会被忽略）。
 					font.features: { "tnum": 1 }
 					verticalAlignment:   Text.AlignVCenter

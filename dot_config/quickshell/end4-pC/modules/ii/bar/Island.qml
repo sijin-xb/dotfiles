@@ -27,10 +27,9 @@ Item {
     id: root
 
     // ── 槽位宽度 ────────────────────────────────────────────────────────
-    // 收起态：跟随内容自然宽度（由 CenterContent 上报），而不是写死 300。
-    //   屏幕实测旧实现：胶囊 300px、时钟文字约 135px → 左右各空 82px；
-    //   而同一条栏上的邻居是内容自适应的（media 101 / sysTray 93 / resources 80）。
-    //   两者并排就是「岛屿又胖又空」—— 这是「度量不统一」的根因。
+    // 收起态：多形态跟随内容 —— clock 贴文本自然宽、timer/stopwatch 跟随计时
+    // 文本、music 给 cava 舒适下限、record_setup 维持基准宽（测量逻辑见
+    // CenterContent.currentContentWidth，不再写死 300）。
     // 展开态：保持基准宽（面板是独立窗口，宽度由面板内容决定，这里只要一个
     //   稳定的槽位宽，避免开合时 Bar 中间那段来回跳）。
     implicitWidth: IslandState.islandState === "dashboard"
