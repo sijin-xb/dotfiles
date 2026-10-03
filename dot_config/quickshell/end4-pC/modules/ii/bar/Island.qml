@@ -26,6 +26,34 @@ import "../../../custom-island"
 Item {
     id: root
 
+    // ── 样式跟随（学 BarGroup.background 的四段式映射）────────────────────
+    // 岛屿此前无论条栏什么样式都画自己的紫色胶囊 —— 切到 cornerStyle 0/1/2
+    // 时邻居们都融入 bar 背景，就它还杵着一颗紫的。现在按 BarGroup 同一套
+    // 判定解析底色，切换样式时和邻居一起变。
+    readonly property bool isMaterial: Config.options.bar.cornerStyle === 3
+    readonly property bool isSegmented: Config.options?.bar.borderless === "segmented"
+
+    // 颜色四段式（与 BarGroup.background.color 逐支对齐）：
+    //   1. m3（cornerStyle 3）→ IslandState.targetColor：保持岛屿自己的状态色
+    //      （compact 紫 colPrimaryContainer / dashboard 深 colLayer1Base）；
+    //      岛在 shouldPaintMaterialPill 黑名单里，BarGroup 不给它画 pill，
+    //      这颗胶囊就是 m3 下的「材质底」，色系与邻居 pill 同源。
+    //   2. borderless transparent → 无底（文字直接坐在 bar 上）
+    //   3. cornerStyle 2 或（segmented 且关背景）→ colLayer0（cornerStyle 2
+    //      时 bar 无整体背景，每个 group 自画 colLayer0 —— 岛同款）
+    //   4. 其余 → resolvedGroupColor：跟随 设置→Bar→分组颜色（默认 colLayer1）
+    readonly property color resolvedCapsuleColor: {
+        if (root.isMaterial) return IslandState.targetColor
+        const borderless = Config.options?.bar.borderless
+        if (borderless === "transparent") return "transparent"
+        if (Config.options.bar.cornerStyle === 2
+            || (borderless === "segmented" && !Config.options.bar.showBackground))
+            return Appearance.colors.colLayer0
+        const name = Config.options.bar.groupColor
+        const key = `col${name.charAt(0).toUpperCase()}${name.slice(1)}`
+        return Appearance.colors[key] ?? Appearance.colors.colLayer1
+    }
+
     // ── 槽位宽度 ────────────────────────────────────────────────────────
     // 收起态：多形态跟随内容 —— clock 贴文本自然宽、timer/stopwatch 跟随计时
     // 文本、music 给 cava 舒适下限、record_setup 维持基准宽（测量逻辑见
@@ -53,7 +81,16 @@ Item {
         // 与左右邻居胶囊同高（baseBarHeight - BarGroup 上下各 4px）
         height: IslandState.capsuleHeight
         radius: IslandState.targetRadius
-        color: IslandState.targetColor
+        // 样式跟随：m3 = 岛屿状态色；非 m3 = 与邻居 group 同底（见 resolvedCapsuleColor）
+        color: root.resolvedCapsuleColor
+        // segmented 样式的 group 自带 1px 边框（BarGroup.background 同款）
+        border.width: root.isSegmented ? 1 : 0
+        border.color: Appearance.colors.colLayer0Border
+
+        // 样式切换时颜色平滑过渡（对齐 BarGroup.background 的 Behavior on color）
+        Behavior on color {
+            animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
+        }
 
         // hover 反馈 —— 与原先 IslandHost 收起态一致。
         // 注意：这只是「可点击」的视觉暗示，**不再触发展开**（见下面的说明）。
