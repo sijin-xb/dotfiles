@@ -47,12 +47,23 @@
        └─ [templates.kde_colorscheme]
             input:  ~/.config/matugen/templates/Matugen.colors (模板)
             output: ~/.local/share/color-schemes/Matugen.colors (产物)
+       └─ [templates.kvantum]
+            input:  ~/.config/matugen/templates/kvantum/MaterialAdw.kvconfig
+            output: ~/.config/Kvantum/MaterialAdw/MaterialAdw.kvconfig
        └─ post_hook.sh §6
-            kwriteconfig6 → kdeglobals [General] ColorScheme=Matugen
-                 └─ KColorSchemeManager 读取 kdeglobals
-                      └─ Kirigami.Theme 属性传播到全部 QML 控件
-                           └─ Easy Effects 界面获得 matugen 配色
+            比较 kdeglobals 与 Matugen.colors 的 Colors:Window BackgroundNormal
+            不一致 → plasma-apply-colorscheme BreezeDark → Matugen（双步强制应用）
+            一致 → 跳过
+                 └─ kdeglobals [Colors:*] 段写入 matugen 颜色值
+                      └─ KColorSchemeManager 读取 kdeglobals
+                           └─ Kirigami.Theme 属性传播到全部 QML 控件
+                                └─ Easy Effects 界面获得 matugen 配色
 ```
+
+> **关键**：KColorScheme 运行时读的是 kdeglobals 里的颜色值，不是 `.colors`
+> 文件。`.colors` 只是预设，`plasma-apply-colorscheme` 把预设的值复制进
+> kdeglobals。如果只改 `ColorScheme=Matugen` 这个名字而不应用值，
+> 所有 Qt6/KF6 应用看到的还是旧颜色。
 
 ### Easy Effects 内部颜色机制
 
@@ -78,14 +89,30 @@
 | 检查项 | 当前值 | 判断 |
 |---|---|---|
 | `~/.config/kdeglobals` ColorScheme | `Matugen` | matugen 已接管 |
+| kdeglobals 颜色值 | 与 Matugen.colors 一致 | 配色已真正应用 |
 | `~/.local/share/color-schemes/Matugen.colors` | 存在 | matugen 产物就位 |
-| `~/.config/easyeffects/` | 仅 `db/` 目录 | 无自定义 QSS/CSS |
-| Easy Effects `forceBreezeTheme` 默认值 | `true` | 会强制 Breeze QStyle，但不影响颜色 |
-| matugen `post_hook.sh` §6 | 开启 | 每次换壁纸自动同步 kdeglobals |
+| `~/.config/easyeffects/easyeffects.conf` forceBreezeTheme | `false` | 已关闭 |
+| `QT_QPA_PLATFORMTHEME` (niri config.kdl) | `xdgdesktopportal` | 不再走 gtk3 桥接 |
+| `QT_STYLE_OVERRIDE` (niri config.kdl) | `kvantum` | Qt 控件走 MaterialAdw 主题 |
+| matugen `post_hook.sh` §6 | 比颜色值，不比名字 | 换壁纸后自动强制应用 |
 
-**结论：Easy Effects 的界面配色已被 matugen 通过 KDE color scheme 接管，
-无自定义改动。唯一需要注意的是 `forceBreezeTheme` 默认为 `true`，
-它强制 Qt widget style 为 Breeze 而非跟随系统的 kvantum-dark。**
+**三个根因及修复（2026-10-04）**：
+
+1. **kdeglobals 颜色值与方案名不一致**：`ColorScheme=Matugen` 但 `[Colors:*]`
+   段还是旧的蓝色值。`plasma-apply-colorscheme` 只比名字，同名跳过。
+   → 修复：post_hook §6 改为比较 `Colors:Window BackgroundNormal` 颜色值，
+   不一致时走 BreezeDark→Matugen 双步切换强制应用。
+
+2. **`QT_QPA_PLATFORMTHEME=gtk3`**：niri 的 `environment` 块把 Qt5/Qt6
+   都设为 `gtk3` 桥接，绕过了 Kvantum 主题和 KDE 配色方案，所有 Qt 应用
+   渲染成朴素 GTK 外观。
+   → 修复：改为 `QT_QPA_PLATFORMTHEME=xdgdesktopportal` +
+   `QT_STYLE_OVERRIDE=kvantum`。
+
+3. **Easy Effects `forceBreezeTheme` 默认 `true`**：即使 Kvantum 生效，
+   Easy Effects 仍会 `QApplication::setStyle("breeze")` 覆盖。
+   → 修复：`kwriteconfig6 --file easyeffects/easyeffects.conf --group
+   General --key forceBreezeTheme false`。
 
 ### 与 GTK4/libadwaita 的关系
 
@@ -132,22 +159,36 @@ Easy Effects 已经通过以下链路获得了 Material Design 3 配色：
 
 **修复**：
 ```bash
-# Easy Effects 的 KConfig 存在 ~/.config/easyeffects/db/easyeffectsrc
-kwriteconfig6 --file ~/.config/easyeffects/db/easyeffectsrc \
-    --group Style --key forceBreezeTheme false
+kwriteconfig6 --file easyeffects/easyeffects.conf \
+    --group General --key forceBreezeTheme false
 ```
 
-或者在 Easy Effects 设置界面：`偏好设置 → 样式 → "Force KDE's Breeze theme
-when Easy Effects starts"` 关闭。
+#### 2.2 修复 `QT_QPA_PLATFORMTHEME`
 
-**效果**：Easy Effects 改用 `org.kde.desktop` style + kvantum-dark 主题渲染
-原生 Qt 控件，颜色仍由 KColorScheme 提供。
+**问题**：niri `config.kdl` 的 `environment` 块设了
+`QT_QPA_PLATFORMTHEME=gtk3`，这让 Qt5/Qt6 通过 `libqgtk3.so` 桥接
+获取主题——完全绕过 Kvantum 和 KDE 配色方案。所有 Qt 应用渲染成
+朴素 GTK 外观，matugen 配色不生效。
 
-#### 2.2 确认 KColorScheme 指向 Matugen
+**修复**（`~/.config/niri/config.kdl`）：
+```
+QT_QPA_PLATFORMTHEME "xdgdesktopportal"
+QT_STYLE_OVERRIDE "kvantum"
+```
 
-已经在 `post_hook.sh` §6 自动维护，无需额外动作。
+`xdgdesktopportal` 让 Qt 通过 portal 获取主题/配色（不强制 GTK），
+`kvantum` 作为 style plugin 被 Qt 自动加载。
 
-#### 2.3 图表配色对齐（可选）
+#### 2.3 修复 post_hook.sh §6 颜色值同步
+
+**问题**：旧逻辑只检查 `ColorScheme=Matugen` 这个名字——同名就跳过。
+但 kdeglobals 里的颜色值可以和 Matugen.colors 完全不一致。
+`plasma-apply-colorscheme` 也比较名字，同名不重新应用颜色。
+
+**修复**：post_hook §6 改为比较 `Colors:Window BackgroundNormal` 颜色值，
+不一致时走 `plasma-apply-colorscheme BreezeDark → Matugen` 双步切换。
+
+#### 2.4 图表配色对齐（可选）
 
 Easy Effects 的频谱图/频率响应图默认使用 Qt 内置的 `QtGreenNeon` 主题。
 若要让图表也跟随 MD3 配色，在 Easy Effects 设置中：
@@ -161,7 +202,7 @@ matugen 模板自动注入。如需自动化，可以写一个 matugen 模板直
 `~/.config/easyeffects/db/easyeffectsrc` 的 `[Graphs]` 段，但这会
 覆盖用户手动设置的其他图表参数。
 
-#### 2.4 深浅色模式
+#### 2.5 深浅色模式
 
 Easy Effects 跟随 KDE color scheme 的明暗。matugen 的 `Matugen.colors` 模板
 同时输出 `[Dark]` 和 `[Light]` 段。当系统在深/浅之间切换时：
@@ -177,23 +218,24 @@ Easy Effects 的 `KColorSchemeManager` 在配色方案变更时会自动更新�
 ### 验证方式
 
 ```bash
-# 1. 确认 kdeglobals 指向 Matugen
-kreadconfig6 --file kdeglobals --group General --key ColorScheme
-# 预期: Matugen
+# 1. 确认 kdeglobals 颜色值与 Matugen.colors 一致
+KG=$(kreadconfig6 --file kdeglobals --group "Colors:Window" --key BackgroundNormal)
+MC=$(kreadconfig6 --file ~/.local/share/color-schemes/Matugen.colors --group "Colors:Window" --key BackgroundNormal)
+echo "kdeglobals: $KG  Matugen.colors: $MC"
+# 预期: 两个值相同
 
-# 2. 确认 Matugen.colors 存在且有内容
-head -5 ~/.local/share/color-schemes/Matugen.colors
-
-# 3. 确认 forceBreezeTheme 已关闭
-kreadconfig6 --file ~/.config/easyeffects/db/easyeffectsrc \
-    --group Style --key forceBreezeTheme
+# 2. 确认 forceBreezeTheme 已关闭
+kreadconfig6 --file easyeffects/easyeffects.conf \
+    --group General --key forceBreezeTheme
 # 预期: false
 
-# 4. 启动 Easy Effects，视觉检查：
-#    - 标题栏/侧栏背景色 = matugen surface_container
-#    - 强调色（开关、滑块）= matugen primary
-#    - 文字颜色 = matugen on_surface
-#    - 控件圆角与样式 = kvantum MaterialAdw（而非 Breeze）
+# 3. 确认 Qt 主题设置
+grep QT_QPA_PLATFORMTHEME ~/.config/niri/config.kdl
+# 预期: "xdgdesktopportal"
+
+# 4. 确认 EasyEffects 加载了 Kvantum
+cat /proc/$(pgrep -x easyeffects)/maps | grep kvantum
+# 预期: libkvantum.so 出现, libqgtk3.so 不出现
 ```
 
 ## 三、控件可用性约束

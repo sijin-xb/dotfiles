@@ -307,11 +307,18 @@ fi
 
 # ── 6. KDE / Qt 配色方案同步 ─────────────────────────────────────────────────
 # 生成 ≠ 生效：matugen 把配色方案写到 ~/.local/share/color-schemes/Matugen.colors，
-# 但 KDE/Qt 读哪个方案由 ~/.config/kdeglobals 的 [General] ColorScheme= 决定。
-# 本机实测该键长期停在 MaterialYouDark（旧值），没有任何进程维护它。
+# 但 KDE/Qt 运行时读的颜色值在 ~/.config/kdeglobals 的 [Colors:*] 段。
+# .colors 文件只是一个"预设"——KColorScheme 不会运行时去读它。
 #
-# 用 kwriteconfig6 而不是 sed：它能正确处理「段不存在」与值转义。
-# 同时删掉 ColorSchemeHash —— 那是方案内容的缓存键，留着会让 KDE 继续用旧色。
+# 核心问题（2026-10-04 修复）：
+#   旧逻辑只检查 [General] ColorScheme=Matugen 这个名字——同名就跳过。
+#   但 kdeglobals 里的颜色值可以和 Matugen.colors 完全不一致（实测蓝 vs 粉）。
+#   plasma-apply-colorscheme 也比较名字，同名不重新应用颜色。
+#
+# 修法：比较 kdeglobals 与 Matugen.colors 的 Colors:Window BackgroundNormal。
+#   不一致 → BreezeDark→Matugen 双步切换（plasma-apply-colorscheme 只在
+#   方案名变化时才写颜色值，必须先切到别的再切回来）。
+#   一致 → 跳过，避免无谓的 xrdb/dbus 噪声。
 #
 # 关掉：MATUGEN_HOOK_KDE_SCHEME=0
 #   （例如你更想让 DMS 或 kde-material-you-colors 管这条链）
@@ -325,33 +332,35 @@ elif [ ! -f "$KDE_SCHEME_FILE" ]; then
 elif [ ! -f "$KDE_GLOBALS" ]; then
     dbg "kdeglobals 不存在，跳过"
 else
-    CUR=""
+    # 比较颜色值而非方案名——ColorScheme=Matugen 但颜色可能是旧的
+    KG_COLOR=""
+    MC_COLOR=""
     if have kreadconfig6; then
-        CUR=$(kreadconfig6 --file kdeglobals --group General --key ColorScheme 2>/dev/null)
+        KG_COLOR=$(kreadconfig6 --file kdeglobals --group "Colors:Window" --key BackgroundNormal 2>/dev/null)
+        MC_COLOR=$(kreadconfig6 --file "$KDE_SCHEME_FILE" --group "Colors:Window" --key BackgroundNormal 2>/dev/null)
     else
-        CUR=$(sed -n 's/^ColorScheme=//p' "$KDE_GLOBALS" 2>/dev/null | head -1)
+        KG_COLOR=$(sed -n '/^\[Colors:Window\]/,/^\[/{ s/^BackgroundNormal=//p }' "$KDE_GLOBALS" 2>/dev/null | head -1)
+        MC_COLOR=$(sed -n '/^\[Colors:Window\]/,/^\[/{ s/^BackgroundNormal=//p }' "$KDE_SCHEME_FILE" 2>/dev/null | head -1)
     fi
 
-    if [ "$CUR" = "Matugen" ]; then
-        dbg "kdeglobals: 已经是 Matugen，跳过"
+    if [ "$KG_COLOR" = "$MC_COLOR" ] && [ -n "$KG_COLOR" ]; then
+        dbg "kdeglobals: 颜色已是最新（Window.BackgroundNormal=$KG_COLOR），跳过"
     elif [ "$EXEC" = 0 ]; then
-        chk "将把 kdeglobals ColorScheme 从 '${CUR:-<空>}' 改为 Matugen"
+        chk "将强制应用 Matugen 配色到 kdeglobals（Window.BackgroundNormal ${KG_COLOR:-<空>} → ${MC_COLOR:-<空>}）"
+    elif have plasma-apply-colorscheme; then
+        # 双步切换绕过同名跳过
+        plasma-apply-colorscheme BreezeDark >/dev/null 2>&1
+        if plasma-apply-colorscheme Matugen >/dev/null 2>&1; then
+            say "kdeglobals: Matugen 配色已强制应用（Window.BackgroundNormal ${KG_COLOR:-<空>} → ${MC_COLOR:-<空>}）"
+        else
+            warn "kdeglobals: plasma-apply-colorscheme Matugen 失败"
+        fi
     elif have kwriteconfig6; then
-        if kwriteconfig6 --file kdeglobals --group General --key ColorScheme Matugen 2>/dev/null \
-           && kwriteconfig6 --file kdeglobals --group General --key ColorSchemeHash --delete 2>/dev/null; then
-            say "kdeglobals: 配色方案已切到 Matugen（原值 ${CUR:-<空>}）"
-        else
-            warn "kdeglobals: kwriteconfig6 写入失败"
-        fi
-    elif grep -q '^ColorScheme=' "$KDE_GLOBALS" 2>/dev/null; then
-        if sed -i 's/^ColorScheme=.*/ColorScheme=Matugen/' "$KDE_GLOBALS" \
-           && sed -i '/^ColorSchemeHash=/d' "$KDE_GLOBALS"; then
-            say "kdeglobals: 配色方案已切到 Matugen（sed 兜底）"
-        else
-            warn "kdeglobals: sed 写入失败"
-        fi
+        warn "kdeglobals: 无 plasma-apply-colorscheme，只能改名字不更新颜色值"
+        kwriteconfig6 --file kdeglobals --group General --key ColorScheme Matugen 2>/dev/null
+        kwriteconfig6 --file kdeglobals --group General --key ColorSchemeHash --delete 2>/dev/null
     else
-        warn "kdeglobals: 没有 ColorScheme 键且无 kwriteconfig6，跳过"
+        warn "kdeglobals: 既无 plasma-apply-colorscheme 也无 kwriteconfig6，跳过"
     fi
 fi
 
