@@ -147,8 +147,10 @@ post_hook = 'nohup "$HOME/.config/scripts/generate_cursor_theme.py" >/dev/null 2
 # 把下面这行解注释到 hooks/post_hook.sh 里（那边有现成的注释块）：
 #     sed -i 's/^ColorScheme=.*/ColorScheme=Matugen/' ~/.config/kdeglobals
 #
-# Kvantum 的 SVG 里那段 <style id="current-color-scheme"> 由 Kvantum 自己按
-# 当前配色方案覆写，所以**不需要**给 SVG 做模板（见 §4 的说明）。
+# Kvantum 的 SVG 里那段 <style id="current-color-scheme"> **没有**任何自动
+# 替换机制（2026-10-04 源码核对：kvantum 1.1.8 的 libkvantum.so 与上游源码里
+# 都没有 currentColor / current-color-scheme 处理），SVG 颜色必须由模板生成，
+# 见 §4 的说明与 [templates.kvantum_svg]。
 [templates.kde_colorscheme]
 input_path = '~/.config/matugen/templates/Matugen.colors'
 output_path = '~/.local/share/color-schemes/Matugen.colors'
@@ -218,18 +220,30 @@ post_hook = 'nohup bash "$HOME/.local/state/quickshell/user/generated/recolor-fo
 # ═══════════════════════════════════════════════════════════════════════════
 #  §4  Qt 5 / Qt 6 —— 统一走 Kvantum
 #
+#  为什么 SVG **必须**做模板（2026-10-04 修正，之前的结论是错的）：
+#    上一版注释声称「Kvantum 会按当前配色方案自动覆写 SVG 里的
+#    current-color-scheme 类」—— 这是误判。实测与源码核对（kvantum 1.1.8，
+#    libkvantum.so 全文 0 处 colorscheme 字符串；tsujan/Kvantum 上游源码同样
+#    0 处 currentColor 处理）：Kvantum 用 QSvgRenderer 把主题 SVG **原样**
+#    渲染，不做任何颜色替换。SVG 里的不透明填充就是最终画到屏幕上的颜色：
+#      · window / menubar / menu / tooltip / titlebar 等大面积表面的 fill
+#      · 勾选框选中态、进度条纹理、滑块手柄等强调色元素
+#    只改 kvconfig 不改 SVG 的实际结果就是：背景仍是旧方案的深蓝
+#    （#121319）、强调元素仍是旧蓝（#B3C5FF/#BAC5EE），只有 Qt 自己画的
+#    文字和选区颜色来自 kvconfig —— 即「大部分是旧的、只有小部分是主题色」。
+#
+#    所以 SVG 也模板化，规则：
+#      · 除 #FFFFFF（×365，opacity 蒙版，控件亮部高光的实现方式）与
+#        #000000（阴影/渐晕）外，所有语义色都换成 MD3 角色占位符；
+#      · current-color-scheme 样式块保留、值同步占位符 —— Kvantum 不读它，
+#        但保持文件自洽，防止未来换渲染路径时翻车；
+#      · 37 个 class="ColorScheme-Highlight" fill="currentColor" 元素去掉
+#        class 依赖直接填 primary（QtSvg 不解析 CSS 类，currentColor 只会
+#        画成黑色）。
+#
 #  为什么不做 qt5ct / qt6ct 调色板：本机装的是 kvantum + kvantum-qt5，两个包
 #  分别提供 Qt6 和 Qt5 的 style plugin，一个 Kvantum 主题同时覆盖 Qt5 与 Qt6。
 #  qt6ct / qt5ct **都没装**，再引一套调色板只会多一个会漂移的颜色源。
-#
-#  为什么不做 Kvantum 的 SVG 模板：
-#    MaterialAdw.svg 里有一段 <style id="current-color-scheme">，定义了
-#    .ColorScheme-Highlight / -Background / -ViewText / -ButtonBackground 等类。
-#    这段是 Kvantum 的**自动替换**机制 —— 它按当前配色方案（即上面 §1 生成的
-#    ~/.local/share/color-schemes/Matugen.colors）在渲染时覆写这些类。
-#    给 SVG 做模板会做两件坏事：① 和 Kvantum 自己的替换打架，谁最后写谁赢；
-#    ② SVG 里 365 处 #FFFFFF 是 opacity 蒙版用的，替换掉会直接把控件画糊。
-#    所以正确做法是「SVG 不动，改配色方案 + kvconfig 的 [GeneralColors]」。
 # ═══════════════════════════════════════════════════════════════════════════
 
 [templates.kvantum]
@@ -265,6 +279,18 @@ output_path = '~/.config/Kvantum/MaterialAdw/MaterialAdw.kvconfig'
 # Kvantum 只在收到 dbus 通知时重读主题，没有信号接口。改完文件后正在运行的
 # Qt 程序不会立刻换色，重启对应程序即可 —— 这里只提示，不杀进程。
 post_hook = 'echo "[matugen] Kvantum 主题已更新，Qt 程序需重启才生效"'
+
+[templates.kvantum_svg]
+# MaterialAdw.svg 的颜色模板，机制见 §4 开头说明：Kvantum 不做任何 SVG 颜色
+# 替换，主题里所有语义色都必须由这里生成。
+#   · #FFFFFF 蒙版 / #000000 阴影保持字面量，不参与替换；
+#   · 颜色角色与 kvconfig 模板一一对应（window 表面 -> surface_container_low、
+#     强调 -> primary、输入框边框 -> outline、阴影提示 -> shadow 等）；
+#   · 换壁纸 / 切明暗后 matugen 会同时重写 kvconfig 与 SVG，两者不会脱节。
+# 改完需重启 Qt 程序（包括 Kvantum Manager 本身）才能看到新颜色。
+input_path = '~/.config/matugen/templates/kvantum/MaterialAdw.svg'
+output_path = '~/.config/Kvantum/MaterialAdw/MaterialAdw.svg'
+post_hook = 'echo "[matugen] Kvantum SVG 已更新，Qt 程序需重启才生效"'
 
 
 # ═══════════════════════════════════════════════════════════════════════════
