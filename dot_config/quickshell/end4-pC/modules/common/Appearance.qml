@@ -554,7 +554,7 @@ Singleton {
     sizes: QtObject {
         property real baseBarHeight: 40
         property real barHeight: Config.options.bar.cornerStyle === 1 ? 
-            (baseBarHeight + root.sizes.hyprlandGapsOut * 2) : baseBarHeight
+            (baseBarHeight + root.sizes.hyprlandGapsOut * 2) : (Config.options.bar.cornerStyle === 4 || Config.options.bar.cornerStyle === 5) ? baseBarHeight + 4 : baseBarHeight
         property real barCenterSideModuleWidth: Config.options?.bar.verbose ? 360 : 140
         property real barCenterSideModuleWidthShortened: 280
         property real barCenterSideModuleWidthHellaShortened: 190

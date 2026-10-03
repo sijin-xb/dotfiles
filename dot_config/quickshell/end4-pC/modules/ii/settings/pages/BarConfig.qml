@@ -60,6 +60,11 @@ ContentPage {
         // （展开后的面板要长出 Bar 之外），Bar 里只有一段等宽槽位。
         // 加进来是为了能在设置里自由增删；删掉后整座岛屿一起隐藏。
         { id: "island",             name: Translation.tr("Island"),              icon: "smart_display" },
+        // 上游 10-02 新增的三个组件（aiUsage/avatar 依赖上游新增模块，已随本次
+        // 树同步带入；dynamicIsland 是上游自己的灵动岛，与本地岛屿并存、默认不启用）
+        { id: "dynamicIsland",     name: Translation.tr("Dynamic Island"),     icon: "nest_wifi_pro" },
+        { id: "aiUsage",           name: Translation.tr("AI Usage"),           icon: "neurology" },
+        { id: "avatar",            name: Translation.tr("Avatar"),             icon: "account_circle" },
     ]
 
     function availableFor() {

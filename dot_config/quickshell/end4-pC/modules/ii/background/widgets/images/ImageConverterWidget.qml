@@ -140,11 +140,10 @@ AbstractBackgroundWidget {
         converter.outputPath = valid[0].replace(/\.[^/.]+$/, "") + "_converted." + root.selectedFormat
         converter.running = true
     }
-
-    Rectangle {
+    
+    WidgetCard {
         id: contentItem
-        color: Appearance.colors.colPrimaryContainer
-        radius: Appearance.rounding?.verylarge ?? 30
+        widget: root
         implicitWidth: 276
         implicitHeight: 252
 

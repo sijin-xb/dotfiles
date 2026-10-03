@@ -9,36 +9,159 @@ ContentPage {
     id: page
     forceWidth: true
 
-    function goTo(term) {
-        const t = term.toLowerCase().trim()
-
-        function findTarget(rootItem) {
-            for (let i = 0; i < rootItem.children.length; i++) {
-                let child = rootItem.children[i]
-                if (child.title && child.title.toLowerCase().includes(t)) {
-                    return child
-                }
-            }
-
-            for (let i = 0; i < rootItem.children.length; i++) {
-                let found = findTarget(rootItem.children[i])
-                if (found) return found
-            }
-            return null
-        }
-
-        let target = findTarget(mainLayout)
-        if (target) {
-            let pos = target.mapToItem(mainLayout, 0, 0)
-            page.contentY = Math.max(0, pos.y - 0)
-        }
-    }
-
     ColumnLayout {
         id: mainLayout 
         Layout.fillWidth: true   
         Layout.fillHeight: true
         spacing: 20
+
+        ContentSection {
+            icon: "palette"
+            shape: MaterialShape.Shape.Cookie9Sided
+            title: Translation.tr("Color Schemes")
+
+            GroupedList {
+                ConfigComboBox {
+                    Layout.fillWidth: true
+                    buttonIcon: "format_paint"
+                    text: Translation.tr("Color scheme")
+                    description: Translation.tr("Material follows your wallpaper")
+                    fieldWidth: 220
+                    fixedWidth: true
+                    model: ColorSchemes.schemeOptions()
+                    currentValue: ColorSchemes.current
+                    onSelected: newValue => ColorSchemes.setScheme(newValue)
+                }
+                RowLayout {
+                    enabled: ColorSchemes.currentData !== null
+                    opacity: enabled ? 1 : 0.55
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 8
+                    Layout.rightMargin: 8
+                    spacing: 10
+                    MaterialSymbol {
+                        text: "brush"
+                        iconSize: Appearance.font.pixelSize.normal + 5
+                        color: Appearance.colors.colOnLayer0
+                    }
+                    StyledText {
+                        text: Translation.tr("Accent")
+                        color: Appearance.colors.colOnLayer0
+                    }
+                    Item { Layout.fillWidth: true }
+                    CustomColorSelectionArray {
+                        spacing: 4
+                        swatchSize: 36
+                        options: ColorSchemes.accentOptions()
+                        currentValue: ColorSchemes.currentAccent("primary")
+                        onSelected: newValue => ColorSchemes.setAccent("primary", newValue)
+                    }
+                }
+                RowLayout {
+                    enabled: ColorSchemes.currentData !== null
+                    opacity: enabled ? 1 : 0.55
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 8
+                    Layout.rightMargin: 8
+                    spacing: 10
+                    MaterialSymbol {
+                        text: "colors"
+                        iconSize: Appearance.font.pixelSize.normal + 5
+                        color: Appearance.colors.colOnLayer0
+                    }
+                    StyledText {
+                        text: Translation.tr("Secondary")
+                        color: Appearance.colors.colOnLayer0
+                    }
+                    Item { Layout.fillWidth: true }
+                    CustomColorSelectionArray {
+                        spacing: 4
+                        swatchSize: 36
+                        options: ColorSchemes.accentOptions()
+                        currentValue: ColorSchemes.currentAccent("secondary")
+                        onSelected: newValue => ColorSchemes.setAccent("secondary", newValue)
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 8
+                    Layout.rightMargin: 8
+                    spacing: 8
+                    RippleButtonWithIcon {
+                        Layout.fillWidth: true
+                        materialIcon: "add"
+                        mainText: Translation.tr("Add scheme")
+                        onClicked: ColorSchemes.addScheme()
+                        colBackground: Appearance.colors.colSecondaryContainer
+                        colBackgroundHover: Appearance.colors.colSecondaryContainerHover
+                        colRipple: Appearance.colors.colSecondaryContainerActive
+                    }
+                    RippleButtonWithIcon {
+                        Layout.fillWidth: true
+                        materialIcon: "folder_open"
+                        mainText: Translation.tr("Open folder")
+                        onClicked: ColorSchemes.openFolder()
+                        colBackground: Appearance.colors.colSecondaryContainer
+                        colBackgroundHover: Appearance.colors.colSecondaryContainerHover
+                        colRipple: Appearance.colors.colSecondaryContainerActive
+                    }
+                    RippleButtonWithIcon {
+                        Layout.fillWidth: true
+                        materialIcon: "refresh"
+                        mainText: Translation.tr("Reload")
+                        onClicked: ColorSchemes.reload()
+                        colBackground: Appearance.colors.colSecondaryContainer
+                        colBackgroundHover: Appearance.colors.colSecondaryContainerHover
+                        colRipple: Appearance.colors.colSecondaryContainerActive
+                    }
+                }
+            }
+        }
+
+        ContentSection {
+            icon: "motion_mode"
+            shape: MaterialShape.Shape.Cookie6Sided
+            title: Translation.tr("Transparency")
+            GroupedList {
+                ConfigSwitch {
+                    buttonIcon: "check"
+                    text: Translation.tr("Enable")
+                    checked: Config.options.appearance.transparency.enable
+                    onCheckedChanged: { Config.options.appearance.transparency.enable = checked }
+                }
+                ConfigSwitch {
+                    buttonIcon: "auto_awesome"
+                    text: Translation.tr("Automatic (from wallpaper)")
+                    checked: Config.options.appearance.transparency.automatic
+                    enabled: Config.options.appearance.transparency.enable
+                    onCheckedChanged: { Config.options.appearance.transparency.automatic = checked }
+                }
+                ConfigSlider {
+                    buttonIcon: "layers"
+                    text: Translation.tr("Background")
+                    enabled: Config.options.appearance.transparency.enable
+                            && !Config.options.appearance.transparency.automatic
+                    from: 0; to: 0.6
+                    stopIndicatorValues: [0.11]
+                    value: Config.options.appearance.transparency.backgroundTransparency
+                    onValueChanged: {
+                        Config.options.appearance.transparency.backgroundTransparency = value
+                    }
+                }
+                ConfigSlider {
+                    buttonIcon: "opacity"
+                    text: Translation.tr("Content")
+                    enabled: Config.options.appearance.transparency.enable
+                            && !Config.options.appearance.transparency.automatic
+                    from: 0; to: 1
+                    stopIndicatorValues: [0.57]
+                    value: Config.options.appearance.transparency.contentTransparency 
+                    onValueChanged: {
+                        Config.options.appearance.transparency.contentTransparency = value  
+                    }
+                }
+            }
+        }
 
         ContentSection {
             icon: "settings"
@@ -52,7 +175,8 @@ ContentPage {
                     onSelected: newValue => { Config.options.settings.style = newValue }
                     options: [
                         { displayName: Translation.tr("Default"), icon: "settings_panorama", value: "default" },
-                        { displayName: Translation.tr("Minimal"), icon: "settings_heart", value: "minimal" }
+                        { displayName: Translation.tr("Minimal"), icon: "settings_heart", value: "minimal" },
+                        { displayName: Translation.tr("Dashboard"), icon: "dashboard", value: "dashboard" }
                     ]
                 }
                 ConfigSpinBox {
@@ -1132,144 +1256,82 @@ ContentPage {
             title: Translation.tr("Fonts")
 
             GroupedList {
-                ConfigTextArea {
-                    id: mainFontField
+                ConfigComboBox {
                     Layout.fillWidth: true
                     buttonIcon: "font_download"
-                    text: Translation.tr("Font family name (e.g., Google Sans Flex)")
-                    value: Config.options.appearance.fonts.main
-                    onValueChanged: {
-                        mainFontDebounceTimer.restart();
-                    }
-
-                    Timer {
-                        id: mainFontDebounceTimer
-                        interval: 1000
-                        running: false
-                        onTriggered: {
-                            Config.options.appearance.fonts.main = mainFontField.value;
-                        }
-                    }
+                    text: Translation.tr("Main font")
+                    fieldWidth: 260
+                    fixedWidth: true
+                    searchable: true
+                    model: SystemAppearance.fontOptions(Config.options.appearance.fonts.main)
+                    currentValue: Config.options.appearance.fonts.main
+                    onSelected: newValue => { Config.options.appearance.fonts.main = newValue }
                 }
-
-                ConfigTextArea {
-                    id: numbersFontField
+                ConfigComboBox {
                     Layout.fillWidth: true
                     buttonIcon: "123"
-                    text: Translation.tr("Numbers family name")
-                    value: Config.options.appearance.fonts.numbers
-                    onValueChanged: {
-                        numbersFontDebounceTimer.restart();
-                    }
-
-                    Timer {
-                        id: numbersFontDebounceTimer
-                        interval: 1000
-                        running: false
-                        onTriggered: {
-                            Config.options.appearance.fonts.numbers = numbersFontField.value;
-                        }
-                    }
+                    text: Translation.tr("Numbers font")
+                    fieldWidth: 260
+                    fixedWidth: true
+                    searchable: true
+                    model: SystemAppearance.fontOptions(Config.options.appearance.fonts.numbers)
+                    currentValue: Config.options.appearance.fonts.numbers
+                    onSelected: newValue => { Config.options.appearance.fonts.numbers = newValue }
                 }
-
-                ConfigTextArea {
-                    id: titleFontField
+                ConfigComboBox {
                     Layout.fillWidth: true
                     buttonIcon: "title"
-                    text: Translation.tr("Title family name")
-                    value: Config.options.appearance.fonts.title
-                    onValueChanged: {
-                        titleFontDebounceTimer.restart();
-                    }
-
-                    Timer {
-                        id: titleFontDebounceTimer
-                        interval: 1000
-                        running: false
-                        onTriggered: {
-                            Config.options.appearance.fonts.title = titleFontField.value;
-                        }
-                    }
+                    text: Translation.tr("Title font")
+                    fieldWidth: 260
+                    fixedWidth: true
+                    searchable: true
+                    model: SystemAppearance.fontOptions(Config.options.appearance.fonts.title)
+                    currentValue: Config.options.appearance.fonts.title
+                    onSelected: newValue => { Config.options.appearance.fonts.title = newValue }
                 }
-
-                ConfigTextArea {
-                    id: monospaceFontField
+                ConfigComboBox {
                     Layout.fillWidth: true
                     buttonIcon: "space_bar"
-                    text: Translation.tr("Monospace font name (e.g., JetBrains Mono NF)")
-                    value: Config.options.appearance.fonts.monospace
-                    onValueChanged: {
-                        monospaceFontDebounceTimer.restart();
-                    }
-
-                    Timer {
-                        id: monospaceFontDebounceTimer
-                        interval: 1000
-                        running: false
-                        onTriggered: {
-                            Config.options.appearance.fonts.monospace = monospaceFontField.value;
-                        }
-                    }
+                    text: Translation.tr("Monospace font")
+                    fieldWidth: 260
+                    fixedWidth: true
+                    searchable: true
+                    model: SystemAppearance.fontOptions(Config.options.appearance.fonts.monospace)
+                    currentValue: Config.options.appearance.fonts.monospace
+                    onSelected: newValue => { Config.options.appearance.fonts.monospace = newValue }
                 }
-
-                ConfigTextArea {
-                    id: iconNerdFontField
+                ConfigComboBox {
                     Layout.fillWidth: true
                     buttonIcon: "emoticon"
-                    text: Translation.tr("Nerd Fonts Icons (e.g., JetBrains Mono NF)")
-                    value: Config.options.appearance.fonts.iconNerd
-                    onValueChanged: {
-                        iconNerdFontDebounceTimer.restart();
-                    }
-
-                    Timer {
-                        id: iconNerdFontDebounceTimer
-                        interval: 1000
-                        running: false
-                        onTriggered: {
-                            Config.options.appearance.fonts.iconNerd = iconNerdFontField.value;
-                        }
-                    }
+                    text: Translation.tr("Nerd Fonts icons")
+                    fieldWidth: 260
+                    fixedWidth: true
+                    searchable: true
+                    model: SystemAppearance.fontOptions(Config.options.appearance.fonts.iconNerd)
+                    currentValue: Config.options.appearance.fonts.iconNerd
+                    onSelected: newValue => { Config.options.appearance.fonts.iconNerd = newValue }
                 }
-
-                ConfigTextArea {
-                    id: readingFontField
+                ConfigComboBox {
                     Layout.fillWidth: true
                     buttonIcon: "book_ribbon"
-                    text: Translation.tr("Reading font name (e.g., Readex Pro)")
-                    value: Config.options.appearance.fonts.reading
-                    onValueChanged: {
-                        readingFontDebounceTimer.restart();
-                    }
-
-                    Timer {
-                        id: readingFontDebounceTimer
-                        interval: 1000
-                        running: false
-                        onTriggered: {
-                            Config.options.appearance.fonts.reading = readingFontField.value;
-                        }
-                    }
+                    text: Translation.tr("Reading font")
+                    fieldWidth: 260
+                    fixedWidth: true
+                    searchable: true
+                    model: SystemAppearance.fontOptions(Config.options.appearance.fonts.reading)
+                    currentValue: Config.options.appearance.fonts.reading
+                    onSelected: newValue => { Config.options.appearance.fonts.reading = newValue }
                 }
-
-                ConfigTextArea {
-                    id: expressiveFontField
+                ConfigComboBox {
                     Layout.fillWidth: true
                     buttonIcon: "mood_heart"
-                    text: Translation.tr("Expressive font name (e.g., Space Grotesk)")
-                    value: Config.options.appearance.fonts.expressive
-                    onValueChanged: {
-                        expressiveFontDebounceTimer.restart();
-                    }
-
-                    Timer {
-                        id: expressiveFontDebounceTimer
-                        interval: 1000
-                        running: false
-                        onTriggered: {
-                            Config.options.appearance.fonts.expressive = expressiveFontField.value;
-                        }
-                    }
+                    text: Translation.tr("Expressive font")
+                    fieldWidth: 260
+                    fixedWidth: true
+                    searchable: true
+                    model: SystemAppearance.fontOptions(Config.options.appearance.fonts.expressive)
+                    currentValue: Config.options.appearance.fonts.expressive
+                    onSelected: newValue => { Config.options.appearance.fonts.expressive = newValue }
                 }
             }
         }

@@ -49,6 +49,36 @@ Item {
         return MprisController.filterDuplicatePlayers(filtered)
     }
 
+    function filterDuplicatePlayers(players) {
+        if (!players) return [];
+        let filtered = [];
+        let used = new Set();
+
+        for (let i = 0; i < players.length; ++i) {
+            if (used.has(i))
+                continue;
+            let p1 = players[i];
+            let group = [i];
+
+            // Find duplicates by trackTitle prefix
+            for (let j = i + 1; j < players.length; ++j) {
+                let p2 = players[j];
+                if (p1.trackTitle && p2.trackTitle && (p1.trackTitle.includes(p2.trackTitle) || p2.trackTitle.includes(p1.trackTitle)) || (p1.position - p2.position <= 2 && p1.length - p2.length <= 2)) {
+                    group.push(j);
+                }
+            }
+
+            // Pick the one with non-empty trackArtUrl, or fallback to the first
+            let chosenIdx = group.find(idx => players[idx]?.trackArtUrl && players[idx].trackArtUrl.length > 0);
+            if (chosenIdx === undefined)
+                chosenIdx = group[0];
+
+            filtered.push(players[chosenIdx]);
+            group.forEach(idx => used.add(idx));
+        }
+        return filtered;
+    }
+
     Connections {
         target: GlobalStates
         function onRequestBluetoothDialog() {
@@ -99,7 +129,7 @@ Item {
         implicitWidth: sidebarWidth - Appearance.sizes.hyprlandGapsOut * 2
         color: Appearance.colors.colLayer0
         border.width: 1
-        border.color: Appearance.colors.colLayer0Border
+        border.color: ColorUtils.transparentize(Appearance.colors.colLayer0Border, 0.8) 
         radius: Appearance.rounding.screenRounding - Appearance.sizes.hyprlandGapsOut + 5
 
         ColumnLayout {
@@ -182,40 +212,9 @@ Item {
                                 }
                                 spacing: 1
 
-                                Rectangle {
-                                    id: avatarRect
-                                    width: 48; height: 48; radius: width / 2
-                                    color: Appearance.colors.colPrimaryContainer
-
-                                    Image {
-                                        id: avatarImage
-                                        anchors.fill: parent
-                                        source: Config.options.profile.avatarPath !== "" 
-                                            ? "file://" + Config.options.profile.avatarPicture 
-                                            : "file:///home/" + (Quickshell.env("USER") ?? "user") + "/.face"
-                                        sourceSize.width: avatarImage.width * 2
-                                        sourceSize.height: avatarImage.height * 2
-                                        fillMode: Image.PreserveAspectCrop
-                                        layer.enabled: true
-                                        layer.effect: OpacityMask {
-                                            maskSource: Rectangle {
-                                                width: avatarRect.width
-                                                height: avatarRect.height
-                                                radius: avatarRect.radius
-                                            }
-                                        }
-                                        onStatusChanged: {
-                                            if (status === Image.Error) visible = false
-                                        }
-                                    }
-
-                                    MaterialSymbol {
-                                        anchors.centerIn: parent
-                                        text: "account_circle"
-                                        iconSize: 32
-                                        color: Appearance.colors.colOnPrimaryContainer
-                                        visible: avatarImage.status === Image.Error
-                                    }
+                                UserAvatar {
+                                    width: 48
+                                    height: 48
                                 }
 
                                 StyledText {
@@ -471,6 +470,7 @@ Item {
                         id: distroIcon
                         anchors.fill: parent
                         source: Config.options.custom.distroIcon || SystemInfo.distroIcon
+                        customFolder: Config.options.custom.iconsPath
                         colorize: Config.options.custom.colorizeIcon
                         color: Appearance.colors.colOnLayer0
                     }

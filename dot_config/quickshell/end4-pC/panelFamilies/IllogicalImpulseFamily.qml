@@ -6,6 +6,7 @@ import qs.modules.ii.background
 import qs.modules.ii.bar
 import qs.modules.ii.cheatsheet
 import qs.modules.ii.dock
+import qs.modules.ii.equalizer
 import qs.modules.ii.lock
 import qs.modules.ii.mediaControls
 import qs.modules.ii.notificationPopup
@@ -49,6 +50,9 @@ Scope {
         extraCondition: caelestiaPlugin.available
         source: "../modules/ii/lock/Lock.qml"
     }
+    // 上游 10-02 新增的均衡器弹窗（模块已随树同步）。注意它不依赖 caelestia
+    // 插件，用上游同款内联 component —— 类型在编译期可解析，无 Lock 那个坑。
+    PanelLoader { component: EqualizerPopup {} }
     PanelLoader { component: MediaControls {} }
     PanelLoader { component: NotificationPopup {} }
     PanelLoader { component: OnScreenDisplay {} }

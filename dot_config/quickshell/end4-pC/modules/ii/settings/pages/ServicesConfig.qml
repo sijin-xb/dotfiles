@@ -8,33 +8,7 @@ ContentPage {
     id: page
     forceWidth: true
     bottomContentPadding: 15
-
-    //This was intended to go into the results more deeply but in the end I didn't like it but I left it just in case lol
-    function goTo(term) {
-        const t = term.toLowerCase().trim()
-
-        function findTarget(rootItem) {
-            for (let i = 0; i < rootItem.children.length; i++) {
-                let child = rootItem.children[i]
-                if (child.title && child.title.toLowerCase().includes(t)) {
-                    return child
-                }
-            }
-
-            for (let i = 0; i < rootItem.children.length; i++) {
-                let found = findTarget(rootItem.children[i])
-                if (found) return found
-            }
-            return null
-        }
-
-        let target = findTarget(mainLayout)
-        if (target) {
-            let pos = target.mapToItem(mainLayout, 0, 0)
-            page.contentY = Math.max(0, pos.y - 0)
-        }
-    }
-
+    
     ColumnLayout {
         id: mainLayout 
         Layout.fillWidth: true   
@@ -226,6 +200,14 @@ ContentPage {
                     checked: Config.options.search.sloppy
                     onCheckedChanged: {
                         Config.options.search.sloppy = checked;
+                    }
+                }
+                ConfigSwitch {
+                    buttonIcon: "preview"
+                    text: Translation.tr("Show clipboard preview popups")
+                    checked: Config.options.search.clipboardPreviewPopup
+                    onCheckedChanged: {
+                        Config.options.search.clipboardPreviewPopup = checked;
                     }
                 }
             }

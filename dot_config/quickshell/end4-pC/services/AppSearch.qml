@@ -149,7 +149,7 @@ Singleton {
 
     function iconExists(iconName) {
         if (!iconName || iconName.length == 0) return false;
-        return (Quickshell.iconPath(iconName, true).length > 0) 
+        return (SystemAppearance.iconPath(iconName, true).length > 0) 
             && !iconName.includes("image-missing");
     }
 

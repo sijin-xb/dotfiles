@@ -11,6 +11,8 @@ Singleton {
     id: root
     signal requestBluetoothDialog()
     property bool barOpen: true
+    // 上游 09-29 新增：per-widget 样式编辑器的开关（StyledPopup tooltip 联动）
+    property bool barStyleEditorOpen: false
     // 居中时钟的仪表盘弹窗（ClockDashboard），由 ClockWidget 左键切换
     property bool clockDashboardOpen: false
     // 快捷键管理器（速查表），SUPER + / 切换
