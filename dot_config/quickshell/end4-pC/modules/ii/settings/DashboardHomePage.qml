@@ -989,13 +989,13 @@ Item {
                             spacing: 0
 
                             StyledText {
-                                text: Weather.data.city
+                                text: Weather.data.city ?? ""
                                 font.pixelSize: Appearance.font.pixelSize.normal
                                 font.weight: Font.DemiBold
                                 color: Appearance.colors.colOnPrimaryContainer
                             }
                             StyledText {
-                                text: Weather.data.description
+                                text: Weather.data.description ?? ""
                                 font.pixelSize: Appearance.font.pixelSize.small
                                 color: Appearance.colors.colOnPrimaryContainer
                                 opacity: 0.75

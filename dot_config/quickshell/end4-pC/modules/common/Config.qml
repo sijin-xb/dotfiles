@@ -80,8 +80,9 @@ Singleton {
 
             property string panelFamily: "ii" // "ii", "waffle"
 
+            // ── 本地定制键（上游无）───────────────────────────────────────
             // 桌面歌词总开关（设置 → 桌面 → 小部件）
-            property bool desktopLyricsEnabled: true // 桌面歌词总开关
+            property bool desktopLyricsEnabled: true
             // 音频指纹兜底：MPRIS 拿不到元数据的音源（浏览器网页播放器、游戏、
             // 非 MPRIS 播放器）改用 songrec 听系统输出认歌，再走同一套 kugou 取词。
             property bool desktopLyricsFingerprintEnable: true
@@ -91,6 +92,32 @@ Singleton {
             property bool desktopLyricsSplayerEnable: true
             property int desktopLyricsSplayerPort: 25885
 
+            property JsonObject github: JsonObject {
+                property string username: ""       // 手动覆盖的展示用户名（留空则用 gh 当前账号）
+                property int repoLimit: 30         // 最多拉多少个仓库
+                property bool includeForks: false  // 是否把 fork 也列出来
+                property bool includeArchived: false
+                // 私有仓库：只在「展示的账号 == gh 当前登录账号」时有效。
+                // GitHub 的 users/<login>/repos 是公开端点，无论是否带 token
+                // 都只返回公开仓库；要拿私有仓库必须走已认证的 user/repos。
+                property bool includePrivate: true
+            }
+
+            property JsonObject keycapDisplay: JsonObject {
+                property bool enable: false
+                // 打出来的字累积成可读文本显示。关掉就只显示键帽（快捷键模式）。
+                // 非 US 布局下字符映射会不对，那种情况建议关掉这个。
+                property bool showTypedText: true
+                // 键帽松开后停留多久（毫秒）。太短会来不及看见快速点按。
+                property int timeout: 1600
+                // 停止输入多久后清空文本（毫秒）。比键帽长得多 ——
+                // 键帽看一眼就够，文本是要读的。
+                property int textTimeout: 5000
+                // 文本缓冲区上限，超出丢最老的，避免浮层无限变宽
+                property int maxTextLength: 48
+                property string position: "bottom" // "bottom" | "top"
+            }
+
             property JsonObject policies: JsonObject {
                 property int ai: 1 // 0: No | 1: Yes | 2: Local
                 property int weeb: 1 // 0: No | 1: Open | 2: Closet
@@ -99,6 +126,7 @@ Singleton {
             property JsonObject ai: JsonObject {
                 property string systemPrompt: "## Style\n- Use casual tone, don't be formal!\n- Always be brief and to the point, unless asked otherwise\n- Don't repeat the user's question\n- Be approachable: Avoid using overly complicated, domain-specific terms and provide analogies when asked to explain a concept\n\n## Context (ignore when irrelevant)\n- You are a helpful and inspiring sidebar assistant on a {DISTRO} Linux system\n- Desktop environment: {DE}\n- Current date & time: {DATETIME}\n- Focused app: {WINDOWCLASS}\n\n## Presentation\n- Use Markdown features in your response: \n  - **Bold** text to **highlight keywords** in your response\n  - **Split long information into small sections** with h2 headers and a relevant emoji at the start of it (for example `## 🐧 Linux`). Bullet points are preferred over long paragraphs, unless you're offering writing support or instructed otherwise by the user.\n- Asked to compare different options? You should firstly use a table to compare the main aspects, then elaborate or include relevant comments from online forums *after* the table. Make sure to provide a final recommendation for the user's use case!\n- Use LaTeX formatting for mathematical and scientific notations whenever appropriate. Enclose all LaTeX '$$' delimiters. NEVER generate LaTeX code in a latex block unless the user explicitly asks for it. DO NOT use LaTeX for regular documents (resumes, letters, essays, CVs, etc.).\n\nThanks!\n"
                 property string tool: "functions" // search, functions, or none
+                property string vllmEndpoint: "http://localhost:8000"
                 property list<var> extraModels: [
                     {
                         "api_format": "openai", // Most of the time you want "openai". Use "gemini" for Google's models
@@ -119,9 +147,9 @@ Singleton {
                 property bool extraBackgroundTint: true
                 property int fakeScreenRounding: 2 // 0: None | 1: Always | 2: When not fullscreen
                 property JsonObject fonts: JsonObject {
-                    property string main: "Google Sans"
-                    property string numbers: "Google Sans"
-                    property string title: "Google Sans"
+                    property string main: "Google Sans Flex"
+                    property string numbers: "Google Sans Flex"
+                    property string title: "Google Sans Flex"
                     property string iconNerd: "JetBrains Mono NF"
                     property string monospace: "JetBrains Mono NF"
                     property string reading: "Readex Pro"
@@ -132,22 +160,19 @@ Singleton {
                     property bool automatic: true
                     property real backgroundTransparency: 0.11
                     property real contentTransparency: 0.57
-                    // 仪表盘的背景模糊：自己抓屏 + 模糊 + 裁剪，不依赖 Hyprland 的
-                    // layerrule blur。关掉就退回「合成器模糊 + 纯玻璃底色」。
                     property bool qmlBackdropBlur: true
+
                     property real qmlBackdropBlurRadius: 40
+
                 }
                 property JsonObject wallpaperTheming: JsonObject {
                     property bool enableAppsAndShell: true
                     property bool enableQtApps: true
                     property bool enableTerminal: true
-                    // 光标主题跟随壁纸主色重渲染。由
-                    // ~/.config/hypr/hyprland/scripts/generate_cursor_theme.py 读取；
-                    // 之前 Config.qml 里漏了这个键，导致设置里的"光标"开关是坏的
-                    // （绑到 undefined，点了没反应，还会报 Unable to assign）。
-                    property bool enableCursor: true
                     property JsonObject terminalGenerationProps: JsonObject {
                         property real harmony: 0.6
+                            property bool enableCursor: true
+
                         property real harmonizeThreshold: 100
                         property real termFgBoost: 0.35
                         property bool forceDarkMode: false
@@ -156,6 +181,9 @@ Singleton {
                 property JsonObject palette: JsonObject {
                     property string type: "auto" // Allowed: auto, scheme-content, scheme-expressive, scheme-fidelity, scheme-fruit-salad, scheme-monochrome, scheme-neutral, scheme-rainbow, scheme-tonal-spot
                     property string accentColor: ""
+                    property string namedScheme: "" // "" = from wallpaper. Allowed: any file name in scripts/colors/schemes (gruvbox)
+                    property string namedSchemePrimary: ""
+                    property string namedSchemeSecondary: ""
                 }
             }
 
@@ -178,21 +206,9 @@ Singleton {
 
             }
 
-            // GitHub 项目页（设置 → GitHub）。仓库列表用 gh CLI 拉，见 pages/GitHub.qml
-            property JsonObject github: JsonObject {
-                property string username: ""       // 手动覆盖的展示用户名（留空则用 gh 当前账号）
-                property int repoLimit: 30         // 最多拉多少个仓库
-                property bool includeForks: false  // 是否把 fork 也列出来
-                property bool includeArchived: false
-                // 私有仓库：只在「展示的账号 == gh 当前登录账号」时有效。
-                // GitHub 的 users/<login>/repos 是公开端点，无论是否带 token
-                // 都只返回公开仓库；要拿私有仓库必须走已认证的 user/repos。
-                property bool includePrivate: true
-            }
-
-            // 顶部灵动岛（音乐 / 音量 / 录屏等活动胶囊）。
-            // 与 Bar 中间那座「仪表盘岛屿」是两套东西：后者由
-            // 设置 → Bar → 组件列表里的 "island" 项控制，这里只管前者。
+            // 本地定制：顶部灵动岛（音乐 / 音量 / 录屏等活动胶囊）总开关。
+            // 关掉后 shell.qml 的 LazyLoader 会销毁整座岛。与上游 bar.dynamicIsland
+            // 是两回事（那是上游自己的灵动岛组件，未启用）。
             property JsonObject dynamicIsland: JsonObject {
                 property bool enable: true
             }
@@ -225,6 +241,21 @@ Singleton {
                     property int gapsIn: 2
                     property int gapsOut: 5
                     property string layout: "dwindle"
+                    // Window border colors. Disabled by default so the colors
+                    // generated by matugen in hyprland/colors.lua keep applying.
+                    property JsonObject borderColor: JsonObject {
+                        property bool enable: false
+                        // Palette roles, resolved by Appearance.getColorFromName()
+                        property string activeRole: "layer0Border"
+                        property string inactiveRole: "layer0Border"
+                        property real activeOpacity: 0.47
+                        property real inactiveOpacity: 0.2
+                    }
+                }
+                property JsonObject idle: JsonObject {
+                    property int lock: 300
+                    property int screenOff: 600
+                    property int suspend: 10800
                 }
                 property JsonObject input: JsonObject {
                     property string kbLayout: "us"
@@ -238,6 +269,9 @@ Singleton {
                         property bool clickfingerBehavior: false
                         property real scrollFactor: 0.7
                     }
+                }
+                property JsonObject misc: JsonObject {
+                    property bool focusOnActivate: false
                 }
             }
 
@@ -254,28 +288,41 @@ Singleton {
             }
 
             property JsonObject settings: JsonObject {
-                property string style: "default" // default - minimal
+                property string style: "default" // default - minimal - dashboard
                 property real borderSize: 1
                 property string borderColor: "layer0Border"
-                // 上游 10-03 新增：设置页可折叠分区的持久化（ContentSection 读）
                 property list<string> collapsedSections: []
             }
 
             property JsonObject background: JsonObject {
                 property string lockWall: ""
                 property bool widgetsLocked: false
+                property JsonObject collage: JsonObject {
+                    property bool enable: false
+                    property int gap: 30
+                    property int margin: 30
+                    property int radius: 30
+                    property int primaryId: 1
+                    property int nextId: 2
+                    property string tree: "{\"t\":\"leaf\",\"id\":1,\"img\":\"\"}"
+                }
                 property bool showGrid: true
                 property bool showBlur: false
+                property real blurRadius: 32
                 property string splitRatio: "100" // 25 50 100
                 property string splitSide: "left"
                 property bool showSnapLines: true
                 property JsonObject widgets: JsonObject {
+                    property bool blurWidgets: false
+                    property real blurRadius: 32
+                    property bool shadow: true
                     property JsonObject clock: JsonObject {
                         property bool enable: true
                         property bool showOnlyWhenLocked: false
                         property string placementStrategy: "leastBusy" // "free", "leastBusy", "mostBusy"
                         property real x: 100
                         property real y: 100
+                        property real z: 0
                         property string style: "cookie"        // Options: "cookie", "digital"
                         property string color: ""
                         property string styleLocked: "cookie"  // Options: "cookie", "digital"
@@ -299,7 +346,7 @@ Singleton {
                             property bool animateChange: true
                             property bool vertical: false
                             property JsonObject font: JsonObject {
-                                property string family: "Google Sans"
+                                property string family: "Google Sans Flex"
                                 property real weight: 350
                                 property real width: 100
                                 property real size: 90
@@ -320,6 +367,7 @@ Singleton {
                         property string placementStrategy: "free" // "free", "leastBusy", "mostBusy"
                         property real x: 400
                         property real y: 100
+                        property real z: 0
                         property string sizeMode: "1x3"
                         property bool expanded: false
                     }
@@ -329,6 +377,7 @@ Singleton {
                         property string placementStrategy: "free" // "free", "leastBusy", "mostBusy"
                         property real x: 400
                         property real y: 100
+                        property real z: 0
                         property string sizeMode: "2x2"
                     }
                     property JsonObject worldClock: JsonObject {
@@ -337,7 +386,9 @@ Singleton {
                         property string placementStrategy: "free"
                         property real x: 400
                         property real y: 100
+                        property real z: 0
                         property string sizeMode: "2x2"
+                        property bool vertical: false
                         property int clockCount: 4 
                     }
 
@@ -346,6 +397,7 @@ Singleton {
                         property string placementStrategy: "free"
                         property real x: 400
                         property real y: 100
+                        property real z: 0
                     }
 
                     property JsonObject todo: JsonObject {
@@ -353,6 +405,7 @@ Singleton {
                         property string placementStrategy: "free"
                         property real x: 400
                         property real y: 100
+                        property real z: 0
                     }
 
                     property JsonObject userCard: JsonObject {
@@ -360,6 +413,7 @@ Singleton {
                         property string placementStrategy: "free"
                         property real x: 400
                         property real y: 100
+                        property real z: 0
                         property string sizeMode: "1x2" 
                     }
 
@@ -368,33 +422,24 @@ Singleton {
                         property string placementStrategy: "free"
                         property real x: 400
                         property real y: 100
+                        property real z: 0
                     }
 
                     property JsonObject visualizer: JsonObject {
                         property bool enable: false
                         property string placementStrategy: "free"
                         property real x: 0
-                        property real y: -1 // 首次显示时贴近屏幕底部，拖动后保存实际位置
-                        // 音频可视化样式: bars / mirror / line / wave / dots / area / circular / particles / spectrum / waveSpectrum
-                        property string style: "bars"
-                        // 灵敏度: 越大频谱越活跃（0.3 ~ 3.0）
-                        property real sensitivity: 1.0
-                        // 平滑度: 移动平均窗口（1 ~ 10，越大越平滑）
-                        property int smoothing: 2
-                        // 动画时长 (ms)，频点变化的缓动时间
-                        property int smoothingDuration: 150
-                    }
+                        property real y: 0
+                            property int smoothing: 2
 
-                    property JsonObject spectrumBall: JsonObject {
-                        property bool enable: false
-                        property string placementStrategy: "free"
-                        property real x: 200
-                        property real y: 200
-                        property real size: 180
-                        // 主球颜色叠加 (low/mid/high 频段分别取色)
-                        property string colorMode: "primary" // primary | accent | gradient
-                        // 卫星球数量
-                        property int satellites: 3
+                            property int smoothingDuration: 150
+
+                        property real z: -1000
+                        property string style: "bars" // "bars", "mirror", "aurora", "ring", "dots"
+                        property string colorSource: "theme" // "theme", "cover"
+                        property real sensitivity: 1
+                        property int height: 260 // mirror, aurora and dots
+                        property int ringSize: 380
                     }
 
                     property JsonObject customImage: JsonObject {
@@ -402,9 +447,24 @@ Singleton {
                         property string placementStrategy: "free"
                         property real x: 400
                         property real y: 100
+                        property real z: 0
                         property string path: ""
                         property string shape: "Cookie4Sided"
                         property real size: 200
+                    }
+
+                    property JsonObject sticker: JsonObject {
+                        property bool enable: false
+                        property list<var> items: [] // if someone sees this and wants to add more stickers, make a PR too lazy 
+                        property string placementStrategy: "free"
+                        property real x: 400
+                        property real y: 100
+                        property real z: 0
+                        property string path: ""
+                        property real size: 200
+                        property real rotation: 0
+                        property string outlineColor: "#ffffff" //dont work =(
+                        property real outlineWidth: 8
                     }
 
                     property JsonObject resources: JsonObject {
@@ -412,6 +472,7 @@ Singleton {
                         property string placementStrategy: "free"
                         property real x: 400
                         property real y: 100
+                        property real z: 0
                         property bool vertical: false
                     }
 
@@ -420,6 +481,7 @@ Singleton {
                         property string placementStrategy: "free"
                         property real x: 400
                         property real y: 100
+                        property real z: 0
                         property bool vertical: false
                     }
 
@@ -432,42 +494,75 @@ Singleton {
                         property string placementStrategy: "free" // "free", "leastBusy", "mostBusy"
                         property real x: 800
                         property real y: 500
+                        property real z: 0
                         property string sizeMode: "1x3" 
+                    }
+
+                    property JsonObject customText: JsonObject {
+                        property bool enable: false
+                        property string placementStrategy: "free"
+                        property real x: 400
+                        property real y: 300
+                        property real z: 0
+                        property string content: "Hello world"
+                        property string fontFamily: "Caveat"
+                        property int fontSize: 72
+                        property string color: "" // "" = automatic, otherwise an Appearance color name
+                        property string alignment: "center" // "left", "center", "right"
+                        property bool shadow: true
+                    }
+                    // 本地定制：频谱球（VisualizerWidget 读此路径，勿挪进 customText）
+                    property JsonObject spectrumBall: JsonObject {
+                        property bool enable: false
+                        property string placementStrategy: "free"
+                        property real x: 200
+                        property real y: 200
+                        property real size: 180
+                        // 主球颜色叠加 (low/mid/high 频段分别取色)
+                        property string colorMode: "primary" // primary | accent | gradient
+                        // 卫星球数量
+                        property int satellites: 3
                     }
                 }
                 property list<string> screenList: [] 
                 property string wallpaperPath: ""
-                // 壁纸选择器（Ctrl+Super+T）默认打开的目录。支持 ~/ 前缀；
-                // 留空回落到 ~/Pictures/Wallpapers。install.sh 会把仓库自带的
-                // 壁纸铺到那个默认目录（sync_wallpapers），所以新装机器不再是空列表。
-                property string wallpaperDir: ""
-                // 视频壁纸后端：mpvpaper / phonto / wallr（缺少首选后端时自动回退到 mpvpaper）
-                property string videoBackend: "mpvpaper"
                 property bool centeredWallpaper: false
                 property string centeredWallpaperShape: "Cookie7Sided"
                 property int centeredWallpaperSize: 400
                 property string centeredWallpaperColor: "primaryContainer"
                 property bool centeredWallpaperOnlyWhenLocked: false
+                property string centeredWallpaperImage: ""
                 property string wallpaperAnimation: "magic"
                 property bool enableWallpaperPreview: false
                 property string thumbnailPath: ""
                 property bool hideWhenFullscreen: true
                 property JsonObject parallax: JsonObject {
-                    property bool enable: false             // 壁纸视差总开关
-                    property bool vertical: false           // 垂直方向视差（默认横向）
-                    property bool autoVertical: false       // 自动判定方向
-                    property bool enableWorkspace: true     // 工作区切换时壁纸平移
-                    property int workspaceCount: 10         // 参与视差映射的工作区总数（0 = 自动探测）
-                    property int workspaceAnimationDuration: 400 // 工作区视差时长(ms)。Hyprland 的 workspaces speed=7 是 700ms，但滚轮连续切工作区时视差要能跟得上，取 400 更跟手
-                    property real workspaceZoom: 1.07       // 视差强度；静态图只平移不缩放，视频后端仍需缩放留余量
-                    property bool enableSidebar: true       // 侧栏开合时壁纸平移
-                    property real sidebarShift: 80          // 侧栏偏移像素量
-                    property real widgetsFactor: 1.2        // 部件景深倍率（只跟随侧栏，光标跟随不作用于部件）
-                    property bool enableCursor: false       // 光标跟随视差（只作用于壁纸层）
-                    property real cursorSensitivity: 0.3    // 光标偏移权重（0~1）
-                    property int cursorPollInterval: 50     // 光标轮询间隔 ms
-                    property bool enableVideo: true         // 视频壁纸视差（通过 mpv IPC 驱动 mpvpaper）
-                    property string videoSocketDir: ""      // mpvpaper IPC socket 目录，空 = 自动（XDG_RUNTIME_DIR 或 /tmp）
+                        property int workspaceCount: 10         // 参与视差映射的工作区总数（0 = 自动探测）
+
+                        property int workspaceAnimationDuration: 400 // 工作区视差时长(ms)。Hyprland 的 workspaces speed=7 是 700ms，但滚轮连续切工作区时视差要能跟得上，取 400 更跟手
+
+                        property real sidebarShift: 80          // 侧栏偏移像素量
+
+                        property bool enableCursor: false       // 光标跟随视差（只作用于壁纸层）
+
+                        property real cursorSensitivity: 0.3    // 光标偏移权重（0~1）
+
+                        property int cursorPollInterval: 50     // 光标轮询间隔 ms
+
+                        property bool enableVideo: true         // 视频壁纸视差（通过 mpv IPC 驱动 mpvpaper）
+
+                        property string videoSocketDir: ""      // mpvpaper IPC socket 目录，空 = 自动（XDG_RUNTIME_DIR 或 /tmp）
+
+                    property bool vertical: false
+                        property string wallpaperDir: ""
+
+                        property string videoBackend: "mpvpaper"
+
+                    property bool autoVertical: false
+                    property bool enableWorkspace: true
+                    property real workspaceZoom: 1.0 // Relative to wallpaper size
+                    property bool enableSidebar: true
+                    property real widgetsFactor: 1.2
                 }
             }
 
@@ -485,11 +580,13 @@ Singleton {
                 property real frameThickness: 4
                 property string frameColor: "black"
                 property bool followFrameColor: false
+                property bool centerOnlyReserveFrame: false
                 property bool bottom: false // Instead of top
-                property int cornerStyle: 0 // 0: Hug | 1: Float | 2: Plain rectangle
+                property int cornerStyle: 0 // 0: Hug | 1: Float | 2: Plain rectangle | 3: M3 | 4: M3 Hug | 5: Panel
                 property string groupColor: "layer1"
                 property bool floatStyleShadow: true // Show shadow behind bar when cornerStyle == 1 (Float)
                 property string borderless: "pills"
+                property list<var> widgetStyles: []
                 property string topLeftIcon: "spark" // Options: "distro" or any icon name in ~/.config/quickshell/ii/assets/icons
                 property bool showBackground: true
                 property bool verbose: true
@@ -505,6 +602,18 @@ Singleton {
                     property int memoryWarningThreshold: 95
                     property int swapWarningThreshold: 85
                     property int cpuWarningThreshold: 90
+                }
+
+                property JsonObject aiUsage: JsonObject {
+                    property int tokenLimit: 1000000
+                    property int updateInterval: 60
+                }
+
+                property JsonObject dynamicIsland: JsonObject {
+                    property string visualizerStyle: "dots" // "dots", "wave", "none"
+                    property bool showMediaControls: false
+                    property string leftWidget: "none"
+                    property string rightWidget: "none"
                 }
                 property JsonObject divider: JsonObject {
                     property string style: "rect" // rect - dot - space
@@ -535,6 +644,7 @@ Singleton {
                     property int shown: 10
                     property bool showAppIcons: false
                     property string indicatorStyle: "dot" // "dot" or "icon"
+                    property string style: "default" // "default", "gnome", "dots", "ticks"
                     property bool alwaysShowNumbers: true
                     property int showNumberDelay: 300 // milliseconds
                     property list<string> numberMap: ["1", "2"] // Characters to show instead of numbers on workspace indicator
@@ -553,6 +663,7 @@ Singleton {
                     }
                 }
                 property JsonObject tooltips: JsonObject {
+                    property bool enable: true
                     property bool clickToShow: false
                 }
                 property JsonObject media: JsonObject {
@@ -561,8 +672,11 @@ Singleton {
                     property bool onlyTitle: false
                     property int maxWidth: 280
                     property int minWidth: 100
+                    property bool showLyrics: false
+                    property bool revealOnDesktop: false // Keep the dock visible on an empty workspace (blocks clean desktop recordings)
                 }
-                // 居中时钟（对齐 caelestia bar.clock 的显示项 + 自身交互）
+
+                // 本地定制：Bar 时钟行为（ClockWidget 保留版依赖）
                 property JsonObject clock: JsonObject {
                     property bool background: false // 药丸底色
                     property bool showIcon: false   // 日历图标（默认关，避免时钟左侧多一个日历符号）
@@ -582,6 +696,9 @@ Singleton {
                 property int full: 101
                 property bool automaticSuspend: true
                 property int suspend: 3
+                property int peripheralLow: 20
+                property int peripheralCritical: 5
+                property bool peripheralNotify: true
             }
 
             property JsonObject calendar: JsonObject {
@@ -609,7 +726,6 @@ Singleton {
                 property real hoverRegionHeight: 2
                 property bool pinnedOnStartup: false
                 property bool hoverToReveal: true // When false, only reveals on empty workspace
-                property bool revealOnDesktop: false // Keep the dock visible on an empty workspace (blocks clean desktop recordings)
                 property list<string> pinnedApps: [ // IDs of pinned entries
                     "org.kde.dolphin", "kitty",]
                 property list<string> ignoredAppRegexes: []
@@ -617,10 +733,27 @@ Singleton {
 
             property JsonObject interactions: JsonObject {
                 property JsonObject scrolling: JsonObject {
-                    property bool fasterTouchpadScroll: false // Enable faster scrolling with touchpad
-                    property int mouseScrollDeltaThreshold: 120 // delta >= this then it gets detected as mouse scroll rather than touchpad
-                    property int mouseScrollFactor: 120
-                    property int touchpadScrollFactor: 450
+                    property bool fasterTouchpadScroll: true // Master switch for inertial scroll engine
+
+                    // === Touchpad physics ===
+                    property real flingFriction: 0.002
+                    property real flingStopThreshold: 0.01
+                    // Sensitivity: pixels per angleDelta unit during finger-follow phase
+                    property real touchpadSensitivity: 3.5
+                    // Velocity reflection coefficient at bounds (0 = hard stop, 1 = perfect bounce)
+                    property real bounceDamping: 0.3
+
+                    // === Mouse wheel ===
+                    property int wheelScrollAmount: 100
+                    property int wheelDurationMin: 200
+                    property int wheelDurationMax: 400
+
+                    // === Detection ===
+                    property int mouseScrollDeltaThreshold: 120 // angleDelta >= this = mouse wheel
+
+                    // === Relative Multipliers ===
+                    property real touchpadScrollFactor: 1.0 // scales touchpadSensitivity per-instance
+                    property real mouseScrollFactor: 1.0    // scales wheelScrollAmount per-instance
                 }
                 property JsonObject deadPixelWorkaround: JsonObject { // Hyprland leaves out 1 pixel on the right for interactions
                     property bool enable: false
@@ -628,10 +761,12 @@ Singleton {
             }
 
             property JsonObject language: JsonObject {
-                property string ui: "zh_CN" // UI language. "auto" for system locale, or specific language code like "zh_CN", "en_US"
+                property string ui: "auto" // UI language. "auto" for system locale, or specific language code like "zh_CN", "en_US"
                 property JsonObject translator: JsonObject {
                     property string engine: "auto" // Run `trans -list-engines` for available engines. auto should use google
                     property string targetLanguage: "auto" // Run `trans -list-all` for available languages
+                        property bool ignoreBrowserPlayers: true
+
                     property string sourceLanguage: "auto"
                 }
             }
@@ -676,14 +811,12 @@ Singleton {
             property JsonObject media: JsonObject {
                 // Attempt to remove dupes (the aggregator playerctl one and browsers' native ones when there's plasma browser integration)
                 property bool filterDuplicatePlayers: true
-                // 浏览器 MPRIS bus 把音乐和视频走同一个接口暴露出来，灵动岛
-                // 无法区分 B 站视频和音乐服务，所以默认跳过它们，看视频时
-                // 不会弹音乐岛。用浏览器听歌（YouTube Music 等）可关掉。
-                property bool ignoreBrowserPlayers: true
             }
 
             property JsonObject networking: JsonObject {
                 property string userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+                    property bool dimOutside: true
+
             }
 
             property JsonObject notifications: JsonObject {
@@ -693,23 +826,6 @@ Singleton {
 
             property JsonObject osd: JsonObject {
                 property int timeout: 1000
-            }
-
-            // 键盘按键显示（设置 → 桌面）。数据由 scripts/keyboard/keycap-reader.py
-            // 读 /dev/input/event* 提供，需要当前用户在 input 组里。
-            property JsonObject keycapDisplay: JsonObject {
-                property bool enable: false
-                // 打出来的字累积成可读文本显示。关掉就只显示键帽（快捷键模式）。
-                // 非 US 布局下字符映射会不对，那种情况建议关掉这个。
-                property bool showTypedText: true
-                // 键帽松开后停留多久（毫秒）。太短会来不及看见快速点按。
-                property int timeout: 1600
-                // 停止输入多久后清空文本（毫秒）。比键帽长得多 ——
-                // 键帽看一眼就够，文本是要读的。
-                property int textTimeout: 5000
-                // 文本缓冲区上限，超出丢最老的，避免浮层无限变宽
-                property int maxTextLength: 48
-                property string position: "bottom" // "bottom" | "top"
             }
 
             property JsonObject osk: JsonObject {
@@ -747,10 +863,6 @@ Singleton {
                     property real opacity: 0.3
                     property real contentRegionOpacity: 0.8
                     property int selectionPadding: 5
-                    // 压暗「没被选中的那部分屏幕」：整屏盖一层半透明暗色，
-                    // 再把当前会截进去的那块（拖动选区 / 指到的目标）挖空。
-                    // 关掉 = 完全不压暗，选区界面下屏幕保持原样。
-                    property bool dimOutside: true
                 }
                 property JsonObject rect: JsonObject {
                     property bool showAimLines: true
@@ -786,6 +898,8 @@ Singleton {
                 property int nonAppResultDelay: 30 // This prevents lagging when typing
                 property string engineBaseUrl: "https://www.google.com/search?q="
                 property list<string> excludedSites: ["quora.com", "facebook.com"]
+                property list<var> clipboardPins: []
+                property bool clipboardPreviewPopup: false
                 property bool sloppy: false // Uses levenshtein distance based scoring instead of fuzzy sort. Very weird.
                 property JsonObject prefix: JsonObject {
                     property bool showDefaultActionsWithoutPrefix: true
@@ -835,6 +949,14 @@ Singleton {
                         property string username: "[unset]"
                     }
                 }
+                    property string captureTarget: "screen"
+
+                    property bool audioMic: false
+
+                    property bool audioSystem: false
+
+                    property string quality: "medium"
+
                 property JsonObject cornerOpen: JsonObject {
                     property bool enable: true
                     property bool bottom: false
@@ -873,31 +995,18 @@ Singleton {
             }
 
             property JsonObject custom: JsonObject {
-                property string distroIcon: "spark"
+                property string distroIcon: "google-gemini-symbolic"
                 property bool colorizeIcon: true
+                property string iconColor: "onLayer0"
+                property string iconsPath: ""
             }
 
             property JsonObject screenRecord: JsonObject {
                 property string savePath: Directories.videos.replace("file://","") // strip "file://"
-                // ── 以下三项由灵动岛的「录屏」设置区读写 ────────────────────────
-                // 写入方：custom-island/QuickSettings.qml（设置面板）与
-                //         custom-island/CenterContent.qml（收起态捕获条上的循环切换）
-                // 读取方：custom-island/ScreenRecService.qml（拼 wf-recorder 参数）
-                //         scripts/videos/record.sh（用 jq 读同一个 config.json）
-                // captureTarget: screen | window | region
-                //   screen → record.sh 加 --fullscreen
-                //   region → record.sh 的 slurp 区域选择（也是不带参数时的默认行为）
-                //   window → record.sh 没有窗口录制模式，退化为区域选择（诚实降级）
-                property string captureTarget: "screen"
-                // 音频：分别对应 record.sh 的 --mic / --sound
-                //   --sound 录系统输出（pactl 默认 sink 的 .monitor）
-                //   --mic   录麦克风（pactl 默认 source）
-                // 两个都开时 record.sh 优先系统声 —— wf-recorder 只接受一个 --audio，
-                // 想要混音得先建虚拟 sink，不在当前范围内。
-                property bool audioMic: false
-                property bool audioSystem: false
-                // quality: high | medium | low → libx264 的 crf / preset
-                property string quality: "medium"
+                property bool systemAudio: false
+                    property string viewMode: "grid" // "grid" | "carousel"
+
+                property bool microphone: false
             }
 
             property JsonObject screenSnip: JsonObject {
@@ -934,7 +1043,6 @@ Singleton {
             }
             
             property JsonObject wallpaperSelector: JsonObject {
-                property string viewMode: "grid" // "grid" | "carousel"
                 property bool useSystemFileDialog: false
                 property bool showBlurBackground: false
                 property bool showHomePath: true
@@ -944,6 +1052,16 @@ Singleton {
                 property int columns: 4
                 property bool closeAfterSelection: true
                 property int changeInterval: 0 
+                property string sortMode: "time"
+                property string wallhavenApiKey: "" // fallback; keyring ("/wallhaven <key>") takes precedence
+                property string wallhavenCategories: "111"
+                property string wallhavenPurity: "100"
+                property string wallhavenSorting: "relevance"
+                property string wallhavenOrder: "desc"
+                property string wallhavenRatios: ""
+                property string wallhavenColors: ""
+                property string wallhavenQuery: ""
+                property string wallhavenTopRange: "1y"
             }
 
             property JsonObject windows: JsonObject {

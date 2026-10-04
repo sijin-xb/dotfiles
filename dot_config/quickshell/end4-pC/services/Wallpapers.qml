@@ -34,6 +34,49 @@ Singleton {
         return p;
     }
     property url defaultFolder: Qt.resolvedUrl(root.defaultFolderPath)
+    // ── 上游 10-03 壁纸搜索/排序 API（Dashboard 设置页依赖）────────────────
+    // 以下函数从上游 Wallpapers.qml 移植（scoreItem/scoreToken/normalizeText/
+    // searchKeyFor）。本地版此前缺失 scoreItem 导致 DashboardSettingsPage 的
+    // computeLayout() 抛 TypeError，设置栏目整页空白。
+    // ⚠ searchQuery 本地版已有（见下方原声明），勿重复声明。
+
+    function normalizeText(text) {
+        return String(text ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    }
+
+    function searchKeyFor(name) {
+        return root.normalizeText(name.replace(/\.[^.]+$/, "")).replace(/[_\-.]+/g, " ");
+    }
+
+    function scoreToken(key, token) {
+        const index = key.indexOf(token);
+        if (index >= 0) {
+            const wordStart = index === 0 || key.charAt(index - 1) === " ";
+            return 200 + (wordStart ? 60 : 0) - Math.min(index, 40) + Math.min(token.length, 12);
+        }
+        if (token.length < 3) return -1;
+        let position = 0;
+        let gaps = 0;
+        let last = -1;
+        for (let i = 0; i < token.length; i++) {
+            const found = key.indexOf(token.charAt(i), position);
+            if (found < 0) return -1;
+            if (last >= 0) gaps += found - last - 1;
+            last = found;
+            position = found + 1;
+        }
+        return Math.max(1, 100 - gaps * 3 - token.length);
+    }
+
+    function scoreItem(key, tokens) {
+        let total = 0;
+        for (const token of tokens) {
+            const score = root.scoreToken(key, token);
+            if (score < 0) return -1;
+            total += score;
+        }
+        return total;
+    }
     property alias folderModel: folderModel // Expose for direct binding when needed
     property string searchQuery: ""
     readonly property list<string> extensions: [
