@@ -949,13 +949,6 @@ Singleton {
                         property string username: "[unset]"
                     }
                 }
-                    property string captureTarget: "screen"
-
-                    property bool audioMic: false
-
-                    property bool audioSystem: false
-
-                    property string quality: "medium"
 
                 property JsonObject cornerOpen: JsonObject {
                     property bool enable: true
@@ -1003,9 +996,21 @@ Singleton {
 
             property JsonObject screenRecord: JsonObject {
                 property string savePath: Directories.videos.replace("file://","") // strip "file://"
+                // 本地定制（ScreenRecService / record.sh / 录屏设置条读这一组）：
+                // captureTarget: screen | window | region
+                //   screen → record.sh 加 --fullscreen
+                //   region → record.sh 的 slurp 区域选择（也是不带参数时的默认行为）
+                //   window → record.sh 没有窗口录制模式，退化为区域选择
+                // audioMic/audioSystem → record.sh 的 --mic / --sound
+                //   （--sound 录 pactl 默认 sink 的 .monitor，--mic 录默认 source）
+                //   两个都开时优先系统声 —— wf-recorder 只接受一个 --audio
+                // quality: high | medium | low → libx264 的 crf / preset
+                property string captureTarget: "screen"
+                property bool audioMic: false
+                property bool audioSystem: false
+                property string quality: "medium"
+                // 上游键：systemAudio / microphone（均衡器旁的录屏弹窗用）
                 property bool systemAudio: false
-                    property string viewMode: "grid" // "grid" | "carousel"
-
                 property bool microphone: false
             }
 
@@ -1043,6 +1048,9 @@ Singleton {
             }
             
             property JsonObject wallpaperSelector: JsonObject {
+                // 本地定制：网格 / 轮播两种浏览视图（WallpaperSelectorContent
+                // 的切换按钮读它；之前错插在 screenRecord 里导致恒为 grid）
+                property string viewMode: "grid" // "grid" | "carousel"
                 property bool useSystemFileDialog: false
                 property bool showBlurBackground: false
                 property bool showHomePath: true

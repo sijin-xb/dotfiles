@@ -103,7 +103,7 @@ Item {
 		id: clockTimeMeasure
 		visible: false
 		text: (Config.options.bar.clock.showSeconds
-		       ? DateTime.hourStr + ":" + DateTime.minuteStr + ":" + DateTime.secondStr
+		       ? DateTime.hourStr + ":" + DateTime.minuteStr + ":" + root.secondStr
 		       : DateTime.hourStr + ":" + DateTime.minuteStr)
 		font.pixelSize: Appearance.font.pixelSize.smallie
 		font.weight: Font.Bold
@@ -401,7 +401,7 @@ Item {
 							// 时间源与右侧时钟完全同源（DateTime 单例，
 							// secondPrecision 已开，秒级跳动节奏一致）
 							text: (Config.options.bar.clock.showSeconds
-							       ? DateTime.hourStr + ":" + DateTime.minuteStr + ":" + DateTime.secondStr
+							       ? DateTime.hourStr + ":" + DateTime.minuteStr + ":" + root.secondStr
 							       : DateTime.hourStr + ":" + DateTime.minuteStr)
 						}
 					}
