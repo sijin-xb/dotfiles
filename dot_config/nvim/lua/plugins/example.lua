@@ -170,8 +170,23 @@ return {
     "nvim-lualine/lualine.nvim",
     event = "VeryLazy",
     opts = function()
+      -- 2026-10-04：默认 lualine 信息密集（模式/分支/诊断/LSP 全堆上），
+      -- 观感像 Kate 底栏。精简为：模式 + 文件名 + 进度/位置，无分隔块。
       return {
-        --[[add your custom lualine config here]]
+        options = {
+          theme = "auto",
+          globalstatus = true,
+          component_separators = { left = "", right = "" },
+          section_separators = { left = "", right = "" },
+          disabled_filetypes = { statusline = { "dashboard", "alpha", "starter" } },
+        },
+        sections = {
+          lualine_a = { "mode" },
+          lualine_b = { "filename" },
+          lualine_x = {},
+          lualine_y = { "diff", "location" },
+          lualine_z = {},
+        },
       }
     end,
   },
