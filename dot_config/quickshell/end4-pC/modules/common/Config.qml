@@ -257,6 +257,8 @@ Singleton {
                 property string style: "default" // default - minimal
                 property real borderSize: 1
                 property string borderColor: "layer0Border"
+                // 上游 10-03 新增：设置页可折叠分区的持久化（ContentSection 读）
+                property list<string> collapsedSections: []
             }
 
             property JsonObject background: JsonObject {
