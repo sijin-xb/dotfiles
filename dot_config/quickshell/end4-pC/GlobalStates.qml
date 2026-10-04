@@ -13,6 +13,13 @@ Singleton {
     property bool barOpen: true
     // 上游 09-29 新增：per-widget 样式编辑器的开关（StyledPopup tooltip 联动）
     property bool barStyleEditorOpen: false
+    // 上游 10-02 新增：均衡器弹窗开关（EqualizerPopup/EqualizerView 绑定）
+    property bool equalizerOpen: false
+    // 上游新增：上游 dynamicIsland 是否在 Bar 布局里启用（5 个 bar 组件绑定它）。
+    // 本地用的是自己的岛屿（custom-island），此开关只影响上游岛相关组件的分支。
+    readonly property bool dynamicIslandEnabled: Config.options.bar.layouts.leftLayout.includes("dynamicIsland")
+        || Config.options.bar.layouts.middleLayout.includes("dynamicIsland")
+        || Config.options.bar.layouts.rightLayout.includes("dynamicIsland")
     // 居中时钟的仪表盘弹窗（ClockDashboard），由 ClockWidget 左键切换
     property bool clockDashboardOpen: false
     // 快捷键管理器（速查表），SUPER + / 切换
