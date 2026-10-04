@@ -66,7 +66,7 @@ Item {
 	// 触发热重载（delegate 已在）时碰巧生效，每次重启 qs 都打回 300 原形。
 	// 隐藏 Text 与显示的 clockText 同源（同 StyledText / 同令牌 / 同 tnum），
 	// implicitWidth 恒可用且绑定恒响应式，彻底摆脱 ListView 的实例化时机。
-	readonly property real clockNaturalWidth: clockMeasure.implicitWidth
+	// clockNaturalWidth 的计算见下方隐藏测量区（rowMaterial 组合测量）
 
 	// ── 多形态宽度（对齐「其他组件各有各的宽」的体系）────────────────────────
 	// 每个轮播项有自己的形态宽：clock 贴内容、timer/stopwatch 跟随计时文本、
@@ -90,14 +90,36 @@ Item {
 	// ── 隐藏测量 Text（不参与布局与渲染，只当尺子用）────────────────────────
 	// ⚠ 每把尺子都必须与显示端逐属性同源（同组件/同字号/同字重/同字体族），
 	//   显示端改样式时这里必须同步，否则测量失真。
-	// clock 尺：与显示的 clockText 同源（StyledText 判定 + smaller + tnum）。
+	// clock 尺（rowMaterial 形态）：日期尺 + 时间尺，组合出总宽 ——
+	//   日期宽 + leftPadding 5 + Row spacing 4 + 药丸(时间宽 + 16)
+	//   （AM/PM / 图标药丸随可见性另行累加，与显示端 Row 的布局规则一致）
 	StyledText {
-		id: clockMeasure
+		id: clockDateMeasure
 		visible: false
-		text: Qt.locale().toString(secondClock.date, "M月d日")
-		      + "  " + DateTime.hourStr + ":" + DateTime.minuteStr + ":" + root.secondStr
-		font.pixelSize: Appearance.font.pixelSize.smaller
+		text: DateTime.longDate
+		font.pixelSize: Appearance.font.pixelSize.small
+	}
+	StyledText {
+		id: clockTimeMeasure
+		visible: false
+		text: (Config.options.bar.clock.showSeconds
+		       ? DateTime.hourStr + ":" + DateTime.minuteStr + ":" + DateTime.secondStr
+		       : DateTime.hourStr + ":" + DateTime.minuteStr)
+		font.pixelSize: Appearance.font.pixelSize.smallie
+		font.weight: Font.Bold
 		font.features: { "tnum": 1 }
+		font.letterSpacing: -0.4
+	}
+	readonly property real clockNaturalWidth: {
+		let w = 0
+		if (Config.options.bar.clock.showDate)
+			w += clockDateMeasure.implicitWidth + 5      // leftPadding 5
+		w += 4 + clockTimeMeasure.implicitWidth + 16      // Row spacing + 药丸 padding
+		if (DateTime.use12HourFormat && Config.options.bar.clock.showAmPm)
+			w += 4 + 8                                   // AM/PM 小药丸（近似，短文本）
+		if (Config.options.bar.clock.showIcon)
+			w += 4 + 25
+		return w
 	}
 	// timer / stopwatch 尺：与显示端同参（15 bold mono）。
 	// +115 的常数 = 结构留白：左图标 15+16、文本侧隙 8+8、右按钮区 47+15。
@@ -335,34 +357,92 @@ Item {
 				//   → 纯数字用 appearance.fonts.numbers，否则用 appearance.fonts.main
 				//   → 字号 appearance.font.pixelSize.small
 				//   → variableAxes 取 main 的字重/字宽
-				// 时钟是混合文本（「2026年9月30日  20:39:23」），按规则走 main，
-				// 正好和旁边的网络速度、电量那些文字同一套字形。
-				//
-				// ⚠ 颜色仍然显式给 Theme.text：岛屿底色是 colPrimaryContainer，
-				//   不能用 StyledText 的默认色（那是给 colLayer0 背景用的）。
-				//
-				// ── 2026-10-04 紧凑化：短日期 + 小字号 ─────────────────────────
-				// 1. 日期去掉年份（yyyy → 只保留 M月d日）—— 全量日期是胶囊
-				//    占地方的大头，年份在 Bar 这个位置没有信息量；
-				// 2. 字号从 StyledText 默认的 small(15) 显式降到 smaller(12)。
-				//    注意这里用的是 Appearance 令牌引用而非字面量，仍跟随主题；
-				//    font.family 保持不写（那条警告仍然成立）。
-				StyledText {
-					id: clockText
-					anchors.fill: parent
+				// ── 2026-10-04 收起态照搬 ClockWidget 的 rowMaterial 分支 ──────
+				// 溯源：middleLayout = [island, clockWidget]，cornerStyle 3 →
+				// BarWidgetSwitcher 选 rowMaterial。此处逐属性复刻该分支，
+				// 并与右侧时钟读同一份 Config.options.bar.clock（显示项联动）：
+				//   [日期 longDate · small · colOnPrimaryContainer]
+				//   [时间药丸 colPrimary 底 · 高 24 · full 圆角 · smallie Bold
+				//    onPrimary · tnum · letterSpacing -0.4]
+				//   [AM/PM 小药丸 colTertiaryContainer · colPrimary 字 · 叠 -10]
+				//   [日历图标药丸 colPrimary · showIcon 时]
+				// 24 小时制（time.format 不含 ap）时 AM/PM 药丸自动隐藏。
+				Row {
+					anchors.centerIn: parent
 					visible:      modelData === "clock"
-					// 日期取秒级 SystemClock 的 date —— 跨零点会自动跳到新的一天。
-					// 格式按需求用中文「月日」；汉字不是 Qt 的格式字符（y/M/d/H…），
-					// 所以直接写在格式串里就会原样输出，不需要单引号转义。
-					text:         Qt.locale().toString(secondClock.date, "M月d日")
-					              + "  " + DateTime.hourStr + ":" + DateTime.minuteStr + ":" + root.secondStr
-					color:        Theme.text
-					font.pixelSize: Appearance.font.pixelSize.smaller
-					// tnum 保证秒数跳动时数字宽度不抖（字体不支持时会被忽略）。
-					font.features: { "tnum": 1 }
-					verticalAlignment:   Text.AlignVCenter
-					horizontalAlignment: Text.AlignHCenter
-					elide:        Text.ElideRight
+					spacing:      4
+
+					// 日期（rowMaterial 同款：leftPadding 5）
+					StyledText {
+						anchors.verticalCenter: parent.verticalCenter
+						visible:    Config.options.bar.clock.showDate
+						text:       DateTime.longDate
+						font.pixelSize: Appearance.font.pixelSize.small
+						color:      Appearance.colors.colOnPrimaryContainer
+						leftPadding: 5
+					}
+
+					// 时间药丸（rowMaterial 同款）
+					Rectangle {
+						anchors.verticalCenter: parent.verticalCenter
+						implicitWidth: timePillText.implicitWidth + 16
+						implicitHeight: 24
+						radius: Appearance.rounding.full
+						color: Appearance.colors.colPrimary
+
+						StyledText {
+							id: timePillText
+							anchors.centerIn: parent
+							font.pixelSize: Appearance.font.pixelSize.smallie
+							font.weight:    Font.Bold
+							color:          Appearance.colors.colOnPrimary
+							font.features:  { "tnum": 1 }
+							font.letterSpacing: -0.4
+							// 时间源与右侧时钟完全同源（DateTime 单例，
+							// secondPrecision 已开，秒级跳动节奏一致）
+							text: (Config.options.bar.clock.showSeconds
+							       ? DateTime.hourStr + ":" + DateTime.minuteStr + ":" + DateTime.secondStr
+							       : DateTime.hourStr + ":" + DateTime.minuteStr)
+						}
+					}
+
+					// AM/PM 小药丸（rowMaterial 同款：叠在时间药丸上 -10）
+					Rectangle {
+						visible:    DateTime.use12HourFormat && Config.options.bar.clock.showAmPm
+						anchors.verticalCenter: parent.verticalCenter
+						anchors.leftMargin: -10
+						implicitWidth: ampmPillText.implicitWidth + 8
+						implicitHeight: 24
+						radius: Appearance.rounding.full
+						color: Appearance.colors.colTertiaryContainer
+
+						StyledText {
+							id: ampmPillText
+							anchors.centerIn: parent
+							font.pixelSize: Appearance.font.pixelSize.smaller
+							color:          Appearance.colors.colPrimary
+							text:           DateTime.use12HourFormat
+							                  ? Qt.locale().toString(secondClock.date, "ap") : ""
+						}
+					}
+
+					// 日历图标（rowMaterial 同款：showIcon 时显示）
+					Rectangle {
+						visible:    Config.options.bar.clock.showIcon
+						anchors.verticalCenter: parent.verticalCenter
+						width: 25
+						height: 25
+						radius: Appearance.rounding.full
+						color: Appearance.colors.colPrimary
+
+						MaterialSymbol {
+							anchors.centerIn: parent
+							fill: 0
+							text: "calendar_month"
+							iconSize: Appearance.font.pixelSize.normal
+							color: Appearance.colors.colOnPrimary
+						}
+					}
 				}
 
 				// ── Music ──────────────────────────────────────────────────────
