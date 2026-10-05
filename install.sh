@@ -908,9 +908,12 @@ fixed_pacman_pkgs() {
 #   cmake ninja         quickshell 源码编译工具链（三级回退时使用，平时不碍事）。
 
 # 固定 AUR 包（matugen 取色 / mpvpaper 视频壁纸 / walker 启动器 /
-# Catppuccin 的 SDDM 主题与光标）。
+# Catppuccin 的 SDDM 主题与光标 / WhiteSur 图标主题）。
+# WhiteSur 是图标底盘：matugen 的 [templates.gtk-folder] 只重着色它的文件夹，
+# 应用图标保留原版 —— 没装它，覆盖主题的 Inherits=WhiteSur-dark 就落空。
 fixed_aur_pkgs() {
-    printf '%s\n' matugen mpvpaper walker catppuccin-sddm-theme-mocha catppuccin-cursors-mocha
+    printf '%s\n' matugen mpvpaper walker catppuccin-sddm-theme-mocha catppuccin-cursors-mocha \
+        whitesur-icon-theme
 }
 
 # 字体链（可选，见 choose_fonts）。分开成函数的原因同上。
@@ -1825,8 +1828,9 @@ cmd_install() {
     "$VENV/bin/pip" install --upgrade --quiet pypinyin dbus-python kde-material-you-colors \
         || warn "venv 依赖安装失败——启动器的 app 中文名拼音搜索、KDE/Qt 取色会受影响，其余功能不受影响"
 
-    # 图标主题：文件夹图标由 matugen 的 [templates.gtk-folder] 每次换壁纸
-    # 自动重新着色（生成到 ~/.local/share/icons/Adwaita-Matugen-{A,B}）。
+    # 图标主题：WhiteSur-dark 提供全部图标，文件夹由 matugen 的
+    # [templates.gtk-folder] 每次换壁纸重新着色（生成
+    # ~/.local/share/icons/WhiteSur-Matugen-{A,B}，Inherits=WhiteSur-dark）。
     # 这里只负责触发一次，让新机器装完就有主题，不用等用户手动换壁纸。
     # switchwall.sh 是 end4-PC 底盘里的脚本，只有选了 end4-pC 才有；
     # caelestia / DMS 各自在首次换壁纸时触发 matugen，不需要这里代劳。
@@ -1921,9 +1925,9 @@ EOF
      加进 input 组后重新登录，再到 设置 → 桌面 → 按键显示 打开开关：
        sudo usermod -aG input "$USER"
      用 id -nG 确认组已生效。没加组也能装，只是开关打开后读不到按键。
-  8. 图标主题：文件夹图标由 matugen 自动着色（换壁纸时重渲），
-     主题名为 Adwaita-Matugen-A / Adwaita-Matugen-B（交替）。
-     想手动换：设置 → 外观 → 图标主题。
+  8. 图标主题：WhiteSur（AUR whitesur-icon-theme）为底盘，文件夹由 matugen
+     自动着色（换壁纸时重渲），主题名为 WhiteSur-Matugen-A / WhiteSur-Matugen-B
+     （交替）。想手动换：设置 → 外观 → 图标主题。
 EOF
 }
 

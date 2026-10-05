@@ -52,7 +52,10 @@ environment {
     // Qt 程序需要 CSD，所以全局关掉是合适的。
     QT_WAYLAND_DISABLE_WINDOWDECORATION "1"
     // 解决quickshell图标主题缺失问题
-    QS_ICON_THEME "Adwaita"
+    // 用 WhiteSur-dark 而不是 WhiteSur-Matugen-{A,B}：A/B 是交替的，写死任一个
+    // 都会有一半时间指向不存在的目录；quickshell 找的多是 symbolic 图标，
+    // 那些本来就在 WhiteSur-dark 里（覆盖主题只含 places/scalable）。
+    QS_ICON_THEME "WhiteSur-dark"
     // GTK软件使用的渲染器，可以解决n卡双显卡导致的GTK应用启动缓慢问题，AMD或Intel单显卡不需要这行设置可以注释掉
     GSK_RENDERER "gl"
     // 默认文本编辑器

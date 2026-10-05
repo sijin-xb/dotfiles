@@ -472,7 +472,7 @@ A2 的对照：Hyprland 侧是 `hl.env("QT_QPA_PLATFORMTHEME", "kde")` +
 | `miyu-theme.css` | Miyu WebUI 配色，miyu 未装；注释引用的同目录 README.md 也不存在 |
 | `wlogout/recolor.sh` + `wlogout/icons/*.png` | wlogout 未装；`icons/*.png` 是 `recolor.sh` 的输入素材 |
 
-**素材（不是模板，正常）：** `gtk-folder/Adwaita-Matugen/**` 是 `gtk-folder/recolor.sh` 的输入。
+**素材（不是模板，正常）：** `gtk-folder/Adwaita-Matugen/**` 与 `gtk-folder/WhiteSur-Matugen/**` 都是 `gtk-folder/recolor.sh` 的输入。当前只用 WhiteSur 那套：WhiteSur-dark 供全部图标，`WhiteSur-Matugen` 只含 `places/scalable` 下 33 个 folder SVG（`index.theme` 里 `Inherits=WhiteSur-dark`），Adwaita 那套留着回退。
 
 ### 7.4 配色方案文件冗余
 

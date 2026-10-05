@@ -1,0 +1,18 @@
+[Icon Theme]
+Name=WhiteSur-Matugen
+Comment=WhiteSur-dark with Matugen-tinted folders
+Inherits=WhiteSur-dark,hicolor
+Example=folder
+Hidden=true
+FollowsColorScheme=true
+
+# 只声明素材里真实存在的目录：其余图标全部走 Inherits 回退到 WhiteSur-dark，
+# 声明 Material 里没有的目录只会让 GTK 每次查找多探一次空路径。
+Directories=places/scalable
+
+[places/scalable]
+Size=64
+Context=Places
+MinSize=32
+MaxSize=512
+Type=Scalable
