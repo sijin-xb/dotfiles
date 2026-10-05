@@ -4,6 +4,12 @@ set -uo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # 下面有几处 `bash -c '...'`（单引号，外层不展开变量），靠环境变量把 REPO 传进去
 export REPO
+
+# 第 1 节的中间结果要跨 `bash -c` 传递，用一个临时目录收发。
+# 以前写死 $MTEST 却从没建过它 —— 冷启动那一节必挂，靠上次运行的残留才「通过」。
+MTEST="$(mktemp -d)"
+trap 'rm -rf "$MTEST"' EXIT
+export MTEST
 pass=0; fail=0
 ok()  { printf '  PASS  %s\n' "$1"; pass=$((pass+1)); }
 bad() { printf '  FAIL  %s\n        %s\n' "$1" "$2"; fail=$((fail+1)); }
@@ -12,13 +18,13 @@ echo "── 1. mktmpd 落在统一 run 目录里，cleanup 能一次清掉"
 bash -c '
     source "$REPO/install.sh"
     d1=$(mktmpd); f1=$(mktmp)
-    echo "$TMPRUN" > /tmp/mtest/_runpath
-    echo "$d1"    > /tmp/mtest/_d1path
+    echo "$TMPRUN" > $MTEST/_runpath
+    echo "$d1"    > $MTEST/_d1path
     cleanup_tmpfiles
     [[ -e "$d1" ]] && echo "LEAK" || echo "CLEAN"
-' > /tmp/mtest/_out 2>&1
-grep -q CLEAN /tmp/mtest/_out && ok "run 目录被整体清掉" || bad "未清理" "$(cat /tmp/mtest/_out)"
-runpath="$(cat /tmp/mtest/_runpath)"
+' > $MTEST/_out 2>&1
+grep -q CLEAN $MTEST/_out && ok "run 目录被整体清掉" || bad "未清理" "$(cat $MTEST/_out)"
+runpath="$(cat $MTEST/_runpath)"
 [[ "$runpath" == /tmp/dotfiles-install.* ]] && ok "run 目录路径形如 /tmp/dotfiles-install.PID" \
     || bad "run 目录路径异常" "$runpath"
 [[ -e "$runpath" ]] && bad "run 目录残留" "$runpath" || ok "run 目录已消失"

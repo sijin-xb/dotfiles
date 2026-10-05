@@ -57,6 +57,7 @@ mkdir -p "$STUB" "$FAKEHOME" "$REPOCOPY"
 # 源树副本（[5/7] 会 find 它；用副本是为了不污染真实仓库）
 cp "$REPO/install.sh" "$REPOCOPY/install.sh"
 cp "$REPO/.chezmoiignore" "$REPOCOPY/.chezmoiignore"   # [5/7] 会读它，漏了测不出忽略行为
+cp -a "$REPO/lib" "$REPOCOPY/lib"                      # 引导按字典序 source 它，漏了加载不起来
 cp -a "$REPO/dot_config" "$REPOCOPY/dot_config"
 # 整个文件拷过去当库 source。install.sh 末尾有 BASH_SOURCE 守卫，source 时
 # 不会执行 main —— 以前靠 `head -n -1` 剥掉入口行，那依赖「入口恰好是最后

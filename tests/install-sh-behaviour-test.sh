@@ -38,6 +38,7 @@ cp "$REPO/.chezmoiignore" "$ROOT/.chezmoiignore"
 # source 时不会执行 main —— 以前靠 `head -n -1` 剥掉入口行，那依赖
 # 「入口恰好是最后一行」，脆弱且会在末尾加注释时静默失效。
 cp "$REPO/install.sh" "$ROOT/lib.sh"
+cp -a "$REPO/lib" "$ROOT/lib"          # 引导按字典序 source 它们，漏了函数全缺
 
 export HOME="$ROOT/home"
 # shellcheck disable=SC1090

@@ -53,6 +53,7 @@
 README.md
 LICENSE
 install.sh
+lib/            # install.sh 的模块目录，由引导按字典序 source
 Pictures/
 
 # ---- Python 字节码缓存（scripts 下有多个 __pycache__）----
