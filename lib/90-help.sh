@@ -4,6 +4,14 @@
 # ============================================================
 # 5. 帮助打印（CLI 层）
 # ============================================================
+# ⚠ 提示语里的「调用者路径」用 ${DOTCTL_SELF:-$0} 而不是裸 $0：
+#   已迁移到 Python 的子命令（rollback / restore …）要打印同一份帮助，而
+#   Python 侧是用 `bash -c ... source install.sh` 调过来的 —— 那种情况下
+#   $0 必须是占位名，不能是安装器路径：install.sh 顶层的「是否直接执行」
+#   守卫判的是 `BASH_SOURCE[0] == $0`，source 时 BASH_SOURCE[0] 正是安装器
+#   路径，$0 一旦相同就会被误判成「直接执行」，顶层 main 立刻跑起来把这次
+#   调用吃掉（实测：help_text 返回空、退出码 2）。
+#   所以名字改由 DOTCTL_SELF 传，没设时退回 $0（bash 直接调用时就是它）。
 print_help() {
     cat <<EOF
 sijin-xb's dotfiles 自部署脚本 —— Rice 版本: ${RICE_VERSION}
@@ -12,17 +20,17 @@ sijin-xb's dotfiles 自部署脚本 —— Rice 版本: ${RICE_VERSION}
          拼音搜索启动器 · SUPER+T 终端召唤 · matugen Material 3 全局取色
 
 用法：
-  $0                    进入 TUI 二级菜单（推荐新手）
-  $0 --tui              同上
-  $0 install            一键安装（7 步）
-                          默认不滚动系统；FULL_UPGRADE=1 $0 install 则执行 pacman -Syu
-  $0 update             增量升级（见下）
-  $0 rollback / restore / archive / uninstall   见下
-  $0 status             当前部署状态一览：会话 / 清单 / 版本 / 快照 / 占用（只读）
-  $0 doctor             环境体检：缺哪些包、配置在不在、QML 模块齐不齐（只读）
-  $0 deps [--missing]   列出当前会话需要的依赖包；--missing 只看缺口（只读）
-  $0 theme              图标 / 光标 / GTK 主题在 9 个 sink 里的取值与一致性（只读）
-  $0 clean [--all]      清理临时残留；--all 连自举缓存、旧快照、旧备份一起清
+  ${DOTCTL_SELF:-$0}                    进入 TUI 二级菜单（推荐新手）
+  ${DOTCTL_SELF:-$0} --tui              同上
+  ${DOTCTL_SELF:-$0} install            一键安装（7 步）
+                          默认不滚动系统；FULL_UPGRADE=1 ${DOTCTL_SELF:-$0} install 则执行 pacman -Syu
+  ${DOTCTL_SELF:-$0} update             增量升级（见下）
+  ${DOTCTL_SELF:-$0} rollback / restore / archive / uninstall   见下
+  ${DOTCTL_SELF:-$0} status             当前部署状态一览：会话 / 清单 / 版本 / 快照 / 占用（只读）
+  ${DOTCTL_SELF:-$0} doctor             环境体检：缺哪些包、配置在不在、QML 模块齐不齐（只读）
+  ${DOTCTL_SELF:-$0} deps [--missing]   列出当前会话需要的依赖包；--missing 只看缺口（只读）
+  ${DOTCTL_SELF:-$0} theme              图标 / 光标 / GTK 主题在 9 个 sink 里的取值与一致性（只读）
+  ${DOTCTL_SELF:-$0} clean [--all]      清理临时残留；--all 连自举缓存、旧快照、旧备份一起清
 
 单文件运行（自举）：
   只把 install.sh 这一个文件捞下来也能跑 —— 它会自己 clone 仓库到
@@ -64,7 +72,7 @@ sijin-xb's dotfiles 自部署脚本 —— Rice 版本: ${RICE_VERSION}
                               · 非交互执行（管道 / 重定向）时无法询问，兜底为 1
                               TUI 的「执行安装」页按 f 可随时切换。
   FULL_UPGRADE=1             安装时执行 pacman -Syu 全系统升级（默认只装缺失项）
-  $0 update [选项]       升级：只做**文件层**的增量同步，不重装包、不重拉底盘
+  ${DOTCTL_SELF:-$0} update [选项]       升级：只做**文件层**的增量同步，不重装包、不重拉底盘
                           默认在仓库里跑（先 git pull 再 update 即可拿到新版配置）
                           --dry-run         只打印会改什么，一个字节都不写
                           --pull            先 git pull 拉最新提交再同步
@@ -75,16 +83,16 @@ sijin-xb's dotfiles 自部署脚本 —— Rice 版本: ${RICE_VERSION}
                           依赖部署清单区分「新增 / 更新 / 删除」：
                             ~/.local/state/dotfiles-backup/state/deployed-<shell>-<comp>.tsv
                           删除项一律**移到备份**（$BACKUP_ROOT/update-<时间戳>/removed/），
-                          不 rm；升级前自动快照，出问题 $0 rollback 一条命令还原。
-  $0 rollback           回档：还原到最近一次 install 之前的状态
+                          不 rm；升级前自动快照，出问题 ${DOTCTL_SELF:-$0} rollback 一条命令还原。
+  ${DOTCTL_SELF:-$0} rollback           回档：还原到最近一次 install 之前的状态
                            （执行前会自动保存 pre-rollback 快照供 restore 用）
-  $0 restore            恢复：回档后，还原回 rollback 之前的 rice 状态
-  $0 archive [-o TAR.GZ] [--delete]
+  ${DOTCTL_SELF:-$0} restore            恢复：回档后，还原回 rollback 之前的 rice 状态
+  ${DOTCTL_SELF:-$0} archive [-o TAR.GZ] [--delete]
                         打包存档 rice 所有配置/数据/状态文件到 ~/dotfiles-archive-<时间戳>.tar.gz
                           -o PATH     自定义输出路径
                           --delete     打包成功后清理源文件（可用于彻底卸载前备份）
-  $0 uninstall          卸载 rice（询问是否先存档 → 删除源路径）
-  $0 -h, --help         显示本帮助
+  ${DOTCTL_SELF:-$0} uninstall          卸载 rice（询问是否先存档 → 删除源路径）
+  ${DOTCTL_SELF:-$0} -h, --help         显示本帮助
 
 环境要求：
   · Arch Linux 系（/etc/arch-release 必须存在）
@@ -102,7 +110,7 @@ sijin-xb's dotfiles 自部署脚本 —— Rice 版本: ${RICE_VERSION}
   · ~/.local/state/dotfiles-backup/  回档 / 卸载存档 / 备份目录
 
 FAQ：
-  1) 回档后想回到 rice？ → 运行 $0 restore
+  1) 回档后想回到 rice？ → 运行 ${DOTCTL_SELF:-$0} restore
   2) 存档默认位置？       → ~/dotfiles-archive-YYYYMMDD-HHMMSS.tar.gz
   3) 面板模糊太浓？       → quickshell 设置 → Hyprland：模糊半径 10→8，活动不透明度 82→88
 

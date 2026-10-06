@@ -1,49 +1,12 @@
-# ============================================================
-# 子命令 rollback / restore / archive / uninstall（原 §4）
-# ============================================================
-cmd_rollback() {
-    # 与其他子命令统一：认 -h，多余参数显式告警而不是静默忽略
-    # （以前 `./install.sh rollback --dry-run` 既不报错也不生效）。
-    case "${1:-}" in
-        -h|--help) print_help; return 0 ;;
-        "") ;;
-        *) warn "rollback 不接受参数，已忽略: $*" ;;
-    esac
-    ensure_dirs
-    if ! read_state current >/dev/null; then
-        die "还没有 pre-install 快照，请先至少运行一次 ./install.sh install 来生成回档基线。"
-    fi
-    say "回档：先保存当前 rice 状态（restore 功能要用到）..."
-    snapshot_current "$PRE_ROLLBACK_PREFIX" before-rollback || warn "pre-rollback 快照失败，restore 将不可用"
-    apply_snapshot_from_state current "allow_back" || {
-        case $? in
-            2) say "已取消，返回。" ;;
-            *) die "回档失败，见上方输出。" ;;
-        esac
-    }
-    say "回档完成。如果想再回到回档之前的 rice 状态，运行：./install.sh restore"
-}
+# rollback / restore 已迁移到 Python（dotctl/commands/rollback.py）。
+# 两者会真的覆盖 $HOME，所以实现里那几处细节（覆盖前先存 pre-rollback 快照、
+# 确认的三种结果、取消时一个字节都不写）必须与原先一致。
+# ⚠ 快照原语（snapshot_current / read_state / ensure_dirs /
+#   session_warning_if_running）仍由 bash 侧提供 —— install 与 update 还在
+#   用它，见 dotctl/snapshot.py 的说明。
+cmd_rollback() { dotctl_run rollback "$@"; }
 
-cmd_restore() {
-    # 与其他子命令统一：认 -h，多余参数显式告警而不是静默忽略
-    # （以前 `./install.sh rollback --dry-run` 既不报错也不生效）。
-    case "${1:-}" in
-        -h|--help) print_help; return 0 ;;
-        "") ;;
-        *) warn "restore 不接受参数，已忽略: $*" ;;
-    esac
-    ensure_dirs
-    if ! read_state before-rollback >/dev/null; then
-        die "没有找到 pre-rollback 快照：还没执行过 rollback？或者快照文件已被手动删除？（不执行任何文件操作，退出）"
-    fi
-    apply_snapshot_from_state before-rollback "allow_back" || {
-        case $? in
-            2) say "已取消，返回。" ;;
-            *) die "恢复失败，见上方输出。" ;;
-        esac
-    }
-    say "恢复完成：配置已还原为回档前的 rice 状态。"
-}
+cmd_restore() { dotctl_run restore "$@"; }
 
 # cmd_archive：打包存档
 # 支持参数：-o PATH  --delete

@@ -24,11 +24,14 @@ RESET = _c('\033[0m')
 
 
 def say(msg: str) -> None:
-    print(f'{GREEN}==>{RESET} {msg}')
+    # flush 是必须的：迁移后的命令会在中途 fork bash（bashsrc.call_streaming），
+    # 子进程直接写 fd 1，而 Python 的 stdout 在管道下是块缓冲 —— 不 flush 就会
+    # 出现「子进程的输出跑到本函数前面」的乱序（rollback 实测踩到）。
+    print(f'{GREEN}==>{RESET} {msg}', flush=True)
 
 
 def warn(msg: str) -> None:
-    print(f'{YELLOW} ->{RESET} {msg}')
+    print(f'{YELLOW} ->{RESET} {msg}', flush=True)
 
 
 def die(msg: str, code: int = 1) -> 'NoReturn':  # noqa: F821

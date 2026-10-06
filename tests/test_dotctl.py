@@ -23,7 +23,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dotctl import paths, state  # noqa: E402
 from dotctl import prompt  # noqa: E402
-from dotctl.commands import clean, deps, doctor, status, theme  # noqa: E402
+from dotctl import snapshot  # noqa: E402
+from dotctl.commands import clean, deps, doctor, rollback, status, theme  # noqa: E402
 
 
 class TempHome(unittest.TestCase):
@@ -547,6 +548,158 @@ class TestDoctor(TempHome):
         _, out = self.run_doctor()
         self.assertIn('dms 会话不需要 QML 模块自检', out)
         self.assertIn('── 会话（dms', out)
+
+
+
+class TestRollbackRestore(TempHome):
+    """rollback / restore 会真的解 tar 到 $HOME。
+
+    这里全部在临时 HOME 下跑，且把 `_apply` 里真正的 tar 提取替换掉 ——
+    测的是**决策路径**（有没有快照、确认结果、先存 pre-rollback），
+    真实提取由 /tmp 的隔离测试台负责（那边跑完整 CLI）。
+    """
+
+    def make_snapshot(self, key: str, name: str) -> Path:
+        snap = paths.snap_root() / name
+        snap.parent.mkdir(parents=True, exist_ok=True)
+        snap.write_bytes(b'x' * 8)
+        state = paths.state_dir()
+        state.mkdir(parents=True, exist_ok=True)
+        (state / key).write_text(str(snap) + '\n')
+        return snap
+
+    def run_cmd(self, func, argv: list[str], answer: str = 'n',
+                snapshot_ok: bool = True) -> tuple[int, str, list[str]]:
+        out, err = io.StringIO(), io.StringIO()
+        calls: list[str] = []
+
+        def fake_snap(prefix: str, state_key: str = '') -> bool:
+            calls.append(f'snapshot:{prefix}:{state_key}')
+            return snapshot_ok
+
+        def fake_stream(func_name: str, *args: str) -> bool:
+            calls.append(func_name)
+            return True
+
+        with mock.patch.object(snapshot, 'snapshot_current', side_effect=fake_snap), \
+             mock.patch.object(snapshot, 'session_warning_if_running',
+                               side_effect=lambda: calls.append('session_warning')), \
+             mock.patch.object(rollback.bashsrc, 'call_streaming', side_effect=fake_stream), \
+             mock.patch.object(prompt, 'read_answer', return_value=answer), \
+             mock.patch.object(rollback, '_count_files', return_value=3):
+            # ui.die 写 stderr（与 bash 的 die 一致），所以两个流都要接
+            with redirect_stdout(out), redirect_stderr(err):
+                # ui.die 走 SystemExit（与 bash 的 die 一样是「直接结束」），
+                # 统一在这里收成退出码，用例不必各自 try。
+                try:
+                    rc = func(list(argv))
+                except SystemExit as exc:
+                    rc = int(exc.code or 0)
+        return rc, out.getvalue() + err.getvalue(), calls
+
+    def test_rollback_without_snapshot_dies(self) -> None:
+        rc, out, calls = self.run_cmd(rollback.rollback, [])
+        self.assertEqual(rc, 1)
+        self.assertIn('还没有 pre-install 快照', out)
+        # 没有快照时不该先去存 pre-rollback
+        self.assertNotIn('snapshot:pre-rollback:before-rollback', calls)
+
+    def test_restore_without_snapshot_dies(self) -> None:
+        rc, out, _ = self.run_cmd(rollback.restore, [])
+        self.assertEqual(rc, 1)
+        self.assertIn('没有找到 pre-rollback 快照', out)
+
+    def test_rollback_saves_pre_rollback_first(self) -> None:
+        """回档前必须先存 pre-rollback 快照 —— 否则 restore 没得回。"""
+        self.make_snapshot('current', 'pre-install-20260101.tar.gz')
+        rc, out, calls = self.run_cmd(rollback.rollback, [], answer='n')
+        self.assertEqual(rc, 1)                     # 答 n → 取消
+        self.assertIn('snapshot:pre-rollback:before-rollback', calls)
+        self.assertIn('回档：先保存当前 rice 状态', out)
+
+    def test_declined_writes_nothing(self) -> None:
+        """答 n 时不能动任何文件 —— 提取那一步不该发生。"""
+        self.make_snapshot('current', 'pre-install-20260101.tar.gz')
+        with mock.patch.object(rollback.subprocess, 'run') as run_mock:
+            run_mock.return_value = mock.Mock(returncode=0)
+            rc, _, _ = self.run_cmd(rollback.rollback, [], answer='n')
+        self.assertEqual(rc, 1)
+        for call in run_mock.call_args_list:
+            self.assertNotIn('-pzxf', call[0][0],
+                             f'取消后仍执行了提取：{call[0][0]}')
+
+    def test_confirmed_rollback_extracts(self) -> None:
+        self.make_snapshot('current', 'pre-install-20260101.tar.gz')
+        with mock.patch.object(rollback.subprocess, 'run') as run_mock:
+            run_mock.return_value = mock.Mock(returncode=0)
+            rc, out, _ = self.run_cmd(rollback.rollback, [], answer='y')
+        self.assertEqual(rc, 0)
+        self.assertIn('已提取完成', out)
+        self.assertIn('./install.sh restore', out)
+        extract = [c for c in run_mock.call_args_list
+                   if '-pzxf' in c[0][0]]
+        self.assertEqual(len(extract), 1)
+
+    def test_snapshot_failure_is_warned_not_fatal(self) -> None:
+        self.make_snapshot('current', 'pre-install-20260101.tar.gz')
+        _, out, _ = self.run_cmd(rollback.rollback, [], answer='n', snapshot_ok=False)
+        self.assertIn('pre-rollback 快照失败，restore 将不可用', out)
+
+    def test_restore_uses_before_rollback(self) -> None:
+        self.make_snapshot('before-rollback', 'pre-rollback-20260101.tar.gz')
+        with mock.patch.object(rollback.subprocess, 'run') as run_mock:
+            run_mock.return_value = mock.Mock(returncode=0)
+            rc, out, _ = self.run_cmd(rollback.restore, [], answer='y')
+        self.assertEqual(rc, 0)
+        self.assertIn('恢复完成：配置已还原为回档前的 rice 状态。', out)
+
+    def test_help_prints_full_help(self) -> None:
+        for func in (rollback.rollback, rollback.restore):
+            out = io.StringIO()
+            with mock.patch.object(rollback.bashsrc, 'help_text',
+                                   return_value='FULL-HELP\n'):
+                with redirect_stdout(out):
+                    rc = func(['-h'])
+            self.assertEqual(rc, 0)
+            self.assertEqual(out.getvalue(), 'FULL-HELP\n')
+
+    def test_stray_args_warn_but_continue(self) -> None:
+        """多余参数只告警不报错（与 bash 版一致），继续往下走。"""
+        self.make_snapshot('current', 'pre-install-20260101.tar.gz')
+        rc, out, calls = self.run_cmd(rollback.rollback, ['--dry-run'], answer='n')
+        self.assertIn('rollback 不接受参数，已忽略: --dry-run', out)
+        # 告警之后照常执行：仍然存了 pre-rollback 快照
+        self.assertIn('snapshot:pre-rollback:before-rollback', calls)
+        self.assertEqual(rc, 1)          # 最后答 n → 取消
+
+
+class TestSnapshotState(TempHome):
+    """snapshot.read_state 的语义：state 文件与快照文件缺一不可。"""
+
+    def test_both_present(self) -> None:
+        snap = paths.snap_root() / 'a.tar.gz'
+        snap.parent.mkdir(parents=True)
+        snap.write_bytes(b'x')
+        state = paths.state_dir()
+        state.mkdir(parents=True)
+        (state / 'current').write_text(str(snap) + '\n')
+        self.assertEqual(snapshot.read_state('current'), snap)
+
+    def test_state_file_missing(self) -> None:
+        self.assertIsNone(snapshot.read_state('current'))
+
+    def test_snapshot_file_missing(self) -> None:
+        """state 文件在、但它指向的快照被删了 → 也算读不到。"""
+        state = paths.state_dir()
+        state.mkdir(parents=True)
+        (state / 'current').write_text(str(paths.snap_root() / 'gone.tar.gz') + '\n')
+        self.assertIsNone(snapshot.read_state('current'))
+
+    def test_empty_state_file(self) -> None:
+        state = paths.state_dir()
+        state.mkdir(parents=True)
+        (state / 'current').write_text('\n')
+        self.assertIsNone(snapshot.read_state('current'))
 
 
 if __name__ == '__main__':
