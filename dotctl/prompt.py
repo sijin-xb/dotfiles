@@ -7,6 +7,7 @@
 """
 from __future__ import annotations
 
+import os
 import select
 import sys
 
@@ -15,10 +16,33 @@ from . import ui
 DEFAULT_TIMEOUT = 3
 
 
+def _read_line_raw() -> str:
+    """从 fd 0 逐字节读到换行，**不预读**。
+
+    ⚠ 不能用 sys.stdin.readline()：它带缓冲，一次会把整块 stdin（例如管道里
+    剩下的所有答案）读进用户态缓冲，之后 fork 出去的 bash 子进程就只剩 EOF。
+    uninstall 实测踩到：先问「是否存档」读掉一行，接着 bash 侧的
+    uninstall_compositor_scope / uninstall_shell_scope 拿不到答案，全走默认值
+    （shell 范围恒为 end4-PC）。
+
+    bash 的 read 内建就是逐字节读的（对管道也一样），这里对齐它的行为。
+    """
+    buf = bytearray()
+    while True:
+        try:
+            ch = os.read(0, 1)
+        except OSError:
+            break
+        if not ch or ch == b'\n':
+            break
+        buf += ch
+    return buf.decode(errors='replace').rstrip('\r')
+
+
 def read_answer(timeout: int = DEFAULT_TIMEOUT) -> str:
     if sys.stdin.isatty():
         try:
-            return sys.stdin.readline().strip()
+            return _read_line_raw()
         except (OSError, KeyboardInterrupt):
             return ''
 
@@ -26,7 +50,7 @@ def read_answer(timeout: int = DEFAULT_TIMEOUT) -> str:
     try:
         ready, _, _ = select.select([sys.stdin], [], [], timeout)
         timed_out = not ready
-        answer = '' if timed_out else sys.stdin.readline().strip()
+        answer = '' if timed_out else _read_line_raw()
     except (OSError, ValueError):
         answer = ''
     # bash 版在非终端分支里无条件补一个换行（提示语没带换行）

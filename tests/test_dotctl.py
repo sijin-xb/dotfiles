@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import io
 import os
+import subprocess
 import sys
 import tempfile
 import time
@@ -23,8 +24,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dotctl import paths, state  # noqa: E402
 from dotctl import prompt  # noqa: E402
-from dotctl import snapshot, tmpfiles  # noqa: E402
-from dotctl.commands import archive, clean, deps, doctor, rollback, status, theme  # noqa: E402
+from dotctl import prompt, snapshot, tmpfiles  # noqa: E402
+from dotctl.commands import (archive, clean, deps, doctor, rollback,  # noqa: E402
+                             status, theme, uninstall)
 
 
 class TempHome(unittest.TestCase):
@@ -838,6 +840,170 @@ class TestFrozenPaths(TempHome):
             os.environ.pop(key, None)
         self.assertEqual(paths.backup_root(),
                          paths.home() / '.local/state/dotfiles-backup')
+
+
+
+class TestUninstall(TempHome):
+    """uninstall 是唯一会递归删 $HOME 下路径的命令，测试重点全在边界上：
+    只删清单里的项、按会话过滤、任一确认答 n 都不删、区分两种失败。
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        for rel in ('.config/kitty/kitty.conf', '.config/fish/config.fish',
+                    '.config/hypr/hyprland.lua', '.config/quickshell/end4-pC/shell.qml',
+                    '.config/quickshell/caelestia/shell.qml'):
+            self.write(rel, 'x\n')
+        self.write('unrelated.txt', 'keep\n')
+
+    def run_uninstall(self, answers: list[str], plan: list[str] | None = None,
+                      archive_rc: int = 0, argv: list[str] | None = None,
+                      extra: str = '') -> tuple[int, str]:
+        """answers 依次喂给每次 confirm；plan 是 bash 侧返回的删除清单；
+        extra 是 dotctl_extra_paths 的输出（EXTRA_ARCHIVE_PATHS）。"""
+        out, err = io.StringIO(), io.StringIO()
+        rows = plan if plan is not None else ['.config/kitty']
+        pending = list(answers)
+
+        def fake_answer(*_a, **_k) -> str:
+            return pending.pop(0) if pending else ''
+
+        def fake_stream(func_name: str, *args: str) -> bool:
+            # dotctl_uninstall_plan 把清单写进 $1 指向的文件
+            if func_name == 'dotctl_uninstall_plan' and args:
+                Path(args[0]).write_text('SCOPE=end4-pC|hyprland|0\n' + '\n'.join(rows) + '\n')
+            return True
+
+        with mock.patch.object(uninstall.prompt, 'read_answer', side_effect=fake_answer), \
+             mock.patch.object(uninstall.bashsrc, 'call_streaming', side_effect=fake_stream), \
+             mock.patch.object(uninstall.bashsrc, 'call', return_value=extra), \
+             mock.patch.object(uninstall, '_read_plan',
+                               return_value=('end4-pC|hyprland|0', list(rows))), \
+             mock.patch.object(archive, 'run', return_value=archive_rc):
+            with redirect_stdout(out), redirect_stderr(err):
+                try:
+                    rc = uninstall.run(list(argv or []))
+                except SystemExit as exc:
+                    rc = int(exc.code or 0)
+        return rc, out.getvalue() + err.getvalue()
+
+    def test_declined_delete_removes_nothing(self) -> None:
+        rc, out = self.run_uninstall(['n', 'n'], plan=['.config/kitty'])
+        self.assertEqual(rc, 0)
+        self.assertTrue((paths.home() / '.config/kitty/kitty.conf').exists())
+        self.assertNotIn('已删除', out)
+
+    def test_confirmed_deletes_only_plan_entries(self) -> None:
+        rc, out = self.run_uninstall(['n', 'y'], plan=['.config/kitty'])
+        self.assertEqual(rc, 0)
+        self.assertIn('已删除 ~/.config/kitty', out)
+        # 清单外的文件绝不能碰
+        self.assertTrue((paths.home() / '.config/fish/config.fish').exists())
+        self.assertTrue((paths.home() / 'unrelated.txt').exists())
+
+    def test_session_filter_keeps_other_shell(self) -> None:
+        """只删 end4-pC 时，caelestia 必须留着。"""
+        rc, _ = self.run_uninstall(['n', 'y'],
+                                   plan=['.config/quickshell/end4-pC'])
+        self.assertEqual(rc, 0)
+        self.assertFalse((paths.home() / '.config/quickshell/end4-pC').exists())
+        self.assertTrue((paths.home() / '.config/quickshell/caelestia').exists())
+
+    def test_missing_entries_are_skipped_silently(self) -> None:
+        rc, out = self.run_uninstall(['n', 'y'],
+                                     plan=['.config/nvim', '.config/kitty'])
+        self.assertEqual(rc, 0)
+        self.assertNotIn('已删除 ~/.config/nvim', out)
+        self.assertIn('已删除 ~/.config/kitty', out)
+
+    def test_archive_refused_asks_again(self) -> None:
+        """用户在打包确认处按 n（arc_rc=2）→ 必须再问一次，不能直接删。"""
+        rc, out = self.run_uninstall(['y', 'n'], archive_rc=2)
+        self.assertEqual(rc, 0)
+        self.assertIn('你取消了存档 —— 本次卸载**没有备份**。', out)
+        self.assertIn('已中止，未删除任何文件。', out)
+        self.assertTrue((paths.home() / '.config/kitty/kitty.conf').exists())
+
+    def test_archive_refused_but_user_continues(self) -> None:
+        rc, out = self.run_uninstall(['y', 'y', 'y'], archive_rc=2,
+                                     plan=['.config/kitty'])
+        self.assertEqual(rc, 0)
+        self.assertIn('已删除 ~/.config/kitty', out)
+
+    def test_archive_failure_only_warns(self) -> None:
+        """arc_rc=1（真的失败）只告警，不重复确认。"""
+        rc, out = self.run_uninstall(['y', 'y'], archive_rc=1, plan=['.config/kitty'])
+        self.assertEqual(rc, 0)
+        self.assertIn('存档失败，将继续执行卸载（无备份）', out)
+        self.assertIn('已删除 ~/.config/kitty', out)
+
+    def test_extra_paths_are_also_removed(self) -> None:
+        """EXTRA_ARCHIVE_PATHS（quickshell 状态等）也在删除范围内。"""
+        self.write('.local/state/quickshell/x', 'q\n')
+        rc, out = self.run_uninstall(['n', 'y'], plan=['.config/kitty'],
+                                     extra='.local/state/quickshell')
+        self.assertEqual(rc, 0)
+        self.assertFalse((paths.home() / '.local/state/quickshell').exists())
+
+    def test_help_and_stray_args(self) -> None:
+        with mock.patch.object(uninstall.bashsrc, 'help_text', return_value='H\n'):
+            out = io.StringIO()
+            with redirect_stdout(out):
+                rc = uninstall.run(['-h'])
+        self.assertEqual(rc, 0)
+        self.assertEqual(out.getvalue(), 'H\n')
+
+        _, out = self.run_uninstall(['n', 'n'], argv=['--bogus'])
+        self.assertIn('uninstall 不接受参数，已忽略: --bogus', out)
+
+
+class TestPromptUnbuffered(TempHome):
+    """read_answer 必须逐字节读，不能预读缓冲。
+
+    用 readline() 会把管道里剩下的答案一次读进用户态缓冲，之后 fork 出去的
+    bash 子进程只剩 EOF —— uninstall 实测踩到（shell 范围恒为默认值）。
+    """
+
+    def _feed(self, data: bytes, reads: int) -> list[str]:
+        r, w = os.pipe()
+        os.write(w, data)
+        os.close(w)
+        old = os.dup(0)
+        os.dup2(r, 0)
+        try:
+            out = []
+            with mock.patch.object(prompt.sys.stdin, 'isatty', return_value=True):
+                for _ in range(reads):
+                    out.append(prompt.read_answer())
+        finally:
+            os.dup2(old, 0)
+            os.close(old)
+            os.close(r)
+        return out
+
+    def test_sequential_reads_see_all_lines(self) -> None:
+        got = self._feed(b'first\nsecond\nthird\n', 3)
+        self.assertEqual(got, ['first', 'second', 'third'])
+
+    def test_child_process_can_still_read(self) -> None:
+        """读完一行后，子进程仍应能读到下一行（这正是 uninstall 的场景）。"""
+        r, w = os.pipe()
+        os.write(w, b'python-line\nbash-line\n')
+        os.close(w)
+        old = os.dup(0)
+        os.dup2(r, 0)
+        try:
+            with mock.patch.object(prompt.sys.stdin, 'isatty', return_value=True):
+                first = prompt.read_answer()
+            proc = subprocess.run(['bash', '-c', 'read -r x; echo "$x"'],
+                                  capture_output=True, text=True)
+        finally:
+            os.dup2(old, 0)
+            os.close(old)
+            os.close(r)
+        self.assertEqual(first, 'python-line')
+        self.assertEqual(proc.stdout.strip(), 'bash-line',
+                         'bash 子进程读不到第二行 —— read_answer 预读了缓冲')
 
 
 if __name__ == '__main__':

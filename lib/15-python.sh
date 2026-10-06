@@ -61,3 +61,24 @@ dotctl_extra_paths() {
 dotctl_ensure_frozen_dirs() {
     mkdir -p "$BACKUP_ROOT" "$SNAP_ROOT" "$STATE_DIR"
 }
+
+# uninstall 用：在**同一个 bash 进程**里跑「选范围 → 算删除清单」。
+#
+# ⚠ 必须一次 fork 完成，不能分两次调：uninstall_compositor_scope /
+#   uninstall_shell_scope 会设 COMPOSITOR / QS_SHELL /
+#   INSTALL_BOTH_COMPOSITORS，而 active_snap_paths 正是读这几个变量决定
+#   删哪些路径。分两次 fork 的话，第二次看不到第一次设的值，过滤就失效了
+#   —— 会把另一套会话的配置也删掉。
+#
+# ⚠ 结果写进 $1 指向的文件，而不是 stdout：这两个函数要打印交互提示并从
+#   stdin 读答案，提示必须原样流到终端。用命令替换捕获输出会把提示一起吞掉、
+#   还会让 read 拿到空的 stdin。所以 stdout 留给提示，清单走文件。
+dotctl_uninstall_plan() {
+    local outfile="$1"
+    uninstall_compositor_scope
+    uninstall_shell_scope
+    {
+        printf 'SCOPE=%s|%s|%s\n' "${QS_SHELL:-}" "${COMPOSITOR:-}" "${INSTALL_BOTH_COMPOSITORS:-0}"
+        active_snap_paths
+    } > "$outfile"
+}
