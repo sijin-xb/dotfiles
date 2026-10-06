@@ -150,8 +150,10 @@ niri 见 `binds.kdl` + `dms/binds.kdl`。两套键位是照着迁移的（同功
 ## 目录结构
 
 ~~~
-install.sh                 安装器引导（逻辑按职责在 lib/ 下分 20 个模块）
-lib/                       安装器模块：部署、快照、包管理、TUI、各子命令
+install.sh                 安装器引导（bash：定位仓库、加载 lib/、分发子命令）
+lib/                       bash 侧模块：部署、快照、包管理、TUI、未迁移的子命令
+dotctl/                    Python 侧：已迁移的子命令（纯标准库，3.11+）
+tools/                     维护脚本（终端配色体检等）
 dot_config/                部署到 ~/.config（下列为其中的关键路径）
   hypr/                    Hyprland：hyprland.lua 入口 + hyprland/ 模板层 + custom/ 覆盖层
   niri/                    niri：config.kdl 入口 + binds/rule/layout/animations 等分片
@@ -193,9 +195,12 @@ check-qml-deps.py          QML 模块依赖自检，install 与 update 收尾各
 | `tests/install-sh-prompt-test.sh` | `confirm` / `read_answer` 在 EOF、沉默管道、pty 下都不挂死 |
 | `tests/install-sh-tmpfiles-test.sh` | 临时文件：统一 run 目录、EXIT trap、SIGINT 不留垃圾 |
 | `tests/install-sh-archive-test.sh` | `archive` 打包内容、拒绝存档的返回码语义 |
+| `tests/test_dotctl.py` | Python 侧契约测试：status 输出格式、会话推断、清单计数等价 `wc -l` |
 
 失败时会打印「实际 vs 期望」并以非 0 退出；
 `DRYRUN_ROOT=/tmp/xxx bash tests/install-sh-dryrun.sh` 可保留现场排查。
+
+Python 侧单独跑（同样不需要 sudo / 网络）：`python3 -m unittest discover -s tests -p 'test_*.py' -t .`
 
 改 matugen 的终端配色模板（kitty / alacritty / foot / konsole）之后，跑
 `python3 tools/term-color-audit.py`：它把四个终端的 16 个 ANSI 槽位拉齐算

@@ -109,3 +109,27 @@ choose_fonts() {
         *)    FONTS=1; echo "    字体: 安装推荐字体" ;;
     esac
 }
+
+# 会话推断（原在 lib/83-cmd-status.sh，status 迁到 Python 后挪过来 ——
+# doctor / deps 仍在 bash 侧共用它）。
+# 会话来源：优先读部署时写下的 deployed-session —— 那才代表**机器现状**；
+# 环境变量只是「这次想装什么」，没有部署记录时才退回它推断。
+# 副作用：会把 QS_SHELL / COMPOSITOR 设成当前生效值，后续函数（manifest_path
+# 等）依赖它们，所以每个命令开头都要先调一次。
+status_resolve_session() {
+    local sp; sp="$(session_path)"
+    if [[ -s "$sp" ]]; then
+        IFS='|' read -r QS_SHELL COMPOSITOR < "$sp"
+    else
+        session_to_parts
+    fi
+}
+
+status_session_label() {
+    case "${QS_SHELL:-}:${COMPOSITOR:-}" in
+        end4-pC:hyprland)  printf 'end4pc（Hyprland + quickshell end4-PC）' ;;
+        caelestia:hyprland) printf 'caelestia（Hyprland + caelestia shell）' ;;
+        dms:niri)          printf 'dms（niri + DankMaterialShell）' ;;
+        *)                 printf '%s + %s' "${QS_SHELL:-未知}" "${COMPOSITOR:-未知}" ;;
+    esac
+}

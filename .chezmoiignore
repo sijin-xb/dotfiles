@@ -53,7 +53,10 @@
 README.md
 LICENSE
 install.sh
-lib/            # install.sh 的模块目录，由引导按字典序 source
+lib/            # install.sh 的 bash 模块，由引导按字典序 source
+dotctl/         # 安装器的 Python 侧（已迁移的子命令）
+VERSION         # 版本号单一来源，bash 与 dotctl 都读它
+tools/          # 维护用脚本（终端配色体检等）
 Pictures/
 
 # ---- Python 字节码缓存（scripts 下有多个 __pycache__）----

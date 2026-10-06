@@ -4,7 +4,9 @@
 # lib/ 下 BASH_SOURCE[0] 指向的是本目录而不是仓库根。
 # ============================================================
 REPO_URL="https://github.com/sijin-xb/dotfiles.git"
-RICE_VERSION="v2.0"
+# 版本号单一来源：仓库根的 VERSION 文件。bash 与 Python 侧（dotctl）都读它，
+# 免得迁移期两边各写一份、改一处漏一处。
+RICE_VERSION="$(cat "$SRC/VERSION" 2>/dev/null || echo v2.0)"
 BACKUP_ROOT="$HOME/.local/state/dotfiles-backup"
 SNAP_ROOT="$BACKUP_ROOT/snapshots"
 STATE_DIR="$BACKUP_ROOT/state"
