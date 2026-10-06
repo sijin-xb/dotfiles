@@ -214,17 +214,24 @@ def deploy_one_file(src: Path, dst_dir: str, base: str, attrs: dict[str, bool],
         os.symlink(link_target, dst)
         return 'link', target_rel
 
+
+    # ⚠ 返回值要区分「新建」与「覆盖并备份过」—— 调用方（update）用 backup
+    #   计数报给用户「N 个有差异的旧文件备份于 …」。第一版写成
+    #   `'backup' if backup_dir else 'new'`，于是只要传了 backup_dir，新建的
+    #   文件也被算成备份（实测 39 个新增报成 39 个备份，而 bash 报 0）。
+    backed_up = False
     if dst.exists() and not dst.is_symlink():
         if fingerprint(src) == fingerprint(dst):
             return 'same', target_rel
         _backup(dst, backup_dir)
+        backed_up = True
 
     shutil.copy2(src, dst)
     if attrs.get('exec'):
         dst.chmod(dst.stat().st_mode | 0o111)
     if attrs.get('private'):
         dst.chmod(0o600)
-    return 'backup' if backup_dir else 'new', target_rel
+    return ('backup' if backed_up else 'new'), target_rel
 
 
 def _rel_from_home(path: str) -> str:
@@ -242,3 +249,72 @@ def _backup(dst: Path, backup_dir: str | None) -> None:
         shutil.copy2(dst, dest)
     except OSError:
         pass
+
+
+# ── 部署清单（对应 lib/40-manifest.sh 的 manifest_read / manifest_write）─────
+
+def manifest_path() -> Path:
+    from . import paths, state
+    shell, comp = state.resolve_session()
+    return paths.state_dir() / f'deployed-{shell}-{comp}.tsv'
+
+
+def revision_path() -> Path:
+    from . import paths, state
+    shell, comp = state.resolve_session()
+    return paths.state_dir() / f'deployed-revision-{shell}-{comp}'
+
+
+def manifest_read() -> dict[str, str]:
+    """读旧清单 {rel: 指纹}。文件不存在或为空时返回空 dict。
+
+    对应 bash 的 manifest_read：它返回 1 表示「没有旧清单」，调用方据此走
+    「首次升级」的安全分支（目标已存在且与源不同的文件不覆盖）。
+    """
+    out: dict[str, str] = {}
+    try:
+        text = manifest_path().read_text(errors='replace')
+    except OSError:
+        return out
+    for line in text.splitlines():
+        if '\t' in line:
+            fp, rel = line.split('\t', 1)
+            if rel:
+                out[rel] = fp
+    return out
+
+
+def manifest_write(rels: list[str]) -> None:
+    """写回清单。每行「指纹<TAB>相对路径」，指纹取自**目标**文件当前内容。"""
+    from . import paths
+    out = manifest_path()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    home = paths.home()
+    lines = []
+    for rel in rels:
+        if not rel:
+            continue
+        lines.append(f'{fingerprint(home / rel)}\t{rel}')
+    out.write_text('\n'.join(lines) + ('\n' if lines else ''))
+
+
+def collect_plan(skip_compositor=None, skip_shell=None) -> tuple[list[str], list[Path]]:
+    """算部署计划：返回 (相对路径列表, 对应源文件列表)。
+
+    对应 bash 的 walk_sources + plan_collect：
+      · .chezmoiignore 判 skip → 不进计划
+      · 判 keep 且目标已存在 → 不进计划（该文件由用户保留）
+    """
+    rels: list[str] = []
+    srcs: list[Path] = []
+    for src, dst, rel, _attrs in walk_sources(skip_compositor, skip_shell):
+        from . import paths
+        target_rel = _rel_from_home(dst)
+        kind = ignore_kind(target_rel)
+        if kind == 'skip':
+            continue
+        if kind == 'keep' and (paths.home() / target_rel).exists():
+            continue
+        rels.append(target_rel)
+        srcs.append(src)
+    return rels, srcs

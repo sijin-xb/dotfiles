@@ -26,7 +26,7 @@ from dotctl import paths, state  # noqa: E402
 from dotctl import prompt  # noqa: E402
 from dotctl import deploy, prompt, snapshot, tmpfiles  # noqa: E402
 from dotctl.commands import (archive, clean, deps, doctor, rollback,  # noqa: E402
-                             status, theme, uninstall)
+                             status, theme, uninstall, update)
 
 
 class TempHome(unittest.TestCase):
@@ -1213,6 +1213,171 @@ class TestDeployOneFile(TempHome):
 
 def _rel(path: Path) -> str:
     return str(path)[len(str(paths.home())) + 1:]
+
+
+
+class TestUpdateClassify(TempHome):
+    """update 的计划分类：新增 / 更新 / 冲突 / 删除。
+
+    这里测的是**决策**，不跑真实部署 —— 那部分由 /tmp 的隔离 harness
+    对跑完整 CLI 负责。
+    """
+
+    def src(self, name: str, body: str = 'x\n') -> Path:
+        path = self.home / 'src' / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(body)
+        return path
+
+    def test_new_file_is_added(self) -> None:
+        src = self.src('a.conf')
+        groups = update._classify(['.config/a.conf'], [src], {}, False, True, paths.home())
+        self.assertEqual(groups['added'], ['.config/a.conf'])
+        self.assertEqual(groups['conflicts'], [])
+
+    def test_existing_different_without_manifest_is_conflict(self) -> None:
+        """首次升级的安全网：目标已存在且与源不同 → 不覆盖，列为冲突。
+
+        本机实测过盲覆盖的代价 —— 会把 live 里带修复的文件退回仓库旧版。
+        """
+        src = self.src('a.conf', 'repo\n')
+        self.write('.config/a.conf', 'local-fix\n')
+        groups = update._classify(['.config/a.conf'], [src], {}, False, True, paths.home())
+        self.assertEqual(groups['conflicts'], ['.config/a.conf'])
+        self.assertEqual(groups['added'], [])
+
+    def test_existing_identical_is_added(self) -> None:
+        src = self.src('a.conf', 'same\n')
+        self.write('.config/a.conf', 'same\n')
+        groups = update._classify(['.config/a.conf'], [src], {}, False, True, paths.home())
+        self.assertEqual(groups['added'], ['.config/a.conf'])
+        self.assertEqual(groups['conflicts'], [])
+
+    def test_changed_detected_by_fingerprint(self) -> None:
+        src = self.src('a.conf', 'new\n')
+        self.write('.config/a.conf', 'old\n')
+        old = {'.config/a.conf': deploy.fingerprint(self.home / '.config/a.conf')}
+        groups = update._classify(['.config/a.conf'], [src], old, True, True, paths.home())
+        self.assertEqual(groups['changed'], ['.config/a.conf'])
+        self.assertEqual(groups['local_modified'], [])
+
+    def test_local_modification_flagged(self) -> None:
+        """用户在本地改过（目标当前内容 != 部署时记下的）→ 单独列出。"""
+        src = self.src('a.conf', 'new\n')
+        self.write('.config/a.conf', 'user-edited\n')
+        old = {'.config/a.conf': 'deadbeef'}          # 与目标当前指纹不同
+        groups = update._classify(['.config/a.conf'], [src], old, True, True, paths.home())
+        self.assertEqual(groups['changed'], ['.config/a.conf'])
+        self.assertEqual(groups['local_modified'], ['.config/a.conf'])
+
+    def test_removed_only_with_manifest_and_prune(self) -> None:
+        src = self.src('a.conf')
+        old = {'.config/gone.conf': 'x', '.config/a.conf': deploy.fingerprint(src)}
+        groups = update._classify(['.config/a.conf'], [src], old, True, True, paths.home())
+        self.assertEqual(groups['removed'], ['.config/gone.conf'])
+
+        # 没有旧清单 → 不做删除清理（首次升级时 OLD_MANIFEST 是空的）
+        groups = update._classify(['.config/a.conf'], [src], {}, False, True, paths.home())
+        self.assertEqual(groups['removed'], [])
+
+        # --no-prune → 也不删
+        groups = update._classify(['.config/a.conf'], [src], old, True, False, paths.home())
+        self.assertEqual(groups['removed'], [])
+
+
+class TestUpdateRun(TempHome):
+    """update 的参数处理与 --dry-run 的「不写任何东西」承诺。"""
+
+    def setUp(self) -> None:
+        super().setUp()
+        # ⚠ 不要全局 mock Path.is_file —— 那会让「读 deployed-revision-*」也
+        #   以为文件存在，然后 read_text 抛 FileNotFoundError（实测踩到）。
+        #   /etc/arch-release 的检查改成精确 mock 那个具体路径。
+        real_is_file = Path.is_file
+
+        def fake_is_file(self) -> bool:                      # noqa: ANN001
+            if str(self) == '/etc/arch-release':
+                return True
+            return real_is_file(self)
+
+        patcher = mock.patch.object(Path, 'is_file', fake_is_file)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def run_update(self, argv: list[str]) -> tuple[int, str]:
+        out, err = io.StringIO(), io.StringIO()
+        with mock.patch.object(update.bashsrc, 'call', return_value=''), \
+             mock.patch.object(update.bashsrc, 'call_streaming', return_value=True), \
+             mock.patch.object(update, '_load_session', return_value=('end4-pC', 'hyprland')), \
+             mock.patch.object(update.deploy, 'collect_plan', return_value=([], [])), \
+             mock.patch.object(update.deploy, 'manifest_read', return_value={}), \
+             mock.patch.object(update.deploy, 'revision_path',
+                               return_value=self.home / 'nope'), \
+             mock.patch.object(update, '_git', return_value='abc1234'):
+            with redirect_stdout(out), redirect_stderr(err):
+                try:
+                    rc = update.run(list(argv))
+                except SystemExit as exc:
+                    rc = int(exc.code or 0)
+        return rc, out.getvalue() + err.getvalue()
+
+    def test_dry_run_writes_nothing(self) -> None:
+        rc, out = self.run_update(['--dry-run'])
+        self.assertEqual(rc, 0)
+        self.assertIn('--dry-run：以上只是计划，没有写入任何文件。', out)
+        # 不该建备份目录（bash 版的承诺：dry-run 一个字节都不写）
+        self.assertFalse((paths.home() / '.local/state/dotfiles-backup/state').exists())
+
+    def test_unknown_arg_dies(self) -> None:
+        rc, out = self.run_update(['--bogus'])
+        self.assertEqual(rc, 1)
+        self.assertIn('update 不认识参数: --bogus', out)
+
+    def test_help(self) -> None:
+        with mock.patch.object(update.bashsrc, 'help_text', return_value='H\n'):
+            rc, out = self.run_update(['-h'])
+        self.assertEqual(rc, 0)
+        self.assertEqual(out, 'H\n')
+
+    def test_root_refused(self) -> None:
+        with mock.patch.object(update.os, 'geteuid', return_value=0):
+            rc, out = self.run_update(['--dry-run'])
+        self.assertEqual(rc, 1)
+        self.assertIn('请勿用 root 运行', out)
+
+    def test_no_manifest_note(self) -> None:
+        rc, out = self.run_update(['--dry-run'])
+        self.assertIn('没有旧清单（首次升级）', out)
+
+
+class TestUpdateWithPackages(TempHome):
+    """--with-packages 必须包含字体包。
+
+    ⚠ 这是修掉的一个 bash 既存 bug：原实现写 `(( fonts_enabled ))`，把**函数名**
+    当算术变量求值 —— 永远失败且 set -u 报错中断，于是合成器 / shell / base
+    包与整个 AUR 段都跑不到，字体包也永远补不上。install 用的是正确的
+    `if fonts_enabled`，只有 update 有这个 bug。
+    """
+
+    def test_fonts_packages_included(self) -> None:
+        seen: list[str] = []
+
+        def fake_packages(kind: str) -> list[str]:
+            seen.append(kind)
+            return {'pacman': ['git'], 'fonts-pacman': ['noto-fonts'],
+                    'aur': ['matugen'], 'fonts-aur': ['otf-misans']}[kind]
+
+        with mock.patch.object(update.bashsrc, 'packages', side_effect=fake_packages), \
+             mock.patch.object(update.bashsrc, 'call_streaming', return_value=True), \
+             mock.patch('shutil.which', return_value='/usr/bin/pacman'), \
+             mock.patch.object(update.subprocess, 'run') as run_mock:
+            run_mock.return_value = mock.Mock(returncode=0)
+            out = io.StringIO()
+            with redirect_stdout(out):
+                update._with_packages('end4-pC', 'hyprland')
+        self.assertIn('fonts-pacman', seen, '字体包被漏掉了 —— 正是 bash 版的 bug')
+        self.assertIn('fonts-aur', seen)
+        self.assertIn('noto-fonts', ' '.join(run_mock.call_args_list[0][0][0]))
 
 
 if __name__ == '__main__':
