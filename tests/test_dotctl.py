@@ -22,7 +22,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dotctl import paths, state  # noqa: E402
-from dotctl.commands import deps, status  # noqa: E402
+from dotctl.commands import deps, status, theme  # noqa: E402
 
 
 class TempHome(unittest.TestCase):
@@ -193,6 +193,97 @@ class TestDeps(TempHome):
         rc, out, _ = self.run_deps(['--bogus'])
         self.assertEqual(rc, 2)
         self.assertIn('deps: 未知选项 --bogus', out)
+
+
+
+class TestTheme(TempHome):
+    """theme 只读配置文件，所以断言可以钉得很死 —— 每个 sink 写什么、就应
+    该读到什么，不依赖机器实际状态（gsettings 例外，用 mock 挡掉）。"""
+
+    def run_theme(self, argv: list[str] | None = None,
+                  gsettings: dict[str, str] | None = None) -> tuple[int, str]:
+        table = gsettings or {}
+        out = io.StringIO()
+
+        def fake(schema: str, key: str) -> str:
+            return table.get(f'{schema}.{key}', '未设置')
+
+        with mock.patch.object(theme, '_gsettings', side_effect=fake):
+            with redirect_stdout(out):
+                rc = theme.run(list(argv or []))
+        return rc, out.getvalue()
+
+    def test_sections_and_labels(self) -> None:
+        rc, out = self.run_theme()
+        self.assertEqual(rc, 0)
+        for section in ('── 图标主题 ──', '── 光标主题 ──', '── GTK 主题 ──'):
+            self.assertIn(section, out)
+        for label in ('gsettings', 'gtk-3.0', 'gtk-4.0', 'gtk-2.0',
+                      'qt5ct', 'qt6ct', 'fuzzel', 'xsettingsd', 'rofi'):
+            self.assertIn(label, out)
+        self.assertIn('matugen 的 [templates.gtk-folder]', out)
+
+    def test_consistent(self) -> None:
+        for rel, key in (('.config/gtk-3.0/settings.ini', 'gtk-icon-theme-name'),
+                         ('.config/gtk-4.0/settings.ini', 'gtk-icon-theme-name'),
+                         ('.config/qt5ct/qt5ct.conf', 'icon_theme'),
+                         ('.config/qt6ct/qt6ct.conf', 'icon_theme')):
+            self.write(rel, f'[Settings]\n{key}=Paper\n')
+        self.write('.config/fuzzel/fuzzel.ini', 'icon-theme=Paper\n')
+        self.write('.config/xsettingsd/xsettingsd.conf', 'Net/IconThemeName "Paper"\n')
+        self.write('.config/rofi/themes/icons.rasi', '* {\n  icon-theme: "Paper";\n}\n')
+        self.write('.gtkrc-2.0', 'gtk-icon-theme-name="Paper"\n')
+        _, out = self.run_theme(gsettings={'org.gnome.desktop.interface.icon-theme': 'Paper'})
+        self.assertIn('一致：Paper', out)
+        self.assertNotIn('不一致', out)
+
+    def test_inconsistent_lists_both(self) -> None:
+        self.write('.config/gtk-3.0/settings.ini', 'gtk-icon-theme-name=Paper\n')
+        self.write('.config/gtk-4.0/settings.ini', 'gtk-icon-theme-name=WhiteSur\n')
+        _, out = self.run_theme(gsettings={'org.gnome.desktop.interface.icon-theme': 'Paper'})
+        self.assertIn('不一致：Paper / WhiteSur', out)
+
+    def test_nothing_set(self) -> None:
+        _, out = self.run_theme()
+        self.assertIn('没有任何一处设置了主题', out)
+
+    def test_missing_file_marker(self) -> None:
+        _, out = self.run_theme()
+        # 一个 sink 文件都不存在时，该行显示「无此文件」而不是留空
+        self.assertIn('无此文件', out)
+
+    def test_gtkrc_quotes_stripped(self) -> None:
+        self.write('.gtkrc-2.0', 'gtk-icon-theme-name="Quoted"\n')
+        _, out = self.run_theme(gsettings={'org.gnome.desktop.interface.icon-theme': 'Quoted'})
+        self.assertIn('一致：Quoted', out)
+        self.assertNotIn('"Quoted"', out)
+
+    def test_byte_padding_matches_bash(self) -> None:
+        """bash 的 `printf %-22s` 是 C 语义按字节补位，中文标签「一致性」9 字节
+        —— 用 Python 的 `:<22`（按字符）会少补 6 格，整行输出就对不上了。
+
+        行形状：2 空格 + 标签补到 22 字节 + 1 空格 + 值，即值从第 25 字节开始。
+        """
+        _, out = self.run_theme()
+        line = next((ln for ln in out.splitlines() if ln.startswith('  一致性')), None)
+        self.assertIsNotNone(line, '没找到「一致性」行')
+        raw = line.encode()
+        self.assertEqual(raw[:2], b'  ')
+        tail = raw[25:].decode()
+        # 三种取值都要落在同一列上
+        self.assertTrue(tail.startswith(('一致：', '不一致：', '没有任何一处设置了主题')),
+                        f'值未从第 25 字节开始：{tail!r}')
+
+    def test_self_name_and_unknown_option(self) -> None:
+        os.environ['DOTCTL_SELF'] = '/opt/x/install.sh'
+        self.addCleanup(os.environ.pop, 'DOTCTL_SELF', None)
+        rc, out = self.run_theme(['-h'])
+        self.assertEqual(rc, 0)
+        self.assertIn('用法：/opt/x/install.sh theme', out)
+
+        rc, out = self.run_theme(['--bogus'])
+        self.assertEqual(rc, 2)
+        self.assertIn('theme 不接受参数：--bogus', out)
 
 
 if __name__ == '__main__':
