@@ -9,12 +9,13 @@ from __future__ import annotations
 import sys
 
 from . import ui
-from .commands import deps, status, theme
+from .commands import clean, deps, status, theme
 
 COMMANDS = {
     'status': status.run,
     'deps': deps.run,
     'theme': theme.run,
+    'clean': clean.run,
 }
 
 HELP = """dotctl —— dotfiles 安装器的 Python 侧
@@ -23,9 +24,10 @@ HELP = """dotctl —— dotfiles 安装器的 Python 侧
   status                当前部署状态一览（只读）
   deps                  依赖清单，--missing 只看缺口（只读）
   theme                 图标 / 光标 / GTK 主题的取值与一致性（只读）
+  clean                 清理临时残留 / 自举缓存 / 旧快照 / 旧备份
 
 其余子命令（install / update / rollback / restore / archive / uninstall /
-doctor / clean）仍在 bash 侧，由 ./install.sh 分发。
+doctor）仍在 bash 侧，由 ./install.sh 分发。
 完整用法见 ./install.sh --help。
 """
 

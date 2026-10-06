@@ -22,7 +22,8 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dotctl import paths, state  # noqa: E402
-from dotctl.commands import deps, status, theme  # noqa: E402
+from dotctl import prompt  # noqa: E402
+from dotctl.commands import clean, deps, status, theme  # noqa: E402
 
 
 class TempHome(unittest.TestCase):
@@ -284,6 +285,151 @@ class TestTheme(TempHome):
         rc, out = self.run_theme(['--bogus'])
         self.assertEqual(rc, 2)
         self.assertIn('theme 不接受参数：--bogus', out)
+
+
+
+class TestClean(TempHome):
+    """clean 会真删东西，所以测试重点在「该删的删、不该删的不删」，
+    以及「非交互下不误删」这条安全保证。"""
+
+    def make_snapshots(self, count: int) -> list[Path]:
+        snaps = paths.snap_root()
+        snaps.mkdir(parents=True, exist_ok=True)
+        made = []
+        for i in range(count):
+            path = snaps / f'snap-{i}.tar.gz'
+            path.write_bytes(b'x' * 8)
+            os.utime(path, (1_700_000_000 + i * 60, 1_700_000_000 + i * 60))
+            made.append(path)
+        return made
+
+    def run_clean(self, argv: list[str], answer: str = 'y') -> tuple[int, str]:
+        out = io.StringIO()
+        with mock.patch.object(prompt, 'read_answer', return_value=answer):
+            with redirect_stdout(out):
+                rc = clean.run(list(argv))
+        return rc, out.getvalue()
+
+    def test_nothing_to_clean(self) -> None:
+        os.environ['TMPDIR'] = str(self.home / 'empty-tmp')
+        (self.home / 'empty-tmp').mkdir()
+        self.addCleanup(os.environ.pop, 'TMPDIR', None)
+        rc, out = self.run_clean([])
+        self.assertEqual(rc, 0)
+        self.assertIn('没有需要清理的东西', out)
+
+    def test_dry_run_deletes_nothing(self) -> None:
+        snaps = self.make_snapshots(5)
+        rc, out = self.run_clean(['--snapshots', '2', '--dry-run'])
+        self.assertEqual(rc, 0)
+        self.assertIn('--dry-run：什么都没删', out)
+        self.assertEqual(len(list(paths.snap_root().glob('*.tar.gz'))), 5)
+
+    def test_snapshots_keeps_newest(self) -> None:
+        self.make_snapshots(5)
+        rc, _ = self.run_clean(['--snapshots', '2'])
+        self.assertEqual(rc, 0)
+        left = sorted(p.name for p in paths.snap_root().glob('*.tar.gz'))
+        self.assertEqual(left, ['snap-3.tar.gz', 'snap-4.tar.gz'])
+
+    def test_default_does_not_touch_snapshots(self) -> None:
+        """默认行为绝不能碰快照/备份 —— 那是 rollback 的退路。"""
+        self.make_snapshots(3)
+        updates = paths.backup_root() / 'update-20260101-000000'
+        updates.mkdir(parents=True)
+        (self.home / 'empty-tmp').mkdir()
+        os.environ['TMPDIR'] = str(self.home / 'empty-tmp')
+        self.addCleanup(os.environ.pop, 'TMPDIR', None)
+        self.run_clean([])
+        self.assertEqual(len(list(paths.snap_root().glob('*.tar.gz'))), 3)
+        self.assertTrue(updates.is_dir())
+
+    def test_own_tmpdir_is_skipped(self) -> None:
+        """当前运行自己的 TMPRUN 不能被删 —— 删了本次运行的 mktemp 全失效。"""
+        tmp = self.home / 'tmp'
+        own = tmp / 'dotfiles-install.999'
+        other = tmp / 'dotfiles-install.111'
+        own.mkdir(parents=True)
+        other.mkdir()
+        os.environ['TMPDIR'] = str(tmp)
+        os.environ['TMPRUN'] = str(own)
+        self.addCleanup(os.environ.pop, 'TMPDIR', None)
+        self.addCleanup(os.environ.pop, 'TMPRUN', None)
+        rc, _ = self.run_clean([])
+        self.assertEqual(rc, 0)
+        self.assertTrue(own.is_dir(), '自己的 run 目录被误删')
+        self.assertFalse(other.exists(), '别人的残留没删掉')
+
+    def test_declined_confirmation_deletes_nothing(self) -> None:
+        self.make_snapshots(5)
+        rc, _ = self.run_clean(['--snapshots', '2'], answer='n')
+        self.assertEqual(rc, 1)
+        self.assertEqual(len(list(paths.snap_root().glob('*.tar.gz'))), 5)
+
+    def test_eof_defaults_to_no(self) -> None:
+        """非交互且 EOF：confirm 必须返回「否」—— 这条保证以前在 bash 的
+        read_answer 里，现在复刻到 dotctl/prompt.py。"""
+        snaps = self.make_snapshots(5)
+        out = io.StringIO()
+        with mock.patch.object(prompt, 'read_answer', return_value=''):
+            with redirect_stdout(out):
+                rc = clean.run(['--snapshots', '2'])
+        self.assertEqual(rc, 1)
+        self.assertTrue(all(p.exists() for p in snaps))
+
+    def test_unknown_option(self) -> None:
+        rc, out = self.run_clean(['--bogus'])
+        self.assertEqual(rc, 2)
+        self.assertIn('clean: 未知选项 --bogus', out)
+
+    def test_self_name_in_help(self) -> None:
+        os.environ['DOTCTL_SELF'] = '/opt/x/install.sh'
+        self.addCleanup(os.environ.pop, 'DOTCTL_SELF', None)
+        out = io.StringIO()
+        with redirect_stdout(out):
+            rc = clean.run(['-h'])
+        self.assertEqual(rc, 0)
+        self.assertIn('用法：/opt/x/install.sh clean', out.getvalue())
+
+
+class TestPrompt(TempHome):
+    """confirm 的语义对齐（不依赖真实 stdin）。"""
+
+    def test_yes_variants(self) -> None:
+        for answer in ('y', 'Y', 'yes', 'YES', 'Yes'):
+            with mock.patch.object(prompt, 'read_answer', return_value=answer):
+                out = io.StringIO()
+                with redirect_stdout(out):
+                    self.assertEqual(prompt.confirm('确认？'), 0)
+
+    def test_no_is_default(self) -> None:
+        for answer in ('', 'n', 'whatever'):
+            with mock.patch.object(prompt, 'read_answer', return_value=answer):
+                out = io.StringIO()
+                with redirect_stdout(out):
+                    self.assertEqual(prompt.confirm('确认？'), 1)
+
+    def test_back_only_with_allow_back(self) -> None:
+        with mock.patch.object(prompt, 'read_answer', return_value='b'):
+            out = io.StringIO()
+            with redirect_stdout(out):
+                self.assertEqual(prompt.confirm('确认？', allow_back=True), 2)
+        with mock.patch.object(prompt, 'read_answer', return_value='b'):
+            out = io.StringIO()
+            with redirect_stdout(out):
+                self.assertEqual(prompt.confirm('确认？'), 1)
+
+    def test_prompt_shape(self) -> None:
+        with mock.patch.object(prompt, 'read_answer', return_value='n'):
+            out = io.StringIO()
+            with redirect_stdout(out):
+                prompt.confirm('确认删除以上 3 项？')
+        self.assertIn('确认删除以上 3 项？ [y/N] ', out.getvalue())
+        with mock.patch.object(prompt, 'read_answer', return_value='n'):
+            out = io.StringIO()
+            with redirect_stdout(out):
+                prompt.confirm('确认？', allow_back=True)
+        self.assertIn('[y/N/b(返回)]', out.getvalue())
 
 
 if __name__ == '__main__':
