@@ -11,6 +11,20 @@
 #
 #  选中本方案靠三层：本文件 + Matugen.profile 的 ColorScheme +
 #  konsolerc 的 DefaultProfile（由 matugen 的 post_hook 写）。
+#  ── Intense 行的角色选择（2026-10-06 修正）──────────────────────────────
+#  Konsole 的 Color 值是十进制 "R,G,B"，用不了 matugen 的 lighten 过滤器，
+#  所以「bright 比 normal 亮」只能靠换角色表达。原模板把 Color5/6 的亮角色
+#  放在了 normal、暗角色放在 Intense，方向是反的（实测 bright magenta/cyan
+#  比 normal 还暗 0.20 相对亮度），Color1Intense 更是与 Color1 完全相同。
+#  现在统一成 normal 用 tone 80 家族、Intense 用 tone 90 家族。
+#  ⚠ 代价：Color5 与 Color2（tertiary）、Color6 与 Color4（primary）取值
+#    重合。MD3 只有 4 个色相家族、每族两级明度，无法同时满足「不重合」与
+#    「Intense 更亮」，这里选后者 —— ANSI bright 比 normal 暗是更硬的错误。
+#  ⚠ white / bright white 会取到同一个值：expressive 方案下 on_background 与
+#    on_surface 同为 tone 90 的 #f0dee5，而 Konsole 用不了 lighten，tone 90
+#    之上也没有更亮的文字角色可用 —— 这一对保持同值。不影响可读性（两者都过
+#    AA 4.5），只是 bold 白色没有额外提亮。
+
 # ===========================================================================
 
 [Background]
@@ -32,19 +46,19 @@ Color={{colors.on_surface.default.red}},{{colors.on_surface.default.green}},{{co
 Color={{colors.on_surface_variant.default.red}},{{colors.on_surface_variant.default.green}},{{colors.on_surface_variant.default.blue}}
 
 [Color0]
-Color={{colors.on_surface_variant.default.red}},{{colors.on_surface_variant.default.green}},{{colors.on_surface_variant.default.blue}}
+Color={{colors.outline.default.red}},{{colors.outline.default.green}},{{colors.outline.default.blue}}
 
 [Color0Intense]
-Color={{colors.on_surface.default.red}},{{colors.on_surface.default.green}},{{colors.on_surface.default.blue}}
+Color={{colors.on_surface_variant.default.red}},{{colors.on_surface_variant.default.green}},{{colors.on_surface_variant.default.blue}}
 
 [Color0Faint]
-Color={{colors.on_surface_variant.default.red}},{{colors.on_surface_variant.default.green}},{{colors.on_surface_variant.default.blue}}
+Color={{colors.outline_variant.default.red}},{{colors.outline_variant.default.green}},{{colors.outline_variant.default.blue}}
 
 [Color1]
 Color={{colors.error.default.red}},{{colors.error.default.green}},{{colors.error.default.blue}}
 
 [Color1Intense]
-Color={{colors.error.default.red}},{{colors.error.default.green}},{{colors.error.default.blue}}
+Color={{colors.on_error_container.default.red}},{{colors.on_error_container.default.green}},{{colors.on_error_container.default.blue}}
 
 [Color1Faint]
 Color={{colors.error.default.red}},{{colors.error.default.green}},{{colors.error.default.blue}}
@@ -77,19 +91,19 @@ Color={{colors.primary_fixed.default.red}},{{colors.primary_fixed.default.green}
 Color={{colors.primary.default.red}},{{colors.primary.default.green}},{{colors.primary.default.blue}}
 
 [Color5]
-Color={{colors.tertiary_fixed.default.red}},{{colors.tertiary_fixed.default.green}},{{colors.tertiary_fixed.default.blue}}
+Color={{colors.tertiary.default.red}},{{colors.tertiary.default.green}},{{colors.tertiary.default.blue}}
 
 [Color5Intense]
-Color={{colors.tertiary.default.red}},{{colors.tertiary.default.green}},{{colors.tertiary.default.blue}}
+Color={{colors.tertiary_fixed.default.red}},{{colors.tertiary_fixed.default.green}},{{colors.tertiary_fixed.default.blue}}
 
 [Color5Faint]
 Color={{colors.tertiary_fixed.default.red}},{{colors.tertiary_fixed.default.green}},{{colors.tertiary_fixed.default.blue}}
 
 [Color6]
-Color={{colors.primary_fixed.default.red}},{{colors.primary_fixed.default.green}},{{colors.primary_fixed.default.blue}}
+Color={{colors.primary.default.red}},{{colors.primary.default.green}},{{colors.primary.default.blue}}
 
 [Color6Intense]
-Color={{colors.primary.default.red}},{{colors.primary.default.green}},{{colors.primary.default.blue}}
+Color={{colors.primary_fixed.default.red}},{{colors.primary_fixed.default.green}},{{colors.primary_fixed.default.blue}}
 
 [Color6Faint]
 Color={{colors.primary_fixed.default.red}},{{colors.primary_fixed.default.green}},{{colors.primary_fixed.default.blue}}

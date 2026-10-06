@@ -8,6 +8,16 @@
 #    旧版本这里 yellow=tertiary_container、cyan=secondary_container、
 #    black=surface_container_lowest，三个槽位都不可读。
 #  · bright 行用 `| lighten: 8.0` 从 normal 行提亮，保证 bold 有区分。
+#  ── 光标与 colorN 的取值（2026-10-06 调整）─────────────────────────────
+#  · cursor 用 on_surface（中性近白），**不用** primary：光标是每时每刻都在
+#    闪的元素，绑主题强调色会让整个终端被那一个色相牵着走（实测被吐槽
+#    「指针居然是蓝色的」）。要改回强调色就把下面这行的角色换回 primary。
+#  · color0 用 outline（tone 60，实测对比度 ≈7）而不是 on_surface_variant
+#    （tone 80，≈10.9）：ANSI black 就是「暗灰」语义，塞亮色会让 16 色只剩
+#    一层明度（1-7 全挤在 10.9，跟 white 的 14.3 几乎平齐）；outline 既过
+#    AA 4.5 又保住了「黑」的层次。color8（bright black）相应退到
+#    on_surface_variant，于是 0 < 8 < 7 < 15 的明度阶梯成立。
+
 # =============================================================================
 
 [colors.primary]
@@ -16,14 +26,14 @@ foreground = '{{colors.on_background.default.hex}}'
 
 [colors.cursor]
 text = '{{colors.background.default.hex}}'
-cursor = '{{colors.primary.default.hex}}'
+cursor = '{{colors.on_surface.default.hex}}'
 
 [colors.selection]
 text = '{{colors.on_primary_container.default.hex}}'
 background = '{{colors.primary_container.default.hex}}'
 
 [colors.normal]
-black = '{{colors.on_surface_variant.default.hex}}'
+black = '{{colors.outline.default.hex}}'
 red = '{{colors.error.default.hex}}'
 green = '{{colors.tertiary.default.hex}}'
 yellow = '{{colors.secondary.default.hex}}'
@@ -33,7 +43,7 @@ cyan = '{{colors.primary_fixed.default.hex}}'
 white = '{{colors.on_background.default.hex}}'
 
 [colors.bright]
-black = '{{colors.on_surface.default.hex}}'
+black = '{{colors.on_surface_variant.default.hex}}'
 red = '{{colors.error.default.hex | lighten: 8.0}}'
 green = '{{colors.tertiary.default.hex | lighten: 8.0}}'
 yellow = '{{colors.secondary.default.hex | lighten: 8.0}}'

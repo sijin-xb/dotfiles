@@ -391,6 +391,41 @@ confirm_3way() {
     esac
 }
 
+# 增量升级子菜单。update 是日常操作（install 会重装包、重拉底盘、冲掉本地对
+# 底盘的改动），但它原来只能敲子命令，TUI 里没有入口 —— 补上。
+# TUI 不暴露全部开关，只留最常用的四个组合，其余仍走命令行。
+detail_update() {
+    while true; do
+        tui_clear
+        draw_header "增量升级（update）"
+        echo
+        echo "  只做文件层同步：不重装包、不重拉上游底盘、不编插件。"
+        echo "  升级前会自动创建快照，出问题用主菜单 [4] 回档。"
+        echo
+        printf '  %s[1]%s  直接同步（等价 ./install.sh update）\n'          "${TC_BOLD}${TC_GREEN}"  "${TC_RESET}"
+        printf '  %s[2]%s  先看会改什么（--dry-run，一个字节都不写）\n'      "${TC_BOLD}${TC_BLUE}"   "${TC_RESET}"
+        printf '  %s[3]%s  同步并补齐新增依赖（--with-packages，只补不卸）\n' "${TC_BOLD}${TC_MAG}"    "${TC_RESET}"
+        printf '  %s[4]%s  先 git pull 再同步（--pull）\n'                   "${TC_BOLD}${TC_CYAN}"   "${TC_RESET}"
+        echo
+        printf '  %s[b]%s  返回主菜单\n' "${TC_BOLD}" "${TC_RESET}"
+        draw_line '─'
+        local sel=""
+        printf '请选择: '
+        if ! IFS= read -r sel; then echo; return 0; fi
+        case "$sel" in
+            1) tui_clear; cmd_update || true ;;
+            2) tui_clear; cmd_update --dry-run || true ;;
+            3) tui_clear; cmd_update --with-packages || true ;;
+            4) tui_clear; cmd_update --pull || true ;;
+            b|B|back) return 0 ;;
+            *) printf '%s无效选项%s\n' "${TC_RED}" "${TC_RESET}"; sleep 0.3; continue ;;
+        esac
+        echo
+        printf '按回车返回...'
+        IFS= read -r _ || true
+    done
+}
+
 # 状态与诊断子菜单：把 5 条只读命令挂上来，省得记子命令名。
 # 每条命令后停一次等回车 —— 不停的话下一轮 tui_clear 会立刻把输出刷掉。
 detail_diagnose() {
@@ -432,10 +467,11 @@ main_menu_loop() {
         draw_header "主菜单 · sijin-xb's dotfiles ${RICE_VERSION}"
         echo
         printf '  %s[1]%s  执行安装\n'      "${TC_BOLD}${TC_GREEN}" "${TC_RESET}"
-        printf '  %s[2]%s  执行卸载（可先存档）\n' "${TC_BOLD}${TC_RED}"   "${TC_RESET}"
-        printf '  %s[3]%s  执行回档（还原到上次 install 之前）\n' "${TC_BOLD}${TC_YELLOW}" "${TC_RESET}"
-        printf '  %s[4]%s  卸载存档打包\n'      "${TC_BOLD}${TC_BLUE}"  "${TC_RESET}"
-        printf '  %s[5]%s  状态与诊断（status / doctor / deps / theme / clean）\n' "${TC_BOLD}${TC_CYAN}" "${TC_RESET}"
+        printf '  %s[2]%s  增量升级（只同步文件层）\n' "${TC_BOLD}${TC_GREEN}" "${TC_RESET}"
+        printf '  %s[3]%s  执行卸载（可先存档）\n' "${TC_BOLD}${TC_RED}"   "${TC_RESET}"
+        printf '  %s[4]%s  执行回档（还原到上次 install 之前）\n' "${TC_BOLD}${TC_YELLOW}" "${TC_RESET}"
+        printf '  %s[5]%s  卸载存档打包\n'      "${TC_BOLD}${TC_BLUE}"  "${TC_RESET}"
+        printf '  %s[6]%s  状态与诊断（status / doctor / deps / theme / clean）\n' "${TC_BOLD}${TC_CYAN}" "${TC_RESET}"
         echo
         printf '  %s[h]%s  帮助 / 环境 · 键位 · 目录 · FAQ\n' "${TC_BOLD}${TC_MAG}" "${TC_RESET}"
         printf '  %s[q]%s  退出脚本\n'             "${TC_BOLD}"        "${TC_RESET}"
@@ -450,13 +486,14 @@ main_menu_loop() {
         fi
         case "$sel" in
             1) detail_install ;;
-            2) detail_uninstall ;;
-            3) detail_rollback ;;
-            4) detail_archive ;;
-            5) detail_diagnose ;;
+            2) detail_update ;;
+            3) detail_uninstall ;;
+            4) detail_rollback ;;
+            5) detail_archive ;;
+            6) detail_diagnose ;;
             h|H|help) show_help ;;
             q|Q|quit|exit) echo "再见 👋"; return 0 ;;
-            *) printf '%s无效选项，请按 1/2/3/4/5 / h / q%s\n' "${TC_RED}" "${TC_RESET}"
+            *) printf '%s无效选项，请按 1/2/3/4/5/6 / h / q%s\n' "${TC_RED}" "${TC_RESET}"
                sleep 0.3 ;;
         esac
     done
