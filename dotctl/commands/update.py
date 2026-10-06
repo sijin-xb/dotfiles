@@ -286,7 +286,12 @@ def run(argv: list[str]) -> int:
     installed = backed = ignored = skipped_conflict = 0
     deployed: list[str] = []
 
-    for src, dst, rel, attrs in deploy.walk_sources():
+    rows = deploy.walk_sources()
+    # 会话过滤：与 install 同样，一次问完 bash（见 deploy.session_skip_set）
+    skip_rels = deploy.session_skip_set([r for _s, _d, r, _a in rows])
+    for src, dst, rel, attrs in rows:
+        if rel in skip_rels:
+            continue
         target_rel = deploy._rel_from_home(dst)
         if target_rel in skip_deploy:
             skipped_conflict += 1

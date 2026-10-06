@@ -25,8 +25,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from dotctl import paths, state  # noqa: E402
 from dotctl import prompt  # noqa: E402
 from dotctl import deploy, prompt, snapshot, tmpfiles  # noqa: E402
-from dotctl.commands import (archive, clean, deps, doctor, rollback,  # noqa: E402
-                             status, theme, uninstall, update)
+from dotctl.commands import (archive, clean, deps, doctor, install,  # noqa: E402
+                             rollback, status, theme, uninstall, update)
 
 
 class TempHome(unittest.TestCase):
@@ -1378,6 +1378,102 @@ class TestUpdateWithPackages(TempHome):
         self.assertIn('fonts-pacman', seen, '字体包被漏掉了 —— 正是 bash 版的 bug')
         self.assertIn('fonts-aur', seen)
         self.assertIn('noto-fonts', ' '.join(run_mock.call_args_list[0][0][0]))
+
+
+
+class TestDeployAttributes(TempHome):
+    """属性前缀与差异判断 —— 这两处都在 dryrun 里暴露过真 bug。"""
+
+    def test_create_prefix_is_literal(self) -> None:
+        """`create_` **不是**属性前缀，必须保持字面文件名。
+
+        chezmoi 的 create_ 语义是「不存在才创建」并会剥前缀，但
+        hyprland/services/init.lua 里写的是
+        `require("hyprland/services/create_custom_config")` —— 剥成
+        custom_config.lua 反而 require 不到。
+        第一版把 create_ 列进了 ATTR_PREFIXES，dryrun 的
+        「create_custom_config 字面名」立刻抓到。
+        """
+        target, attrs = deploy.map_target('dot_config/hypr/hyprland/services/create_custom_config.lua')
+        self.assertEqual(target, '.config/hypr/hyprland/services/create_custom_config.lua')
+        self.assertFalse(any(attrs.values()))
+
+    def test_three_prefixes_only(self) -> None:
+        names = {name for _pfx, name in deploy.ATTR_PREFIXES}
+        self.assertEqual(names, {'exec', 'private', 'symlink'})
+
+    def test_same_content_follows_symlink_source(self) -> None:
+        """源是符号链接时也比内容 —— bash 用 cmp，而 cmp 跟随链接。
+
+        差异层里有这种源（assets/icons/ai-openai-symbolic.svg -> openai-symbolic.svg），
+        目标被 cp 成普通文件。若判「源是链接就一定不同」，每次重跑都会多备份
+        一份（dryrun 从 20 涨到 22）。
+        """
+        real = self.home / 'real.svg'
+        real.write_text('<svg/>\n')
+        link = self.home / 'link.svg'
+        os.symlink(real, link)
+        dst_dir = self.home / 'target'
+        dst_dir.mkdir()
+        dst = dst_dir / 'link.svg'
+        dst.write_text('<svg/>\n')                # 内容是跟随后的结果
+
+        with mock.patch.object(deploy, 'ignore_kind', return_value=''):
+            result, _ = deploy.deploy_one_file(link, str(dst_dir), 'link.svg', {})
+        self.assertEqual(result, 'same', '源为符号链接且内容相同，应判 same')
+
+    def test_symlink_target_dir_compares_readlink(self) -> None:
+        """目标已是符号链接时，比 readlink 与**源文件首行**（bash 的形状）。"""
+        src = self.home / 'src-file'
+        src.write_text('/dev/null\n')
+        dst_dir = self.home / 'target2'
+        dst_dir.mkdir()
+        os.symlink('/dev/null', dst_dir / 'mako.service')
+
+        with mock.patch.object(deploy, 'ignore_kind', return_value=''):
+            result, _ = deploy.deploy_one_file(src, str(dst_dir), 'mako.service', {})
+        self.assertEqual(result, 'same')
+
+    def test_keep_is_distinct_from_skip(self) -> None:
+        """keep 与 skip 必须区分：调用方分开计数，输出也是两句不同说明。"""
+        self.write('.config/hypr/hyprland/colors.lua', 'generated\n')
+        src = self.home / 'src-colors'
+        src.write_text('repo\n')
+        with mock.patch.object(deploy, 'ignore_kind', return_value='keep'):
+            result, _ = deploy.deploy_one_file(src, str(self.home / '.config/hypr/hyprland'),
+                                               'colors.lua', {})
+        self.assertEqual(result, 'keep')
+        # 目标未被改动（运行时生成物保留当前值）
+        self.assertEqual((self.home / '.config/hypr/hyprland/colors.lua').read_text(), 'generated\n')
+
+    def test_keep_without_existing_target_deploys(self) -> None:
+        """keep 但目标不存在 → 照常部署（全新机器仍拿到配色默认值）。"""
+        src = self.home / 'src-new'
+        src.write_text('repo\n')
+        target_dir = self.home / '.config/hypr/hyprland'
+        with mock.patch.object(deploy, 'ignore_kind', return_value='keep'):
+            result, _ = deploy.deploy_one_file(src, str(target_dir), 'colors.lua', {})
+        self.assertNotEqual(result, 'keep')
+        self.assertEqual((target_dir / 'colors.lua').read_text(), 'repo\n')
+
+
+class TestSessionSkip(TempHome):
+    """会话过滤：只部署选中的那套合成器 / shell。"""
+
+    def test_skip_set_filters_by_compositor(self) -> None:
+        with mock.patch.object(deploy, 'session_skip_set',
+                               return_value={'dot_config/niri/config.kdl'}):
+            rows = deploy.walk_sources()
+            rels = [r for _s, _d, r, _a in rows]
+            self.assertIn('dot_config/niri/config.kdl', rels)   # walk 不做过滤
+            # 过滤由调用方做（install / update），见它们各自的循环
+
+    def test_install_counts_skipped_separately(self) -> None:
+        """合成器维度与 shell 维度分开计数（bash 是两个计数器、两句说明）。"""
+        import inspect
+        src = inspect.getsource(install.run)
+        self.assertIn('skipped += 1', src)
+        self.assertIn('skipped_shell += 1', src)
 
 
 if __name__ == '__main__':

@@ -23,13 +23,19 @@ SKIP_TOP = {'install.sh', 'README.md', 'LICENSE', 'check-qml-deps.py'}
 # chezmoi 前缀：目录用 dot_ 前缀映射到 $HOME 下的隐藏目录；
 # 文件还有若干属性前缀，deploy_one_file 按顺序剥离。
 DOT_PREFIX = 'dot_'
+
+# ⚠ 只认这三个前缀 —— 与 lib/70-deploy.sh 一致。
+#   `create_` **必须保持字面文件名**：chezmoi 的 create_ 语义是「不存在才创建」
+#   并会剥前缀，但 hyprland/services/init.lua 里写的是
+#   `require("hyprland/services/create_custom_config")`，剥成 custom_config.lua
+#   反而 require 不到（.chezmoiignore 里记的就是这个冲突）。
+#   第一版我把 create_ / empty_ / readonly_ 也列进来，于是
+#   create_custom_config.lua 被剥成了 custom_config.lua —— dryrun 的
+#   「create_custom_config 字面名」那条立刻抓到。
 ATTR_PREFIXES = (
     ('executable_', 'exec'),
     ('private_', 'private'),
     ('symlink_', 'symlink'),
-    ('create_', 'create'),
-    ('empty_', 'empty'),
-    ('readonly_', 'readonly'),
 )
 
 
@@ -134,6 +140,24 @@ def map_target(rel: str) -> tuple[str, dict[str, bool]] | None:
     return '.' + mapped, attrs
 
 
+def session_skip_set(rels: list[str]) -> set[str]:
+    """一次问 bash 哪些 rel 该按会话跳过。
+
+    ⚠ 逐条调 skip_by_compositor / skip_by_shell 要 fork 上千次；而且那两个
+    函数读的是 bash 变量（COMPOSITOR / QS_SHELL / INSTALL_BOTH_COMPOSITORS），
+    Python 侧看不到 —— 只能在这边判。所以整份清单一次问完。
+    """
+    if not rels:
+        return set()
+    import subprocess
+    from . import bashsrc
+    proc = subprocess.run(
+        ['bash', '-c', bashsrc._LOADER, 'dotctl-bashsrc', str(repo_root()),
+         'dotctl_skip_rels'],
+        input='\n'.join(rels) + '\n', capture_output=True, text=True, check=False)
+    return {line for line in proc.stdout.splitlines() if line}
+
+
 def walk_sources(skip_compositor=None, skip_shell=None) -> list[tuple[Path, str, str, dict[str, bool]]]:
     """遍历源树，产出待部署条目。
 
@@ -193,11 +217,23 @@ def deploy_one_file(src: Path, dst_dir: str, base: str, attrs: dict[str, bool],
     与 bash 的 deploy_one_file 对齐：内容一致就不动（幂等），有差异先备份。
     """
     target_rel = _rel_from_home(str(Path(dst_dir) / base))
+    dst = Path(dst_dir) / base
+
+    # ⚠ keep 分支必须在这里处理，不能只在 collect_plan 里判：install 直接调
+    #   本函数，绕过 collect_plan。漏了它的后果是**运行时生成物被备份并覆盖** ——
+    #   matugen 配色（.config/hypr/hyprland/colors.lua 等）每次重跑 install
+    #   都会被仓库快照盖回去，正是 .chezmoiignore 里那条 keep 想防的事。
+    #   dryrun 的「重复运行 0 备份」从 20 涨到 23 就是这么来的。
+    #   判断时机与 bash 一致：在备份/写入之前。
     kind = ignore_kind(target_rel)
     if kind == 'skip':
         return 'skip', target_rel
+    if kind == 'keep' and (dst.exists() or dst.is_symlink()):
+        # 返回 'keep' 而不是 'skip'：调用方要分开计数（bash 版是两个计数器，
+        # 输出里也是两句不同的说明）。混在一起会让「运行时生成物保留 N 个」
+        # 恒为 0。
+        return 'keep', target_rel
 
-    dst = Path(dst_dir) / base
     dst_dir_p = Path(dst_dir)
     dst_dir_p.mkdir(parents=True, exist_ok=True)
 
@@ -219,19 +255,66 @@ def deploy_one_file(src: Path, dst_dir: str, base: str, attrs: dict[str, bool],
     #   计数报给用户「N 个有差异的旧文件备份于 …」。第一版写成
     #   `'backup' if backup_dir else 'new'`，于是只要传了 backup_dir，新建的
     #   文件也被算成备份（实测 39 个新增报成 39 个备份，而 bash 报 0）。
+    #
+    # ⚠ 差异判断要照抄 bash 的形状（lib/70-deploy.sh）：
+    #     目标是符号链接 → 比 `readlink(dst)` 与**源文件首行**
+    #     否则           → 比内容
+    #   不能用 fingerprint() 一刀切：源文件本身也可能是符号链接（差异层里
+    #   就有，如 assets/icons/ai-openai-symbolic.svg -> openai-symbolic.svg），
+    #   那时 fingerprint 给的是 "link:目标"，而 bash 读的是**链接指向文件的
+    #   首行** —— 两者不等，于是每次重跑都判「有差异」并多备份一份。
+    #   dryrun 的备份数因此从 20 涨到 22。
     backed_up = False
-    if dst.exists() and not dst.is_symlink():
-        if fingerprint(src) == fingerprint(dst):
+    if dst.exists() or dst.is_symlink():
+        if dst.is_symlink():
+            try:
+                same = os.readlink(dst) == _first_line(src)
+            except OSError:
+                same = False
+        else:
+            # ⚠ 源是符号链接时也要比内容：bash 用的是 `cmp -s "$f" "$dir/$base"`，
+            #   而 cmp（与 cp）默认**跟随**符号链接。差异层里就有这种源
+            #   （assets/icons/ai-openai-symbolic.svg -> openai-symbolic.svg），
+            #   目标被 cp 成了普通文件 —— 第二遍比内容相同，bash 判无差异。
+            #   第一版在这里加 `src.is_symlink() → same = False`，于是每次重跑
+            #   都多备份一份（dryrun 从 20 涨到 22）。
+            same = _same_content(src, dst)
+        if same:
             return 'same', target_rel
         _backup(dst, backup_dir)
         backed_up = True
 
-    shutil.copy2(src, dst)
+    shutil.copy2(src, dst, follow_symlinks=True)
     if attrs.get('exec'):
         dst.chmod(dst.stat().st_mode | 0o111)
     if attrs.get('private'):
         dst.chmod(0o600)
     return ('backup' if backed_up else 'new'), target_rel
+
+
+def _first_line(src: Path) -> str:
+    """源文件的**首行**（跟随符号链接）—— 对应 bash 的 `head -n1 "$f"`。"""
+    try:
+        with open(src, 'r', errors='replace') as fh:
+            return fh.readline().rstrip('\n')
+    except OSError:
+        return ''
+
+
+def _same_content(a: Path, b: Path) -> bool:
+    """等价 bash 的 `cmp -s "$f" "$dir/$base"`。"""
+    try:
+        if a.stat().st_size != b.stat().st_size:
+            return False
+        with open(a, 'rb') as fa, open(b, 'rb') as fb:
+            while True:
+                ba, bb = fa.read(65536), fb.read(65536)
+                if ba != bb:
+                    return False
+                if not ba:
+                    return True
+    except OSError:
+        return False
 
 
 def _rel_from_home(path: str) -> str:

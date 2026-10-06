@@ -9,8 +9,8 @@ from __future__ import annotations
 import sys
 
 from . import ui
-from .commands import (archive, clean, deps, doctor, rollback, status,  # noqa: E402
-                       theme, uninstall, update)
+from .commands import (archive, clean, deps, doctor, install, rollback,  # noqa: E402
+                       status, theme, uninstall, update)
 
 COMMANDS = {
     'status': status.run,
@@ -23,6 +23,7 @@ COMMANDS = {
     'archive': archive.run,
     'uninstall': uninstall.run,
     'update': update.run,
+    'install': install.run,
 }
 
 HELP = """dotctl —— dotfiles 安装器的 Python 侧
@@ -37,9 +38,9 @@ HELP = """dotctl —— dotfiles 安装器的 Python 侧
   archive               打包 rice 配置为 tar.gz（有副作用）
   uninstall             卸载 rice（可选先存档，有副作用）
   update                增量升级：只同步文件层（有副作用）
+  install               完整安装（7 步，有副作用）
 
-其余子命令（install）仍在 bash 侧，由 ./install.sh 分发。
-完整用法见 ./install.sh --help。
+全部子命令都已迁到 Python。完整用法见 ./install.sh --help。
 """
 
 
