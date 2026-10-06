@@ -468,7 +468,7 @@ A2 的对照：Hyprland 侧是 `hl.env("QT_QPA_PLATFORMTHEME", "kde")` +
 | `steam.css` | GTK4 的 `:root` 变量版，看名字给 Steam 客户端 CSS 皮肤用 |
 | `style.css` | **niriswitcher 的完整样式**（含 `#niriswitcher` 选择器），比 `niriswitcher-colors.css` 更全。niriswitcher 未装 |
 | `niriswitcher-colors.css` | 同上的颜色专用版 |
-| `swaylock-colors`、`ghostty-colors.conf`、`pywalfox-colors.json` | 对应软件未装 |
+| `swaylock-colors`、`pywalfox-colors.json` | 对应软件未装 |
 | `miyu-theme.css` | Miyu WebUI 配色，miyu 未装；注释引用的同目录 README.md 也不存在 |
 | `wlogout/recolor.sh` + `wlogout/icons/*.png` | wlogout 未装；`icons/*.png` 是 `recolor.sh` 的输入素材 |
 

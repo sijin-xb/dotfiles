@@ -197,6 +197,12 @@ check-qml-deps.py          QML 模块依赖自检，install 与 update 收尾各
 失败时会打印「实际 vs 期望」并以非 0 退出；
 `DRYRUN_ROOT=/tmp/xxx bash tests/install-sh-dryrun.sh` 可保留现场排查。
 
+改 matugen 的终端配色模板（kitty / alacritty / foot / konsole）之后，跑
+`python3 tools/term-color-audit.py`：它把四个终端的 16 个 ANSI 槽位拉齐算
+WCAG 对比度，标出「暗背景上其实看不清」的槽位，以及 bright 反而比 normal
+暗的错位 —— 这类问题肉眼很难发现（旧模板里 color0 的对比度 10.9 与 white
+的 14.3 几乎平齐，"黑"根本不黑，看着却像正常配色）。
+
 ## 排障
 
 - 备份与快照都在 `~/.local/state/dotfiles-backup/`（`snapshots/`、`state/`），

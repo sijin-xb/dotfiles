@@ -1,0 +1,4 @@
+# 主题用 ansi：只吃终端 ANSI 调色板，于是跟随 matugen 的取色。
+# 不设的话 bat 用内置的 Monokai Extended —— 一套写死的 24bit 色，换壁纸不跟着
+# 变，在其余部分都随主题走的终端里会明显像另一个软件。
+--theme="ansi"
