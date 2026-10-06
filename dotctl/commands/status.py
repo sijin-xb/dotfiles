@@ -13,7 +13,8 @@ from pathlib import Path
 
 from .. import paths, state, ui
 
-HELP = """用法：./install.sh status
+def _help() -> str:
+    return f"""用法：{paths.self_name()} status
 
 打印当前部署状态，只读、不写任何文件：
   会话 / 部署清单条目数 / 上次部署时间与 revision / 仓库工作区状态 /
@@ -43,7 +44,7 @@ def _git(*args: str) -> str:
 
 def run(argv: list[str]) -> int:
     if argv and argv[0] in ('-h', '--help'):
-        print(HELP, end='')
+        print(_help(), end='')
         return 0
     if argv:
         ui.warn(f'status 不接受参数：{argv[0]}')

@@ -48,3 +48,13 @@ def rice_version() -> str:
         return (repo() / 'VERSION').read_text().strip() or 'unknown'
     except OSError:
         return 'unknown'
+
+
+def self_name() -> str:
+    """调用者看到的安装器路径，用于提示语。
+
+    bash 侧写的是 $0（`./install.sh` / `install.sh` / 绝对路径，随调用方式
+    变），Python 拿不到它 —— 由 lib/15-python.sh 的 dotctl_run 经 DOTCTL_SELF
+    传进来。兜底值只是为了让直接 `python3 -m dotctl` 时不至于崩。
+    """
+    return os.environ.get('DOTCTL_SELF') or './install.sh'

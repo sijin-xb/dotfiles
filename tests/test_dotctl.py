@@ -22,7 +22,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dotctl import paths, state  # noqa: E402
-from dotctl.commands import status  # noqa: E402
+from dotctl.commands import deps, status  # noqa: E402
 
 
 class TempHome(unittest.TestCase):
@@ -138,6 +138,61 @@ class TestSessionInference(TempHome):
         with mock.patch.dict(os.environ, {}, clear=False):
             os.environ.pop('HOME', None)
             self.assertTrue(str(paths.home()))
+
+
+
+class TestDeps(TempHome):
+    """包列表来自 bash 侧（bashsrc），所以这几条会真的 fork 一次 bash。
+
+    断言只钉「输出形状与选项行为」，不钉具体包名 —— 包列表本来就该由
+    lib/60-packages.sh 那边演进，钉死了每次加包都要改测试。
+    """
+
+    def run_deps(self, argv: list[str] | None = None) -> tuple[int, str, str]:
+        out, err = io.StringIO(), io.StringIO()
+        # pacman -Q 全部当作「没装」，输出就与机器实际状态无关了
+        with mock.patch.object(deps, '_installed', return_value=False):
+            with redirect_stdout(out), redirect_stderr(err):
+                rc = deps.run(list(argv or []))
+        return rc, out.getvalue(), err.getvalue()
+
+    def test_all_groups(self) -> None:
+        rc, out, _ = self.run_deps()
+        self.assertEqual(rc, 0)
+        self.assertIn('会话: end4pc', out)
+        for title in ('官方仓库（pacman）', 'AUR', '字体（pacman）', '字体（AUR）'):
+            self.assertIn(title, out)
+        self.assertIn('以上为完整清单。只看缺口加 --missing。', out)
+
+    def test_fonts_only(self) -> None:
+        _, out, _ = self.run_deps(['--fonts'])
+        self.assertIn('字体（pacman）', out)
+        self.assertNotIn('官方仓库（pacman）', out)
+
+    def test_missing_note_and_filter(self) -> None:
+        _, out, _ = self.run_deps(['--missing'])
+        self.assertIn('过滤: 只看未安装', out)
+        self.assertIn('以上为未安装项。补齐：', out)
+
+    def test_installed_packages_are_filtered_out(self) -> None:
+        with mock.patch.object(deps, '_installed', return_value=True):
+            out = io.StringIO()
+            with redirect_stdout(out):
+                deps.run(['--missing'])
+        # 全装了 → 各组都空 → 只剩头两行与结尾提示
+        self.assertNotIn('官方仓库（pacman）', out.getvalue())
+
+    def test_self_name_follows_env(self) -> None:
+        os.environ['DOTCTL_SELF'] = '/opt/dotfiles/install.sh'
+        self.addCleanup(os.environ.pop, 'DOTCTL_SELF', None)
+        rc, out, _ = self.run_deps(['-h'])
+        self.assertEqual(rc, 0)
+        self.assertIn('用法：/opt/dotfiles/install.sh deps', out)
+
+    def test_unknown_option(self) -> None:
+        rc, out, _ = self.run_deps(['--bogus'])
+        self.assertEqual(rc, 2)
+        self.assertIn('deps: 未知选项 --bogus', out)
 
 
 if __name__ == '__main__':

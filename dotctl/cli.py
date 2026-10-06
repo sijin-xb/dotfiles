@@ -9,19 +9,21 @@ from __future__ import annotations
 import sys
 
 from . import ui
-from .commands import status
+from .commands import deps, status
 
 COMMANDS = {
     'status': status.run,
+    'deps': deps.run,
 }
 
 HELP = """dotctl —— dotfiles 安装器的 Python 侧
 
 已迁移的子命令：
   status                当前部署状态一览（只读）
+  deps                  依赖清单，--missing 只看缺口（只读）
 
 其余子命令（install / update / rollback / restore / archive / uninstall /
-doctor / deps / theme / clean）仍在 bash 侧，由 ./install.sh 分发。
+doctor / theme / clean）仍在 bash 侧，由 ./install.sh 分发。
 完整用法见 ./install.sh --help。
 """
 
