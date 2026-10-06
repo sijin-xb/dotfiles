@@ -195,12 +195,28 @@ check-qml-deps.py          QML 模块依赖自检，install 与 update 收尾各
 | `tests/install-sh-prompt-test.sh` | `confirm` / `read_answer` 在 EOF、沉默管道、pty 下都不挂死 |
 | `tests/install-sh-tmpfiles-test.sh` | 临时文件：统一 run 目录、EXIT trap、SIGINT 不留垃圾 |
 | `tests/install-sh-archive-test.sh` | `archive` 打包内容、拒绝存档的返回码语义 |
-| `tests/test_dotctl.py` | Python 侧契约测试：status 输出格式、会话推断、清单计数等价 `wc -l` |
+| `tests/test_dotctl.py` | Python 侧契约测试（46 条）：输出格式、会话推断、清单计数等价 `wc -l`、确认兜底不误删 |
 
 失败时会打印「实际 vs 期望」并以非 0 退出；
 `DRYRUN_ROOT=/tmp/xxx bash tests/install-sh-dryrun.sh` 可保留现场排查。
 
 Python 侧单独跑（同样不需要 sudo / 网络）：`python3 -m unittest discover -s tests -p 'test_*.py' -t .`
+
+### 迁移状态（bash → dotctl）
+
+安装器正在从 bash 逐步迁到纯标准库 Python。已迁的子命令在 `lib/8x-cmd-*.sh`
+里只剩一行 `dotctl_run` 转发，实现看 `dotctl/commands/`：
+
+| 已迁移 | 仍在 bash 侧 |
+|---|---|
+| `status` `deps` `theme` `clean` `doctor` | `install` `update` `rollback` `restore` `archive` `uninstall` |
+
+改已迁移的命令时不要动 `lib/8x-cmd-*.sh`（那里只有转发）。两条硬约束：
+
+- **包列表与部署清单仍以 bash 侧为唯一来源**，Python 经 `dotctl/bashsrc.py`
+  读取，不另抄一份 —— 否则会出现「`deps` 说有、`install` 装的时候没有」。
+- 迁过的命令输出必须与 bash 版**逐字一致**：改完把 HEAD 导出到临时目录
+  对跑 diff（`git archive HEAD | tar -x -C /tmp/x`），别只看"看着一样"。
 
 改 matugen 的终端配色模板（kitty / alacritty / foot / konsole）之后，跑
 `python3 tools/term-color-audit.py`：它把四个终端的 16 个 ANSI 槽位拉齐算
