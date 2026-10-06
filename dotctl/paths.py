@@ -22,16 +22,27 @@ def repo() -> Path:
     return Path(__file__).resolve().parent.parent
 
 
+def _frozen(env_key: str, fallback: Path) -> Path:
+    """优先用 bash 侧传下来的值（见 lib/15-python.sh 的说明）。
+
+    bash 的 BACKUP_ROOT / SNAP_ROOT / STATE_DIR 是 source 时算好的常量，
+    之后不随 $HOME 变；直接按 $HOME 动态推会在「改 HOME 再调函数」的场景下
+    与 bash 不一致。
+    """
+    raw = os.environ.get(env_key)
+    return Path(raw) if raw else fallback
+
+
 def backup_root() -> Path:
-    return home() / '.local/state/dotfiles-backup'
+    return _frozen('DOTCTL_BACKUP_ROOT', home() / '.local/state/dotfiles-backup')
 
 
 def snap_root() -> Path:
-    return backup_root() / 'snapshots'
+    return _frozen('DOTCTL_SNAP_ROOT', backup_root() / 'snapshots')
 
 
 def state_dir() -> Path:
-    return backup_root() / 'state'
+    return _frozen('DOTCTL_STATE_DIR', backup_root() / 'state')
 
 
 def repo_url() -> str:

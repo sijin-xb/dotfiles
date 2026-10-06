@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 
 from . import paths
 
@@ -23,7 +24,21 @@ from . import paths
 #   提示语里要用的调用者路径改由 DOTCTL_SELF 环境变量传下去，bash 侧
 #   print_help 读的是 $0 —— 所以下面再 export 一份 DOTCTL_SELF 给不出效果，
 #   真正的办法见 help_text()。
-_LOADER = 'source "$1/install.sh" >/dev/null 2>&1 || exit 1; shift; "$@"'
+#
+# ⚠ 子进程会**重新 source** install.sh，于是 BACKUP_ROOT / SNAP_ROOT /
+#   STATE_DIR 会按子进程当时的 $HOME 重算 —— 而父进程（真正的安装器）用的是
+#   source 时冻结的值。两者在「改了 HOME 再调函数」时会分叉（archive 的测试
+#   就是这么踩到的：子进程按 empty-home 建出 dotfiles-backup，让本该「无可
+#   打包路径」的场景变成有路径）。
+#   所以这里把父进程的冻结值经环境变量传进去，source 之后覆盖掉重算的结果。
+_FROZEN_VARS = ('DOTCTL_BACKUP_ROOT', 'DOTCTL_SNAP_ROOT', 'DOTCTL_STATE_DIR')
+
+# DOTCTL_BACKUP_ROOT -> BACKUP_ROOT 等。写成 shell 片段，source 之后执行。
+_PIN = '; '.join(
+    f'if [ -n "${{{v}:-}}" ]; then {v[7:]}="${v}"; fi'
+    for v in _FROZEN_VARS
+)
+_LOADER = f'source "$1/install.sh" >/dev/null 2>&1 || exit 1; {_PIN}; shift; "$@"'
 
 
 def _bash_argv() -> list[str]:
@@ -51,6 +66,10 @@ def call_streaming(func: str, *args: str) -> bool:
     返回 True 表示 bash 侧退出码为 0（注意：bash 函数 return 1 也会反映到
     这里的 False，调用方要按各自语义处理，别一律当异常）。
     """
+    # ⚠ 必须先 flush 自己的 stdout：子进程直接写 fd 1，而 Python 的 stdout
+    #   在管道 / 重定向下是块缓冲 —— 不 flush 的话子进程的输出会插到本进程
+    #   尚未落盘的内容前面（archive --delete 的空行位置就是这么错的）。
+    sys.stdout.flush()
     proc = subprocess.run([*_bash_argv(), func, *args], check=False)
     return proc.returncode == 0
 

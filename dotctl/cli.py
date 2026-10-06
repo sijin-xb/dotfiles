@@ -9,7 +9,7 @@ from __future__ import annotations
 import sys
 
 from . import ui
-from .commands import clean, deps, doctor, rollback, status, theme
+from .commands import archive, clean, deps, doctor, rollback, status, theme
 
 COMMANDS = {
     'status': status.run,
@@ -19,6 +19,7 @@ COMMANDS = {
     'doctor': doctor.run,
     'rollback': rollback.rollback,
     'restore': rollback.restore,
+    'archive': archive.run,
 }
 
 HELP = """dotctl —— dotfiles 安装器的 Python 侧
@@ -30,8 +31,9 @@ HELP = """dotctl —— dotfiles 安装器的 Python 侧
   clean                 清理临时残留 / 自举缓存 / 旧快照 / 旧备份
   doctor                环境体检（只读）
   rollback / restore    从快照还原 $HOME（有副作用）
+  archive               打包 rice 配置为 tar.gz（有副作用）
 
-其余子命令（install / update / archive / uninstall）仍在 bash 侧，由 ./install.sh 分发。
+其余子命令（install / update / uninstall）仍在 bash 侧，由 ./install.sh 分发。
 完整用法见 ./install.sh --help。
 """
 

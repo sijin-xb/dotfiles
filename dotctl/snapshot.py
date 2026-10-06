@@ -16,7 +16,14 @@ from . import bashsrc, paths
 
 
 def ensure_dirs() -> None:
-    bashsrc.call('ensure_dirs')
+    """建备份 / 快照 / state 三个目录。
+
+    ⚠ 用 dotctl_ensure_frozen_dirs（按**冻结**路径常量建），不是 bash 的
+    ensure_dirs（按运行时 $HOME 建）。两者在「改了 HOME 再调函数」时会分叉，
+    archive 的测试正是这么暴露的：动态建目录会让新建的 dotfiles-backup
+    自己变成「可打包路径」。详见 lib/15-python.sh 里那段注释。
+    """
+    bashsrc.call('dotctl_ensure_frozen_dirs')
 
 
 def read_state(key: str) -> Path | None:

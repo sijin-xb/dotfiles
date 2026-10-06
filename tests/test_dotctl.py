@@ -23,8 +23,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dotctl import paths, state  # noqa: E402
 from dotctl import prompt  # noqa: E402
-from dotctl import snapshot  # noqa: E402
-from dotctl.commands import clean, deps, doctor, rollback, status, theme  # noqa: E402
+from dotctl import snapshot, tmpfiles  # noqa: E402
+from dotctl.commands import archive, clean, deps, doctor, rollback, status, theme  # noqa: E402
 
 
 class TempHome(unittest.TestCase):
@@ -700,6 +700,144 @@ class TestSnapshotState(TempHome):
         state.mkdir(parents=True)
         (state / 'current').write_text('\n')
         self.assertIsNone(snapshot.read_state('current'))
+
+
+
+class TestArchive(TempHome):
+    """archive 的返回码语义是重点：2 = 用户取消，1 = 真的失败。
+
+    cmd_uninstall 靠这个区分 —— 混淆会让用户以为已有备份就去删文件。
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.write('.config/kitty/kitty.conf', 'x\n')
+        self.out = self.home / 'out.tar.gz'
+
+    def run_archive(self, argv: list[str], answer: str = 'y',
+                    paths_list: list[str] | None = None) -> tuple[int, str]:
+        out, err = io.StringIO(), io.StringIO()
+        rows = paths_list if paths_list is not None else ['.config/kitty']
+        with mock.patch.object(archive.bashsrc, 'call', return_value='\n'.join(rows)), \
+             mock.patch.object(archive.bashsrc, 'call_streaming', return_value=True), \
+             mock.patch.object(archive.prompt, 'read_answer', return_value=answer), \
+             mock.patch.object(archive, '_run_tar', return_value=True), \
+             mock.patch.object(archive.fsutil, 'du', return_value='4.0K'):
+            with redirect_stdout(out), redirect_stderr(err):
+                try:
+                    rc = archive.run(list(argv))
+                except SystemExit as exc:
+                    rc = int(exc.code or 0)
+        return rc, out.getvalue() + err.getvalue()
+
+    def test_cancel_returns_2_not_1(self) -> None:
+        rc, out = self.run_archive(['-o', str(self.out)], answer='n')
+        self.assertEqual(rc, 2, '取消必须返回 2，否则 uninstall 会当成「存档失败」')
+        self.assertIn('已取消打包，未写入任何文件。', out)
+        self.assertFalse(self.out.exists())
+
+    def test_no_paths_returns_1(self) -> None:
+        rc, out = self.run_archive(['-o', str(self.out)], paths_list=[])
+        self.assertEqual(rc, 1)
+        self.assertIn('没有可打包的 rice 相关文件', out)
+
+    def test_success_returns_0(self) -> None:
+        rc, out = self.run_archive(['-o', str(self.out)])
+        self.assertEqual(rc, 0)
+        self.assertIn('打包完成', out)
+
+    def test_missing_output_dir(self) -> None:
+        rc, out = self.run_archive(['-o', str(self.home / 'nope/out.tar.gz')])
+        self.assertEqual(rc, 1)
+        self.assertIn('输出目录不存在', out)
+
+    def test_dash_o_without_value(self) -> None:
+        rc, out = self.run_archive(['-o'])
+        self.assertEqual(rc, 1)
+        self.assertIn('archive: -o 需要一个输出路径参数', out)
+
+    def test_unknown_arg_warns_but_continues(self) -> None:
+        rc, out = self.run_archive(['--bogus', '-o', str(self.out)])
+        self.assertIn('archive 未知参数: --bogus（已忽略）', out)
+        self.assertEqual(rc, 0)
+
+    def test_plan_marks_present_and_missing(self) -> None:
+        _, out = self.run_archive(['-o', str(self.out)],
+                                  paths_list=['.config/kitty', '.config/nvim'])
+        # 色码夹在符号两侧（硬编码的，见下一条测试），所以断言带上它们
+        self.assertIn('\033[1;32m✓\033[0m ~/.config/kitty', out)
+        self.assertIn('\033[1;33m·\033[0m ~/.config/nvim （缺失，跳过）', out)
+
+    def test_plan_always_colored(self) -> None:
+        """计划清单的色码是硬编码的（照抄 bash）—— 管道下也带 ANSI。
+
+        与 ui.GREEN 的「非终端就关色」不同，这是 bash 侧的不一致，迁移期
+        照抄；这条测试把现状钉住，将来修的时候会立刻发现。
+        """
+        _, out = self.run_archive(['-o', str(self.out)],
+                                  paths_list=['.config/kitty'])
+        self.assertIn('\033[1;32m✓\033[0m', out)
+
+
+class TestTmpfiles(TempHome):
+    """临时文件落在 $TMPRUN 里 —— tests 的 SIGINT 那节靠这个可观察副作用。"""
+
+    def test_mktmpd_creates_run_dir(self) -> None:
+        run = self.home / 'run'
+        os.environ['TMPRUN'] = str(run)
+        self.addCleanup(os.environ.pop, 'TMPRUN', None)
+        made = tmpfiles.mktmpd()
+        self.assertTrue(run.is_dir(), 'TMPRUN 目录没被建出来')
+        self.assertEqual(made.parent, run)
+
+    def test_mktmp_creates_run_dir(self) -> None:
+        run = self.home / 'run2'
+        os.environ['TMPRUN'] = str(run)
+        self.addCleanup(os.environ.pop, 'TMPRUN', None)
+        made = tmpfiles.mktmp()
+        self.assertTrue(run.is_dir())
+        self.assertTrue(made.is_file())
+
+    def test_fallback_without_tmp_run(self) -> None:
+        os.environ.pop('TMPRUN', None)
+        os.environ['TMPDIR'] = str(self.home / 'tmp')
+        self.addCleanup(os.environ.pop, 'TMPDIR', None)
+        made = tmpfiles.mktmpd()
+        self.assertIn('dotfiles-install.', str(made))
+
+    def test_cleanup_removes_tree(self) -> None:
+        os.environ['TMPRUN'] = str(self.home / 'run3')
+        self.addCleanup(os.environ.pop, 'TMPRUN', None)
+        made = tmpfiles.mktmpd()
+        (made / 'inner.txt').write_text('x')
+        tmpfiles.cleanup(made)
+        self.assertFalse(made.exists())
+        tmpfiles.cleanup(made)          # 再删一次不应抛异常
+
+
+class TestFrozenPaths(TempHome):
+    """路径常量优先用 bash 传下来的冻结值。
+
+    bash 的 BACKUP_ROOT / SNAP_ROOT / STATE_DIR 是 source 时算好的，不随
+    $HOME 变；Python 若总是动态推，会在「改 HOME 再调函数」时分叉。
+    """
+
+    def test_frozen_values_win(self) -> None:
+        frozen = self.home / 'frozen-backup'
+        os.environ['DOTCTL_BACKUP_ROOT'] = str(frozen)
+        os.environ['DOTCTL_SNAP_ROOT'] = str(frozen / 'snap')
+        os.environ['DOTCTL_STATE_DIR'] = str(frozen / 'state')
+        for key in ('DOTCTL_BACKUP_ROOT', 'DOTCTL_SNAP_ROOT', 'DOTCTL_STATE_DIR'):
+            self.addCleanup(os.environ.pop, key, None)
+        self.assertEqual(paths.backup_root(), frozen)
+        self.assertEqual(paths.snap_root(), frozen / 'snap')
+        self.assertEqual(paths.state_dir(), frozen / 'state')
+
+    def test_fallback_to_home(self) -> None:
+        for key in ('DOTCTL_BACKUP_ROOT', 'DOTCTL_SNAP_ROOT', 'DOTCTL_STATE_DIR'):
+            os.environ.pop(key, None)
+        self.assertEqual(paths.backup_root(),
+                         paths.home() / '.local/state/dotfiles-backup')
 
 
 if __name__ == '__main__':
