@@ -150,9 +150,9 @@ niri 见 `binds.kdl` + `dms/binds.kdl`。两套键位是照着迁移的（同功
 ## 目录结构
 
 ~~~
-install.sh                 安装器引导（bash：定位仓库、加载 lib/、分发子命令）
-lib/                       bash 侧模块：部署、快照、包管理、TUI、未迁移的子命令
-dotctl/                    Python 侧：已迁移的子命令（纯标准库，3.11+）
+install.sh                 安装器引导（bash，83 行：定位仓库 / 加载 lib/ / 分发）
+lib/                       bash 侧：包列表、快照原语、部署路径清单、TUI、外部流程
+dotctl/                    Python 引擎：11 个子命令的实现（纯标准库，3.11+）
 tools/                     维护脚本（终端配色体检等）
 dot_config/                部署到 ~/.config（下列为其中的关键路径）
   hypr/                    Hyprland：hyprland.lua 入口 + hyprland/ 模板层 + custom/ 覆盖层
@@ -202,21 +202,35 @@ check-qml-deps.py          QML 模块依赖自检，install 与 update 收尾各
 
 Python 侧单独跑（同样不需要 sudo / 网络）：`python3 -m unittest discover -s tests -p 'test_*.py' -t .`
 
-### 迁移状态（bash → dotctl）
+### 架构：bash 薄引导 + Python 引擎
 
-安装器正在从 bash 逐步迁到纯标准库 Python。已迁的子命令在 `lib/8x-cmd-*.sh`
-里只剩一行 `dotctl_run` 转发，实现看 `dotctl/commands/`：
+11 个子命令**全部**由纯标准库 Python 实现（`dotctl/`，3.11+，零第三方依赖）。
+`install.sh` 只剩 83 行引导：定位仓库、按字典序 `source lib/*.sh`、把子命令
+转给 `dotctl_run`。`lib/8x-cmd-*.sh` 里每个命令只剩一行转发，实现看
+`dotctl/commands/`。
 
-| 已迁移 | 仍在 bash 侧 |
-|---|---|
-| `status` `deps` `theme` `clean` `doctor` | `install` `update` `rollback` `restore` `archive` `uninstall` |
+**哪些还在 bash 里**（有意为之，不是没迁完）：以「调外部命令」为主的段落 ——
+装包（pacman / AUR）、clone 上游底盘、cmake 编译 Caelestia 插件、建 venv、
+会话交互选择。它们由 Python 按顺序调用（`dotctl/bashsrc.py`），把同样的
+`subprocess` 调用再抄一遍成 Python 没有收益。
 
-改已迁移的命令时不要动 `lib/8x-cmd-*.sh`（那里只有转发）。两条硬约束：
+三条改代码时的硬约束：
 
-- **包列表与部署清单仍以 bash 侧为唯一来源**，Python 经 `dotctl/bashsrc.py`
-  读取，不另抄一份 —— 否则会出现「`deps` 说有、`install` 装的时候没有」。
-- 迁过的命令输出必须与 bash 版**逐字一致**：改完把 HEAD 导出到临时目录
-  对跑 diff（`git archive HEAD | tar -x -C /tmp/x`），别只看"看着一样"。
+- **包列表与部署路径清单以 bash 侧为唯一来源**（`lib/60-packages.sh` 的
+  `*_pkgs()`、`lib/15-python.sh` 的 `dotctl_archive_paths`），Python 经
+  `bashsrc` 读，不另抄一份 —— 否则会出现「`deps` 说有、`install` 装的时候
+  没有」这类漂移。
+- **路径常量（备份根 / 快照 / state）在 bash 侧是 source 时冻结的**，
+  Python 必须用传下来的值（`DOTCTL_BACKUP_ROOT` 等），不能自己按 `$HOME`
+  动态推 —— 两者在「改了 HOME 再调函数」时会分叉。
+- **改动必须与迁移前的输出逐字一致**：把 `HEAD` 导出到临时目录对跑 diff
+  （`git archive HEAD | tar -x -C /tmp/x`），别只看"看着一样"。测试台用的是
+  隔离 HOME + 假命令，`tests/` 里有现成的对照脚本可参考。
+
+`dotctl/` 的分层：`paths`（路径常量，一律用函数以便测试覆盖）· `ui`（输出）·
+`bashsrc`（调 bash 侧只读函数的桥）· `prompt`（确认，语义对齐 bash 的
+`read_answer`）· `deploy`（源树遍历 / 忽略清单 / 单条目落盘 / 清单读写）·
+`snapshot` / `tmpfiles` / `fsutil` · `commands/*`（每个子命令一个模块）。
 
 改 matugen 的终端配色模板（kitty / alacritty / foot / konsole）之后，跑
 `python3 tools/term-color-audit.py`：它把四个终端的 16 个 ANSI 槽位拉齐算
