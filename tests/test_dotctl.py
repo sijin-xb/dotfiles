@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dotctl import paths, state  # noqa: E402
 from dotctl import prompt  # noqa: E402
-from dotctl import prompt, snapshot, tmpfiles  # noqa: E402
+from dotctl import deploy, prompt, snapshot, tmpfiles  # noqa: E402
 from dotctl.commands import (archive, clean, deps, doctor, rollback,  # noqa: E402
                              status, theme, uninstall)
 
@@ -1004,6 +1004,215 @@ class TestPromptUnbuffered(TempHome):
         self.assertEqual(first, 'python-line')
         self.assertEqual(proc.stdout.strip(), 'bash-line',
                          'bash 子进程读不到第二行 —— read_answer 预读了缓冲')
+
+
+
+class TestChezmoiIgnore(TempHome):
+    """忽略清单判定的纯逻辑测试。
+
+    ⚠ 有一组用例是「拿真实 .chezmoiignore 的每条模式去探」—— 那正是发现
+    `case` 的 glob 里 `*` 会跨 `/` 的方式（我原先按段比较，107 条里错 1 条）。
+    真实清单会演进，所以这里对**模式形状**断言，不写死具体路径。
+    """
+
+    def write_ignore(self, body: str) -> Path:
+        """写到临时 HOME 下的文件，**绝不碰仓库里真实的 .chezmoiignore**。
+
+        ⚠ 第一版直接写 paths.repo()/'.chezmoiignore'，把仓库的忽略清单覆盖成
+        三行玩具内容，害得 install-sh-behaviour-test.sh 的 G 组整组失败
+        （它读的是真实清单）。测试污染仓库是硬错误，改成写临时文件。
+        """
+        path = self.home / 'chezmoiignore-test'
+        path.write_text(body)
+        return path
+
+    def test_missing_file_returns_empty(self) -> None:
+        with mock.patch.object(deploy, 'ignore_file', return_value=self.home / 'nope'):
+            self.assertEqual(deploy.parse_ignore(), [])
+            self.assertEqual(deploy.ignore_kind('.config/x'), '')
+
+    def test_comments_and_blanks_stripped(self) -> None:
+        path = self.write_ignore('# 注释\n\n  .config/a  # 尾注\n\t.config/b\t\n')
+        with mock.patch.object(deploy, 'ignore_file', return_value=path):
+            self.assertEqual(deploy.parse_ignore(), ['.config/a', '.config/b'])
+
+    def test_directory_prefix(self) -> None:
+        """目录模式是**前缀**匹配，且带尾斜杠 —— 所以 `.config/x` 本身不算命中
+        （bash 是 `[[ $target == "$pat"* ]]`，'.config/x' 不以 '.config/x/' 开头）。"""
+        with mock.patch.object(deploy, 'parse_ignore', return_value=['.config/x/']):
+            self.assertEqual(deploy.ignore_kind('.config/x'), '')
+            self.assertEqual(deploy.ignore_kind('.config/x/y'), 'skip')
+            self.assertEqual(deploy.ignore_kind('.config/xy'), '')
+
+    def test_double_star_matches_any_depth(self) -> None:
+        with mock.patch.object(deploy, 'parse_ignore', return_value=['**/__pycache__']):
+            self.assertEqual(deploy.ignore_kind('__pycache__'), 'skip')
+            self.assertEqual(deploy.ignore_kind('a/__pycache__'), 'skip')
+            self.assertEqual(deploy.ignore_kind('a/b/__pycache__'), 'skip')
+            self.assertEqual(deploy.ignore_kind('a/__pycache__/x.pyc'), 'skip')
+            self.assertEqual(deploy.ignore_kind('a/pycache'), '')
+
+    def test_glob_star_crosses_slash(self) -> None:
+        """bash 的 `case` glob 里 `*` 是跨 `/` 的（实测确认）。
+
+        这是路径名展开与 case 的区别 —— 前者不跨 /，后者跨。
+        """
+        with mock.patch.object(deploy, 'parse_ignore',
+                               return_value=['.config/niri/dms/*.bak*']):
+            self.assertEqual(deploy.ignore_kind('.config/niri/dms/x.bak-1'), 'skip')
+            self.assertEqual(deploy.ignore_kind('.config/niri/dms/a/b.baka/b'), 'skip')
+            self.assertEqual(deploy.ignore_kind('.config/niri/dms/alttab.kdl'), '')
+
+    def test_exact_match_is_keep_not_skip(self) -> None:
+        """无通配的模式返回 keep（不是 skip）—— 两者在 deploy_one_file 里
+        含义不同：keep = 该文件由仓库提供、不覆盖用户改动。"""
+        with mock.patch.object(deploy, 'parse_ignore', return_value=['.config/mimeapps.list']):
+            self.assertEqual(deploy.ignore_kind('.config/mimeapps.list'), 'keep')
+            self.assertEqual(deploy.ignore_kind('.config/mimeapps.list/x'), '')
+
+    def test_first_match_wins(self) -> None:
+        with mock.patch.object(deploy, 'parse_ignore',
+                               return_value=['.config/a', '.config/a/']):
+            self.assertEqual(deploy.ignore_kind('.config/a'), 'keep')
+
+    def test_never_touches_repo_ignore_file(self) -> None:
+        """防回归：测试不得写仓库里真实的 .chezmoiignore。
+
+        第一版 write_ignore 直接写它，把仓库清单覆盖成三行玩具内容，
+        害得 install-sh-behaviour-test.sh 的 G 组整组失败。
+        """
+        real = paths.repo() / '.chezmoiignore'
+        before = real.read_text()
+        self.write_ignore('# 玩具\n.config/toy\n')
+        with mock.patch.object(deploy, 'ignore_file',
+                               return_value=self.home / 'chezmoiignore-test'):
+            deploy.parse_ignore()
+        self.assertEqual(real.read_text(), before, '仓库的 .chezmoiignore 被测试改动了')
+
+    def test_real_ignore_file_has_no_surprises(self) -> None:
+        """真实清单的每条模式都应能被判定，不抛异常。"""
+        for pat in deploy.parse_ignore():
+            probe = pat.rstrip('/').replace('**/', '').replace('*', 'X')
+            if probe:
+                deploy.ignore_kind(probe)      # 只要求不抛
+
+
+class TestDeployMapping(TempHome):
+    """chezmoi 前缀 → 目标路径的映射。"""
+
+    def test_dot_prefix(self) -> None:
+        self.assertEqual(deploy.map_target('dot_config/kitty/kitty.conf'),
+                         ('.config/kitty/kitty.conf', mock.ANY))
+
+    def test_non_dot_ignored(self) -> None:
+        self.assertIsNone(deploy.map_target('lib/00-env.sh'))
+        self.assertIsNone(deploy.map_target('README.md'))
+
+    def test_executable_attribute(self) -> None:
+        target, attrs = deploy.map_target('dot_config/fish/executable_config.fish')
+        self.assertEqual(target, '.config/fish/config.fish')
+        self.assertTrue(attrs['exec'])
+
+    def test_private_attribute(self) -> None:
+        target, attrs = deploy.map_target('dot_config/fcitx5/private_config')
+        self.assertEqual(target, '.config/fcitx5/config')
+        self.assertTrue(attrs['private'])
+
+    def test_symlink_attribute(self) -> None:
+        target, attrs = deploy.map_target('dot_config/systemd/user/symlink_mako.service')
+        self.assertEqual(target, '.config/systemd/user/mako.service')
+        self.assertTrue(attrs['symlink'])
+
+    def test_stacked_attributes(self) -> None:
+        target, attrs = deploy.map_target('dot_x/executable_private_y')
+        self.assertEqual(target, '.x/y')
+        self.assertTrue(attrs['exec'])
+        self.assertTrue(attrs['private'])
+
+    def test_walk_sources_only_dot_entries(self) -> None:
+        rows = deploy.walk_sources()
+        self.assertTrue(rows, '源树里应该有可部署条目')
+        for _src, _dst, rel, _attrs in rows:
+            self.assertTrue(rel.startswith('dot_'), rel)
+            self.assertNotIn('/.git/', rel)
+
+
+class TestDeployOneFile(TempHome):
+    """落盘行为：幂等、备份、属性。"""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.src = self.home / 'src-file'
+        self.src.write_text('content\n')
+        self.dstdir = str(self.home / 'target')
+
+    def test_new_file(self) -> None:
+        with mock.patch.object(deploy, 'ignore_kind', return_value=''):
+            result, rel = deploy.deploy_one_file(self.src, self.dstdir, 'out.conf', {})
+        self.assertEqual(result, 'new')
+        self.assertEqual((Path(self.dstdir) / 'out.conf').read_text(), 'content\n')
+
+    def test_identical_content_is_idempotent(self) -> None:
+        dst = Path(self.dstdir) / 'out.conf'
+        dst.parent.mkdir(parents=True)
+        dst.write_text('content\n')
+        before = dst.stat().st_mtime_ns
+        with mock.patch.object(deploy, 'ignore_kind', return_value=''):
+            result, _ = deploy.deploy_one_file(self.src, self.dstdir, 'out.conf', {})
+        self.assertEqual(result, 'same')
+        self.assertEqual(dst.stat().st_mtime_ns, before, '内容一致却改动了文件')
+
+    def test_different_content_backs_up(self) -> None:
+        dst = Path(self.dstdir) / 'out.conf'
+        dst.parent.mkdir(parents=True)
+        dst.write_text('old\n')
+        backup = str(self.home / 'backup')
+        with mock.patch.object(deploy, 'ignore_kind', return_value=''):
+            result, _ = deploy.deploy_one_file(self.src, self.dstdir, 'out.conf', {},
+                                               backup_dir=backup)
+        self.assertEqual(result, 'backup')
+        self.assertEqual(dst.read_text(), 'content\n')
+        self.assertTrue((Path(backup) / _rel(dst)).exists(), '旧内容没被备份')
+
+    def test_skip_by_ignore(self) -> None:
+        with mock.patch.object(deploy, 'ignore_kind', return_value='skip'):
+            result, _ = deploy.deploy_one_file(self.src, self.dstdir, 'out.conf', {})
+        self.assertEqual(result, 'skip')
+        self.assertFalse((Path(self.dstdir) / 'out.conf').exists())
+
+    def test_executable_bit(self) -> None:
+        with mock.patch.object(deploy, 'ignore_kind', return_value=''):
+            deploy.deploy_one_file(self.src, self.dstdir, 'run.sh', {'exec': True})
+        self.assertTrue(os.access(Path(self.dstdir) / 'run.sh', os.X_OK))
+
+    def test_private_mode(self) -> None:
+        with mock.patch.object(deploy, 'ignore_kind', return_value=''):
+            deploy.deploy_one_file(self.src, self.dstdir, 'secret', {'private': True})
+        self.assertEqual((Path(self.dstdir) / 'secret').stat().st_mode & 0o777, 0o600)
+
+    def test_symlink_uses_file_content_as_target(self) -> None:
+        self.src.write_text('/dev/null\n')
+        with mock.patch.object(deploy, 'ignore_kind', return_value=''):
+            result, _ = deploy.deploy_one_file(self.src, self.dstdir, 'mako.service',
+                                               {'symlink': True})
+        self.assertEqual(result, 'link')
+        self.assertTrue((Path(self.dstdir) / 'mako.service').is_symlink())
+        self.assertEqual(os.readlink(Path(self.dstdir) / 'mako.service'), '/dev/null')
+
+    def test_fingerprint_uses_link_target(self) -> None:
+        """符号链接记链接目标，不跟随 —— 跟随会把 /dev/null 的内容当指纹，
+        改链接目标就检测不出来了。"""
+        link = self.home / 'a-link'
+        os.symlink('/dev/null', link)
+        self.assertEqual(deploy.fingerprint(link), 'link:/dev/null')
+        os.unlink(link)
+        os.symlink('/dev/zero', link)
+        self.assertEqual(deploy.fingerprint(link), 'link:/dev/zero')
+        self.assertEqual(deploy.fingerprint(self.home / 'nope'), 'absent')
+
+
+def _rel(path: Path) -> str:
+    return str(path)[len(str(paths.home())) + 1:]
 
 
 if __name__ == '__main__':
