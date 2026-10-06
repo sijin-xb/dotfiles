@@ -15,7 +15,10 @@ dotctl_run() {
     # TMPRUN 要显式传：它是 lib/10-util.sh 里的普通变量（没 export），而
     # clean 必须能认出「当前这次运行自己的临时目录」并跳过它 —— 删了它，
     # 本次运行后续的 mktmp 全部失效，EXIT trap 也没东西可清。
+    # DOTCTL_BASH_VERSION 同理：doctor 里那一行「bash 5.3」取自 BASH_VERSINFO，
+    # 而它也不是导出变量，Python 侧只能由这里递过去。
     DOTCTL_SELF="${DOTCTL_SELF:-$0}" \
+    DOTCTL_BASH_VERSION="${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}" \
     TMPRUN="${TMPRUN:-}" \
     PYTHONPATH="$SRC${PYTHONPATH:+:$PYTHONPATH}" python3 -m dotctl "$@"
 }

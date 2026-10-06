@@ -23,7 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dotctl import paths, state  # noqa: E402
 from dotctl import prompt  # noqa: E402
-from dotctl.commands import clean, deps, status, theme  # noqa: E402
+from dotctl.commands import clean, deps, doctor, status, theme  # noqa: E402
 
 
 class TempHome(unittest.TestCase):
@@ -430,6 +430,123 @@ class TestPrompt(TempHome):
             with redirect_stdout(out):
                 prompt.confirm('确认？', allow_back=True)
         self.assertIn('[y/N/b(返回)]', out.getvalue())
+
+
+
+class TestDoctor(TempHome):
+    """doctor 读真实系统（发行版、工具链、包），所以断言钉在**结构**上：
+    六段标题、符号、退出码语义。逐字一致性由 /tmp 的迁移前后对照负责。"""
+
+    def setUp(self) -> None:
+        super().setUp()
+        # 真实的 ~/.local/state 是存在的；临时 HOME 里得自己造，否则
+        # 「备份目录可写」那一段会因为父目录都不存在而判成失败。
+        (paths.home() / '.local/state').mkdir(parents=True, exist_ok=True)
+
+    def run_doctor(self, argv: list[str] | None = None) -> tuple[int, str]:
+        out = io.StringIO()
+        # 只把依赖检查挡掉。**不要**全局 mock shutil.which —— 那会让 QML
+        # 自检以为 python3 存在，于是真的去跑 check-qml-deps.py，在临时
+        # HOME 下必然失败，用例就测不到排版了。
+        def fake_which(name: str) -> str:
+            # 工具链那一段要看到 pacman 存在（否则判「pacman 缺失」→ 退出码 1）。
+            # 「有没有装包」由 _installed 控制，与 which 无关。
+            return f'/usr/bin/{name}'
+
+        with mock.patch.object(doctor, '_installed', return_value=True), \
+             mock.patch.object(doctor.bashsrc, 'packages', return_value=[]), \
+             mock.patch('shutil.which', side_effect=fake_which):
+            with redirect_stdout(out):
+                rc = doctor.run(list(argv or []))
+        return rc, out.getvalue()
+
+    def test_six_sections(self) -> None:
+        rc, out = self.run_doctor()
+        self.assertEqual(rc, 0)
+        for head in ('── 系统 ──', '── 工具链 ──', '── 依赖包缺口 ──',
+                     '── QML 模块自检 ──', '── 备份目录 ──', '── 结论 ──'):
+            self.assertIn(head, out)
+        self.assertIn('── 会话（end4pc', out)
+
+    def test_all_clean_message(self) -> None:
+        rc, out = self.run_doctor()
+        self.assertEqual(rc, 0)
+        # 临时 HOME 里没有已部署的配置，所以会有「需要注意」项；
+        # 「一切正常」只在零警告零失败时出现，这里不该期待它。
+        self.assertIn('0 项必须处理。', out)
+        self.assertIn('✓', out)
+        self.assertNotIn('✗', out)
+
+    def test_missing_packages_warns_but_returns_zero(self) -> None:
+        """缺包只是「需要注意」，不该让退出码变 1 —— 只有必须处理的项才返回 1。"""
+        out = io.StringIO()
+        def fake_which(name: str) -> str:
+            # 工具链那一段要看到 pacman 存在（否则判「pacman 缺失」→ 退出码 1）。
+            # 「有没有装包」由 _installed 控制，与 which 无关。
+            return f'/usr/bin/{name}'
+
+        def fake_packages(kind: str) -> list[str]:
+            return ['pkg-a', 'pkg-b'] if kind == 'pacman' else []
+
+        with mock.patch.object(doctor, '_installed', return_value=False), \
+             mock.patch.object(doctor.bashsrc, 'packages', side_effect=fake_packages), \
+             mock.patch('shutil.which', side_effect=fake_which):
+            with redirect_stdout(out):
+                rc = doctor.run([])
+        self.assertEqual(rc, 0)
+        self.assertIn('2 个包未安装：pkg-a pkg-b', out.getvalue())
+        # 退出码 0 = 没有「必须处理」项；临时 HOME 下还会有「配置入口不存在」
+        # 之类的「需要注意」项，所以只钉必须处理数为 0，不钉总数。
+        self.assertIn('0 项必须处理。', out.getvalue())
+
+    def test_non_arch_is_a_failure(self) -> None:
+        out = io.StringIO()
+        def fake_which(name: str) -> str:
+            # 工具链那一段要看到 pacman 存在（否则判「pacman 缺失」→ 退出码 1）。
+            # 「有没有装包」由 _installed 控制，与 which 无关。
+            return f'/usr/bin/{name}'
+
+        with mock.patch.object(doctor.Path, 'is_file', return_value=False), \
+             mock.patch.object(doctor, '_installed', return_value=True), \
+             mock.patch.object(doctor.bashsrc, 'packages', return_value=[]), \
+             mock.patch('shutil.which', side_effect=fake_which):
+            with redirect_stdout(out):
+                rc = doctor.run([])
+        self.assertEqual(rc, 1)
+        self.assertIn('非 Arch 系', out.getvalue())
+
+    def test_tilde_shortens_home(self) -> None:
+        home = paths.home()
+        self.assertEqual(doctor._tilde(home / '.config/hypr/hyprland.lua'),
+                         '~/.config/hypr/hyprland.lua')
+        # 不在 HOME 下的路径保持原样
+        self.assertEqual(doctor._tilde(Path('/etc/arch-release')), '/etc/arch-release')
+
+    def test_bash_version_from_env(self) -> None:
+        os.environ['DOTCTL_BASH_VERSION'] = '9.9'
+        self.addCleanup(os.environ.pop, 'DOTCTL_BASH_VERSION', None)
+        _, out = self.run_doctor()
+        self.assertIn('✓ bash 9.9', out)
+
+    def test_bash_version_fallback(self) -> None:
+        os.environ.pop('DOTCTL_BASH_VERSION', None)
+        _, out = self.run_doctor()
+        self.assertIn('bash 未知', out)
+
+    def test_help_and_stray_args(self) -> None:
+        rc, out = self.run_doctor(['-h'])
+        self.assertEqual(rc, 0)
+        self.assertIn('体检当前环境并打印缺口', out)
+
+        rc, out = self.run_doctor(['--bogus'])
+        self.assertEqual(rc, 2)
+        self.assertIn('doctor 不接受参数：--bogus', out)
+
+    def test_dms_skips_qml_check(self) -> None:
+        self.write('.local/state/dotfiles-backup/state/deployed-session', 'dms|niri')
+        _, out = self.run_doctor()
+        self.assertIn('dms 会话不需要 QML 模块自检', out)
+        self.assertIn('── 会话（dms', out)
 
 
 if __name__ == '__main__':
