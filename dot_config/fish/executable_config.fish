@@ -30,9 +30,11 @@ if status is-interactive
         fastfetch
     end
 
-    # Colors
-    set -g fish_color_valid_path --underline '#d5bbff'
-    set -g fish_color_param '#e7e0ea'
+    # 配色不在本文件设：conf.d/matugen-colors.fish（matugen 生成）管全套
+    # fish_color_* / fish_pager_color_*。
+    # ⚠ fish 先按字母序 source conf.d/*.fish，最后才读 config.fish —— 在这里
+    #   写任何 fish_color_* 都会反过来覆盖 matugen。原来这两行就是旧配色残留
+    #   （valid_path 紫 #d5bbff、param 灰 #e7e0ea），已删。
 
     # Aliases
     alias clear "printf '\033[2J\033[3J\033[1;1H'"
