@@ -13,9 +13,11 @@
 # ModifierOnlyKeyTimeout=250
 
 [Hotkey/TriggerKeys]
-0=Shift_L
-1=Zenkaku_Hankaku
-2=Hangul
+# 2026-10-09：原来是 Shift_L，与 rime 的 ascii_composer/switch_key/Shift_L
+# 冲突 —— Shift 被 fcitx5 截去当全局开关，激活时用的又是 profile 的默认输入法
+# （旧值是 keyboard-us），所以切出来一直是 abc。现把 Shift 让给 rime 自己切中/英，
+# fcitx5 整体的开/关改用 Ctrl+Space。
+0=Control+space
 
 # [Hotkey/ActivateKeys]
 # 0=Hangul_Hanja
@@ -95,6 +97,8 @@
 ShareInputState=Program
 
 # 新程序启动时输入法处于「未激活」状态，按键直接交给 XKB —— 也就是纯英文。
-# 与 profile 里的 DefaultIM=keyboard-us 配套：即使激活了也是英文起步。
+# 2026-10-09：profile 的 DefaultIM 已从 keyboard-us 改成 rime，所以一旦「激活」
+# 得到的就是 rime（中文），不再是那个显示 abc 的英文输入法。
+# 需要输入法时按 Ctrl+Space 激活；激活后 Shift 由 rime 自己切中/英。
 ActiveByDefault=False
 
