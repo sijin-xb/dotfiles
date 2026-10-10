@@ -60,6 +60,14 @@ environment {
     GSK_RENDERER "gl"
     // 默认文本编辑器
     EDITOR "vim"
+    // DMS 截图（`dms screenshot`）的落盘目录。
+    // DMS 的 CLI 没有配置项，只认环境变量 DMS_SCREENSHOT_DIR；不设时落到
+    // $XDG_PICTURES_DIR/Screenshots。这里指到与 niri 内置截图同一个目录，
+    // 免得历史截图分家（DMS 自己的文件名是 screenshot_<日期>_<时间>.png）。
+    // 本块只覆盖 niri 自己 spawn 的进程（截图键就在这里跑）；经 systemd / dbus
+    // 拉起的进程要看 ~/.config/environment.d/dms-screenshot.conf，两处写同一个
+    // 值 —— 与 XCURSOR_THEME / XCURSOR_SIZE 的处理方式一致。
+    DMS_SCREENSHOT_DIR "/home/xibie/Pictures/Screenshots/Niri-screenshots"
     
 }
 // 光标配置

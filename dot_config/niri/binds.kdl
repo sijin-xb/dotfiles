@@ -33,7 +33,8 @@ binds {
     // rule.kdl 里配套的 match app-id="com.wordlens.app" 也一并注掉了。
     //Mod+F11 hotkey-overlay-title="截图翻译 Screenshot Translator" {spawn "wl-wordlens";}
     //Mod+Shift+T hotkey-overlay-title="截图翻译 Screenshot Translator" {spawn "wl-wordlens";}
-    Mod+F12 hotkey-overlay-title="截取所有显示器 Screenshot All Monitor"  {spawn-sh "grim - | wl-copy & pw-play /usr/share/sounds/freedesktop/stereo/camera-shutter.oga ";}
+    // Mod+F12（grim - | wl-copy 截所有显示器）已删（2026-10-10）：
+    // 被 Mod+Alt+Ctrl+Shift+A 的 `dms screenshot all` 取代，且原来那条只复制不落盘。
     // Mod+Ctrl+Shift+Alt+B（播放 Bad Apple）已删（2026-10-10）：bad-apple 不存在。
 
     // 以下功能需要安装nirius并启动niriusd
@@ -260,20 +261,23 @@ binds {
     //Mod+Shift+X       { switch-layout "next"; }
     //Mod+Shift+Z { switch-layout "prev"; }
 
-    // 截图相关
-    // 截图前创建一个用来触发截图音效进程的token
-    Mod+Alt+A  hotkey-overlay-title="选取区域截图 Select screenshot"  {spawn-sh "niri msg action screenshot --show-pointer false && pkill -f -USR1 screenshot-sound.sh";}
-    Mod+Alt+Ctrl+A  hotkey-overlay-title="截取聚焦窗口 Focus-window screenshot" { spawn-sh "niri msg action screenshot-window && pkill -f -USR1 screenshot-sound.sh"; }
-    Mod+Alt+Ctrl+Shift+A  hotkey-overlay-title="截取显示器 Monitor screenshot" { spawn-sh "niri msg action screenshot-screen --show-pointer false && pkill -f -USR1 screenshot-sound.sh"; }
-    Print  hotkey-overlay-title="区域截图 Region screenshot" {spawn-sh "niri msg action screenshot --show-pointer false && pkill -f -USR1 screenshot-sound.sh";}
-    // 原来是 screenshot-window（截取聚焦窗口）；Hyprland 的 CTRL+Print 是
-    // fullScreenshot（整个显示器），按「同键同功能」改成整屏截图。
-    // 截取聚焦窗口仍可用 Mod+Alt+Ctrl+A。
-    Ctrl+Print  hotkey-overlay-title="截取整个显示器 Monitor screenshot" { spawn-sh "niri msg action screenshot-screen --show-pointer false && pkill -f -USR1 screenshot-sound.sh"; }
-    // 原来是 screenshot-screen（整屏）；Hyprland 的 SHIFT+Print 是
-    // regionScreenshot（区域截图），按「同键同功能」改成区域。
-    // 整屏截图现在用 Ctrl+Print（见上一条）。
-    Shift+Print  hotkey-overlay-title="区域截图 Region screenshot" { spawn-sh "niri msg action screenshot --show-pointer false && pkill -f -USR1 screenshot-sound.sh"; }
+    // ── 截图（2026-10-10 全换成 DMS 的 `dms screenshot`）──────────────
+    // 为什么换：原来 9 个键压着三个后端（niri 内置 6 条、grim|wl-copy 1 条、
+    // grim+slurp 2 条，后两条见 binds-hyprland-migrated.kdl 的说明），而 DMS
+    // 这套把三者能力全覆盖，还多出 last（重拍上次选区）与 scroll（滚动长图）。
+    // 落盘目录：环境变量 DMS_SCREENSHOT_DIR 统一到
+    //   ~/Pictures/Screenshots/Niri-screenshots/
+    //   （见 config.kdl 的 environment 块 + ~/.config/environment.d/dms-screenshot.conf）
+    // DMS 自己的文件名是 screenshot_<日期>_<时间>.png，与 niri 内置的命名不同。
+    // 快门音效：截图命令返回后再给 screenshot-sound.sh 发 USR1（沿用原做法）。
+    // 另外两点：last 在没有上次选区时会自动回退到交互选区，不会报错；
+    //           想要「松开鼠标即截」给区域那条加 --no-confirm 即可。
+    Print            hotkey-overlay-title="区域截图 Region screenshot"       { spawn-sh "dms screenshot && pkill -f -USR1 screenshot-sound.sh"; }
+    Shift+Print      hotkey-overlay-title="重拍上次区域 Last region"         { spawn-sh "dms screenshot last && pkill -f -USR1 screenshot-sound.sh"; }
+    Ctrl+Print       hotkey-overlay-title="当前输出整屏 Full screen"         { spawn-sh "dms screenshot full && pkill -f -USR1 screenshot-sound.sh"; }
+    Mod+Alt+A        hotkey-overlay-title="滚动长图 Scrolling capture"       { spawn-sh "dms screenshot scroll && pkill -f -USR1 screenshot-sound.sh"; }
+    Mod+Alt+Ctrl+A   hotkey-overlay-title="聚焦窗口 Focus-window screenshot" { spawn-sh "dms screenshot window && pkill -f -USR1 screenshot-sound.sh"; }
+    Mod+Alt+Ctrl+Shift+A hotkey-overlay-title="所有输出拼接 All outputs"     { spawn-sh "dms screenshot all && pkill -f -USR1 screenshot-sound.sh"; }
 
     //Mod+Shift+S { spawn "~/.config/niri/scripts/satty-screenshot.sh";}
     Mod+Escape hotkey-overlay-title="开关快捷键抑制 Toggle shortcuts inhibit" allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }

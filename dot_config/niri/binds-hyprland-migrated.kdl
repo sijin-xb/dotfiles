@@ -150,14 +150,12 @@ binds {
     // 4. 截屏 / 录屏
     // ───────────────────────────────────────────────────────────────────────
 
-    // 区域截图：niri 没有内置区域选择 UI，标准做法是 slurp 选区 + grim
-    Mod+Shift+S hotkey-overlay-title="区域截图 Screenshot region" {
-        spawn-sh "grim -g \"$(slurp)\" - | wl-copy -t image/png";
-    }
-    // 全屏截图（原 Ctrl+Print，保存并复制）
-    Mod+Ctrl+S hotkey-overlay-title="全屏截图 Screenshot screen" {
-        spawn-sh "mkdir -p ~/Pictures/Screenshots && f=~/Pictures/Screenshots/screenshot-$(date +%Y-%m-%d_%H-%M-%S).png && grim \"$f\" && wl-copy -t image/png < \"$f\" && notify-send '屏幕截图' '已保存并复制到剪贴板'";
-    }
+    // Mod+Shift+S（grim+slurp 区域截图）与 Mod+Ctrl+S（grim 存文件+复制）已删
+    // （2026-10-10）：功能被 DMS 的 `dms screenshot` 全覆盖，而且这两条绕过了
+    // 快门音效和统一的落盘目录。现在截图键集中在 binds.kdl 的「截图」段：
+    //   Print=区域 / Shift+Print=重拍上次 / Ctrl+Print=当前输出整屏 /
+    //   Mod+Alt+A=滚动长图 / Mod+Alt+Ctrl+A=聚焦窗口 / Mod+Alt+Ctrl+Shift+A=所有输出
+    // grim / slurp 仍然装着，只是没有绑定再引用它们了。
 
     // 录屏：已改由 DMS 的 quickCapture 插件承担（Ctrl+Alt+R，见 dms/binds.kdl）。
     // 原 Mod+Shift+R（区域录制）和 Mod+Ctrl+Alt+R（全屏含声音）已于 2026-09-22 删除。
