@@ -296,6 +296,13 @@ spawn-at-startup "systemctl" "--user" "start" "linuxqq-clipsync"
 //spawn-at-startup "~/.local/bin/toggle-wlsunset"
 // 截图音效的守护进程
 spawn-at-startup "~/.config/niri/scripts/screenshot-sound.sh"
+// 截图落盘目录兜底。DMS 的 `dms screenshot` 只在 DMS_SCREENSHOT_DIR 未设置时
+// 才会自动建目录（GetOutputDir 的 XDG 分支里有 MkdirAll）；一旦显式设了该变量
+// 就直接返回路径，随后 os.Create 因父目录不存在而失败 —— 截图只进剪贴板、不落盘。
+// 而 niri 内置截图虽然会 create_dir_all，但所有截图键都已改走 DMS。加上该目录
+// 被 xb-dotfiles 的 refresh-mirror/backup 排除、不随还原回来，被删后就不会再出现。
+// 这里在会话启动时补建一次，保证两类后端都能写。
+spawn-sh-at-startup "mkdir -p \"$HOME/Pictures/Screenshots/Niri-screenshots\""
 // alt+tab切换器（这是一个第三方，无缩略图显示的切换器）
 //spawn-at-startup "niriswitcher"
 // 已移除的三行（2026-09-23 清理，原因备查）：
