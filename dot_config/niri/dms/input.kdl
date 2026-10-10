@@ -5,7 +5,8 @@
 
 input {
     mouse {
-        accel-speed -0.8
+        accel-speed 0.0
+        accel-profile "flat"
     }
     touchpad {
         tap
@@ -14,4 +15,3 @@ input {
         dwt
     }
 }
-

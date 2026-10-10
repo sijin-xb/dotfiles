@@ -109,8 +109,8 @@ recent-windows {
 
     binds {
         // Super+Tab 已取消绑定，网格总览由 Alt+Tab 承担。
-        Mod+grave       { next-window     filter="app-id"; }
-        Mod+Shift+grave { previous-window filter="app-id"; }
+        Mod+grave       hotkey-overlay-title="同应用下一个窗口 Next window (same app)" { next-window     filter="app-id"; }
+        Mod+Shift+grave hotkey-overlay-title="同应用上一个窗口 Previous window (same app)" { previous-window filter="app-id"; }
     }
 }
 
@@ -369,3 +369,6 @@ include "dms/windowrules.kdl"
 include "dms/input.kdl"
 // 外观数值覆盖层：必须排在 dms/layout.kdl 之后，否则被 DMS 的值压掉。
 include "override-layout.kdl"
+// Nyxuri Shell 浮动窗口规则（org.quickshell → open-floating）。
+// 必须排在最后：窗口规则后出现的覆盖先出现的。
+include optional=true "nyxuri-windows.kdl"

@@ -2,16 +2,19 @@
 // 由 Hyprland 快捷键配置迁移而来
 // 源：~/.config/hypr/hyprland/keybinds.lua  +  ~/.config/hypr/custom/keybinds.lua
 //
-// 修饰键：Mod(=Super) / Ctrl / Alt / Shift，键名用大写 XKB 名（与你现有
-// binds.kdl 风格一致）。
+// 修饰键：Mod(=Super) / Ctrl / Alt / Shift，键名用大写 XKB 名（与 binds.kdl 风格一致）。
 //
-// ⚠ 重要前提
-//   1. 本文件**不会**自动生效：niri 只读 config.kdl，请在 config.kdl 里加
-//      include "binds-hyprland-migrated.kdl"  或把内容粘进 binds.kdl。
-//   2. 凡标 [需验证] 的动作名，首次启用若报 unknown action，
-//      用 `niri msg action` 查准确名字后替换。
-//   3. quickshell 相关条目走 `qs ipc call`，前提是 niri 下已启动 quickshell
-//      （你的 niri spawn-at-startup 里目前没有，需要另加）。
+// ⚠ 三个坑（2026-10-10 整理时核实）
+//   1. 本文件已由 config.kdl 的 `include optional=true` 载入，改这里直接生效。
+//   2. **跨文件重复键位不会报错**：niri validate 只校验单个文件；include 合并时
+//      后加载的文件按 key 覆盖先加载的（niri-config/src/lib.rs 的 "binds" 分支
+//      用 retain+extend，注释里写明「替换而不是报错」是为了支持先 import 一套
+//      配置再覆盖几条的用法）。所以跟 binds.kdl 撞键必须自己删一条 ——
+//      原先的 Mod+Return 就是这么被静默顶掉的（2026-10-10 已删）。
+//   3. Mod 与 Super 是**两个不同的修饰位**（COMPOSITOR vs SUPER），niri 的重复
+//      检查认不出它们等价，但运行时两者都匹配物理 Super
+//      （src/input/mod.rs 的 find_configured_bind，谁在列表里靠前谁胜出）。
+//      所以跨文件同时写 Mod+X 和 Super+X 是隐形冲突。
 // ============================================================================
 
 binds {
@@ -57,7 +60,10 @@ binds {
     // // 列宽：Hyprland 用 splitratio 微调，niri 没有该概念。
     // // 最接近的替代是预设列宽循环 / 按百分比调宽。
     Mod+Semicolon  hotkey-overlay-title="列宽-10% Narrower column" { set-column-width "-10%"; }
-    Mod+Apostrophe hotkey-overlay-title="列宽+10% Wider column"    { set-column-width "10%"; }
+    // 2026-10-10 修：原来是 set-column-width "10%"（绝对值），第一次按下把列设成
+    // 屏宽的 10%，之后再怎么按都没反应；改成 "+10%" 相对调整，与上面
+    // Mod+Semicolon 的 "-10%" 对称。
+    Mod+Apostrophe hotkey-overlay-title="列宽+10% Wider column"    { set-column-width "+10%"; }
     // // 若 set-column-width 不可用，改用预设循环：
     // //   Mod+Semicolon  { switch-preset-column-width; }
     //   Mod+Apostrophe { switch-preset-column-width-back; }
@@ -75,16 +81,16 @@ binds {
     //      niri 没有分组概念，这里直接映射到 1..10。如需分组要另写脚本。
     // ───────────────────────────────────────────────────────────────────────
 
-    Mod+1 { focus-workspace 1; }
-    Mod+2 { focus-workspace 2; }
-    Mod+3 { focus-workspace 3; }
-    Mod+4 { focus-workspace 4; }
-    Mod+5 { focus-workspace 5; }
-    Mod+6 { focus-workspace 6; }
-    Mod+7 { focus-workspace 7; }
-    Mod+8 { focus-workspace 8; }
-    Mod+9 { focus-workspace 9; }
-    Mod+0 { focus-workspace 10; }
+    Mod+1 hotkey-overlay-title="工作区 1 Workspace 1" { focus-workspace 1; }
+    Mod+2 hotkey-overlay-title="工作区 2 Workspace 2" { focus-workspace 2; }
+    Mod+3 hotkey-overlay-title="工作区 3 Workspace 3" { focus-workspace 3; }
+    Mod+4 hotkey-overlay-title="工作区 4 Workspace 4" { focus-workspace 4; }
+    Mod+5 hotkey-overlay-title="工作区 5 Workspace 5" { focus-workspace 5; }
+    Mod+6 hotkey-overlay-title="工作区 6 Workspace 6" { focus-workspace 6; }
+    Mod+7 hotkey-overlay-title="工作区 7 Workspace 7" { focus-workspace 7; }
+    Mod+8 hotkey-overlay-title="工作区 8 Workspace 8" { focus-workspace 8; }
+    Mod+9 hotkey-overlay-title="工作区 9 Workspace 9" { focus-workspace 9; }
+    Mod+0 hotkey-overlay-title="工作区 10 Workspace 10" { focus-workspace 10; }
 
     // 上一个/下一个工作区（原 Super+U / Super+Page 系列）
     Mod+U          hotkey-overlay-title="上一个工作区 Prev workspace" { focus-workspace-up; }
@@ -97,17 +103,8 @@ binds {
     Mod+Ctrl+U hotkey-overlay-title="窗口移到上一个工作区 Move to prev" { move-window-to-workspace-up; }
     Mod+Ctrl+I hotkey-overlay-title="窗口移到下一个工作区 Move to next" { move-window-to-workspace-down; }
     //
-    // // 窗口移到指定工作区（原 Super+Alt+1..0）
-    Mod+Alt+1 { move-window-to-workspace 1; }
-    Mod+Alt+2 { move-window-to-workspace 2; }
-    Mod+Alt+3 { move-window-to-workspace 3; }
-    Mod+Alt+4 { move-window-to-workspace 4; }
-    Mod+Alt+5 { move-window-to-workspace 5; }
-    Mod+Alt+6 { move-window-to-workspace 6; }
-    Mod+Alt+7 { move-window-to-workspace 7; }
-    Mod+Alt+8 { move-window-to-workspace 8; }
-    Mod+Alt+9 { move-window-to-workspace 9; }
-    Mod+Alt+0 { move-window-to-workspace 10; }
+    // // 窗口移到指定工作区（原 Super+Alt+1..0）—— 2026-10-10 删除：
+    // // 本机只用 2 个工作区，且「移到相邻工作区」已有 Mod+Ctrl+U / Mod+Ctrl+I。
 
     // 整列移到相邻工作区（原 Super+Shift+Page_Up/Down）
     Mod+Shift+Page_Up   hotkey-overlay-title="整列移到上一个工作区" { move-column-to-workspace-up; }
@@ -119,9 +116,14 @@ binds {
     //    这是普通 shell 脚本、与合成器无关，niri 下可直接复用。
     // ───────────────────────────────────────────────────────────────────────
 
-    Mod+Return hotkey-overlay-title="终端 Terminal" {
-        spawn "/home/xibie/.config/niri/scripts/launch_first_available.sh" "kitty" "foot" "alacritty" "wezterm" "konsole" "kgx" "uxterm" "xterm";
-    }
+    // Mod+Return 已删（2026-10-10）：它与 binds.kdl 的 Mod+return 是同一个键
+    // （Mod+Return / Mod+return 解析后 key 完全相同）。niri 的 include 合并是按
+    // key 覆盖、且**不报错**（niri-config/src/lib.rs 的 "binds" 分支 retain+extend），
+    // 本文件在后面加载，所以真正生效的一直是这里的 launch_first_available，
+    // binds.kdl 里那条 `spawn "kitty"` 从加进来那天起就没触发过。
+    // 现在统一由 binds.kdl 的 Mod+return { spawn "kitty"; } 承担。
+    // 想换回「挑第一个可用终端」的行为，把 binds.kdl 那条改成
+    //   spawn "/home/xibie/.config/niri/scripts/launch_first_available.sh" "kitty" "foot" ...
     Mod+E hotkey-overlay-title="文件管理器 File manager" { spawn "nautilus"; }
     Mod+W hotkey-overlay-title="浏览器 Browser" {
         spawn "/home/xibie/.config/niri/scripts/launch_first_available.sh" "google-chrome-stable" "zen-browser" "firefox" "brave" "chromium" "microsoft-edge-stable" "opera" "librewolf";
@@ -170,28 +172,28 @@ binds {
     // ───────────────────────────────────────────────────────────────────────
 
     // 音量（原走 wpctl，与合成器无关，直接沿用）
-    XF86AudioRaiseVolume { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "2%+" "-l" "1.5"; }
-    XF86AudioLowerVolume { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "2%-"; }
-    XF86AudioMute        { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SINK@" "toggle"; }
+    XF86AudioRaiseVolume hotkey-overlay-title="音量+ Volume up" { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "2%+" "-l" "1.5"; }
+    XF86AudioLowerVolume hotkey-overlay-title="音量- Volume down" { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "2%-"; }
+    XF86AudioMute        hotkey-overlay-title="扬声器静音 Mute speaker" { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SINK@" "toggle"; }
     Mod+Shift+M          hotkey-overlay-title="静音 Toggle mute" { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SINK@" "toggle"; }
 
     // 麦克风静音
-    XF86AudioMicMute { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SOURCE@" "toggle"; }
+    XF86AudioMicMute hotkey-overlay-title="麦克风静音 Mute mic" { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SOURCE@" "toggle"; }
     Mod+Alt+M        hotkey-overlay-title="麦克风静音 Toggle mic" { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SOURCE@" "toggle"; }
-    Alt+XF86AudioMute { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SOURCE@" "toggle"; }
+    Alt+XF86AudioMute hotkey-overlay-title="麦克风静音 Mute mic" { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SOURCE@" "toggle"; }
 
     // 播放控制（playerctl，直接沿用）
-    XF86AudioPlay  { spawn "playerctl" "play-pause"; }
-    XF86AudioPause { spawn "playerctl" "play-pause"; }
-    XF86AudioNext  { spawn "playerctl" "next"; }
-    XF86AudioPrev  { spawn "playerctl" "previous"; }
+    XF86AudioPlay  hotkey-overlay-title="播放/暂停 Play/Pause" { spawn "playerctl" "play-pause"; }
+    XF86AudioPause hotkey-overlay-title="播放/暂停 Play/Pause" { spawn "playerctl" "play-pause"; }
+    XF86AudioNext  hotkey-overlay-title="下一首 Next track" { spawn "playerctl" "next"; }
+    XF86AudioPrev  hotkey-overlay-title="上一首 Previous track" { spawn "playerctl" "previous"; }
     Mod+Shift+P    hotkey-overlay-title="播放/暂停 Play/Pause" { spawn "playerctl" "play-pause"; }
     Mod+Shift+N    hotkey-overlay-title="下一首 Next track"    { spawn "playerctl" "next"; }
     Mod+Shift+B    hotkey-overlay-title="上一首 Previous track" { spawn "playerctl" "previous"; }
 
     // 亮度（原走 quickshell OSD，回退 brightnessctl；niri 下直接用 brightnessctl）
-    XF86MonBrightnessUp   { spawn "brightnessctl" "s" "5%+"; }
-    XF86MonBrightnessDown { spawn "brightnessctl" "s" "5%-"; }
+    XF86MonBrightnessUp   hotkey-overlay-title="亮度+ Brightness up" { spawn "brightnessctl" "s" "5%+"; }
+    XF86MonBrightnessDown hotkey-overlay-title="亮度- Brightness down" { spawn "brightnessctl" "s" "5%-"; }
 
     // 屏幕缩放：Hyprland 改的是 cursor:zoom_factor（Hyprland 专有配置项），
     // niri 的等价物是 magnifier（2026-09-26 换回 shorin fork 后恢复）。

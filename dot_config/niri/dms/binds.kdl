@@ -50,8 +50,14 @@ binds {
     // Hyprland 里 Super+O 与 Super+B 都开左侧栏，这里保持同键同功能
     Mod+O hotkey-overlay-title="仪表盘 Dashboard" { spawn "dms" "ipc" "call" "dash" "toggle"; }
 
-    // 快捷键速查 —— 与 Hyprland 的 Super+/ 同键
-    Mod+Slash hotkey-overlay-title="快捷键速查表 Keybinds" { spawn "dms" "ipc" "call" "keybinds" "toggle"; }
+    // 快捷键速查 —— 原为 Mod+Slash，2026-10-10 删除（保留为注释）。
+    // 原因：binds.kdl 里那条 Super+Slash（fzf 教程）是同一个物理键。
+    //   Mod 与 Super 在 niri 里是两个修饰位（COMPOSITOR / SUPER），跨文件重复
+    //   不会被 niri validate 抓到；运行时两条都匹配 Super+/，靠配置里靠前的一条
+    //   胜出 —— binds.kdl 先加载，所以按 Super+/ 一直是开 fzf 教程，
+    //   这条 DMS 速查表从来没被触发过。
+    // 想改成开 DMS 速查表：删掉 binds.kdl 的 Super+Slash，再把下面这行取消注释。
+    //Mod+Slash hotkey-overlay-title="快捷键速查表 Keybinds" { spawn "dms" "ipc" "call" "keybinds" "toggle"; }
 
     // 电源菜单 —— 与 Hyprland 的 Ctrl+Alt+Delete 同键
     Mod+Ctrl+Delete hotkey-overlay-title="电源菜单 Power menu" { spawn "dms" "ipc" "call" "powermenu" "toggle"; }

@@ -4,6 +4,6 @@
 // ! PLACE YOUR CUSTOM CONFIGURATION ELSEWHERE !
 
 cursor {
-    xcursor-theme "Matugen-Cursors"
+    xcursor-theme "Matugen-Cursors-alt"
     xcursor-size 24
 }

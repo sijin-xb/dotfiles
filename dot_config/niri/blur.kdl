@@ -1,19 +1,44 @@
 // --- NIRI BLUR START ---
-// 顶层的blur配置，细节调整blur的效果
+// 模糊与窗口透明度参数取自 ech678/Nyxuri：
+//   configs/niri/__presets__/effects/xray-blur.kdl
+// 它和同目录的 effects_normal.kdl 只差 background-effect 里的 xray 一项：
+//   xray true  = 预计算一次模糊背景当壁纸用，几乎无 GPU 开销（下面采用）
+//   xray false = 实时渲染模糊，观感更活但开销高
+//
+// 改动前的原文件已备份为 blur.kdl.bak-20261005-003740，恢复即可还原。
+//
+// 与原配置的参数差异：
+//   offset      3    → 2.3
+//   noise       0.02 → 0.001   （原值在浅色壁纸上颗粒感明显）
+//   saturation  1.5  → 2
+//   passes      3    → 3       （不变）
+// 新增窗口透明度：常规 0.9，失焦 0.85。
+
 blur {
     passes 3
-    offset 3
-    noise 0.02
-    saturation 1.5
+    offset 2.3
+    noise 0.001
+    saturation 2
 }
-// 全局窗口规则。让所有普通窗口以xray的形式显示blur。xray仅渲染一次模糊版本的背景，然后将其以类似“壁纸”的形式显示在窗口后面，不是实时渲染模糊，所以完全没有性能消耗。
+
+// 全局窗口：90% 不透明，背景透出预模糊的壁纸
 window-rule {
+    opacity 0.95
     background-effect {
-        xray true
         blur true
+        xray true
     }
 }
-// 浮动窗口禁用xray可以实时渲染模糊效果但是性能消耗高，开启xray会穿过浮动窗口底下的窗口直接透视到桌面。看个人喜好选择禁用与否吧。
+
+// 失焦窗口再透一点，让当前焦点更突出
+window-rule {
+    match is-focused=false
+    opacity 0.85
+}
+
+// --- 以下为原有规则，未随上游参数改动，保持原样 ---
+
+// 浮动窗口同样透出预模糊背景
 window-rule {
     match is-floating=true
     background-effect {
@@ -21,16 +46,18 @@ window-rule {
         blur true
     }
 }
-// fuzzle专属的layer规则
+
+// fuzzle 启动器的 layer 规则
 layer-rule {
     match namespace="^launcher$"
     geometry-corner-radius 8
     background-effect {
         xray false
-	blur true
+        blur true
     }
 }
-// blur 窗口的弹出窗口
+
+// 文件管理器的弹出窗口
 window-rule {
     match app-id="thunar"
     match app-id="Nautilus"
@@ -41,10 +68,12 @@ window-rule {
         opacity 0.92
         background-effect {
             blur true
-	    xray false
+            xray false
         }
     }
 }
+
+// showmethekey 的按键浮层：不要任何模糊
 window-rule {
     match app-id="one.alynx.showmethekey"
     background-effect {
@@ -53,4 +82,3 @@ window-rule {
     }
 }
 // --- NIRI BLUR END ---
-
