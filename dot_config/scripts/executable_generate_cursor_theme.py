@@ -87,6 +87,7 @@ SOURCE_ACCENT = "#f5c2e7"
 ALT_THEME_NAME = THEME_NAME + "-alt"
 NIRI_CURSOR_KDL = Path.home() / ".config/niri/dms/cursor.kdl"
 CURSOR_THEME_RE = re.compile(r'xcursor-theme\s+"([^"]*)"')
+XCURSOR_THEME_RE = re.compile(r'^\s*Xcursor\.theme:.*$', re.MULTILINE)
 
 # DMS 的光标设置是 niri 会话里真正生效的来源（它据此生成 dms/cursor.kdl）。
 DMS_SETTINGS_PATH = Path.home() / ".config/DankMaterialShell/settings.json"
@@ -403,6 +404,82 @@ def write_niri_cursor_kdl(name=THEME_NAME):
     return True
 
 
+def sync_xwayland_sinks():
+    """把光标主题同步到 XWayland 程序读取的那些配置。
+
+    niri 合成器画自己的光标走 Wayland 协议，但 XWayland 程序（Chrome、QQ、
+    Electron 等）的光标由 X 服务器渲染，主题取自 XSETTINGS / X 资源 / GTK
+    settings。这几处此前没有任何人维护，一旦被 KDE 的 gtkconfig kded 模块
+    （读 kcminputrc 的 cursorTheme）或 DMS 的「System Default」写回
+    breeze_cursors，XWayland 程序就退回默认光标 —— Chrome 光标不是
+    Matugen 就是这么来的。
+
+    这里每轮（每次换壁纸的 post_hook）核对并纠正：
+      · gtk-3.0 / gtk-4.0 settings.ini 的 gtk-cursor-theme-name
+      · ~/.gtkrc-2.0 的 gtk-cursor-theme-name
+      · xsettingsd.conf 的 Gtk/CursorThemeName（XSETTINGS 协议，XWayland
+        程序最常读的通道）
+      · kdedefaults/kcminputrc 的 cursorTheme（KDE 默认值，DMS「System
+        Default」与 gtkconfig 都会读它）
+      · ~/.Xresources 的 Xcursor.theme，并用 xrdb 合并进当前会话
+
+    只改键值，文件不存在就跳过 —— 不创建、不猜测，避免污染没有这些
+    配置的环境。
+    """
+    ini_targets = [
+        (Path.home() / ".config/gtk-3.0/settings.ini", "gtk-cursor-theme-name", THEME_NAME, ""),
+        (Path.home() / ".config/gtk-4.0/settings.ini", "gtk-cursor-theme-name", THEME_NAME, ""),
+        (Path.home() / ".gtkrc-2.0", "gtk-cursor-theme-name", THEME_NAME, '"'),
+    ]
+    for path, key, value, quote in ini_targets:
+        set_ini_key(path, key, f"{quote}{value}{quote}")
+
+    set_ini_key(
+        Path.home() / ".config/xsettingsd/xsettingsd.conf",
+        "Gtk/CursorThemeName", f'"{THEME_NAME}"', sep=" ",
+    )
+    set_ini_key(
+        Path.home() / ".config/kdedefaults/kcminputrc",
+        "cursorTheme", THEME_NAME,
+    )
+
+    xres = Path.home() / ".Xresources"
+    if xres.is_file():
+        text = xres.read_text()
+        new = XCURSOR_THEME_RE.sub(f"Xcursor.theme: {THEME_NAME}", text)
+        if not XCURSOR_THEME_RE.search(text):
+            new = text.rstrip("\n") + f"\nXcursor.theme: {THEME_NAME}\n"
+        if new != text:
+            xres.write_text(new)
+            log("Xresources Xcursor.theme 已纠正")
+
+    subprocess.run(
+        ["xrdb", "-merge", str(xres)],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+
+
+def set_ini_key(path, key, value, sep="="):
+    """把 path 里 key 的行改成 value；文件不存在则跳过。
+
+    分隔符按文件类型给：GTK ini / kcminputrc 用 `=`，xsettingsd.conf 必须用
+    空格 —— 它对 `=` 会直接报 "Got invalid character '=' in setting name"
+    然后退出，那正是这次要修的故障本身。
+    """
+    if not path.is_file():
+        return
+    text = path.read_text()
+    pat = re.compile(rf'^\s*{re.escape(key)}\s*[= ]\s*.*$', re.MULTILINE)
+    line = f"{key}{sep}{value}"
+    if pat.search(text):
+        new = pat.sub(line, text)
+    else:
+        new = text.rstrip("\n") + f"\n{line}\n"
+    if new != text:
+        path.write_text(new)
+        log(f"{path.name}: {key} -> {value}")
+
+
 def apply_theme(skip_niri_flip=False):
     if not (DST_THEME / "cursors").is_dir():
         log("generated theme missing, not applying")
@@ -425,6 +502,8 @@ def apply_theme(skip_niri_flip=False):
             ["hyprctl", "setcursor", THEME_NAME, str(SIZE)],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
+
+    sync_xwayland_sinks()
 
     # 如果这一轮已经把 cursor.kdl 从「stock catppuccin」改成 Matugen-Cursors，
     # 那次改名本身就会让 niri 重载，不需要再交替一次。
