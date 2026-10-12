@@ -322,9 +322,13 @@ spawn-sh-at-startup "mkdir -p \"$HOME/Pictures/Screenshots/Niri-screenshots\""
 //   原先这里是 `qs -c end4-pC` —— 那套是 Hyprland 用的 Quickshell 配置，
 //   在 niri 上会与 DMS 抢 layer surface，已移除。
 spawn-at-startup "dms" "run"
-// XSETTINGS 守护进程：XWayland 程序（LinuxQQ 等）靠它读图标/光标主题。
-// 之前两边都没启动它，所以 XWayland 程序一直用默认光标。
-spawn-at-startup "xsettingsd"
+// XSETTINGS 守护进程：XWayland 程序（LinuxQQ、Chrome 等）靠它读图标/光标主题。
+// ⚠ 必须等 Xwayland 就绪再启动：xsettingsd 连不上 X 时会直接退出且不重试
+//   （"Unable to open connection to X server"，exit 0）。原先写 `spawn-at-startup
+//   "xsettingsd"` 与 xwayland-satellite 同时起，抢跑失败后一直没人接管
+//   XSETTINGS，XWayland 程序回退到 kcminputrc 的 breeze_cursors —— 这就是
+//   Chrome 光标不是 Matugen 的根因。这里轮询 /tmp/.X11-unix/X0 再 exec。
+spawn-sh-at-startup "while [ ! -S /tmp/.X11-unix/X0 ]; do sleep 0.2; done; exec xsettingsd"
 // nirius
 spawn-at-startup "niriusd"
 
