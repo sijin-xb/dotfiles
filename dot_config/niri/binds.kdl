@@ -261,23 +261,34 @@ binds {
     //Mod+Shift+X       { switch-layout "next"; }
     //Mod+Shift+Z { switch-layout "prev"; }
 
-    // ── 截图（2026-10-10 全换成 DMS 的 `dms screenshot`）──────────────
-    // 为什么换：原来 9 个键压着三个后端（niri 内置 6 条、grim|wl-copy 1 条、
-    // grim+slurp 2 条，后两条见 binds-hyprland-migrated.kdl 的说明），而 DMS
-    // 这套把三者能力全覆盖，还多出 last（重拍上次选区）与 scroll（滚动长图）。
-    // 落盘目录：环境变量 DMS_SCREENSHOT_DIR 统一到
-    //   ~/Pictures/Screenshots/Niri-screenshots/
-    //   （见 config.kdl 的 environment 块 + ~/.config/environment.d/dms-screenshot.conf）
-    // DMS 自己的文件名是 screenshot_<日期>_<时间>.png，与 niri 内置的命名不同。
-    // 快门音效：截图命令返回后再给 screenshot-sound.sh 发 USR1（沿用原做法）。
-    // 另外两点：last 在没有上次选区时会自动回退到交互选区，不会报错；
-    //           想要「松开鼠标即截」给区域那条加 --no-confirm 即可。
-    Print            hotkey-overlay-title="区域截图 Region screenshot"       { spawn-sh "dms screenshot && pkill -f -USR1 screenshot-sound.sh"; }
-    Shift+Print      hotkey-overlay-title="重拍上次区域 Last region"         { spawn-sh "dms screenshot last && pkill -f -USR1 screenshot-sound.sh"; }
-    Ctrl+Print       hotkey-overlay-title="当前输出整屏 Full screen"         { spawn-sh "dms screenshot full && pkill -f -USR1 screenshot-sound.sh"; }
-    Mod+Alt+A        hotkey-overlay-title="滚动长图 Scrolling capture"       { spawn-sh "dms screenshot scroll && pkill -f -USR1 screenshot-sound.sh"; }
-    Mod+Alt+Ctrl+A   hotkey-overlay-title="聚焦窗口 Focus-window screenshot" { spawn-sh "dms screenshot window && pkill -f -USR1 screenshot-sound.sh"; }
-    Mod+Alt+Ctrl+Shift+A hotkey-overlay-title="所有输出拼接 All outputs"     { spawn-sh "dms screenshot all && pkill -f -USR1 screenshot-sound.sh"; }
+    // ── 截图（2026-10-10 用 DMS；2026-10-12 起改用 xshot）──────────────
+    // xshot 是自用套件（源码 ~/dev/xshot，命令 ~/.local/bin/xshot）：
+    // 捕获 + 标注编辑 + OCR + 贴图 + 历史。区域选择走自带 layer-shell
+    // 覆盖层（放大镜/暗化/实时尺寸），窗口、全输出、滚动长图仍委托
+    // `dms screenshot` 完成 —— 不丢旧能力，只是多了一层编辑环。
+    // 快门音效：xshot 捕获成功后自己给 screenshot-sound.sh 发 USR1，
+    //   所以这里不再写 pkill（避免和 xshot 内重复触发）。
+    // 落盘目录沿用 ~/Pictures/Screenshots/Niri-screenshots/，文件名
+    //   xshot_<日期>_<时间>.png（与 DMS 的 screenshot_* 并存，不冲突）。
+    // 取消选区不会落盘、不会开空编辑器；编辑完 Ctrl+S 存盘 / Enter 复制。
+    // Ctrl+Print 用 `--clip`：当前屏整屏直接进剪贴板，不落盘、不开编辑器、不通知。
+    Print            hotkey-overlay-title="区域截图 Region screenshot"       { spawn-sh "xshot region"; }
+    Shift+Print      hotkey-overlay-title="重拍上次区域 Last region"         { spawn-sh "xshot last"; }
+    Ctrl+Print       hotkey-overlay-title="全屏截图到剪贴板 Full screen to clipboard" { spawn-sh "xshot full --clip"; }
+    Mod+Alt+A        hotkey-overlay-title="滚动长图 Scrolling capture"       { spawn-sh "xshot scroll"; }
+    Mod+Alt+Ctrl+A   hotkey-overlay-title="聚焦窗口 Focus-window screenshot" { spawn-sh "xshot window"; }
+    Mod+Alt+Ctrl+Shift+A hotkey-overlay-title="所有输出拼接 All outputs"     { spawn-sh "xshot all"; }
+
+    // ── 回退：DMS 原绑定（2026-10-10 版；2026-10-12 被 xshot 取代）────
+    // 要回到纯 DMS：注释掉上面 6 行、取消下面 6 行注释即可。
+    //Print            hotkey-overlay-title="区域截图 Region screenshot"       { spawn-sh "dms screenshot && pkill -f -USR1 screenshot-sound.sh"; }
+    //Shift+Print      hotkey-overlay-title="重拍上次区域 Last region"         { spawn-sh "dms screenshot last && pkill -f -USR1 screenshot-sound.sh"; }
+    //Ctrl+Print       hotkey-overlay-title="当前输出整屏 Full screen"         { spawn-sh "dms screenshot full && pkill -f -USR1 screenshot-sound.sh"; }
+    //Mod+Alt+A        hotkey-overlay-title="滚动长图 Scrolling capture"       { spawn-sh "dms screenshot scroll && pkill -f -USR1 screenshot-sound.sh"; }
+    //Mod+Alt+Ctrl+A   hotkey-overlay-title="聚焦窗口 Focus-window screenshot" { spawn-sh "dms screenshot window && pkill -f -USR1 screenshot-sound.sh"; }
+    //Mod+Alt+Ctrl+Shift+A hotkey-overlay-title="所有输出拼接 All outputs"     { spawn-sh "dms screenshot all && pkill -f -USR1 screenshot-sound.sh"; }
+    // 完全回退（连注释块一起还原）：git -C ~/dotfiles checkout dot_config/niri/binds.kdl
+    // 或直接用备份 ~/.config/niri/backup/binds.kdl.2026-10-12-pre-xshot
 
     //Mod+Shift+S { spawn "~/.config/niri/scripts/satty-screenshot.sh";}
     Mod+Escape hotkey-overlay-title="开关快捷键抑制 Toggle shortcuts inhibit" allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }

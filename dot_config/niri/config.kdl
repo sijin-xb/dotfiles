@@ -296,6 +296,10 @@ spawn-at-startup "systemctl" "--user" "start" "linuxqq-clipsync"
 //spawn-at-startup "~/.local/bin/toggle-wlsunset"
 // 截图音效的守护进程
 spawn-at-startup "~/.config/niri/scripts/screenshot-sound.sh"
+// xshot 常驻 GTK 服务：把 GTK 的一次性初始化（主题/字体/Wayland 后端，约 120ms）
+// 提前到登录时做掉，这样之后按截图键只需 ~145ms 而不是 ~385ms。没启动也不影响
+// 功能 —— 首次截图会自动在后台拉起它。
+spawn-sh-at-startup "xshot serve start >/dev/null 2>&1"
 // 截图落盘目录兜底。DMS 的 `dms screenshot` 只在 DMS_SCREENSHOT_DIR 未设置时
 // 才会自动建目录（GetOutputDir 的 XDG 分支里有 MkdirAll）；一旦显式设了该变量
 // 就直接返回路径，随后 os.Create 因父目录不存在而失败 —— 截图只进剪贴板、不落盘。
