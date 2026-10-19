@@ -1,0 +1,123 @@
+# Don't print a new line at the start of the prompt
+add_newline = false
+# Pipes ╰─ ╭─
+# Powerline symbols                                     
+# Wedges 🭧🭒 🭣🭧🭓
+# Random noise 🬖🬥🬔🬗
+# Cool stuff 󰜥   
+
+# format = """
+# $directory $fill $git_branch $cmd_duration
+#  $character"""
+format = """
+$cmd_duration $directory$git_branch$git_status$python$nodejs$rust
+  $character"""
+
+[fill]
+symbol = '-'
+style = 'fg:#9ca0a0'
+
+# Replace the "❯" symbol in the prompt with "➜"
+[character]                            # The name of the module we are configuring is "character"
+success_symbol = "[ ](bold fg:#c2c8c7)"
+error_symbol = "[ ](bold fg:#ffb4ab)"
+
+# Disable the package module, hiding it from the prompt completely
+[package]
+disabled = true
+
+[git_branch]
+style = "bg:#c2c8c7"
+symbol = "󰘬"
+truncation_length = 12
+truncation_symbol = ""
+format = " 󰜥 [](bold fg:#c2c8c7)[$symbol $branch(:$remote_branch)](fg:#1c2222 bg:#c2c8c7)[ ](bold fg:#c2c8c7)"
+
+[git_commit]
+commit_hash_length = 4
+tag_symbol = " "
+
+[git_state]
+format = '[\($state( $progress_current of $progress_total)\)]($style) '
+cherry_pick = "[🍒 PICKING](bold fg:#ffb4ab)"
+
+# 不带端符：format 里的字符是写死的，加了端符会在干净仓库留一个空胶囊。
+# 状态值自带尾随空格，靠它和前面的 branch 胶囊拉开间距。
+[git_status]
+format = '[$all_status$ahead_behind]($style)'
+style = "fg:#1c2222 bg:#c2c8c7"
+conflicted = "🏳 "
+ahead = "🏎💨 "
+behind = "😰 "
+diverged = "😵 "
+untracked = "🤷 ‍"
+stashed = "📦 "
+modified = "📝 "
+staged = '[++\($count\)](fg:#1c2222) '
+renamed = "✍️ "
+deleted = "🗑 "
+
+[hostname]
+ssh_only = false
+format =  "[•$hostname](bg:#c2c8c7 bold fg:#1c2222)[](bold fg:#c2c8c7)"
+trim_at = ".companyname.com"
+disabled = false
+
+[line_break]
+disabled = false
+
+[memory_usage]
+disabled = true
+threshold = -1
+symbol = " "
+style = "bold fg:#c2c8c7"
+
+[time]
+disabled = true
+format = '🕙[\[ $time \]]($style) '
+time_format = "%T"
+
+[username]
+style_user = "bold bg:#c2c8c7 fg:#1c2222"
+style_root = "red bold"
+format = "[](bold fg:#c2c8c7)[$user]($style)"
+disabled = false
+show_always = true
+
+[directory]
+home_symbol = " "
+read_only = "  "
+style = "bg:#c2c8c7 fg:#1c2222"
+truncation_length = 2
+truncation_symbol = ".../"
+format = '[](bold fg:#c2c8c7)[󰉋 → $path]($style)[](bold fg:#c2c8c7)'
+
+
+[directory.substitutions]
+"Desktop" = "  "
+"Documents" = "  "
+"Downloads" = "  "
+"Music" = " 󰎈 "
+"Pictures" = "  "
+"Videos" = "  "
+"GitHub" = " 󰊤 "
+
+[cmd_duration]
+min_time = 0
+format = '[](bold fg:#c2c8c7)[󰪢 $duration](bold bg:#c2c8c7 fg:#1c2222)[](bold fg:#c2c8c7)'
+
+# starship 默认用 emoji（🐍🦀），和 Nerd Font 风格不搭，换成 glyph
+[python]
+symbol = "󰌠 "
+style = "bg:#c2c8c7 fg:#1c2222"
+format = '[](bold fg:#c2c8c7)[$symbol$version]($style)[](bold fg:#c2c8c7)'
+
+[nodejs]
+symbol = "󰎙 "
+style = "bg:#c2c8c7 fg:#1c2222"
+format = '[](bold fg:#c2c8c7)[$symbol$version]($style)[](bold fg:#c2c8c7)'
+
+[rust]
+symbol = "󱘗 "
+style = "bg:#c2c8c7 fg:#1c2222"
+format = '[](bold fg:#c2c8c7)[$symbol$version]($style)[](bold fg:#c2c8c7)'

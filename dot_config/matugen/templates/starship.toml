@@ -10,7 +10,7 @@ add_newline = false
 # $directory $fill $git_branch $cmd_duration
 #  $character"""
 format = """
-$cmd_duration $directory$git_branch
+$cmd_duration $directory$git_branch$git_status$python$nodejs$rust
   $character"""
 
 [fill]
@@ -41,17 +41,21 @@ tag_symbol = " "
 format = '[\($state( $progress_current of $progress_total)\)]($style) '
 cherry_pick = "[🍒 PICKING](bold fg:{{colors.error.default.hex}})"
 
+# 不带端符：format 里的字符是写死的，加了端符会在干净仓库留一个空胶囊。
+# 状态值自带尾随空格，靠它和前面的 branch 胶囊拉开间距。
 [git_status]
-conflicted = " 🏳 "
-ahead = " 🏎💨 "
-behind = " 😰 "
-diverged = " 😵 "
-untracked = " 🤷 ‍"
-stashed = " 📦 "
-modified = " 📝 "
-staged = '[++\($count\)](fg:{{colors.primary.default.hex}})'
-renamed = " ✍️ "
-deleted = " 🗑 "
+format = '[$all_status$ahead_behind]($style)'
+style = "fg:{{colors.on_primary.default.hex}} bg:{{colors.primary.default.hex}}"
+conflicted = "🏳 "
+ahead = "🏎💨 "
+behind = "😰 "
+diverged = "😵 "
+untracked = "🤷 ‍"
+stashed = "📦 "
+modified = "📝 "
+staged = '[++\($count\)](fg:{{colors.on_primary.default.hex}}) '
+renamed = "✍️ "
+deleted = "🗑 "
 
 [hostname]
 ssh_only = false
@@ -101,3 +105,19 @@ format = '[](bold fg:{{colors.primary.default.hex}})[󰉋 → $path]($style)[
 [cmd_duration]
 min_time = 0
 format = '[](bold fg:{{colors.primary.default.hex}})[󰪢 $duration](bold bg:{{colors.primary.default.hex}} fg:{{colors.on_primary.default.hex}})[](bold fg:{{colors.primary.default.hex}})'
+
+# starship 默认用 emoji（🐍🦀），和 Nerd Font 风格不搭，换成 glyph
+[python]
+symbol = "󰌠 "
+style = "bg:{{colors.primary.default.hex}} fg:{{colors.on_primary.default.hex}}"
+format = '[](bold fg:{{colors.primary.default.hex}})[$symbol$version]($style)[](bold fg:{{colors.primary.default.hex}})'
+
+[nodejs]
+symbol = "󰎙 "
+style = "bg:{{colors.primary.default.hex}} fg:{{colors.on_primary.default.hex}}"
+format = '[](bold fg:{{colors.primary.default.hex}})[$symbol$version]($style)[](bold fg:{{colors.primary.default.hex}})'
+
+[rust]
+symbol = "󱘗 "
+style = "bg:{{colors.primary.default.hex}} fg:{{colors.on_primary.default.hex}}"
+format = '[](bold fg:{{colors.primary.default.hex}})[$symbol$version]($style)[](bold fg:{{colors.primary.default.hex}})'

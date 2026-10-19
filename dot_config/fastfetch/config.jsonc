@@ -1,11 +1,10 @@
 {
-    "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
     "logo": {
         "source": "CachyOS_small",
         "type": "auto",
         "color": {
-            "1": "#ffb3b1",
-            "2": "#ffb3b1"
+            "1": "#c2c8c7",
+            "2": "#c2c8c7"
         },
         "padding": {
             "top": 2,
@@ -16,159 +15,199 @@
     "display": {
         "separator": "  ",
         "color": {
-            "title": "#f0dedd",
-            "output": "#d7c1c0"
+            "title": "#f7f4f3",
+            "output": "#c3c7c7"
         }
     },
     "modules": [
         "break",
         {
-          "type": "custom",
-          "format": "\u001b[92m┌──────────────󰋊 Hardware󰋊──────────────┐"
+            "type": "custom",
+            "format": "\u001b[38;2;194;200;199m┌──────────── 󰋊 Hardware 󰋊 ────────────┐",
+            "keyColor": "#c2c8c7"
         },
         {
-          "type": "host",
-          "key": " PC",
-          "keyColor": "green"
+            "type": "board",
+            "key": " MB",
+            "format": "{1} {3}",
+            "keyColor": "#c2c8c7"
         },
         {
-          "type": "memory",
-          "key": "│ ├󰍛",
-          "keyColor": "green"
+            "type": "cpu",
+            "key": "│ ├󰍙",
+            "format": "{1}, {3} Cores",
+            "keyColor": "#c2c8c7"
         },
         {
-          "type": "disk",
-          "key": "│ ├󰋊",
-          "keyColor": "green",
-          "format": "{1} / {2} ({3})"
+            "type": "gpu",
+            "key": "│ ├󰨄",
+            "format": "{2}, {3}",
+            "keyColor": "#c2c8c7"
         },
         {
-          "type": "cpu",
-          "key": "│ ├󰍙",
-          "keyColor": "green",
-          "format": "{1}, {3} Cores"
+            "type": "memory",
+            "key": "│ ├󰍛",
+            "keyColor": "#c2c8c7"
         },
         {
-          "type": "gpu",
-          "key": "│ └󰍛",
-          "keyColor": "green",
-          "format": "{2}, {3}"
+            "type": "swap",
+            "key": "│ ├󰓅",
+            "keyColor": "#c2c8c7"
         },
         {
-          "type": "custom",
-          "format": "\u001b[92m└──────────────────────────────────────┘"
-        },
-        "break",
-        {
-          "type": "custom",
-          "format": "\u001b[93m┌──────────────󰻠 System󰻠───────────────┐"
+            "type": "disk",
+            "key": "│ └󰋊",
+            "format": "{1} / {2} ({3})",
+            "keyColor": "#c2c8c7"
         },
         {
-          "type": "os",
-          "key": " OS",
-          "keyColor": "yellow",
-          "format": "{name}"
-        },
-        {
-          "type": "wm",
-          "key": "│ ├󰉲",
-          "keyColor": "yellow"
-        },
-        {
-          "type": "de",
-          "key": "│ ├󰧭",
-          "keyColor": "yellow"
-        },
-        {
-          "type": "kernel",
-          "key": "│ └󰣠",
-          "keyColor": "yellow"
-        },
-        {
-          "type": "custom",
-          "format": "\u001b[93m└──────────────────────────────────────┘"
+            "type": "custom",
+            "format": "\u001b[38;2;194;200;199m└──────────────────────────────────────┘",
+            "keyColor": "#c2c8c7"
         },
         "break",
         {
-          "type": "custom",
-          "format": "\u001b[94m┌──────────────󰔎 Theme󰔎────────────────┐"
+            "type": "custom",
+            "format": "\u001b[38;2;194;200;199m┌───────────── 󰻠 System 󰻠 ─────────────┐",
+            "keyColor": "#c2c8c7"
         },
         {
-          "type": "shell",
-          "key": " sh",
-          "keyColor": "blue",
-          "format": "{1}"
+            "type": "os",
+            "key": " OS",
+            "format": "{name}",
+            "keyColor": "#c2c8c7"
         },
         {
-          "type": "wmtheme",
-          "key": "│ ├󰉼",
-          "keyColor": "blue"
+            "type": "kernel",
+            "key": "│ ├󰣠",
+            "keyColor": "#c2c8c7"
         },
         {
-          "type": "terminal",
-          "key": "│ ├󰆍",
-          "keyColor": "blue",
-          "format": "{1}"
+            "type": "wm",
+            "key": "│ ├󰉲",
+            "keyColor": "#c2c8c7"
         },
         {
-          "type": "packages",
-          "key": "│ └󰏖",
-          "keyColor": "blue"
+            "type": "shell",
+            "key": "│ ├󰆍",
+            "format": "{1}",
+            "keyColor": "#c2c8c7"
         },
         {
-          "type": "custom",
-          "format": "\u001b[94m└──────────────────────────────────────┘"
-        },
-        "break",
-        {
-          "type": "custom",
-          "format": "\u001b[95m┌──────────────󰚭 Times󰚭───────────────┐"
+            "type": "packages",
+            "key": "│ ├󰏖",
+            "keyColor": "#c2c8c7"
         },
         {
-          "type": "command",
-          "key": "  OS Age ",
-          "keyColor": "magenta",
-          "keyWidth": 12,
-          "text": "birth_install=$(stat -c %W /); current=$(date +%s); time_progression=$((current - birth_install)); days_difference=$((time_progression / 86400)); echo $days_difference days"
+            "type": "uptime",
+            "key": "│ └󰔚",
+            "keyColor": "#c2c8c7"
         },
         {
-          "type": "uptime",
-          "key": "  Uptime ",
-          "keyColor": "magenta"
-        },
-        {
-          "type": "custom",
-          "format": "\u001b[95m└──────────────────────────────────────┘"
+            "type": "custom",
+            "format": "\u001b[38;2;194;200;199m└──────────────────────────────────────┘",
+            "keyColor": "#c2c8c7"
         },
         "break",
         {
-          "type": "custom",
-          "format": "\u001b[96m┌──────────────󰚭 Music󰚭───────────────┐"
+            "type": "custom",
+            "format": "\u001b[38;2;194;200;199m┌───────────── 󰔎 Theme 󰔎 ──────────────┐",
+            "keyColor": "#c2c8c7"
         },
         {
-          "type": "command",
-          "key": "  󰎆 Now ",
-          "keyColor": "cyan",
-          "keyWidth": 12,
-          "text": "playerctl metadata --format \"$(printf '%s%sartist%s%s - %s%stitle%s%s' '{' '{' '}' '}' '{' '{' '}' '}')\" 2>/dev/null || echo 'Not Playing'"
+            "type": "theme",
+            "key": " GTK",
+            "format": "{2}",
+            "keyColor": "#c2c8c7"
         },
         {
-          "type": "command",
-          "key": "  󰎅 Album ",
-          "keyColor": "cyan",
-          "keyWidth": 12,
-          "text": "playerctl metadata --format \"$(printf '%s%salbum%s%s' '{' '{' '}' '}')\" 2>/dev/null || echo '-'"
+            "type": "icons",
+            "key": "│ ├󰀻",
+            "format": "{2}",
+            "keyColor": "#c2c8c7"
         },
         {
-          "type": "command",
-          "key": "  󰎄 Source ",
-          "keyColor": "cyan",
-          "keyWidth": 12,
-          "text": "playerctl --format \"$(printf '%s%splayerName%s%s' '{' '{' '}' '}')\" status 2>/dev/null || echo '-'"
+            "type": "font",
+            "key": "│ ├󰛖",
+            "format": "{2}",
+            "keyColor": "#c2c8c7"
         },
         {
-          "type": "custom",
-          "format": "\u001b[96m└──────────────────────────────────────┘"
+            "type": "cursor",
+            "key": "│ └󰇀",
+            "format": "{theme} ({size}px)",
+            "keyColor": "#c2c8c7"
+        },
+        {
+            "type": "custom",
+            "format": "\u001b[38;2;194;200;199m└──────────────────────────────────────┘",
+            "keyColor": "#c2c8c7"
+        },
+        "break",
+        {
+            "type": "custom",
+            "format": "\u001b[38;2;194;200;199m┌──────────── 󰚭 Session 󰚭 ─────────────┐",
+            "keyColor": "#c2c8c7"
+        },
+        {
+            "type": "datetime",
+            "key": " Now",
+            "format": "{year}-{month-pretty}-{day-pretty} {hour-pretty}:{minute-pretty}",
+            "keyColor": "#c2c8c7"
+        },
+        {
+            "type": "command",
+            "key": "│ ├ OS Age",
+            "text": "echo $(( ($(date +%s) - $(stat -c %W /)) / 86400 )) days",
+            "keyColor": "#c2c8c7"
+        },
+        {
+            "type": "loadavg",
+            "key": "│ ├󰓅",
+            "format": "{1} {2} {3}",
+            "keyColor": "#c2c8c7"
+        },
+        {
+            "type": "processes",
+            "key": "│ └󰒣",
+            "format": "{1} procs, {2} threads",
+            "keyColor": "#c2c8c7"
+        },
+        {
+            "type": "custom",
+            "format": "\u001b[38;2;194;200;199m└──────────────────────────────────────┘",
+            "keyColor": "#c2c8c7"
+        },
+        "break",
+        {
+            "type": "command",
+            "key": " ",
+            "text": "busctl --user list --no-pager 2>/dev/null | grep -qF org.mpris.MediaPlayer2. || exit 0; printf '\u001b[38;2;194;200;199m┌───────────── 󰎆 Music 󰎆 ──────────────┐\\n'",
+            "keyColor": "#c2c8c7"
+        },
+        {
+            "type": "media",
+            "key": " 󰎆 Now",
+            "format": "{title} — {artist}",
+            "keyColor": "#c2c8c7"
+        },
+        {
+            "type": "media",
+            "key": "│ ├󰎅",
+            "format": "{album}",
+            "keyColor": "#c2c8c7"
+        },
+        {
+            "type": "media",
+            "key": "│ └󰎄",
+            "format": "{player-name} [{status}]",
+            "keyColor": "#c2c8c7"
+        },
+        {
+            "type": "command",
+            "key": " ",
+            "text": "busctl --user list --no-pager 2>/dev/null | grep -qF org.mpris.MediaPlayer2. || exit 0; printf '\u001b[38;2;194;200;199m└──────────────────────────────────────┘\\n'",
+            "keyColor": "#c2c8c7"
         },
         "break"
     ]
