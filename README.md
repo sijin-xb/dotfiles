@@ -166,6 +166,8 @@ dot_config/                部署到 ~/.config（下列为其中的关键路径�
   fontconfig/              MiSans + 按语言切换 CJK 地区字形；serif 走霞鹜文楷
   fcitx5/                  fcitx5 与 rime 配置
 dot_local/share/fcitx5/     rime 方案自定义（雾凇拼音）
+dot_local/share/themes/adw-gtk3/
+                            GTK3 浅色基底主题，明暗切换靠 prefer-dark 升级到 -dark
 dot_icons/ dot_local/share/icons/default/
                            光标主题的兜底 Inherits
 docs/                      设计说明与排障文档（见下）

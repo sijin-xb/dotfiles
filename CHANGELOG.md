@@ -2,6 +2,36 @@
 
 > 本文件记录所有历史变更。用法说明见 [README.md](README.md)。
 
+## 2026-10-23
+
+### GTK3 应用的右键菜单变白底
+
+**现象**：cc-switch、ChatGPT 桌面端的复制粘贴栏等 GTK3 原生菜单，深色界面里弹出纯白底菜单。
+
+**根因**：`switchwall.sh` 的 light 分支写 `gtk-theme=adw-gtk3`，但仓库只带
+`adw-gtk3-dark`，基名主题 `adw-gtk3` 从来没装过。GTK 按名字找不到目录就回退
+到内置 `Default` 主题（白底菜单），且回退是静默的。切过一次亮色后
+`gtk-theme` 停在那个不存在的名字上，之后切回暗色也不会自愈——只有切换瞬间
+才写这个值。
+
+`adw-gtk3` 基名主题是 GTK 明暗自动切换的入口：`gtk-theme-name=adw-gtk3` +
+`prefer-dark=true` 时 GTK 自己升级到 `adw-gtk3-dark`；`prefer-dark=false`
+时用浅色。缺了基名目录，两条路都断。
+
+**修复**：把上游 `lassekongo83/adw-gtk3` v6.5 的 `adw-gtk3`（浅色变体，
+62 文件 / 1.3MB）加进 `dot_local/share/themes/`，部署到
+`~/.local/share/themes/adw-gtk3`。`switchwall.sh` 不动——它的两个分支本来就
+是对的。
+
+**排障**：GTK3 菜单配色异常时先比对这两个名字：
+
+~~~bash
+gsettings get org.gnome.desktop.interface gtk-theme
+ls ~/.local/share/themes/ /usr/share/themes/
+~~~
+
+`gsettings` 里的主题名在主题目录里找不到，就是这个毛病。
+
 ## 2026-09-30
 
 ### 锁屏瞬间歌曲跳回 0 秒
