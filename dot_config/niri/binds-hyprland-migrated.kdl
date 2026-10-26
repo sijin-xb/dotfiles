@@ -169,9 +169,9 @@ binds {
     // 5. 媒体与硬件键（XF86 系列在 niri 下同样识别）
     // ───────────────────────────────────────────────────────────────────────
 
-    // 音量（原走 wpctl，与合成器无关，直接沿用）
-    XF86AudioRaiseVolume hotkey-overlay-title="音量+ Volume up" { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "2%+" "-l" "1.5"; }
-    XF86AudioLowerVolume hotkey-overlay-title="音量- Volume down" { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "2%-"; }
+    // 音量走 DMS IPC，与滑条同一刻度（wpctl 按 quickshell 的立方刻度步进，和 UI 对不上）
+    XF86AudioRaiseVolume hotkey-overlay-title="音量+ Volume up" { spawn "dms" "ipc" "call" "audio" "increment" "5"; }
+    XF86AudioLowerVolume hotkey-overlay-title="音量- Volume down" { spawn "dms" "ipc" "call" "audio" "decrement" "5"; }
     XF86AudioMute        hotkey-overlay-title="扬声器静音 Mute speaker" { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SINK@" "toggle"; }
     Mod+Shift+M          hotkey-overlay-title="静音 Toggle mute" { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SINK@" "toggle"; }
 

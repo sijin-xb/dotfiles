@@ -99,8 +99,7 @@ cursor {
 }
  
 // 带缩略图的 alt+tab 切换窗口功能（「窗口缩略图切换器」）。
-// （2026-09-26 改键）网格总览交给 Alt+Tab（dms/binds.kdl），
-// Super+Tab 不再绑定。
+// （2026-10-26 改键）网格总览回到 Super+Tab（dms/binds.kdl），Alt+Tab 已释放。
 // 其余入口：
 //   Super+grave       同应用内正向（filter="app-id"）
 //   Super+Shift+grave 同应用内反向
@@ -121,7 +120,7 @@ recent-windows {
     }
 
     binds {
-        // Super+Tab 已取消绑定，网格总览由 Alt+Tab 承担。
+        // 网格总览由 Super+Tab 承担（dms/binds.kdl）。
         Mod+grave       hotkey-overlay-title="同应用下一个窗口 Next window (same app)" { next-window     filter="app-id"; }
         Mod+Shift+grave hotkey-overlay-title="同应用上一个窗口 Previous window (same app)" { previous-window filter="app-id"; }
     }
@@ -299,8 +298,10 @@ spawn-at-startup "systemctl" "--user" "start" "linuxqq-clipsync"
 //spawn-at-startup "swayosd-server"
 // 自动开启护眼模式 —— DMS 自带夜览，停掉
 //spawn-at-startup "~/.local/bin/toggle-wlsunset"
-// 截图音效的守护进程
-spawn-at-startup "~/.config/niri/scripts/screenshot-sound.sh"
+// 截图音效的守护进程 —— 2026-10-26 停用：Print 已改走 mark-shot，不经过
+// niri 的 ScreenshotCaptured 事件，只剩 Ctrl+Print/Alt+Print 还会触发。
+// 恢复：取消下一行注释，并把 binds.kdl 的 Print 改回 screenshot。
+//spawn-at-startup "~/.config/niri/scripts/screenshot-sound.sh"
 // 截图落盘目录兜底。该目录被 xb-dotfiles 的 refresh-mirror/backup 排除、不随
 // 还原回来，被删后就不会再出现。niri 内置截图会 create_dir_all，但这里仍在
 // 会话启动时补建一次，保证任何后端都能写。
@@ -330,7 +331,8 @@ spawn-sh-at-startup "while [ ! -S /tmp/.X11-unix/X0 ]; do sleep 0.2; done; exec 
 // nirius
 spawn-at-startup "niriusd"
 
-spawn-at-startup "wl-clip-persist" "--clipboard" "both"
+// 2026-10-18 移除：spawn-at-startup "wl-clip-persist" "--clipboard" "both"
+// 它和 DMS 自带的 ext_data_control 剪贴板管理抢所有权，且功能重叠。
 
 // 取消启动niri时自动开启快捷键教程
 hotkey-overlay {
@@ -352,7 +354,6 @@ magnifier {
 grid-overview {
     gap 16
     padding 80
-    focused-column-scale 1.04
     grid-all-monitors true
     // 关掉「轻触 Mod 自动开网格总览」这个内建行为：这条即使不写也默认生效，
     // 会和 dms/binds.kdl 里「轻触 Mod → 启动器」冲突（两个一起触发）。

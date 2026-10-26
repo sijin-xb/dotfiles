@@ -41,8 +41,8 @@ layout {
     default-column-width { proportion 0.5; }
 }
 
-// 全局圆角。后匹配的规则覆盖先匹配的同名属性，所以这里写 18，
-// 与 dms/layout.kdl 一致 —— 显式写出来是为了让「数值都在这一个文件里」。
+// 全局圆角。后匹配的规则覆盖先匹配的同名属性。
+// 2026-10-21：18 → 8 → 6，用户觉得太圆。
 window-rule {
-    geometry-corner-radius 18
+    geometry-corner-radius 6
 }

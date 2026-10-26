@@ -33,8 +33,9 @@ layer-rule{
 window-rule {
     // 这一行规则可以让niri变成传统桌面那样的堆叠式桌面。
     //open-floating true
-    // 全局透明度
-     opacity 0.97
+    // 全局透明度 —— 已移到 blur.kdl（本文件之后加载，会覆盖这里的值）。
+    // 想调透明度去 blur.kdl 改，不要在这里写，否则改了不生效。
+    // opacity 0.97
     // 圆角
     geometry-corner-radius 8
     // 去掉超出圆角的窗口内容
@@ -70,20 +71,22 @@ window-rule {
 //   maximize-window-to-edges        → 1920×1040  ← Chrome 就是这个
 //   fullscreen-window               → 1920×1080
 // 取消图片预览、视频播放器之类的透明度，并且以浮动模式打开
+// 注：opacity 已移到 blur.kdl（本文件之后加载，会覆盖这里的值），
+//     只在那边维护；这里保留 open-floating。
 window-rule {
     match title="图片查看器"
     match title="画中画"
     match title="图片和视频"
     match title="视频播放器"
     open-floating true
-    opacity 1.0
+    // opacity 1.0  → blur.kdl
 }
-// 取消特定软件的背景透明度
+// 取消特定软件的背景透明度（opacity 同样已移到 blur.kdl）
 window-rule {
     match app-id="mpv"
     match app-id="celluloid"
     match app-id="virt-manager"
-    opacity 1.0 
+    // opacity 1.0  → blur.kdl
 }
 
 // 已移除（2026-09-23）：给 niri-sidebar 用的浮动窗口最小尺寸规则
@@ -97,6 +100,12 @@ window-rule {
     match app-id="imv"
     open-floating true
     }
+// 图片查看器 loupe：与 mpv 一致的窗口逻辑（浮动打开 + 不透明）
+window-rule {
+    match app-id="org.gnome.Loupe"
+    open-floating true
+    // opacity 1.0  → blur.kdl
+}
 //shorinclip剪贴板TUI 
 window-rule{
 	match app-id="shorinclip"

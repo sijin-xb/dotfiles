@@ -1,42 +1,19 @@
-// --- NIRI BLUR START ---
-// 模糊与窗口透明度参数取自 ech678/Nyxuri：
-//   configs/niri/__presets__/effects/xray-blur.kdl
-// 它和同目录的 effects_normal.kdl 只差 background-effect 里的 xray 一项：
-//   xray true  = 预计算一次模糊背景当壁纸用，几乎无 GPU 开销（下面采用）
-//   xray false = 实时渲染模糊，观感更活但开销高
-//
-// 改动前的原文件已备份为 blur.kdl.bak-20261005-003740，恢复即可还原。
-//
-// 与原配置的参数差异：
-//   offset      3    → 2.3
-//   noise       0.02 → 0.001   （原值在浅色壁纸上颗粒感明显）
-//   saturation  1.5  → 2
-//   passes      3    → 3       （不变）
-// 新增窗口透明度：常规 0.9，失焦 0.85。
 
 blur {
-    passes 3
-    offset 2.3
-    noise 0.001
-    saturation 2
+    passes 2
+    offset 2
+    noise 0.02
+    saturation 1.3
 }
 
-// 全局窗口：90% 不透明，背景透出预模糊的壁纸
+
 window-rule {
-    opacity 0.95
+    opacity 0.85
     background-effect {
         blur true
         xray true
     }
 }
-
-// 失焦窗口再透一点，让当前焦点更突出
-window-rule {
-    match is-focused=false
-    opacity 0.85
-}
-
-// --- 以下为原有规则，未随上游参数改动，保持原样 ---
 
 // 浮动窗口同样透出预模糊背景
 window-rule {
@@ -61,11 +38,11 @@ layer-rule {
 window-rule {
     match app-id="thunar"
     match app-id="Nautilus"
-    opacity 0.92
+    opacity 0.88
 
     popups {
         geometry-corner-radius 15
-        opacity 0.92
+        opacity 0.88
         background-effect {
             blur true
             xray false
@@ -73,9 +50,38 @@ window-rule {
     }
 }
 
-// showmethekey 的按键浮层：不要任何模糊
+window-rule {
+    match title="图片查看器"
+    match title="画中画"
+    match title="图片和视频"
+    match title="视频播放器"
+    opacity 1.0
+}
+window-rule {
+    match app-id="mpv"
+    match app-id="celluloid"
+    match app-id="virt-manager"
+    opacity 1.0
+}
+window-rule {
+    match app-id="org.gnome.Loupe"
+    opacity 1.0
+}
+// imv 是纯看图窗口，半透明会让图片颜色失真，也不该透出模糊背景。
+// 它浮动打开，会吃到上面 is-floating 那条的 blur，这里一并关掉。
+window-rule {
+    match app-id="imv"
+    opacity 1.0
+    background-effect {
+        xray false
+        blur false
+    }
+}
+
+// showmethekey 的按键浮层
 window-rule {
     match app-id="one.alynx.showmethekey"
+    opacity 1.0
     background-effect {
         xray false
         blur false

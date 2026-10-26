@@ -13,18 +13,21 @@ binds {
     // 启动器 —— 轻触 Super（与 Hyprland 的 Super 单击一致）
     //
     // 「单独一个 Mod」这种只有修饰键的绑定是 shorin-fork 的扩展，本机用的正是
-    // 该 fork，所以原生可用。按住 Super 仍是修饰键（Super+Tab 等不受影响），
-    // 按下后单独松开才触发。
+    // 该 fork，所以原生可用。按住 Super 仍是修饰键（Super+Tab 等不受影响）。
     // （上游 niri / niri-spicy 不支持它，会报 `invalid key: Mod` 拒绝加载整份
     //   配置。中途为了留在 spicy 试过 keyd 重映射与 mod-tap 补丁，两者都已随
     //   换回 shorin fork 废弃，别再把它们捡回来。）
-    Mod repeat=false hotkey-overlay-title="启动器 Launcher" { spawn "dms" "ipc" "call" "launcher" "toggle"; }
+    // 必须用 release：press 绑定会让 Super 一按下就弹启动器，长按也弹。
+    // release 只在「按下后没按别的键、直接松开」时触发。
+    Mod repeat=false hotkey-overlay-title="启动器 Launcher" {
+        release { spawn "dms" "ipc" "call" "launcher" "toggle"; }
+    }
     // ⚠ 不要再加回 `Mod+Space`：本机用的 shorin-fork 原生支持「单独一个 Mod」，
     //   轻触 Super 就是启动器；再加一个 Super+Space 是重复绑定，还会白占掉
     //   「Super+空格」这个组合。
 
-    // 网格总览 —— Alt+Tab（shorin-fork 独有，网格预览）
-    Alt+Tab hotkey-overlay-title="网格总览 Grid overview" { toggle-grid-overview; }
+    // 网格总览 —— Super+Tab（shorin-fork 独有，网格预览）
+    Mod+Tab hotkey-overlay-title="网格总览 Grid overview" { toggle-grid-overview; }
 
     // 通知中心 —— Hyprland 里 Super+N 是右侧栏（通知）
     Mod+N hotkey-overlay-title="通知 Notifications" { spawn "dms" "ipc" "call" "notifications" "toggle"; }

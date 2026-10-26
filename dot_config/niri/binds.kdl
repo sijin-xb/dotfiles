@@ -261,15 +261,15 @@ binds {
     //Mod+Shift+X       { switch-layout "next"; }
     //Mod+Shift+Z { switch-layout "prev"; }
 
-    // ── 截图（2026-10-10 DMS → 10-12 xshot → 10-15 niri 内置）──────────
-    // 改用 niri 内置截图 UI（`niri msg action screenshot`）：自带暗化/放大镜/
-    // 实时尺寸，跟 niri 一起升级，零维护。每次截图都写剪贴板；UI 内 空格/回车
-    // 存盘（落 screenshot-path），Ctrl+C 只复制不存盘，P 切换指针，Esc 取消。
-    // 重开 UI 会预填上次选区，按 空格 即重拍，等同旧的「重拍上次区域」。
-    // 快门音效见 screenshot-sound.sh（监听 event-stream 的 ScreenshotCaptured）。
-    Print            hotkey-overlay-title="区域截图 Region screenshot" { screenshot; }
-    Ctrl+Print       hotkey-overlay-title="全屏截图 Full screen"       { screenshot-screen; }
-    Alt+Print        hotkey-overlay-title="聚焦窗口 Focus-window screenshot" { screenshot-window; }
+    // ── 截图（2026-10-10 DMS → 10-12 xshot → 10-15 niri 内置 → 10-26 mark-shot）
+    // Print 走 mark-shot：区域选择 + 标注（画笔/箭头/文字/马赛克/贴图），
+    // 需要 layer-shell-qt 才能盖满屏，否则会被 niri 挤成一列。存盘落
+    // ~/.config/mark-shot/config.json 的 save.pathTemplate（同 Niri-screenshots 目录）。
+    // Ctrl+Print / Alt+Print 仍是 niri 内置（全屏 / 聚焦窗口），它们会发
+    // ScreenshotCaptured 事件，但 screenshot-sound.sh 已停用，无快门音。
+    Print            hotkey-overlay-title="区域截图+标注 Region screenshot (mark-shot)" { spawn "mark-shot"; }
+    Ctrl+Print       hotkey-overlay-title="全屏截图 Full screen"       { screenshot-screen show-pointer=false; }
+    Alt+Print        hotkey-overlay-title="聚焦窗口 Focus-window screenshot" { screenshot-window show-pointer=false; }
 
     // ── 已删：DMS 绑定（10-10）、xshot 绑定（10-12）────────────────────
     // 旧版把滚动长图 / 所有输出拼接 / 标注 / OCR / 贴图 绑在 Mod+Alt(+Ctrl[+Shift])+A
