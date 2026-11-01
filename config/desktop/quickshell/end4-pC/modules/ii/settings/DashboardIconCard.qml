@@ -86,6 +86,8 @@ DashboardCard {
             contentHeight: picker.implicitHeight
             boundsBehavior: Flickable.StopAtBounds
 
+            TouchpadScrollArea { flickable: flick }
+
             IconPickerGrid {
                 id: picker
                 width: flick.width

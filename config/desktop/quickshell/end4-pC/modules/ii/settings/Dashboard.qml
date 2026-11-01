@@ -16,7 +16,12 @@ Scope {
         sourceComponent: FloatingWindow {
             id: window
             title: "illogical-impulse Settings"
-            color: Appearance.colors.colLayer0
+            color: Appearance.colors.colUiBackground
+
+            WindowGlass {
+                anchors.fill: parent
+                tint: Appearance.colors.colUiBackground
+            }
 
             implicitWidth: 1100
             implicitHeight: 680

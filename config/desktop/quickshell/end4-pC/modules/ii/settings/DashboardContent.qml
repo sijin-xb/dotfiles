@@ -13,10 +13,10 @@ Item {
 
     signal pageExitRequested()
 
-    property int currentPage: 0
-    property int pendingPage: 0
-    property int staggerMs: 45
-    property var pageBoxes: buildPage(0)
+    property int currentPage: GlobalStates.dashboardPage
+    property int pendingPage: GlobalStates.dashboardPage
+    property int staggerMs: 45 / Math.max(0.5, Config.options.settings.animationSpeed ?? 1)
+    property var pageBoxes: buildPage(GlobalStates.dashboardPage)
     property int selectedIndex: 0
     property bool searchOpen: false
     property var thumbsRequested: ({})
@@ -37,7 +37,6 @@ Item {
         readonly property bool media: root.mediaVisible && root.pendingPage === root.mediaPage
 
         readonly property color surface: media ? blended.colLayer1 : Appearance.colors.colLayer1
-        readonly property color toolbar: media ? blended.colLayer1 : Appearance.m3colors.m3surfaceContainer
         readonly property color fgSurface: media ? blended.colOnLayer1 : Appearance.colors.colOnLayer1
         readonly property color subtext: media ? blended.colSubtext : Appearance.colors.colSubtext
         readonly property color hover: media ? blended.colSecondaryContainerHover : Appearance.colors.colLayer1Hover
@@ -98,7 +97,13 @@ Item {
             Wallpapers.apply(box.wallpaper);
     }
 
+    property bool editingText: false
+
     Keys.onPressed: event => {
+        if (editingText) {
+            event.accepted = true;
+            return;
+        }
         if (event.key === Qt.Key_Escape) {
             if (currentPage === presetsPage && presetsLoader.item?.selected) presetsLoader.item.back();
             else GlobalStates.settingsOpen = false;
@@ -139,8 +144,11 @@ Item {
             goToPage((pendingPage + 1) % pageNames.length);
         } else if (event.key === Qt.Key_Backtab) {
             goToPage((pendingPage - 1 + pageNames.length) % pageNames.length);
-        } else if (isSearchablePage && typedCharacter(event)) {
+        } else if (currentPage === homePage && homeLoader.item?.typing) {
+            return;
+        } else if ((isSearchablePage || currentPage === homePage) && typedCharacter(event)) {
             typeIntoSearch(event.text);
+            if (currentPage === homePage) goToPage(settingsPage);
         } else {
             return;
         }
@@ -236,6 +244,7 @@ Item {
 
     function goToPage(index) {
         if (index === currentPage || switchTimer.running) return;
+        if (currentPage !== homePage && searchInput.text !== "") searchInput.text = "";
         pendingPage = index;
         pageExitRequested();
         forceActiveFocus();
@@ -244,9 +253,10 @@ Item {
 
     Timer {
         id: switchTimer
-        interval: 320 + Math.max(root.pageBoxes.length, 6) * (root.staggerMs - 4)
+        interval: (320 / Math.max(0.5, Config.options.settings.animationSpeed ?? 1)) + Math.max(root.pageBoxes.length, 6) * (root.staggerMs - 4)
         onTriggered: {
             root.currentPage = root.pendingPage;
+            GlobalStates.dashboardPage = root.currentPage;
             root.selectedIndex = 0;
             root.pageBoxes = root.buildPage(root.currentPage);
         }
@@ -286,6 +296,7 @@ Item {
         spacing: 12
 
         Item {
+            id: headerBar
             Layout.fillWidth: true
             implicitHeight: 56
 
@@ -319,8 +330,11 @@ Item {
             }
 
             Toolbar {
+                id: navToolbar
                 anchors.centerIn: parent
-                colBackground: ui.toolbar
+                colBackground: ui.surface
+                outerShadow: true
+                glass: !ui.media
 
                 Repeater {
                     model: root.pageNames
@@ -370,12 +384,18 @@ Item {
                 Rectangle {
                     id: searchPill
                     implicitHeight: 44
-                    implicitWidth: root.searchOpen ? 280 : 44
+                    implicitWidth: root.searchOpen ? Math.max(120, Math.min(220, (headerBar.width - navToolbar.width) / 2 - 12 - 108)) : 44
                     radius: height / 2
-                    color: ui.surface
+                    color: Config.options.background.widgets.glass.enable && !ui.media ? "transparent" : ui.surface
                     border.width: searchInput.activeFocus ? 2 : 0
-                    border.color: ui.accent
+                    border.color: Config.options.background.widgets.glass.enable && !ui.media ? "transparent" : ui.accent
                     clip: true
+
+                    WindowGlass {
+                        anchors.fill: parent
+                        glassEnabled: Config.options.background.widgets.glass.enable && !ui.media
+                        cardRadius: searchPill.radius
+                    }
 
                     Behavior on implicitWidth {
                         NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
@@ -443,6 +463,7 @@ Item {
                         implicitWidth: 44
                         implicitHeight: 44
                         buttonRadius: height / 2
+                        glass: !ui.media
                         colBackground: ui.surface
                         colBackgroundHover: ui.hover
                         onClicked: {
@@ -513,6 +534,32 @@ Item {
                         iconSize: 30
                         color: ui.fgContainer
                         visible: avatarImage.status !== Image.Ready
+                    }
+
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: avatarRect.radius
+                        color: Qt.rgba(0, 0, 0, 0.55)
+                        opacity: avatarArea.containsMouse ? 1 : 0
+
+                        Behavior on opacity {
+                            NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+                        }
+
+                        MaterialSymbol {
+                            anchors.centerIn: parent
+                            text: "close"
+                            iconSize: 24
+                            color: "white"
+                        }
+                    }
+
+                    MouseArea {
+                        id: avatarArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: GlobalStates.settingsOpen = false
                     }
                 }
             }
@@ -652,6 +699,7 @@ Item {
         }
 
         Loader {
+            id: homeLoader
             Layout.fillWidth: true
             Layout.fillHeight: true
             visible: active

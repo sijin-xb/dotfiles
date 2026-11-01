@@ -44,7 +44,7 @@ MouseArea {
         command: [
             "kitty", "--hold",
             "fish", "-i", "-l", "-c",
-            "yay -Syu --combinedupgrade=false"
+            "if type -q yay; yay -Syu --combinedupgrade=false; else if type -q paru; paru -Syu; else; sudo pacman -Syu; end"
         ]
         onExited: (exitCode, exitStatus) => {
             // 装包结束后 pacman -Sy 已经把本地 db 更新了，

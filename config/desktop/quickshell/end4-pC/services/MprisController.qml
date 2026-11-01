@@ -20,13 +20,16 @@ Singleton {
 	property MprisPlayer trackedPlayer: null;
 	// 只在 trackedPlayer 仍被接受时才回退到它；否则一个已被过滤掉的
 	// 浏览器 bus 会继续驱动栏与侧栏的媒体显示。
+	property MprisPlayer manualPlayer: null;
 	property MprisPlayer activePlayer: {
+		if (manualPlayer) return manualPlayer;
 		if (trackedPlayer && isAcceptedPlayer(trackedPlayer))
 			return trackedPlayer;
 		for (const p of players)
 			return p;
 		return null;
 	}
+
 	signal trackChanged(reverse: bool);
 
 	property bool __reverse: false;
@@ -143,7 +146,7 @@ Singleton {
 			Component.onDestruction: {
 				if (root.trackedPlayer == null || !root.trackedPlayer.isPlaying) {
 					for (const player of Mpris.players.values) {
-						if (player.playbackState.isPlaying) {
+						if (player.isPlaying) {
 							root.trackedPlayer = player;
 							break;
 						}
@@ -169,15 +172,12 @@ Singleton {
 		}
 
 		function onTrackArtUrlChanged() {
-			// console.log("arturl:", activePlayer.trackArtUrl)
-			// root.updateTrack();
-			if (root.activePlayer.uniqueId == root.activeTrack.uniqueId && root.activePlayer.trackArtUrl != root.activeTrack.artUrl) {
+			if (root.activePlayer?.uniqueId == root.activeTrack?.uniqueId && root.activePlayer?.trackArtUrl != root.activeTrack?.artUrl) {
 				// cantata likes to send cover updates *BEFORE* updating the track info.
 				// as such, art url changes shouldn't be able to break the reverse animation
 				const r = root.__reverse;
 				root.updateTrack();
 				root.__reverse = r;
-
 			}
 		}
 	}

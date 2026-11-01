@@ -20,8 +20,8 @@ local qsIpcCall = "qs -c $qsConfig ipc call"
 local qsIsAlive = qsIpcCall .. " TEST_ALIVE"
 local fullScreenshot = "mkdir -p \"$HOME/Pictures/Screenshots/Hyprland-screenshots\" && save_path=\"$HOME/Pictures/Screenshots/Hyprland-screenshots/screenshot-$(date '+%Y-%m-%d_%H-%M-%S').png\" && grim \"$save_path\" && wl-copy -t image/png < \"$save_path\" && notify-send '屏幕截图' '已保存并复制到剪贴板'"
 
-qsBind("SUPER + SUPER_L", hl.dsp.global("quickshell:searchToggleRelease"), { description = "Shell: 启动器 / 搜索" })
-qsBind("SUPER + SUPER_R", hl.dsp.global("quickshell:searchToggleRelease"))
+qsBind("SUPER + SUPER_L", hl.dsp.global("quickshell:searchToggleRelease"), { release = true, description = "Shell: 启动器 / 搜索" })
+qsBind("SUPER + SUPER_R", hl.dsp.global("quickshell:searchToggleRelease"), { release = true })
 
 qsBind("SUPER_L", hl.dsp.global("quickshell:workspaceNumber"), { ignore_mods = true, transparent = true })
 qsBind("SUPER_R", hl.dsp.global("quickshell:workspaceNumber"), { ignore_mods = true, transparent = true })

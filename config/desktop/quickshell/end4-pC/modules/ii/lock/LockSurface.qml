@@ -32,6 +32,7 @@ MouseArea {
     }
 
     property var    artUrl:      activePlayer?.trackArtUrl ?? ""
+    readonly property color toolbarColor: Config.options.appearance.uiBackground === "oled" ? "#000000" : Appearance.m3colors.m3surfaceContainer
 
     // Force focus on entry
     function forceFieldFocus() {
@@ -530,7 +531,7 @@ MouseArea {
         visible: Config.options.background.centeredWallpaper
         onClicked: {
             root.forceFieldFocus()
-            GlobalStates.centeredWallpaperThumpRequested()
+            GlobalStates.wallpaperThumpPing()
         }
         // Scroll cycles the centered wallpaper shape (up = next, down = previous),
         // same cooldown as the desktop so fast scrolling can't skip shapes.
@@ -551,6 +552,9 @@ MouseArea {
     // Main toolbar: password box
     Toolbar {
         id: mainIsland
+        colBackground: root.toolbarColor
+        glass: true
+        glassFullscreen: true
         anchors {
             horizontalCenter: parent.horizontalCenter
             bottom: parent.bottom
@@ -683,6 +687,9 @@ MouseArea {
     // Left toolbar
     Toolbar {
         id: leftIsland
+        colBackground: root.toolbarColor
+        glass: true
+        glassFullscreen: true
         visible: Config.options.lock.showToolbars
         anchors {
             right: mainIsland.left
@@ -701,6 +708,136 @@ MouseArea {
             text: SystemInfo.username
         }
 
+        // Media player info 
+        Loader {
+            Layout.leftMargin: 2
+            Layout.rightMargin: 2
+            Layout.alignment: Qt.AlignVCenter
+            active: MprisController.activePlayer !== null
+            visible: active && Config.options.lock.showMedia
+            
+            sourceComponent: Item {
+                implicitWidth: mediaRow.implicitWidth
+                implicitHeight: mediaRow.implicitHeight
+                
+                readonly property MprisPlayer activePlayer: MprisController.activePlayer
+                readonly property string cleanedTitle: StringUtils.cleanMusicTitle(activePlayer?.trackTitle) || ""
+                
+                Timer {
+                    running: activePlayer?.playbackState == MprisPlaybackState.Playing
+                    interval: Config.options.resources.updateInterval
+                    repeat: true
+                    onTriggered: activePlayer.positionChanged()
+                }
+                
+                RowLayout {
+                    id: mediaRow
+                    spacing: 8
+                    anchors.centerIn: parent
+                    
+                    Rectangle {
+                        id: artRect
+                        implicitWidth: 40
+                        implicitHeight: 40
+                        radius: Appearance.rounding.full
+                        color: Appearance.colors.colPrimaryContainer
+                        Layout.alignment: Qt.AlignVCenter
+                        clip: true 
+
+                        layer.enabled: true
+                        layer.effect: OpacityMask {
+                            maskSource: Rectangle {
+                                width: artRect.width
+                                height: artRect.height
+                                radius: artRect.radius
+                            }
+                        }
+
+                        StyledImage {
+                            anchors.centerIn: parent
+                            width: artRect.width
+                            height: artRect.height
+                            source: {
+                                if (!root.artUrl || root.artUrl.length === 0) return ""
+                                if (root.artUrl.startsWith("/")) return "file://" + root.artUrl
+                                return root.artUrl
+                            }
+                            fillMode: Image.PreserveAspectCrop
+                            cache: false
+                            antialiasing: true
+                            sourceSize.width: artRect.width * 2
+                            sourceSize.height: artRect.height * 2
+                            visible: root.artUrl !== ""
+                        }
+
+                        MaterialSymbol {
+                            anchors.centerIn: parent
+                            fill: 1
+                            text: "music_note"
+                            iconSize: Appearance.font.pixelSize.normal
+                            color: Appearance.colors.colOnSecondaryContainer
+                            visible: root.artUrl === ""
+                        }
+                    }
+                    
+                    Column {
+                        Layout.alignment: Qt.AlignVCenter
+                        spacing: -2
+                        
+                        StyledText {
+                            horizontalAlignment: Text.AlignLeft
+                            elide: Text.ElideRight
+                            maximumLineCount: 1
+                            width: Math.min(implicitWidth, 180) 
+                            color: Appearance.colors.colOnSurfaceVariant
+                            text: {
+                                var artist = activePlayer?.trackArtist || " ";
+                                return artist.length > 25 ? artist.substring(0, 25) + "..." : artist;
+                            }
+                            font.pixelSize: Appearance.font.pixelSize.smaller
+                        }
+                        
+                        StyledText {
+                            horizontalAlignment: Text.AlignLeft
+                            elide: Text.ElideRight
+                            maximumLineCount: 1
+                            width: Math.min(implicitWidth, 180) 
+                            color: Appearance.colors.colOnSurfaceVariant
+                            text: {
+                                var title = cleanedTitle;
+                                return title.length > 30 ? title.substring(0, 30) + "..." : title;
+                            }
+                            font.weight: Font.Medium
+                            font.pixelSize: Appearance.font.pixelSize.small
+                        }
+                    }
+                    
+                    ClippedFilledCircularProgress {
+                        id: mediaCircProg
+                        Layout.alignment: Qt.AlignVCenter
+                        lineWidth: Appearance.rounding.unsharpen
+                        value: activePlayer?.position / activePlayer?.length
+                        implicitSize: 24
+                        colPrimary: Appearance.colors.colOnSurfaceVariant
+                        enableAnimation: false
+                        
+                        Item {
+                            anchors.centerIn: parent
+                            width: mediaCircProg.implicitSize
+                            height: mediaCircProg.implicitSize
+                            
+                            MaterialSymbol {
+                                anchors.centerIn: parent
+                                fill: 1
+                                text: "music_note"
+                                iconSize: Appearance.font.pixelSize.normal
+                                color: Appearance.colors.colOnSurfaceVariant
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         // Keyboard layout (Xkb)
         Loader {
@@ -744,6 +881,9 @@ MouseArea {
     // Right toolbar
     Toolbar {
         id: rightIsland
+        colBackground: root.toolbarColor
+        glass: true
+        glassFullscreen: true
         visible: Config.options.lock.showToolbars
         anchors {
             left: mainIsland.right

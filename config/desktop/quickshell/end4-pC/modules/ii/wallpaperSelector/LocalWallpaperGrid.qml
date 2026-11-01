@@ -336,7 +336,7 @@ Item {
         onTriggered: grid.introDone = true
     }
 
-    GridView {
+    StyledGridView {
         id: grid
         property bool introDone: false
         property int introCounter: 0

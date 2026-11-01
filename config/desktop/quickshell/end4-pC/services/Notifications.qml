@@ -65,9 +65,8 @@ Singleton {
         running: true
         onTriggered: () => {
             const index = root.list.findIndex((notif) => notif.notificationId === notificationId);
-            // 通知可能在计时器到期前就被用户关掉/收起了，此时 findIndex 返回 -1，
-            // 原来的 notifObject.isTransient 会直接抛 TypeError。
-            if (index < 0) {
+            // Already dismissed or discarded while the timer was running
+            if (index === -1) {
                 destroy();
                 return;
             }
@@ -304,7 +303,6 @@ Singleton {
                     maxId = Math.max(maxId, notif.notificationId)
                 })
 
-                console.log("[Notifications] File loaded")
                 root.idOffset = maxId
                 root.initDone()
             } catch (e) {

@@ -40,6 +40,38 @@ Item {
         return scored.map(e => e.item);
     }
 
+    function rankOnline(items) {
+        if (tokens.length === 0) return items;
+        const forceAuthor = tokens.some(t => t.startsWith("@"));
+        const plain = tokens.map(t => t.replace(/^@+/, "")).filter(t => t.length > 0);
+        if (plain.length === 0) return items;
+        const scored = [];
+        items.forEach(entry => {
+            const nameKey = Wallpapers.normalizeText(entry.title + " " + entry.name.replace(/^[^\s]+?--/, "")).replace(/[_\-.]+/g, " ");
+            const authorKey = Wallpapers.normalizeText(entry.author ?? "").replace(/[_\-.]+/g, " ");
+            if (!forceAuthor) {
+                const nameScore = Wallpapers.scoreItem(nameKey, plain);
+                if (nameScore >= 0) {
+                    scored.push({ item: entry, score: 2000 + nameScore });
+                    return;
+                }
+            }
+            if (authorKey !== "") {
+                const authorScore = Wallpapers.scoreItem(authorKey, plain);
+                if (authorScore >= 0) {
+                    scored.push({ item: entry, score: authorScore });
+                    return;
+                }
+                if (!forceAuthor) {
+                    const mixedScore = Wallpapers.scoreItem(nameKey + " " + authorKey, plain);
+                    if (mixedScore >= 0) scored.push({ item: entry, score: 1000 + mixedScore });
+                }
+            }
+        });
+        scored.sort((a, b) => b.score - a.score);
+        return scored.map(e => e.item);
+    }
+
     readonly property var localEntries: {
         const model = currentModel;
         if (!model) return [];
@@ -49,11 +81,11 @@ Item {
         return rankBy(items, item => item.fileName.replace(".json", ""));
     }
 
-    readonly property var onlineEntries: rankBy(PresetsOnline.pending, entry => entry.title + " " + entry.name)
+    readonly property var onlineEntries: rankOnline(PresetsOnline.pending)
     readonly property int columns: Math.max(2, Math.round(width / 340))
 
     readonly property var barPositions: [Translation.tr("Top"), Translation.tr("Bottom"), Translation.tr("Left"), Translation.tr("Right")]
-    readonly property var barStyles: ["Hug", "Float", "Islands", "M3", "M3 Hug", "Panel"]
+    readonly property var barStyles: ["Hug", "Float", "Islands", "M3", "M3 Hug", "Panel", "Split Hug"]
 
     function summaryOf(data) {
         const bar = data?.bar ?? {};
@@ -64,6 +96,7 @@ Item {
         const clockStyle = data?.background?.widgets?.clock?.style ?? "";
         return {
             description: data?._presetMeta?.description ?? "",
+            origin: data?._presetMeta?.origin ?? "",
             wallpaper: Presets.previewImage(data),
             vertical: bar.vertical ?? false,
             bottom: bar.bottom ?? false,
@@ -168,6 +201,7 @@ Item {
                     implicitHeight: 44
                     horizontalPadding: 18
                     buttonRadius: 22
+                    glass: true
                     toggled: active
                     colBackground: Appearance.colors.colLayer1
                     colBackgroundHover: Appearance.colors.colLayer1Hover
@@ -225,6 +259,7 @@ Item {
                 implicitWidth: 44
                 implicitHeight: 44
                 buttonRadius: 22
+                glass: true
                 colBackground: Appearance.colors.colSecondaryContainer
                 colBackgroundHover: Appearance.colors.colSecondaryContainerHover
                 downAction: () => Qt.callLater(() => PresetsOnline.refresh())
@@ -245,9 +280,15 @@ Item {
                 Layout.minimumWidth: 160
                 implicitHeight: 44
                 radius: 22
-                color: Appearance.colors.colLayer1
+                color: Config.options.background.widgets.glass.enable ? "transparent" : Appearance.colors.colLayer1
                 border.width: saveInput.activeFocus ? 2 : 0
-                border.color: Appearance.colors.colPrimary
+                border.color: Config.options.background.widgets.glass.enable ? "transparent" : Appearance.colors.colPrimary
+
+                WindowGlass {
+                    anchors.fill: parent
+                    glassEnabled: Config.options.background.widgets.glass.enable
+                    cardRadius: parent.radius
+                }
 
                 RowLayout {
                     anchors.fill: parent
@@ -306,6 +347,7 @@ Item {
 
             RippleButton {
                 id: importButton
+                glass: true
                 visible: root.source !== "online"
                 implicitWidth: 44
                 implicitHeight: 44
@@ -330,7 +372,7 @@ Item {
             }
         }
 
-        GridView {
+        StyledGridView {
             id: grid
             visible: root.source !== "online"
             Layout.fillWidth: true
@@ -338,7 +380,7 @@ Item {
             clip: true
             boundsBehavior: Flickable.StopAtBounds
             cellWidth: Math.floor(width / root.columns)
-            cellHeight: Math.round(cellWidth * 0.68)
+            cellHeight: Math.max(120, Math.floor(height / 2))
             cacheBuffer: 0
             model: root.source === "online" ? [] : root.localEntries
 
@@ -362,6 +404,7 @@ Item {
                         try {
                             cell.summary = root.summaryOf(JSON.parse(text()));
                             cell.loaded = true;
+                            PresetThumbs.request(cell.summary.wallpaper);
                         } catch (e) {
                             cell.summary = {};
                         }
@@ -386,7 +429,7 @@ Item {
 
                         Image {
                             anchors.fill: parent
-                            source: cell.summary.wallpaper ?? ""
+                            source: PresetThumbs.thumbFor(cell.summary.wallpaper) || (cell.summary.wallpaper ?? "")
                             fillMode: Image.PreserveAspectCrop
                             asynchronous: true
                             cache: true
@@ -422,7 +465,7 @@ Item {
 
                             StyledText {
                                 Layout.fillWidth: true
-                                text: cell.presetName.replace(/_/g, " ")
+                                text: PresetsOnline.displayName(cell.presetName).replace(/_/g, " ")
                                 font.pixelSize: Appearance.font.pixelSize.larger
                                 font.weight: Font.DemiBold
                                 color: "white"
@@ -495,14 +538,14 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
 
-            GridView {
+            StyledGridView {
                 id: onlineGrid
                 anchors.fill: parent
                 visible: root.onlineEnabled
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
                 cellWidth: Math.floor(width / root.columns)
-                cellHeight: Math.round(cellWidth * 0.68)
+                cellHeight: Math.max(120, Math.floor(height / 2))
                 cacheBuffer: 0
                 model: root.source === "online" ? root.onlineEntries : []
 
@@ -564,16 +607,26 @@ Item {
                                 }
                             }
 
-                            StyledText {
+                            ColumnLayout {
                                 anchors.left: parent.left
                                 anchors.right: parent.right
                                 anchors.bottom: parent.bottom
                                 anchors.margins: 14
-                                text: onlineCell.modelData.title
-                                font.pixelSize: Appearance.font.pixelSize.larger
-                                font.weight: Font.DemiBold
-                                color: "white"
-                                elide: Text.ElideRight
+                                spacing: 4
+
+                                StyledText {
+                                    Layout.fillWidth: true
+                                    text: onlineCell.modelData.title
+                                    font.pixelSize: Appearance.font.pixelSize.larger
+                                    font.weight: Font.DemiBold
+                                    color: "white"
+                                    elide: Text.ElideRight
+                                }
+
+                                PresetAuthorChip {
+                                    Layout.fillWidth: true
+                                    author: onlineCell.modelData.author ?? ""
+                                }
                             }
 
                             MouseArea {
@@ -687,11 +740,13 @@ Item {
         id: detailLoader
         anchors.fill: parent
         active: root.selected !== null
+        visible: !Presets.uploadGuideOpen
 
         sourceComponent: DashboardPresetDetail {
             preset: root.selected
             pager: root.pager
             staggerMs: root.staggerMs
+            summarize: root.summaryOf
             onBack: root.back()
             onApplyRequested: {
                 if (root.selected.source === "online") PresetsOnline.download(root.selected.entry);
@@ -699,10 +754,33 @@ Item {
             }
             onOverwriteRequested: Presets.overwrite(root.selected.name)
             onExportRequested: Presets.exportZip(root.selected.name)
+            onRenameRequested: newName => Presets.rename(root.selected.name, newName)
+            onUploadRequested: Presets.publish(root.selected.name)
+            onUnshareRequested: Presets.unpublish(root.selected.name)
+            onInstallRequested: Presets.install(root.selected.name, root.selected.source)
             onDeleteRequested: {
                 root.removePreset(root.selected);
                 root.back();
             }
+        }
+    }
+
+    Loader {
+        anchors.fill: parent
+        active: Presets.uploadGuideOpen
+
+        sourceComponent: DashboardPresetUploadGuide {
+            presetName: Presets.uploadGuideName
+            onProceed: Presets.confirmUploadGuide()
+            onCancel: Presets.cancelUploadGuide()
+        }
+    }
+
+    Connections {
+        target: Presets
+        function onRenamed(oldName, newName) {
+            if (newName === "" || root.selected === null || root.selected.name !== oldName) return;
+            root.selected = Object.assign({}, root.selected, { name: newName });
         }
     }
 

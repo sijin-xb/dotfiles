@@ -8,14 +8,25 @@ Rectangle {
     property bool shadowed: Config.options.background.widgets.shadow
     property color tint: Appearance.colors.colLayer1
     property real tintOpacity: 0.55
+    property bool glass: true
 
     radius: Appearance.rounding?.verylarge ?? 30
-    color: Appearance.colors.colPrimaryContainer
+    color: glass && Config.options.background.widgets.glass.enable ? "transparent" : Appearance.colors.colPrimaryContainer
 
     StyledRectangularShadow {
         target: root
         z: -2
         visible: root.shadowed
+    }
+
+    FrostedGlass {
+        anchors.fill: parent
+        blurSource: root.widget.wallpaperItem
+        cardRadius: root.radius
+        tint: Appearance.colors.colPrimaryContainer
+        trackX: root.widget.x + root.x
+        trackY: root.widget.y + root.y
+        visible: root.glass && Config.options.background.widgets.glass.enable
     }
 
     FastBlurred {
@@ -27,6 +38,6 @@ Rectangle {
         tintOpacity: root.tintOpacity
         trackX: root.widget.x + root.x
         trackY: root.widget.y + root.y
-        visible: root.blurred
+        visible: root.blurred && !(root.glass && Config.options.background.widgets.glass.enable)
     }
 }

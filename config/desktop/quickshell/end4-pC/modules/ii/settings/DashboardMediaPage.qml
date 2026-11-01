@@ -5,6 +5,7 @@ import Quickshell.Io
 import qs.modules.common
 import qs.modules.common.functions
 import qs.modules.common.widgets
+import qs.services
 
 Item {
     id: root
@@ -393,6 +394,51 @@ Item {
                 dimColor: root.fgDim
                 indicatorColor: root.colors.colSecondaryContainer
                 indicatorShapeColor: root.colors.colOnSecondaryContainer
+            }
+
+            StyledComboBoxSearch {
+                id: playerSelector
+
+                readonly property var players: Array.from(MprisController.players)
+                readonly property int activeIndex: players.findIndex(p => p === MprisController.activePlayer)
+                readonly property color solid: Qt.rgba(root.colors.colLayer1.r, root.colors.colLayer1.g, root.colors.colLayer1.b, 1)
+
+                visible: players.length > 1
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.margins: 14
+                width: Math.min(300, parent.width - 28)
+                popupAbove: true
+                splitIndicator: true
+                textRole: "displayName"
+                model: players.map(p => ({ displayName: `${p.identity ?? p.desktopEntry ?? Translation.tr("Unknown")} · ${p.trackTitle || "—"}`, icon: "music_note" }))
+                onActivated: index => MprisController.manualPlayer = players[index]
+
+                function syncIndex() {
+                    playerSelector.currentIndex = playerSelector.activeIndex;
+                }
+                onActiveIndexChanged: Qt.callLater(syncIndex)
+                onModelChanged: Qt.callLater(syncIndex)
+                onCountChanged: Qt.callLater(syncIndex)
+                Component.onCompleted: syncIndex()
+
+                colBackground: root.colors.colSecondaryContainer
+                colBackgroundHover: root.colors.colSecondaryContainerHover
+                colBackgroundActive: root.colors.colSecondaryContainerActive
+                colText: root.colors.colOnSecondaryContainer
+                colAccent: root.colors.colPrimary
+                colOnAccent: root.colors.colOnPrimary
+                colPopup: playerSelector.solid
+                colSelected: root.colors.colSecondaryContainer
+                colSelectedHover: root.colors.colSecondaryContainerHover
+                colSelectedActive: root.colors.colSecondaryContainerActive
+                colOnSelected: root.colors.colOnSecondaryContainer
+                colItemHover: root.colors.colSecondaryContainerHover
+                colItemActive: root.colors.colSecondaryContainerActive
+                colOnItem: root.colors.colOnLayer1
+                colSearch: root.colors.colLayer0
+                colOnSearch: root.colors.colOnLayer1
+                colSearchHint: root.colors.colSubtext
             }
         }
     }

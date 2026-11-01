@@ -57,7 +57,7 @@ case "$action" in
             name=$(basename "$dir")
             case "$name" in default|hicolor) continue ;; esac
             [ -f "$dir/index.theme" ] && grep -q "^Directories=" "$dir/index.theme" && echo "$name"
-        done | sort -u
+        done | grep -Ev -- '-Dynamic-' | sort -u
         ;;
     --list-cursors)
         theme_dirs | while read -r dir; do

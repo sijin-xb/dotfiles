@@ -50,6 +50,7 @@ ShellRoot {
         ConflictKiller.load()
         Cliphist.refresh()
         Wallpapers.load()
+        Football.load()
         Updates.load()
         LyricsService.restartLyrics()
     }

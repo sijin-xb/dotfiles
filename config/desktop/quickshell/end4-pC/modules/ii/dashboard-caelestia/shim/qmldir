@@ -1,0 +1,16 @@
+module shim
+singleton Colours 1.0 Colours.qml
+singleton Players 1.0 Players.qml
+singleton Weather 1.0 Weather.qml
+singleton Time 1.0 Time.qml
+singleton Notifs 1.0 Notifs.qml
+singleton Hypr 1.0 Hypr.qml
+singleton Paths 1.0 Paths.qml
+singleton Strings 1.0 Strings.qml
+singleton Dashboard 1.0 Dashboard.qml
+singleton Audio 1.0 Audio.qml
+singleton SysInfo 1.0 SysInfo.qml
+singleton Tr 1.0 Tr.qml
+singleton Units 1.0 Units.qml
+singleton Lyrics 1.0 Lyrics.qml
+NotifData 1.0 NotifData.qml

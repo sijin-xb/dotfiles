@@ -25,8 +25,12 @@ def update_svg_colors(svg_path, old_to_new_colors, output_path):
         svg_content = file.read()
 
     # Replace old colors with new colors
+    # ⚠ 必须加颜色字面量边界：直接 re.sub('#333', ...) 会把 '#333333' 的前 4 个字符
+    #    也替换掉，产出 '#191014333' 这种非法颜色。用前后否定断言限定「不是十六进制
+    #    字符」即可。同时 re.escape 防止颜色里的特殊字符被当正则元字符。
     for old_color, new_color in old_to_new_colors.items():
-        svg_content = re.sub(old_color, new_color, svg_content, flags=re.IGNORECASE)
+        pattern = r'(?<![0-9A-Fa-f])' + re.escape(old_color) + r'(?![0-9A-Fa-f])'
+        svg_content = re.sub(pattern, new_color, svg_content, flags=re.IGNORECASE)
 
     # Write the updated SVG content to the output file
     with open(output_path, 'w') as file:
@@ -34,12 +38,32 @@ def update_svg_colors(svg_path, old_to_new_colors, output_path):
     
     print(f"SVG colors have been updated and saved to {output_path}!")
 
+def find_colloid(name):
+    """定位 Colloid 基底文件。
+
+    Colloid 的 Kvantum 主题可能落在两处，按 Kvantum 自己的搜索顺序找：
+      1) $XDG_CONFIG_HOME/Kvantum/Colloid —— 用 Colloid-kde 的 install.sh 以普通用户装
+      2) /usr/share/Kvantum/Colloid        —— 装 AUR 包 plasma6-themes-colloid-git
+    只认第一处的话，走 AUR 路线时这里会 FileNotFoundError。
+    """
+    candidates = [
+        os.path.join(os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config")),
+                     "Kvantum", "Colloid", name),
+        os.path.join("/usr/share/Kvantum/Colloid", name),
+    ]
+    for path in candidates:
+        if os.path.isfile(path):
+            return path
+    # 都不存在就返回首选路径，让调用方报出有意义的 FileNotFoundError
+    return candidates[0]
+
+
 def main():
     xdg_config_home = os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
     xdg_state_home = os.environ.get("XDG_STATE_HOME", os.path.expanduser("~/.local/state"))
 
     scss_file = os.path.join(xdg_state_home, "quickshell", "user", "generated", "material_colors.scss")
-    svg_path = os.path.join(xdg_config_home, "Kvantum", "Colloid", "ColloidDark.svg")
+    svg_path = find_colloid("ColloidDark.svg")
     output_path = os.path.join(xdg_config_home, "Kvantum", "MaterialAdw", "MaterialAdw.svg")
 
     # Read colors from the SCSS file

@@ -5,6 +5,8 @@ TOTAL_DURATION=30
 SOURCE_TYPE="monitor"  # monitor | input
 FIFO=$(mktemp -u /tmp/songrec_out_XXXXXX)
 
+# Exit codes: 0 done (stdout may still be empty if nothing matched),
+# 1 songrec missing, 2 audio device problem
 while getopts "i:t:s:" opt; do
   case $opt in
     i) INTERVAL=$OPTARG ;;
@@ -19,20 +21,16 @@ if ! command -v songrec >/dev/null 2>&1; then
 fi
 
 if [ "$SOURCE_TYPE" = "monitor" ]; then
-    AUDIO_DEVICE=$(pactl info | grep "Default Sink:" | awk '{print $3}').monitor
+    AUDIO_DEVICE=$(pactl get-default-sink).monitor
 elif [ "$SOURCE_TYPE" = "input" ]; then
     AUDIO_DEVICE=$(pactl info | grep "Default Source:" | awk '{print $3}' || true)
 else
     echo "Invalid source type"
-    exit 1
+    exit 2
 fi
 
-if [ -z "$AUDIO_DEVICE" ] || ! pactl list short sources | grep -Fq "$AUDIO_DEVICE"; then
-    # Fallback to the first available source if default monitor/source check fails
-    AUDIO_DEVICE=$(pactl list short sources | head -n 1 | awk '{print $2}')
-    if [ -z "$AUDIO_DEVICE" ]; then
-        exit 1
-    fi
+if [ -z "$AUDIO_DEVICE" ] || ! pactl list short sources | grep -q "$AUDIO_DEVICE"; then
+    exit 2
 fi
 
 mkfifo "$FIFO"
@@ -44,16 +42,15 @@ cleanup() {
 }
 trap cleanup EXIT
 
-songrec listen --audio-device "$AUDIO_DEVICE" --json --disable-mpris > "$FIFO" &
+songrec listen --audio-device "$AUDIO_DEVICE" --request-interval "$INTERVAL" --json --disable-mpris > "$FIFO" &
 SONGREC_PID=$!
 
 ( sleep "$TOTAL_DURATION" && kill "$SONGREC_PID" 2>/dev/null ) &
 
 while IFS= read -r line; do
-    if echo "$line" | grep -q '"matches" *: *\['; then
-        if echo "$line" | grep -q '"matches" *: *\[\]'; then
-            continue
-        fi
+    # songrec emits compact JSON: "matches":[ has no space after the colon.
+    # Accept both spacings anyway; a spaceless match is why this never worked.
+    if echo "$line" | grep -qE '"matches": ?\['; then
         echo "$line"
         exit 0
     fi

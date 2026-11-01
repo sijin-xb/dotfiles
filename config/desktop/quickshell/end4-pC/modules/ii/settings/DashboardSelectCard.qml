@@ -45,6 +45,27 @@ DashboardCard {
                 color: Appearance.colors.colOnTertiaryContainer
                 elide: Text.ElideRight
             }
+
+            RippleButton {
+                visible: root.control?.reset !== undefined
+                enabled: root.control?.canReset?.() ?? true
+                implicitWidth: 36
+                implicitHeight: 36
+                buttonRadius: 18
+                colBackground: Qt.rgba(1, 1, 1, 0.12)
+                colBackgroundHover: Qt.rgba(1, 1, 1, 0.22)
+                colRipple: Qt.rgba(1, 1, 1, 0.3)
+                opacity: enabled ? 1 : 0.4
+                downAction: () => Qt.callLater(() => root.control.reset())
+
+                contentItem: MaterialSymbol {
+                    anchors.centerIn: parent
+                    horizontalAlignment: Text.AlignHCenter
+                    text: "restart_alt"
+                    iconSize: 20
+                    color: Appearance.colors.colOnTertiaryContainer
+                }
+            }
         }
 
         Item { Layout.fillHeight: true }
@@ -101,7 +122,5 @@ DashboardCard {
                 }
             }
         }
-
-        Item { Layout.fillHeight: true }
     }
 }

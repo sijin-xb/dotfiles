@@ -20,6 +20,7 @@ Item {
     readonly property string avatarPath: Config.options.profile.avatarPath !== "" && Config.options.profile.avatarPicture !== ""
         ? Config.options.profile.avatarPicture
         : `${FileUtils.trimFileProtocol(Directories.home)}/.face`
+    readonly property bool typing: flip.showBack || tasksCard.adding
     readonly property int pendingTasks: Todo.list.filter(t => !t.done).length
 
     readonly property string greeting: {
@@ -268,14 +269,45 @@ Item {
                             color: Appearance.colors.colOnPrimaryContainer
                         }
 
-                        Rectangle {
+                        Item {
+                            id: blurStrip
                             anchors.left: parent.left
                             anchors.right: parent.right
                             anchors.bottom: parent.bottom
                             height: parent.height * 0.5
-                            gradient: Gradient {
-                                GradientStop { position: 0; color: "transparent" }
-                                GradientStop { position: 1; color: Qt.rgba(0, 0, 0, 0.75) }
+                            visible: avatarImage.status === Image.Ready
+                            layer.enabled: true
+                            layer.effect: OpacityMask {
+                                maskSource: Rectangle {
+                                    width: blurStrip.width
+                                    height: blurStrip.height
+                                    gradient: Gradient {
+                                        GradientStop { position: 0; color: "transparent" }
+                                        GradientStop { position: 0.6; color: "#ffffff" }
+                                        GradientStop { position: 1; color: "#ffffff" }
+                                    }
+                                }
+                            }
+
+                            ShaderEffectSource {
+                                id: blurStripSource
+                                sourceItem: avatarImage
+                                sourceRect: Qt.rect(0, avatarImage.height - blurStrip.height, blurStrip.width, blurStrip.height)
+                                visible: false
+                            }
+
+                            FastBlur {
+                                anchors.fill: parent
+                                source: blurStripSource
+                                radius: 40
+                            }
+
+                            Rectangle {
+                                anchors.fill: parent
+                                gradient: Gradient {
+                                    GradientStop { position: 0; color: "transparent" }
+                                    GradientStop { position: 1; color: Qt.rgba(0, 0, 0, 0.4) }
+                                }
                             }
                         }
 
@@ -284,42 +316,76 @@ Item {
                             anchors.right: parent.right
                             anchors.bottom: parent.bottom
                             anchors.margins: 16
-                            spacing: 2
+                            spacing: 4
 
-                            StyledText {
+                            RowLayout {
                                 Layout.fillWidth: true
-                                text: root.displayName
-                                font.pixelSize: Appearance.font.pixelSize.huge
-                                font.weight: Font.DemiBold
-                                color: "white"
-                                elide: Text.ElideRight
-                            }
-                            StyledText {
-                                Layout.fillWidth: true
-                                text: `${SystemInfo.username}@${SystemInfo.hostname}`
-                                font.pixelSize: Appearance.font.pixelSize.small
-                                color: Qt.rgba(1, 1, 1, 0.75)
-                                elide: Text.ElideRight
-                            }
-                        }
+                                Layout.alignment: Qt.AlignBottom
+                                spacing: 14
 
-                        RippleButton {
-                            anchors.right: parent.right
-                            anchors.top: parent.top
-                            anchors.margins: 12
-                            implicitWidth: 38
-                            implicitHeight: 38
-                            buttonRadius: 19
-                            colBackground: Qt.rgba(0, 0, 0, 0.45)
-                            colBackgroundHover: Qt.rgba(0, 0, 0, 0.65)
-                            colRipple: Qt.rgba(1, 1, 1, 0.3)
-                            downAction: () => Qt.callLater(() => flip.flip())
-                            contentItem: Item {
-                                MaterialSymbol {
-                                    anchors.centerIn: parent
-                                    text: "edit"
-                                    iconSize: 20
-                                    color: "white"
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    Layout.alignment: Qt.AlignBottom
+                                    spacing: 2
+
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 6
+
+                                        StyledText {
+                                            Layout.fillWidth: false
+                                            Layout.maximumWidth: parent.width - Appearance.font.pixelSize.huge - parent.spacing
+                                            text: root.displayName
+                                            font.pixelSize: Appearance.font.pixelSize.huge
+                                            font.weight: Font.DemiBold
+                                            color: "white"
+                                            elide: Text.ElideRight
+                                        }
+                                        MaterialSymbol {
+                                            Layout.alignment: Qt.AlignVCenter
+                                            text: "verified"
+                                            fill: 1
+                                            iconSize: Appearance.font.pixelSize.larger
+                                            color: "white"
+                                        }
+                                        Item { Layout.fillWidth: true }
+                                    }
+                                    StyledText {
+                                        Layout.fillWidth: true
+                                        visible: userCard.height >= 150
+                                        text: `${SystemInfo.username}@${SystemInfo.hostname}`
+                                        font.pixelSize: Appearance.font.pixelSize.small
+                                        color: Qt.rgba(1, 1, 1, 0.75)
+                                        elide: Text.ElideRight
+                                    }
+                                }
+
+                                RippleButton {
+                                    implicitWidth: editRow.implicitWidth + 40
+                                    implicitHeight: 38
+                                    buttonRadius: 19
+                                    colBackground: Appearance.colors.colPrimary
+                                    colBackgroundHover: Appearance.colors.colPrimaryHover
+                                    colRipple: Qt.rgba(0, 0, 0, 0.15)
+                                    downAction: () => Qt.callLater(() => flip.flip())
+                                    contentItem: Item {
+                                        RowLayout {
+                                            id: editRow
+                                            anchors.centerIn: parent
+                                            spacing: 6
+                                            StyledText {
+                                                text: Translation.tr("Edit")
+                                                font.pixelSize: Appearance.font.pixelSize.normal
+                                                font.weight: Font.Medium
+                                                color: Appearance.colors.colOnPrimary
+                                            }
+                                            MaterialSymbol {
+                                                text: "edit"
+                                                iconSize: Appearance.font.pixelSize.larger
+                                                color: Appearance.colors.colOnPrimary
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -446,11 +512,14 @@ Item {
                                         Layout.fillHeight: true
 
                                     Flickable {
+                                        id: homeAvatars
                                         anchors.fill: parent
                                         clip: true
                                         contentWidth: width
                                         contentHeight: avatarFlow.implicitHeight
                                         boundsBehavior: Flickable.StopAtBounds
+
+                                        TouchpadScrollArea { flickable: homeAvatars }
 
                                         Flow {
                                             id: avatarFlow
@@ -1101,6 +1170,7 @@ Item {
                         }
 
                         ListView {
+                            id: homeTodos
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             Layout.preferredHeight: 3 * 40 + 2 * 6
@@ -1108,6 +1178,8 @@ Item {
                             clip: true
                             spacing: 6
                             model: Todo.list.map((t, i) => ({ content: t.content, done: t.done, origIndex: i }))
+
+                            TouchpadScrollArea { flickable: homeTodos }
 
                             delegate: RippleButton {
                                 required property var modelData

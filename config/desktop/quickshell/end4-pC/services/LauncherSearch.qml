@@ -321,6 +321,26 @@ Singleton {
                     blurImage: shouldBlurImage
                 });
             }).filter(Boolean);
+            const lostPins = Cliphist.missingPins(searchString).map(pin => resultComp.createObject(null, {
+                rawValue: `${pin.id}\t${pin.text}`,
+                name: pin.text,
+                verb: "",
+                type: `#${pin.id}`,
+                clipboard: true,
+                pinned: true,
+                execute: () => {
+                    Quickshell.clipboardText = pin.content && pin.content !== "" ? pin.content : pin.text;
+                },
+                actions: [resultComp.createObject(null, {
+                    name: Translation.tr("Unpin"),
+                    iconName: "keep_off",
+                    iconType: LauncherSearchResult.IconType.Material,
+                    execute: () => {
+                        Cliphist.removePin(pin);
+                    }
+                })]
+            }));
+            return [...lostPins, ...clipboardResults.filter(result => result.pinned), ...clipboardResults.filter(result => !result.pinned)];
         } else if (root.debouncedQuery.startsWith(Config.options.search.prefix.emojis)) {
             // Emojis
             const searchString = StringUtils.cleanPrefix(root.debouncedQuery, Config.options.search.prefix.emojis);

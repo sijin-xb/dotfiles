@@ -69,8 +69,9 @@ hl.config({
         }
     },
     decoration = {
-        active_opacity = 0.65,
-        inactive_opacity = 0.65,
+        -- 与 niri 对齐：niri 的 window-rule opacity 0.85
+        active_opacity = 0.85,
+        inactive_opacity = 0.85,
         fullscreen_opacity = 1,
         -- 2 = circle, higher = squircle, 4 = very obvious squircle
         -- Fuck clearly visible squircles. 100% Apple brainrot.
@@ -78,12 +79,13 @@ hl.config({
         rounding = 18,
 
         blur = {
-            enabled = false,
+            enabled = true,
             xray = true,
             special = false,
             new_optimizations = true,
+            -- 与 niri 对齐：passes 2 / offset 2 / noise 0.02 / saturation 1.3
             size = 2,
-            passes = 1,
+            passes = 2,
             brightness = 1,
             noise = 0.02,
             contrast = 0.95,
@@ -98,7 +100,7 @@ hl.config({
             enabled = true,
             range = 20,
             offset = {0, 2},
-            render_power = 10,
+            render_power = 4,
             color = "rgba(00000020)"
 
         },

@@ -137,18 +137,23 @@ if args.termscheme is not None:
         json_termscheme = f.read()
     term_source_colors = json.loads(json_termscheme)['dark' if darkmode else 'light']
 
-    # materialyoucolor >= 3 renamed 'primary_paletteKeyColor' to 'primaryPaletteKeyColor'.
-    # Accept both so the script works on either version.
-    primary_key_color = material_colors.get('primaryPaletteKeyColor') \
-        or material_colors.get('primary_paletteKeyColor')
-    if primary_key_color is None:
-        raise KeyError(
-            "Primary palette key color not found in MaterialDynamicColors; "
-            "unsupported materialyoucolor version"
-        )
-    primary_color_argb = hex_to_argb(primary_key_color)
+    # ⚠ materialyoucolor 3.x 把 MaterialDynamicColors 的属性名改成 camelCase
+    # （primaryPaletteKeyColor），而上面那个循环直接拿属性名当字典键，所以这里
+    # 必须用 camelCase。原代码写的是 snake_case（primary_paletteKeyColor），
+    # 在 --termscheme 路径上必然 KeyError → 脚本非零退出 → switchwall.sh 的
+    # `> material_colors.scss` 重定向已经把文件截成 0 字节，于是 Kvantum 拿到空
+    # 文件。按 camelCase / snake_case / primary 依次兜底，兼容新旧版本。
+    primary_color_hex = (material_colors.get('primaryPaletteKeyColor')
+                         or material_colors.get('primary_paletteKeyColor')
+                         or material_colors.get('primary'))
+    if primary_color_hex is None:
+        raise SystemExit("generate_colors_material: 无法从 material_colors 取到主色键 "
+                         "(primaryPaletteKeyColor / primary)")
+    primary_color_argb = hex_to_argb(primary_color_hex)
     for color, val in term_source_colors.items():
-        if(args.scheme == 'monochrome') :
+        # scheme 名带 scheme- 前缀（switchwall 传的是 scheme-monochrome），
+        # 原来只比较 'monochrome' 导致这个分支永远不生效。
+        if args.scheme in ('monochrome', 'scheme-monochrome'):
             term_colors[color] = val
             continue
         if args.blend_bg_fg and color == "term0":

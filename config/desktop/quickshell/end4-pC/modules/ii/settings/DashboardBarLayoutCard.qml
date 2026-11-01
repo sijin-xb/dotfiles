@@ -211,6 +211,24 @@ DashboardCard {
         });
     }
 
+    property bool confirmClear: false
+
+    Timer {
+        id: confirmClearTimer
+        interval: 2500
+        onTriggered: root.confirmClear = false
+    }
+
+    function clearAll() {
+        confirmClear = false;
+        Qt.callLater(() => {
+            const layouts = Config.options.bar.layouts;
+            layouts.leftLayout = [];
+            layouts.middleLayout = [];
+            layouts.rightLayout = [];
+        });
+    }
+
     function removeWidget(laneId, index) {
         const lists = { left: leftList.slice(), middle: middleList.slice(), right: rightList.slice() };
         lists[laneId].splice(index, 1);
@@ -318,6 +336,39 @@ DashboardCard {
                     color: Appearance.colors.colSubtext
                 }
             }
+
+            Item { Layout.fillWidth: true }
+
+            RippleButton {
+                Layout.alignment: Qt.AlignTop
+                implicitHeight: 36
+                horizontalPadding: 14
+                buttonRadius: 18
+                enabled: root.usedIds.length > 0
+                colBackground: root.confirmClear ? Appearance.colors.colPrimary : Appearance.colors.colSecondaryContainer
+                colBackgroundHover: root.confirmClear ? Appearance.colors.colPrimaryHover : Appearance.colors.colSecondaryContainerHover
+                colRipple: root.confirmClear ? Appearance.colors.colPrimaryActive : Appearance.colors.colSecondaryContainerActive
+                downAction: () => Qt.callLater(() => {
+                    if (root.confirmClear) root.clearAll();
+                    else {
+                        root.confirmClear = true;
+                        confirmClearTimer.restart();
+                    }
+                })
+                contentItem: RowLayout {
+                    spacing: 6
+                    MaterialSymbol {
+                        text: root.confirmClear ? "check" : "layers_clear"
+                        iconSize: 18
+                        color: root.confirmClear ? Appearance.colors.colOnPrimary : Appearance.colors.colOnSecondaryContainer
+                    }
+                    StyledText {
+                        text: root.confirmClear ? Translation.tr("Tap again to clear") : Translation.tr("Clear all")
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        color: root.confirmClear ? Appearance.colors.colOnPrimary : Appearance.colors.colOnSecondaryContainer
+                    }
+                }
+            }
         }
 
         RowLayout {
@@ -372,12 +423,15 @@ DashboardCard {
                         }
 
                         Flickable {
+                            id: laneItemsFlick
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             clip: true
                             contentWidth: width
                             contentHeight: flow.implicitHeight
                             boundsBehavior: Flickable.StopAtBounds
+
+                            TouchpadScrollArea { flickable: laneItemsFlick }
 
                             Flow {
                                 id: flow
@@ -443,12 +497,15 @@ DashboardCard {
                 }
 
                 Flickable {
+                    id: trayItemsFlick
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     clip: true
                     contentWidth: width
                     contentHeight: trayFlow.implicitHeight
                     boundsBehavior: Flickable.StopAtBounds
+
+                    TouchpadScrollArea { flickable: trayItemsFlick }
 
                     Flow {
                         id: trayFlow

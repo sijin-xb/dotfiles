@@ -66,6 +66,12 @@ Scope {
         GlobalStates.regionSelectorOpen = true
     }
 
+    function qr() {
+        root.action = RegionSelection.SnipAction.QrCode
+        root.selectionMode = RegionSelection.SelectionMode.RectCorners
+        GlobalStates.regionSelectorOpen = true
+    }
+
     function record() {
         if (Persistent.states.record.enable) {
             Quickshell.execDetached([Directories.recordScriptPath]);
@@ -99,6 +105,9 @@ Scope {
         function ocr() {
             root.ocr()
         }
+        function qr() {
+            root.qr()
+        }
         function record() {
             root.record()
         }
@@ -121,6 +130,11 @@ Scope {
         name: "regionOcr"
         description: "Recognizes text in the selected region"
         onPressed: root.ocr()
+    }
+    CompositorGlobalShortcut {
+        name: "regionQr"
+        description: "Scans a QR code in the selected region"
+        onPressed: root.qr()
     }
     CompositorGlobalShortcut {
         name: "regionRecord"

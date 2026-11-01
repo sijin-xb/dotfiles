@@ -14,6 +14,10 @@ DashboardCard {
     property var tileShape: MaterialShape.Shape.Cookie6Sided
 
     property var override: null
+    property string actionIcon: ""
+    property string actionTip: ""
+
+    signal actionTriggered()
     readonly property var control: override ?? SettingsQuickControls.controls[controlKey] ?? null
     readonly property bool checked: control ? !!control.get() : false
 
@@ -119,6 +123,34 @@ DashboardCard {
             if (!root.control) return;
             const next = !root.checked;
             Qt.callLater(() => root.control.set(next));
+        }
+    }
+
+    RippleButton {
+        id: actionButton
+        visible: root.actionIcon !== "" && root.checked
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.margins: 12
+        implicitWidth: 38
+        implicitHeight: 38
+        buttonRadius: 19
+        colBackground: Qt.rgba(1, 1, 1, 0.12)
+        colBackgroundHover: Qt.rgba(1, 1, 1, 0.22)
+        colRipple: Qt.rgba(1, 1, 1, 0.3)
+        downAction: () => root.actionTriggered()
+
+        contentItem: MaterialSymbol {
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+            text: root.actionIcon
+            iconSize: 22
+            fill: 1
+            color: Appearance.colors.colOnPrimaryContainer
+        }
+
+        StyledToolTip {
+            text: root.actionTip
         }
     }
 }

@@ -13,15 +13,26 @@ args = parser.parse_args()
 
 content_lines = []
 reading_line = 0
+# 当前正在解析的文件路径，随每条绑定一起带出去（供改键定位源码行）
+current_file = ""
 
 
 class KeyBinding(dict):
-    def __init__(self, mods, key, dispatcher, params, comment):
+    def __init__(self, mods, key, dispatcher, params, comment, file="", line=0, raw=""):
         self["mods"]       = mods
         self["key"]        = key
+        # 文件里的原始组合字符串（含空格/顺序）。改键时用它做 expect 校验，
+        # 比从 mods+key 重建可靠 —— 原文件未必按标准顺序或单空格书写。
+        self["raw"]        = raw
         self["dispatcher"] = dispatcher
         self["params"]     = params
         self["comment"]    = comment
+        # 源码位置（1-based 行号）。
+        # 改键必须**原地改这一行**，因为 hyprctl binds 只给出
+        # dispatcher="__lua" + arg="<序号>"，无法还原成可写回的 Lua 表达式；
+        # 只有从源码行里改 key 字符串，才能原样保住原来的 dispatcher。
+        self["file"]       = file
+        self["line"]       = line
 
 
 class Section(dict):
@@ -65,7 +76,8 @@ def is_hidden(line: str) -> bool:
     return False
 
 
-def parse_lua_bind(line: str, override_comment: str = "") -> Optional[KeyBinding]:
+def parse_lua_bind(line: str, override_comment: str = "",
+                   file: str = "", line_no: int = 0) -> Optional[KeyBinding]:
     """
     Handles:
       hl.bind("SUPER + Q", hl.dsp.window.close(), {description = "Close"})
@@ -109,7 +121,7 @@ def parse_lua_bind(line: str, override_comment: str = "") -> Optional[KeyBinding
         return None  # Skip binds with no useful description
 
     mods, key = parse_key_string(key_str)
-    return KeyBinding(mods, key, dispatcher, params, comment)
+    return KeyBinding(mods, key, dispatcher, params, comment, file, line_no, key_str)
 
 
 def get_binds_recursive(current_content: Section, scope: int) -> Section:
@@ -151,7 +163,8 @@ def get_binds_recursive(current_content: Section, scope: int) -> Section:
                     continue
             # Try to parse as hl.bind if it starts with hl.bind
             if rest.startswith("hl.bind"):
-                kb = parse_lua_bind(rest, override_comment=comment_part)
+                kb = parse_lua_bind(rest, override_comment=comment_part,
+                                    file=current_file, line_no=reading_line + 1)
                 if kb:
                     current_content["keybinds"].append(kb)
             elif comment_part:
@@ -166,6 +179,10 @@ def get_binds_recursive(current_content: Section, scope: int) -> Section:
 
         # ── Normal hl.bind(...) ───────────────────────────────────────
         if re.match(r'\s*hl\.bind\s*\(', line):
+            # 行号要在 lookahead 推进**之前**记下来 —— 多行 bind 的起始行才是
+            # 改键时要改的那一行（key 字符串总在第一行）。
+            bind_line = reading_line + 1
+
             # Handle multiline binds by collecting until closing paren+bracket
             full_line = line
             depth = full_line.count("(") - full_line.count(")")
@@ -182,7 +199,7 @@ def get_binds_recursive(current_content: Section, scope: int) -> Section:
                 reading_line = lookahead
                 continue
 
-            kb = parse_lua_bind(full_line)
+            kb = parse_lua_bind(full_line, file=current_file, line_no=bind_line)
             if kb:
                 current_content["keybinds"].append(kb)
             reading_line = lookahead
@@ -194,12 +211,14 @@ def get_binds_recursive(current_content: Section, scope: int) -> Section:
 
 
 def parse_keys(path: str) -> Section:
-    global content_lines, reading_line
+    global content_lines, reading_line, current_file
     raw = read_content(path)
     if raw == "error":
         return Section([], [], "error")
     content_lines = raw.splitlines()
     reading_line  = 0
+    # 记成绝对路径，QML 侧改键时直接用，不用再拼
+    current_file  = os.path.expanduser(os.path.expandvars(path))
     return get_binds_recursive(Section([], [], ""), 0)
 
 

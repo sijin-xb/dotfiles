@@ -180,9 +180,11 @@ Item {
         anchors.bottomMargin: Tokens.padding.large
         anchors.margins: Tokens.padding.extraLargeIncreased
 
-        playing: Players.active?.isPlaying ?? false
-        speed: Audio.beatTracker.bpm / Config.general.mediaGifSpeedAdjustment // qmllint disable unresolved-type
-        source: Paths.absolutePath(Config.paths.mediaGif)
+        // 资源缺失时不加载，避免每帧刷 "Error Reading Animated Image File"
+        readonly property string gifPath: Config.paths.mediaGif ?? ""
+        playing: visible && (Players.active?.isPlaying ?? false)
+        speed: Config.general.mediaGifSpeedAdjustment ? Audio.beatTracker.bpm / Config.general.mediaGifSpeedAdjustment : 1
+        source: gifPath !== "" && FileUtils.fileExists(gifPath) ? Paths.absolutePath(gifPath) : ""
         asynchronous: true
         fillMode: AnimatedImage.PreserveAspectFit
     }

@@ -19,68 +19,29 @@ set_recording_state() {
 getdate() {
     date '+%Y-%m-%d_%H.%M.%S'
 }
-default_sink_monitor() {
-    local sink
-    sink="$(pactl get-default-sink 2>/dev/null)"
-    [[ -n "$sink" ]] && echo "${sink}.monitor"
-}
 
-default_microphone() {
-    local source
-    source="$(pactl get-default-source 2>/dev/null)"
-    if [[ -n "$source" && "$source" != *.monitor ]]; then
-        echo "$source"
-    fi
-}
-
-MIX_MODULES=()
-cleanup_audio() {
-    for module in "${MIX_MODULES[@]}"; do
-        pactl unload-module "$module" >/dev/null 2>&1
-    done
-    MIX_MODULES=()
-}
-
-AUDIO_SOURCE=""
-build_audio_source() {
-    local want_system=$1 want_mic=$2 system_source mic_source
-    AUDIO_SOURCE=""
-    system_source=""
-    mic_source=""
-    [[ $want_system -eq 1 ]] && system_source="$(default_sink_monitor)"
-    if [[ $want_mic -eq 1 ]]; then
-        mic_source="$(default_microphone)"
-        if [[ -z "$mic_source" ]]; then
-            notify-send "No microphone found" "Recording without microphone" -a 'Recorder' & disown
-        fi
-    fi
-
-    if [[ -n "$system_source" && -n "$mic_source" ]]; then
-        local mix="qs_record_mix" module
-        module=$(pactl load-module module-null-sink sink_name="$mix" sink_properties=device.description=QuickshellRecordMix) || return
-        MIX_MODULES+=("$module")
-        module=$(pactl load-module module-loopback source="$system_source" sink="$mix" latency_msec=30) && MIX_MODULES+=("$module")
-        module=$(pactl load-module module-loopback source="$mic_source" sink="$mix" latency_msec=30) && MIX_MODULES+=("$module")
-        AUDIO_SOURCE="${mix}.monitor"
-    elif [[ -n "$system_source" ]]; then
-        AUDIO_SOURCE="$system_source"
-    elif [[ -n "$mic_source" ]]; then
-        AUDIO_SOURCE="$mic_source"
-    fi
-}
-
-toggle_microphone() {
-    local mic
-    mic="$(default_microphone)"
-    if [[ -z "$mic" ]]; then
-        notify-send "No microphone found" "Nothing to mute" -a 'Recorder' & disown
-        exit 1
-    fi
-    pactl set-source-mute "$mic" toggle
-    if pactl get-source-mute "$mic" | grep -q yes; then
-        notify-send "Microphone muted" -a 'Recorder' & disown
+# 获取系统音频输出设备的 monitor 源（仅录制系统声音，不含麦克风输入）
+getaudiooutput() {
+    local default_sink
+    default_sink=$(pactl get-default-sink 2>/dev/null)
+    if [[ -n "$default_sink" ]]; then
+        echo "${default_sink}.monitor"
     else
-        notify-send "Microphone on" -a 'Recorder' & disown
+        # 回退：取第一个 monitor 源
+        pactl list sources short 2>/dev/null | awk '/\.monitor$/ {print $2; exit}'
+    fi
+}
+
+# 获取麦克风输入源（pactl 的默认 source）。对应 --mic，
+# 由灵动岛的「录屏」设置区打开「麦克风」时使用。
+getaudioinput() {
+    local default_source
+    default_source=$(pactl get-default-source 2>/dev/null)
+    if [[ -n "$default_source" ]]; then
+        echo "$default_source"
+    else
+        # 回退：取第一个非 monitor 源
+        pactl list sources short 2>/dev/null | awk '!/\.monitor$/ {print $2; exit}'
     fi
 }
 
@@ -126,18 +87,45 @@ for ((i=0;i<${#ARGS[@]};i++)); do
         MIC_FLAG=1
     elif [[ "${ARGS[i]}" == "--fullscreen" ]]; then
         FULLSCREEN_FLAG=1
-    elif [[ "${ARGS[i]}" == "--toggle-mic" ]]; then
-        toggle_microphone
-        exit 0
     fi
 done
 
+# ── 画质 ────────────────────────────────────────────────────────────────────
+# 由灵动岛的「录屏」设置区写进 config.json（screenRecord.quality）。
+# 数值只在这一处定义：ScreenRecService 那边只负责显示「高/中/低」，
+# 不重复维护一份映射，避免两边漂移。
+QUALITY=$(jq -r '.screenRecord.quality // "medium"' "$CONFIG_FILE" 2>/dev/null)
+case "$QUALITY" in
+    high) CRF=16; PRESET="fast"      ;;
+    low)  CRF=28; PRESET="veryfast"  ;;
+    *)    CRF=20; PRESET="superfast" ;;   # medium，以及任何非法值
+esac
+
+# ── 音频 ────────────────────────────────────────────────────────────────────
+# wf-recorder 只接受一个 --audio，所以两者同时开启时系统声优先。
+# 要同时录得先建虚拟 sink 做混音，不在当前范围内。
+AUDIO_ARGS=()
+if [[ $SOUND_FLAG -eq 1 ]]; then
+    AUDIO_ARGS=(--audio="$(getaudiooutput)")
+elif [[ $MIC_FLAG -eq 1 ]]; then
+    AUDIO_ARGS=(--audio="$(getaudioinput)")
+fi
+
+# 注：原命令里的 -t 在当前 wf-recorder 上是无效参数
+# （启动时报 "invalid option -- 't'"），已去掉，行为不变。
+ENC_ARGS=(-c libx264 -p "crf=$CRF" -p "preset=$PRESET")
+
 if pgrep wf-recorder > /dev/null; then
-    notify-send "Recording Stopped" "Stopped" -a 'Recorder' &
     pkill wf-recorder &
     set_recording_state false
 else
-    if [[ $FULLSCREEN_FLAG -eq 0 ]]; then
+    if [[ $FULLSCREEN_FLAG -eq 1 ]]; then
+        # 开始反馈改由 quickshell 灵动岛（RecordIndicator / 岛屿捕获条）承担
+        set_recording_state true
+        wf-recorder -o "$(getactivemonitor)" --pixel-format yuv420p \
+            -f "./recording_$(getdate).mp4" \
+            "${ENC_ARGS[@]}" "${AUDIO_ARGS[@]}"
+    else
         if [[ -n "$MANUAL_REGION" ]]; then
             region="$MANUAL_REGION"
         else
@@ -146,22 +134,11 @@ else
                 exit 1
             fi
         fi
+        # 开始反馈改由 quickshell 灵动岛（RecordIndicator / 岛屿捕获条）承担
+        set_recording_state true
+        wf-recorder --pixel-format yuv420p \
+            -f "./recording_$(getdate).mp4" --geometry "$region" \
+            "${ENC_ARGS[@]}" "${AUDIO_ARGS[@]}"
     fi
-
-    trap cleanup_audio EXIT
-    build_audio_source "$SOUND_FLAG" "$MIC_FLAG"
-    RECORDER_ARGS=(--pixel-format yuv420p -f "./recording_$(getdate).mp4")
-    if [[ $FULLSCREEN_FLAG -eq 1 ]]; then
-        RECORDER_ARGS+=(-o "$(getactivemonitor)")
-    else
-        RECORDER_ARGS+=(--geometry "$region")
-    fi
-    if [[ -n "$AUDIO_SOURCE" ]]; then
-        RECORDER_ARGS+=("--audio=$AUDIO_SOURCE")
-    fi
-
-    notify-send "Starting recording" "recording_$(getdate).mp4" -a 'Recorder' & disown
-    set_recording_state true
-    wf-recorder "${RECORDER_ARGS[@]}"
     set_recording_state false
 fi

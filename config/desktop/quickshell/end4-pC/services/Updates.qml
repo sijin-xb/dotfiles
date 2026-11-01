@@ -74,49 +74,7 @@ Singleton {
 
     Process {
         id: checkUpdatesProc
-        command: ["bash", "-c", `
-            cachedir="\${XDG_CACHE_HOME:-\$HOME/.cache}/quickshell"
-            cache="$cachedir/updates-count"
-            cache_ts="$cachedir/updates-count.ts"
-            force="${root.forceFlag}"
-            now=$(date +%s)
-
-            read_cache() {
-                if [[ -f "$cache" ]]; then cat "$cache"; else echo 0; fi
-            }
-
-            # 1) pacman 在忙：db.lck 存在，不抢锁，直接返回缓存
-            if [[ -e /var/lib/pacman/db.lck ]]; then
-                read_cache
-                exit 0
-            fi
-
-            # 2) 缓存未过期且非 force：直接复用
-            if [[ "$force" != "1" && -f "$cache" && -f "$cache_ts" ]]; then
-                ts=$(cat "$cache_ts" 2>/dev/null || echo 0)
-                if (( now - ts < ${root.cacheTtlSec} )); then
-                    read_cache
-                    exit 0
-                fi
-            fi
-
-            # 3) 主检查：pacman -Qu 只读本地 sync db（无网络）
-            pacman_n=$(pacman -Qu 2>/dev/null | wc -l)
-
-            # 4) AUR：paru / yay -Qua，2s 级别，无法避免
-            aur_n=0
-            if command -v paru >/dev/null 2>&1; then
-                aur_n=$(timeout 20 paru -Qua 2>/dev/null | wc -l)
-            elif command -v yay >/dev/null 2>&1; then
-                aur_n=$(timeout 20 yay -Qua 2>/dev/null | wc -l)
-            fi
-
-            total=$((pacman_n + aur_n))
-            mkdir -p "$cachedir" 2>/dev/null
-            printf '%s' "$total" > "$cache" 2>/dev/null
-            printf '%s' "$now" > "$cache_ts" 2>/dev/null
-            echo "$total"
-        `]
+        command: ["bash", "-c", "pacman=$(checkupdates 2>/dev/null | wc -l); if command -v yay >/dev/null 2>&1; then aur=$(yay -Qua 2>/dev/null | wc -l); elif command -v paru >/dev/null 2>&1; then aur=$(paru -Qua 2>/dev/null | wc -l); else aur=0; fi; echo $((pacman + aur))"]
         stdout: StdioCollector {
             onStreamFinished: {
                 const n = parseInt(text.trim());

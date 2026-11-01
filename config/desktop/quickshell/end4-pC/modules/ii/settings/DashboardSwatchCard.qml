@@ -71,7 +71,5 @@ DashboardCard {
                 }
             }
         }
-
-        Item { Layout.fillHeight: true }
     }
 }

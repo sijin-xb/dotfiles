@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 
+import qs
 import qs.modules.common
 import qs.modules.ii.background
 import qs.modules.ii.bar
@@ -70,7 +71,7 @@ Scope {
     PanelLoader { component: WallpaperSelector {} }
     PanelLoader { component: Settings {} }
     PanelLoader { component: DesktopMenu {} }
-    PanelLoader { component: DropShelfPanel {} }
+    PanelLoader { extraCondition: GlobalStates.dropShelfOpen; component: DropShelfPanel {} }
     PanelLoader { component: NiriBackdrop {} }
     PanelLoader { component: ScreenFrame {} }
     // 居中时钟的仪表盘：常驻挂载，避免栏隐藏时连同 IPC 一起被销毁

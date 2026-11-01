@@ -89,6 +89,12 @@ Item {
 
     Rectangle {
         id: card
+        WindowGlass {
+            anchors.fill: parent
+            glassEnabled: (parent?.color.a ?? 0) > 0
+            cardRadius: parent?.radius ?? 0
+            tint: parent?.color ?? 'transparent'
+        }
         radius: Appearance.rounding.normal
         color: Appearance.colors.colBackgroundSurfaceContainer
         implicitWidth: content.implicitWidth + 24
@@ -150,6 +156,9 @@ Item {
                 contentHeight: textBody.implicitHeight
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
+
+                TouchpadScrollArea { flickable: textFlick }
+
                 ScrollBar.vertical: StyledScrollBar {}
 
                 StyledText {
