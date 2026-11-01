@@ -12,31 +12,6 @@ ContentPage {
     id: page
     forceWidth: true
 
-    function goTo(term) {
-        const t = term.toLowerCase().trim()
-
-        function findTarget(rootItem) {
-            for (let i = 0; i < rootItem.children.length; i++) {
-                let child = rootItem.children[i]
-                if (child.title && child.title.toLowerCase().includes(t)) {
-                    return child
-                }
-            }
-
-            for (let i = 0; i < rootItem.children.length; i++) {
-                let found = findTarget(rootItem.children[i])
-                if (found) return found
-            }
-            return null
-        }
-
-        let target = findTarget(mainLayout)
-        if (target) {
-            let pos = target.mapToItem(mainLayout, 0, 0)
-            page.contentY = Math.max(0, pos.y - 0)
-        }
-    }
-
     function displayPathFor(path) {
         return /\.(mp4|webm|mkv|avi|mov)$/i.test(path)
             ? Config.options.background.thumbnailPath
@@ -235,27 +210,16 @@ ContentPage {
                     }
                 }
 
-                // 专注模式：静默音量 / 亮度 / 通知等瞬态灵动岛提示。
-                // 直接读写持久化状态，避免设置页依赖 dynamicIsland 模块。
-                ConfigSwitch {
-                    buttonIcon: "do_not_disturb_on"
-                    text: Translation.tr("Silence island popups")
-                    checked: Persistent.states.island.silentMode ?? false
-                    onCheckedChanged: {
-                        Persistent.states.island.silentMode = checked;
-                    }
-                }
-
-                // 顶部灵动岛（音乐 / 音量 / 录屏等活动胶囊）总开关。
-                // 关掉后 shell.qml 里的 LazyLoader 会直接销毁整座岛，即时生效，
-                // 不用重启 quickshell。注意这与 Bar 中间那座「仪表盘岛屿」无关。
-                ConfigSwitch {
-                    buttonIcon: "ad_group"
-                    text: Translation.tr("Enable dynamic island")
-                    checked: Config.options.dynamicIsland.enable
-                    onCheckedChanged: {
-                        Config.options.dynamicIsland.enable = checked;
-                    }
+                ConfigSlider {
+                    Layout.fillWidth: true
+                    text: Translation.tr("Blur Size")
+                    value: Config.options.background.blurRadius ?? 32
+                    usePercentTooltip: false
+                    buttonIcon: "aspect_ratio"
+                    from: 1
+                    to: 64
+                    stopIndicatorValues: [32]
+                    onValueChanged: Config.options.background.blurRadius = value
                 }
 
                 ConfigSelectionArray {
@@ -299,24 +263,9 @@ ContentPage {
 
                 ConfigComboBox {
                     Layout.fillWidth: true
-                    buttonIcon: "movie"
-                    text: Translation.tr("Video wallpaper backend")
-                    model: [
-                        { displayName: Translation.tr("Mpvpaper (recommended)"), icon: "settings_backup_restore", value: "mpvpaper" },
-                        { displayName: Translation.tr("Wallr (video may freeze)"), icon: "wallpaper", value: "wallr" },
-                        { displayName: Translation.tr("Phonto (GPU video)"), icon: "movie", value: "phonto" },
-                    ]
-                    currentValue: Config.options.background.videoBackend
-                    onSelected: newValue => {
-                        Config.options.background.videoBackend = newValue;
-                        Wallpapers.reapplyCurrentWallpaper();
-                    }
-                }
-
-                ConfigComboBox {
-                    Layout.fillWidth: true
                     buttonIcon: "texture"
                     text: Translation.tr("Transitions")
+                    fieldWidth: 50
                     model: [
                         { displayName: Translation.tr("None"), icon: "block", value: "" },
                         { displayName: Translation.tr("Circle"), icon: "circle", value: "circleSelect" },
@@ -445,20 +394,21 @@ ContentPage {
                     }
                 }
             }
+        }
 
-            ContentSubsection {
-                title: Translation.tr("Wallpaper parallax")
-                Layout.fillWidth: true
+        ContentSection {
+            icon: "grid_view"
+            shape: MaterialShape.Shape.Square
+            title: Translation.tr("Multiple wallpapers")
 
-                GroupedList {
-                    ConfigSwitch {
-                        Layout.fillWidth: true
-                        buttonIcon: "motion_photos_on"
-                        text: Translation.tr("Enable")
-                        checked: Config.options.background.parallax.enable
-                        onCheckedChanged: {
-                            Config.options.background.parallax.enable = checked;
-                        }
+            GroupedList {
+                ConfigSwitch {
+                    buttonIcon: "dashboard"
+                    text: Translation.tr("Enable")
+                    checked: Config.options.background.collage.enable
+                    onCheckedChanged: {
+                        if (checked && !Config.options.background.collage.enable) Collage.reset()
+                        Config.options.background.collage.enable = checked
                     }
                 }
                 ConfigComboBox {
@@ -479,174 +429,47 @@ ContentPage {
                     to: 80
                     stepSize: 2
                     onValueChanged: Config.options.background.collage.gap = value
-
-                GroupedList {
-                    visible: Config.options.background.parallax.enable
-                    Layout.topMargin: 0
-
-                    ConfigSwitch {
-                        Layout.fillWidth: true
-                        buttonIcon: "swap_horiz"
-                        text: Translation.tr("Vertical")
-                        checked: Config.options.background.parallax.vertical
-                        onCheckedChanged: {
-                            Config.options.background.parallax.vertical = checked;
-                        }
-                    }
-                    ConfigSwitch {
-                        Layout.fillWidth: true
-                        buttonIcon: "auto_awesome"
-                        text: Translation.tr("Auto vertical")
-                        checked: Config.options.background.parallax.autoVertical
-                        onCheckedChanged: {
-                            Config.options.background.parallax.autoVertical = checked;
-                        }
-                    }
                 }
-
-                GroupedList {
-                    visible: Config.options.background.parallax.enable
-                    ConfigSwitch {
-                        Layout.fillWidth: true
-                        buttonIcon: "drag_pan"
-                        text: Translation.tr("Move on workspace switch")
-                        checked: Config.options.background.parallax.enableWorkspace
-                        onCheckedChanged: {
-                            Config.options.background.parallax.enableWorkspace = checked;
-                        }
-                    }
-                    ConfigSlider {
-                        text: Translation.tr("Workspace parallax strength")
-                        value: Config.options.background.parallax.workspaceZoom
-                        usePercentTooltip: false
-                        buttonIcon: "open_in_full"
-                        from: 1.02
-                        to: 1.5
-                        stopIndicatorValues: [1.07]
-                        onValueChanged: {
-                            Config.options.background.parallax.workspaceZoom = Math.round(value * 100) / 100;
-                        }
-                    }
+                ConfigSpinBox {
+                    icon: "crop_free"
+                    text: Translation.tr("Outer margin")
+                    value: Config.options.background.collage.margin
+                    from: 0
+                    to: 120
+                    stepSize: 2
+                    onValueChanged: Config.options.background.collage.margin = value
                 }
-
-                GroupedList {
-                    visible: Config.options.background.parallax.enable
-                    ConfigSwitch {
-                        Layout.fillWidth: true
-                        buttonIcon: "side_navigation"
-                        text: Translation.tr("Move on sidebar toggle")
-                        checked: Config.options.background.parallax.enableSidebar
-                        onCheckedChanged: {
-                            Config.options.background.parallax.enableSidebar = checked;
-                        }
-                    }
-                    ConfigSlider {
-                        visible: Config.options.background.parallax.enableSidebar
-                        text: Translation.tr("Sidebar shift")
-                        value: Config.options.background.parallax.sidebarShift
-                        usePercentTooltip: false
-                        buttonIcon: "arrow_right"
-                        from: 20
-                        to: 200
-                        stopIndicatorValues: [80]
-                        onValueChanged: {
-                            Config.options.background.parallax.sidebarShift = Math.round(value);
-                        }
-                    }
+                ConfigSpinBox {
+                    icon: "rounded_corner"
+                    text: Translation.tr("Corner radius")
+                    value: Config.options.background.collage.radius
+                    from: 0
+                    to: 80
+                    stepSize: 2
+                    onValueChanged: Config.options.background.collage.radius = value
                 }
-
-                GroupedList {
-                    visible: Config.options.background.parallax.enable
-                    ConfigSwitch {
-                        Layout.fillWidth: true
-                        buttonIcon: "mouse"
-                        text: Translation.tr("Cursor follow")
-                        checked: Config.options.background.parallax.enableCursor
-                        onCheckedChanged: {
-                            Config.options.background.parallax.enableCursor = checked;
-                        }
-                    }
-                    ConfigSlider {
-                        visible: Config.options.background.parallax.enableCursor
-                        text: Translation.tr("Cursor sensitivity")
-                        value: Config.options.background.parallax.cursorSensitivity
-                        usePercentTooltip: true
-                        buttonIcon: "sensors"
-                        from: 0.0
-                        to: 1.0
-                        stopIndicatorValues: [0.3]
-                        onValueChanged: {
-                            Config.options.background.parallax.cursorSensitivity = Math.round(value * 100) / 100;
-                        }
-                    }
-                }
-
-                GroupedList {
-                    visible: Config.options.background.parallax.enable
-                    ConfigSlider {
-                        text: Translation.tr("Widgets depth")
-                        value: Config.options.background.parallax.widgetsFactor
-                        usePercentTooltip: true
-                        buttonIcon: "layers"
-                        from: 1.0
-                        to: 2.0
-                        stopIndicatorValues: [1.2]
-                        onValueChanged: {
-                            Config.options.background.parallax.widgetsFactor = Math.round(value * 100) / 100;
-                        }
-                    }
-                }
-
-                GroupedList {
-                    visible: Config.options.background.parallax.enable
-                    ConfigSlider {
-                        text: Translation.tr("Workspaces")
-                        value: Config.options.background.parallax.workspaceCount
-                        usePercentTooltip: false
-                        buttonIcon: "workspaces"
-                        from: 2
-                        to: 20
-                        stopIndicatorValues: [10]
-                        onValueChanged: {
-                            Config.options.background.parallax.workspaceCount = Math.round(value);
-                        }
-                    }
-                    ConfigSlider {
-                        text: Translation.tr("Workspace transition")
-                        value: Config.options.background.parallax.workspaceAnimationDuration
-                        usePercentTooltip: false
-                        buttonIcon: "timer"
-                        from: 200
-                        to: 1400
-                        stopIndicatorValues: [400]
-                        onValueChanged: {
-                            Config.options.background.parallax.workspaceAnimationDuration = Math.round(value);
-                        }
-                    }
-                }
-
-                GroupedList {
-                    visible: Config.options.background.parallax.enable
-                    ConfigSwitch {
-                        Layout.fillWidth: true
-                        buttonIcon: "movie"
-                        text: Translation.tr("Video wallpaper parallax")
-                        checked: Config.options.background.parallax.enableVideo
-                        onCheckedChanged: {
-                            Config.options.background.parallax.enableVideo = checked;
-                        }
-                    }
-                }
-
-                StyledText {
-                    visible: Config.options.background.parallax.enable
+                RowLayout {
                     Layout.fillWidth: true
-                    Layout.topMargin: 4
-                    text: Translation.tr("Parallax is disabled in centered wallpaper mode. Video wallpapers are panned through mpvpaper's mpv IPC and need the mpvpaper backend.")
-                    font.pixelSize: Appearance.font.pixelSize.small
-                    color: Appearance.colors.colSubtext
-                    opacity: 0.7
-                    wrapMode: Text.WordWrap
+                    Layout.leftMargin: 8
+                    Layout.rightMargin: 8
+                    StyledText {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        color: Appearance.colors.colSubtext
+                        text: Translation.tr("Arrange the tiles from the desktop while widgets are unlocked: split, remove, change the image and drag the borders. The starred tile sets the colors and the blurred backdrop.")
+                    }
+                    RippleButton {
+                        implicitWidth: resetLabel.implicitWidth + 24
+                        implicitHeight: 36
+                        buttonRadius: Appearance.rounding.full
+                        onClicked: Collage.reset()
+                        contentItem: StyledText {
+                            id: resetLabel
+                            anchors.centerIn: parent
+                            text: Translation.tr("Reset layout")
+                            color: Appearance.colors.colOnLayer1
+                        }
+                    }
                 }
             }
         }
@@ -782,10 +605,9 @@ ContentPage {
                 visible: settingsClock.digitalPresent
                 title: Translation.tr("Digital clock settings")
 
-                ConfigRow {
-                    uniform: true
-
-                    GroupedList {
+                GroupedList {
+                    ConfigRow {
+                        uniform: true
                         ConfigSwitch {
                             buttonIcon: "vertical_distribute"
                             text: Translation.tr("Vertical")
@@ -793,19 +615,19 @@ ContentPage {
                             onCheckedChanged: { Config.options.background.widgets.clock.digital.vertical = checked }
                         }
                         ConfigSwitch {
-                            buttonIcon: "date_range"
-                            text: Translation.tr("Show date")
-                            checked: Config.options.background.widgets.clock.digital.showDate
-                            onCheckedChanged: { Config.options.background.widgets.clock.digital.showDate = checked }
-                        }
-                    }
-
-                    GroupedList {
-                        ConfigSwitch {
                             buttonIcon: "animation"
                             text: Translation.tr("Animate time change")
                             checked: Config.options.background.widgets.clock.digital.animateChange
                             onCheckedChanged: { Config.options.background.widgets.clock.digital.animateChange = checked }
+                        }
+                    }
+                    ConfigRow {
+                        uniform: true
+                        ConfigSwitch {
+                            buttonIcon: "date_range"
+                            text: Translation.tr("Show date")
+                            checked: Config.options.background.widgets.clock.digital.showDate
+                            onCheckedChanged: { Config.options.background.widgets.clock.digital.showDate = checked }
                         }
                         ConfigSwitch {
                             buttonIcon: "activity_zone"
@@ -840,27 +662,18 @@ ContentPage {
                     }
                 }
 
-                MaterialTextArea {
-                    Layout.fillWidth: true
-                    placeholderText: Translation.tr("Font family")
-                    text: Config.options.background.widgets.clock.digital.font.family
-                    wrapMode: TextEdit.Wrap
-
-                    Timer {
-                        id: debounceTimer
-                        interval: 500
-                        repeat: false
-                        onTriggered: {
-                            Config.options.background.widgets.clock.digital.font.family = parent.text
-                        }
-                    }
-
-                    onTextChanged: {
-                        debounceTimer.restart()
-                    }
-                }
                 GroupedList {
-                    Layout.topMargin: 10
+                    ConfigComboBox {
+                        Layout.fillWidth: true
+                        buttonIcon: "font_download"
+                        text: Translation.tr("Font family")
+                        fieldWidth: 260
+                        fixedWidth: true
+                        searchable: true
+                        model: SystemAppearance.fontOptions(Config.options.background.widgets.clock.digital.font.family)
+                        currentValue: Config.options.background.widgets.clock.digital.font.family
+                        onSelected: newValue => { Config.options.background.widgets.clock.digital.font.family = newValue }
+                    }
                     ConfigSlider {
                         text: Translation.tr("Font weight")
                         value: Config.options.background.widgets.clock.digital.font.weight
@@ -991,7 +804,7 @@ ContentPage {
                 Layout.topMargin: 10
                 visible: settingsClock.cookiePresent
                 ConfigSelectionArray {
-                    text: Translation.tr("Dial Style")
+                    text: "Dial Style"
                     icon: "graph_6"
                     currentValue: Config.options.background.widgets.clock.cookie.dialNumberStyle
                     onSelected: newValue => {
@@ -1284,6 +1097,289 @@ ContentPage {
             }
         }
 
+                ContentSection {
+            id: settingsVisualizer
+            icon: "graphic_eq"
+            shape: MaterialShape.Shape.Burst
+            title: Translation.tr("Visualizer")
+
+            readonly property var entry: Config.options.background.widgets.visualizer
+            readonly property bool bandStyle: ["mirror", "aurora", "dots"].includes(entry.style)
+
+            GroupedList {
+                ConfigSwitch {
+                    Layout.fillWidth: true
+                    buttonIcon: "check"
+                    text: Translation.tr("Enable")
+                    checked: settingsVisualizer.entry.enable
+                    onCheckedChanged: {
+                        settingsVisualizer.entry.enable = checked;
+                    }
+                }
+                ConfigSelectionArray {
+                    text: Translation.tr("Style")
+                    icon: "style"
+                    currentValue: settingsVisualizer.entry.style
+                    onSelected: newValue => {
+                        settingsVisualizer.entry.style = newValue;
+                    }
+                    options: [
+                        {
+                            displayName: Translation.tr("Classic"),
+                            icon: "bar_chart",
+                            value: "bars"
+                        },
+                        {
+                            displayName: Translation.tr("Mirror"),
+                            icon: "equalizer",
+                            value: "mirror"
+                        },
+                        {
+                            displayName: Translation.tr("Aurora"),
+                            icon: "waves",
+                            value: "aurora"
+                        },
+                        {
+                            displayName: Translation.tr("Ring"),
+                            icon: "album",
+                            value: "ring"
+                        },
+                        {
+                            displayName: Translation.tr("Dots"),
+                            icon: "grid_on",
+                            value: "dots"
+                        }
+                    ]
+                }
+
+                ConfigSelectionArray {
+                    text: Translation.tr("Colors")
+                    icon: "palette"
+                    enabled: settingsVisualizer.entry.style !== "bars"
+                    currentValue: settingsVisualizer.entry.colorSource
+                    onSelected: newValue => {
+                        settingsVisualizer.entry.colorSource = newValue;
+                    }
+                    options: [
+                        {
+                            displayName: Translation.tr("Theme"),
+                            icon: "palette",
+                            value: "theme"
+                        },
+                        {
+                            displayName: Translation.tr("Album cover"),
+                            icon: "album",
+                            value: "cover"
+                        }
+                    ]
+                }
+        
+                ConfigSlider {
+                    text: Translation.tr("Sensitivity (%)")
+                    buttonIcon: "tune"
+                    usePercentTooltip: false
+                    enabled: settingsVisualizer.entry.style !== "bars"
+                    value: settingsVisualizer.entry.sensitivity * 100
+                    from: 50
+                    to: 300
+                    stopIndicatorValues: [100]
+                    onValueChanged: {
+                        settingsVisualizer.entry.sensitivity = Math.round(value) / 100;
+                    }
+                }
+                ConfigSlider {
+                    text: Translation.tr("Height")
+                    buttonIcon: "height"
+                    usePercentTooltip: false
+                    enabled: settingsVisualizer.entry.style !== "bars" && settingsVisualizer.bandStyle
+                    value: settingsVisualizer.entry.height
+                    from: 120
+                    to: 600
+                    stopIndicatorValues: [260]
+                    onValueChanged: {
+                        settingsVisualizer.entry.height = Math.round(value);
+                    }
+                }
+                ConfigSlider {
+                    text: Translation.tr("Size")
+                    buttonIcon: "aspect_ratio"
+                    usePercentTooltip: false
+                    enabled: settingsVisualizer.entry.style === "ring"
+                    value: settingsVisualizer.entry.ringSize
+                    from: 200
+                    to: 900
+                    stopIndicatorValues: [380]
+                    onValueChanged: {
+                        settingsVisualizer.entry.ringSize = Math.round(value);
+                    }
+                }
+            }
+        }
+
+        ContentSection {
+            id: settingsCustomText
+            icon: "text_fields"
+            shape: MaterialShape.Shape.Cookie4Sided
+            title: Translation.tr("Text")
+
+            readonly property var entry: Config.options.background.widgets.customText
+
+            GroupedList {
+                ConfigSwitch {
+                    Layout.fillWidth: true
+                    buttonIcon: "check"
+                    text: Translation.tr("Enable")
+                    checked: settingsCustomText.entry.enable
+                    onCheckedChanged: {
+                        settingsCustomText.entry.enable = checked;
+                    }
+                }
+                ConfigSwitch {
+                    Layout.fillWidth: true
+                    buttonIcon: "shadow"
+                    text: Translation.tr("Shadow")
+                    checked: settingsCustomText.entry.shadow
+                    onCheckedChanged: {
+                        settingsCustomText.entry.shadow = checked;
+                    }
+                }
+                ConfigTextArea {
+                    id: customTextContentField
+                    Layout.fillWidth: true
+                    buttonIcon: "edit_note"
+                    text: Translation.tr("Text to display")
+                    description: Translation.tr("Double-click the text on your desktop to edit it, drag its corner to resize it")
+                    placeholderText: Translation.tr("Text to display")
+                    multiline: true
+                    fieldWidth: 280
+                    fieldHeight: 76
+                    value: settingsCustomText.entry.content
+                    onValueChanged: customTextContentDebounce.restart()
+
+                    Timer {
+                        id: customTextContentDebounce
+                        interval: 500
+                        onTriggered: {
+                            if (customTextContentField.value !== settingsCustomText.entry.content)
+                                settingsCustomText.entry.content = customTextContentField.value
+                        }
+                    }
+                }
+            }
+
+            ContentSubsection {
+                Layout.topMargin: 10
+                title: Translation.tr("Font")
+
+                GroupedList {
+                    ConfigComboBox {
+                        Layout.fillWidth: true
+                        buttonIcon: "font_download"
+                        fieldWidth: 50
+                        text: Translation.tr("Font family")
+                        textRole: "displayName"
+                        model: Fonts.handwritingFamilies.map(family => ({
+                            displayName: family,
+                            value: family
+                        }))
+                        currentValue: settingsCustomText.entry.fontFamily
+                        onSelected: newValue => { settingsCustomText.entry.fontFamily = newValue; }
+                    }
+                    ConfigTextArea {
+                        id: settingsCustomFontField
+                        buttonIcon: "custom_typography"
+                        text: Translation.tr("Custom Font")
+                        Layout.fillWidth: true
+                        Layout.topMargin: 6
+                        placeholderText: Translation.tr("Any installed font family")
+                        value: Fonts.handwritingFamilies.includes(settingsCustomText.entry.fontFamily) ? "" : settingsCustomText.entry.fontFamily
+
+                        onValueChanged: {
+                            customTextFontDebounce.restart();
+                        }
+
+                        Timer {
+                            id: customTextFontDebounce
+                            interval: 500
+                            repeat: false
+                            onTriggered: {
+                                if (settingsCustomFontField.value.trim() !== "")
+                                    settingsCustomText.entry.fontFamily = settingsCustomFontField.value.trim()
+                            }
+                        }
+                    }
+
+                    ConfigSlider {
+                        text: Translation.tr("Font size")
+                        value: settingsCustomText.entry.fontSize
+                        usePercentTooltip: false
+                        buttonIcon: "format_size"
+                        from: 12
+                        to: 400
+                        stopIndicatorValues: [72]
+                        onValueChanged: {
+                            settingsCustomText.entry.fontSize = Math.round(value);
+                        }
+                    }
+
+                    ConfigSelectionArray {
+                        text: Translation.tr("Alignment")
+                        icon: "format_align_center"
+                        currentValue: settingsCustomText.entry.alignment
+                        onSelected: newValue => {
+                            settingsCustomText.entry.alignment = newValue;
+                        }
+                        options: [
+                            {
+                                displayName: Translation.tr("Left"),
+                                icon: "format_align_left",
+                                value: "left"
+                            },
+                            {
+                                displayName: Translation.tr("Center"),
+                                icon: "format_align_center",
+                                value: "center"
+                            },
+                            {
+                                displayName: Translation.tr("Right"),
+                                icon: "format_align_right",
+                                value: "right"
+                            }
+                        ]
+                    }
+                }
+            }
+
+            ContentSubsection {
+                Layout.topMargin: 10
+                title: Translation.tr("Colors")
+                
+                GroupedList {
+                    ConfigSwitch {
+                        id: customTextAutoColorSwitch
+                        buttonIcon: "auto_awesome"
+                        text: Translation.tr("Automatic colors")
+                        checked: settingsCustomText.entry.color === ""
+                        onCheckedChanged: {
+                            if (checked) {
+                                settingsCustomText.entry.color = ""
+                            }
+                        }
+                    }
+
+                    ColorSelectionArray {
+                        icon: "palette"
+                        text: Translation.tr("Color")
+                        currentValue: settingsCustomText.entry.color
+                        onSelected: newValue => {
+                            settingsCustomText.entry.color = newValue
+                            customTextAutoColorSwitch.checked = false
+                        }
+                    }
+                }
+            }
+        }
+
         ContentSection {
             icon: "widgets"
             shape: MaterialShape.Shape.Pill
@@ -1309,11 +1405,6 @@ ContentPage {
                 Repeater {
                     model: [
                         {
-                            icon: "lyrics",
-                            name: Translation.tr("Desktop lyrics"),
-                            enabled: Config.options.desktopLyricsEnabled
-                        },
-                        {
                             icon: "weather_mix",
                             key: "weather",
                             name: Translation.tr("Weather"),
@@ -1336,11 +1427,6 @@ ContentPage {
                             key: "resources",
                             name: Translation.tr("Resources"),
                             enabled: Config.options.background.widgets.resources.enable
-                        },
-                        {
-                            icon: "graphic_eq",
-                            name: Translation.tr("Visualizer"),
-                            enabled: Config.options.background.widgets.visualizer.enable
                         },
                         {
                             icon: "calendar_month",
@@ -1384,7 +1470,6 @@ ContentPage {
                             name: Translation.tr("Sticker"),
                             enabled: Config.options.background.widgets.sticker.enable
                         },
-                        }
                         
                     ]
                     delegate: Rectangle {
@@ -1414,9 +1499,7 @@ ContentPage {
                                     Layout.fillWidth: false
                                     checked: modelData.enabled
                                     onCheckedChanged: {
-                                        if (modelData.icon === "lyrics")
-                                            Config.options.desktopLyricsEnabled = checked
-                                        else if (modelData.icon === "weather_mix")
+                                        if (modelData.icon === "weather_mix")
                                             Config.options.background.widgets.weather.enable = checked
                                         else if (modelData.icon === "image")
                                             Config.options.background.widgets.images.enable = checked
@@ -1424,8 +1507,6 @@ ContentPage {
                                             Config.options.background.widgets.media.enable = checked
                                         else if (modelData.icon === "memory")
                                             Config.options.background.widgets.resources.enable = checked
-                                        else if (modelData.icon === "graphic_eq")
-                                            Config.options.background.widgets.visualizer.enable = checked
                                         else if (modelData.icon === "calendar_month")
                                             Config.options.background.widgets.calendar.enable = checked
                                         else if (modelData.icon === "public")
@@ -1438,6 +1519,8 @@ ContentPage {
                                             Config.options.background.widgets.todo.enable = checked
                                         else if (modelData.icon === "timer")
                                             Config.options.background.widgets.timers.enable = checked
+                                        else if (modelData.icon === "sticker")
+                                            Config.options.background.widgets.sticker.enable = checked
                                     }
                                 }
                             }
@@ -1505,59 +1588,6 @@ ContentPage {
                 }
             }
             ContentSubsection {
-                title: Translation.tr("Keycap display")
-                Layout.bottomMargin: 10
-
-                GroupedList {
-                    ConfigSwitch {
-                        Layout.fillWidth: true
-                        buttonIcon: "keyboard"
-                        text: Translation.tr("Show pressed keys on screen")
-                        checked: Config.options.keycapDisplay.enable
-                        onCheckedChanged: { Config.options.keycapDisplay.enable = checked }
-                    }
-
-                    ConfigSwitch {
-                        Layout.fillWidth: true
-                        buttonIcon: "spellcheck"
-                        text: Translation.tr("Show typed text (readable)")
-                        checked: Config.options.keycapDisplay.showTypedText
-                        onCheckedChanged: { Config.options.keycapDisplay.showTypedText = checked }
-                    }
-
-                    ConfigSelectionArray {
-                        text: Translation.tr("Position")
-                        icon: "vertical_align_center"
-                        currentValue: Config.options.keycapDisplay.position
-                        options: [
-                            { "displayName": Translation.tr("Bottom"), "icon": "vertical_align_bottom", "value": "bottom" },
-                            { "displayName": Translation.tr("Top"),    "icon": "vertical_align_top",    "value": "top" },
-                        ]
-                        onSelected: newValue => { Config.options.keycapDisplay.position = newValue }
-                    }
-
-                    ConfigSpinBox {
-                        icon: "timer"
-                        text: Translation.tr("Hide delay (ms)")
-                        value: Config.options.keycapDisplay.timeout
-                        from: 300; to: 5000; stepSize: 100
-                        onValueChanged: { Config.options.keycapDisplay.timeout = value }
-                    }
-                }
-
-                // 读不到 /dev/input 时把原因直接摆出来，不要让人猜为什么没反应。
-                // 文案由 KeycapDisplay 按当前语言翻译好，这里不做字符串拼接。
-                StyledText {
-                    visible: Config.options.keycapDisplay.enable && KeycapDisplay.errorText !== ""
-                    Layout.fillWidth: true
-                    Layout.topMargin: 6
-                    text: KeycapDisplay.errorText
-                    font.pixelSize: Appearance.font.pixelSize.smaller
-                    color: Appearance.colors.colError
-                    wrapMode: Text.WordWrap
-                }
-            }
-            ContentSubsection {
                 title: Translation.tr("Canvas")
                 Layout.bottomMargin: 10
 
@@ -1579,149 +1609,6 @@ ContentPage {
                         onCheckedChanged: {
                             Config.options.background.showSnapLines = checked;
                         }
-                    }
-                }
-            }
-
-            ContentSubsection {
-                title: Translation.tr("Visualizer")
-                Layout.bottomMargin: 10
-
-                VisualizerStyleSubmenu {
-                    Layout.fillWidth: true
-                }
-
-                GroupedList {
-                    visible: Config.options.background.widgets.visualizer.enable
-                    Layout.topMargin: 0
-
-                    ConfigSlider {
-                        text: Translation.tr("Sensitivity")
-                        value: Config.options.background.widgets.visualizer.sensitivity ?? 1.0
-                        usePercentTooltip: false
-                        buttonIcon: "graphic_eq"
-                        from: 0.3
-                        to: 3.0
-                        stopIndicatorValues: [1.0]
-                        onValueChanged: {
-                            Config.options.background.widgets.visualizer.sensitivity = Math.round(value * 20) / 20;
-                        }
-                    }
-
-                    ConfigSlider {
-                        text: Translation.tr("Smoothing")
-                        value: Config.options.background.widgets.visualizer.smoothing ?? 2
-                        usePercentTooltip: false
-                        buttonIcon: "auto_fix_high"
-                        from: 1
-                        to: 10
-                        stopIndicatorValues: [2]
-                        onValueChanged: {
-                            Config.options.background.widgets.visualizer.smoothing = Math.round(value);
-                        }
-                    }
-                }
-            }
-
-            ContentSubsection {
-                title: Translation.tr("Spectrum Ball")
-                Layout.bottomMargin: 10
-
-                GroupedList {
-                    ConfigSwitch {
-                        Layout.fillWidth: true
-                        buttonIcon: "check"
-                        text: Translation.tr("Enable")
-                        checked: Config.options.background.widgets.spectrumBall.enable
-                        onCheckedChanged: {
-                            Config.options.background.widgets.spectrumBall.enable = checked;
-                        }
-                    }
-
-                    ConfigSelectionArray {
-                        text: Translation.tr("Placement strategy")
-                        icon: "move"
-                        currentValue: Config.options.background.widgets.spectrumBall.placementStrategy
-                        onSelected: newValue => {
-                            Config.options.background.widgets.spectrumBall.placementStrategy = newValue;
-                        }
-                        options: [
-                            { displayName: Translation.tr("Draggable"), icon: "drag_pan", value: "free" },
-                            { displayName: Translation.tr("Least busy"), icon: "category", value: "leastBusy" },
-                            { displayName: Translation.tr("Most busy"), icon: "shapes", value: "mostBusy" },
-                        ]
-                    }
-                }
-
-                GroupedList {
-                    visible: Config.options.background.widgets.spectrumBall.placementStrategy === "free"
-                    Layout.topMargin: 0
-
-                    ConfigSpinBox {
-                        icon: "pin_invoke"
-                        text: Translation.tr("X position")
-                        value: Config.options.background.widgets.spectrumBall.x
-                        from: 0
-                        to: 10000
-                        stepSize: 10
-                        onValueChanged: {
-                            Config.options.background.widgets.spectrumBall.x = value;
-                        }
-                    }
-
-                    ConfigSpinBox {
-                        icon: "pin_invoke"
-                        text: Translation.tr("Y position")
-                        value: Config.options.background.widgets.spectrumBall.y
-                        from: 0
-                        to: 10000
-                        stepSize: 10
-                        onValueChanged: {
-                            Config.options.background.widgets.spectrumBall.y = value;
-                        }
-                    }
-                }
-
-                GroupedList {
-                    Layout.topMargin: 0
-
-                    ConfigSlider {
-                        text: Translation.tr("Size")
-                        value: Config.options.background.widgets.spectrumBall.size
-                        usePercentTooltip: false
-                        buttonIcon: "aspect_ratio"
-                        from: 80
-                        to: 320
-                        stopIndicatorValues: [180]
-                        onValueChanged: {
-                            Config.options.background.widgets.spectrumBall.size = Math.round(value);
-                        }
-                    }
-
-                    ConfigSpinBox {
-                        icon: "public"
-                        text: Translation.tr("Satellites")
-                        value: Config.options.background.widgets.spectrumBall.satellites
-                        from: 0
-                        to: 6
-                        stepSize: 1
-                        onValueChanged: {
-                            Config.options.background.widgets.spectrumBall.satellites = value;
-                        }
-                    }
-
-                    ConfigSelectionArray {
-                        text: Translation.tr("Color mode")
-                        icon: "palette"
-                        currentValue: Config.options.background.widgets.spectrumBall.colorMode
-                        onSelected: newValue => {
-                            Config.options.background.widgets.spectrumBall.colorMode = newValue;
-                        }
-                        options: [
-                            { displayName: Translation.tr("Primary"), icon: "format_color_fill", value: "primary" },
-                            { displayName: Translation.tr("Accent"), icon: "colorize", value: "accent" },
-                            { displayName: Translation.tr("Gradient"), icon: "gradient", value: "gradient" },
-                        ]
                     }
                 }
             }

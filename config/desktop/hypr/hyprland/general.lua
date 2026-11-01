@@ -69,7 +69,6 @@ hl.config({
         }
     },
     decoration = {
-        -- 与 niri 对齐：niri 的 window-rule opacity 0.85
         active_opacity = 0.85,
         inactive_opacity = 0.85,
         fullscreen_opacity = 1,
@@ -79,13 +78,12 @@ hl.config({
         rounding = 18,
 
         blur = {
-            enabled = true,
+            enabled = false,
             xray = true,
             special = false,
             new_optimizations = true,
-            -- 与 niri 对齐：passes 2 / offset 2 / noise 0.02 / saturation 1.3
             size = 2,
-            passes = 2,
+            passes = 1,
             brightness = 1,
             noise = 0.02,
             contrast = 0.95,

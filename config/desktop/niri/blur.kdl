@@ -1,6 +1,7 @@
 
 blur {
-    passes 2
+    // 与 Hyprland 对齐：passes 3 / size 1
+    passes 3
     offset 2
     noise 0.02
     saturation 1.3
@@ -8,6 +9,7 @@ blur {
 
 
 window-rule {
+    // 与 Hyprland 对齐：active/inactive_opacity 0.85
     opacity 0.85
     background-effect {
         blur true

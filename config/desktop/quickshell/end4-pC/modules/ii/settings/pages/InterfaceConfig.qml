@@ -1510,13 +1510,6 @@ ContentPage {
                     checked: Config.options.appearance.wallpaperTheming.lockKonsoleColors
                     onCheckedChanged: { Config.options.appearance.wallpaperTheming.lockKonsoleColors = checked }
                 }
-                ConfigRow {
-                    uniform: true
-                    buttonIcon: "mouse"
-                    text: Translation.tr("Cursor")
-                    checked: Config.options.appearance.wallpaperTheming.enableCursor
-                    onCheckedChanged: { Config.options.appearance.wallpaperTheming.enableCursor = checked }
-                }
             }
 
             ContentSubsection {
