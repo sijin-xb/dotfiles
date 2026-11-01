@@ -1,7 +1,7 @@
 """部署核心：源树遍历、忽略清单判定、单条目落盘。
 
 对应 lib/40-manifest.sh 的 walk_sources 与 lib/70-deploy.sh 的
-chezmoi_ignore_kind / deploy_one_file。
+runtime_keep_kind / deploy_one_file。
 
 ⚠ 迁移期这里是**第二份实现**，不是包装 bash —— 与 deps_collect / snapshot
 那类「bash 仍是唯一来源」的东西不同：部署逻辑是 install 与 update 的核心
@@ -17,25 +17,14 @@ import shutil
 import subprocess
 from pathlib import Path
 
-# 仓库根下这些条目不部署（与 walk_sources 的 case 一致）
+# 仓库根下这些条目不部署
 SKIP_TOP = {'install.sh', 'README.md', 'LICENSE', 'check-qml-deps.py'}
 
-# chezmoi 前缀：目录用 dot_ 前缀映射到 $HOME 下的隐藏目录；
-# 文件还有若干属性前缀，deploy_one_file 按顺序剥离。
-DOT_PREFIX = 'dot_'
-
-# ⚠ 只认这三个前缀 —— 与 lib/70-deploy.sh 一致。
-#   `create_` **必须保持字面文件名**：chezmoi 的 create_ 语义是「不存在才创建」
-#   并会剥前缀，但 hyprland/services/init.lua 里写的是
-#   `require("hyprland/services/create_custom_config")`，剥成 custom_config.lua
-#   反而 require 不到（.chezmoiignore 里记的就是这个冲突）。
-#   第一版我把 create_ / empty_ / readonly_ 也列进来，于是
-#   create_custom_config.lua 被剥成了 custom_config.lua —— dryrun 的
-#   「create_custom_config 字面名」那条立刻抓到。
-ATTR_PREFIXES = (
-    ('executable_', 'exec'),
-    ('private_', 'private'),
-    ('symlink_', 'symlink'),
+# 属性后缀：权限与链接语义写在文件名末尾，部署时剥掉并应用。
+# 执行位不再用后缀表达 —— 由 git 的 mode 位记录，部署时直接跟随源文件。
+ATTR_SUFFIXES = (
+    ('.private', 'private'),
+    ('.symlink', 'symlink'),
 )
 
 
@@ -45,11 +34,11 @@ def repo_root() -> Path:
 
 
 def ignore_file() -> Path:
-    return repo_root() / '.chezmoiignore'
+    return repo_root() / 'runtime-keep.txt'
 
 
 def parse_ignore() -> list[str]:
-    """读 .chezmoiignore，去注释与首尾空白，丢掉空行。"""
+    """读 runtime-keep.txt，去注释与首尾空白，丢掉空行。"""
     try:
         text = ignore_file().read_text(errors='replace')
     except OSError:
@@ -66,7 +55,7 @@ def ignore_kind(target: str) -> str:
     """判定 target（相对 $HOME 的路径）被忽略清单如何处理。
 
     返回 'skip' / 'keep' / ''（未命中）。
-    与 bash 的 chezmoi_ignore_kind 逐分支对齐：
+    与 bash 的 runtime_keep_kind 逐分支对齐：
       · 以 / 结尾 → 目录前缀匹配
       · 含 **    → `**/X` 视为「任意深度的 X」
       · 含单个 * → 交给 shell case 的 glob（Python 侧用 fnmatch）
@@ -108,21 +97,21 @@ def _shell_glob_match(pattern: str, target: str) -> bool:
 
 
 def split_attributes(rel: str) -> tuple[str, dict[str, bool], str]:
-    """剥离 chezmoi 属性前缀。
+    """剥离属性后缀，返回 (去后缀后的路径, 属性字典, 原始 rel)。
 
-    返回 (去掉前缀后的路径, 属性字典, 原始 rel)。属性可以叠加
-    （如 executable_private_x），按 ATTR_PREFIXES 的顺序反复剥。
+    后缀表达权限与链接语义：`x.conf.private` → 0600，`y.service.symlink` → 符号链接。
+    可叠加：`z.private.symlink` 两者都成立，后缀从右往左剥。
     """
-    attrs = {name: False for _pfx, name in ATTR_PREFIXES}
+    attrs = {name: False for _sfx, name in ATTR_SUFFIXES}
     parts = rel.split('/')
     base = parts[-1]
     changed = True
     while changed:
         changed = False
-        for prefix, name in ATTR_PREFIXES:
-            if base.startswith(prefix):
+        for suffix, name in ATTR_SUFFIXES:
+            if base.endswith(suffix) and len(base) > len(suffix):
                 attrs[name] = True
-                base = base[len(prefix):]
+                base = base[: -len(suffix)]
                 changed = True
     parts[-1] = base
     return '/'.join(parts), attrs, rel
@@ -131,13 +120,25 @@ def split_attributes(rel: str) -> tuple[str, dict[str, bool], str]:
 def map_target(rel: str) -> tuple[str, dict[str, bool]] | None:
     """源树相对路径 → (目标相对 $HOME 的路径, 属性)。
 
-    只处理 dot_ 前缀；其余返回 None（= 不部署）。
+    顶层目录决定映射目标：config/ → ~/.config/，local/ → ~/.local/，
+    icons/ → ~/.icons/，vimrc → ~/.vimrc。其余返回 None（= 不部署）。
     """
-    if not rel.startswith(DOT_PREFIX):
-        return None
-    inner = rel[len(DOT_PREFIX):]
-    mapped, attrs, _ = split_attributes(inner)
-    return '.' + mapped, attrs
+    parts = rel.split('/')
+    top = parts[0]
+    if top == 'config' and len(parts) > 2:
+        # config/desktop/foo 与 config/personal/foo 都落到 ~/.config/foo
+        inner = '/'.join(parts[2:])
+        mapped, attrs, _ = split_attributes(inner)
+        return '.config/' + mapped, attrs
+    if top == 'local' and len(parts) > 1:
+        mapped, attrs, _ = split_attributes('/'.join(parts[1:]))
+        return '.local/' + mapped, attrs
+    if top == 'icons' and len(parts) > 1:
+        mapped, attrs, _ = split_attributes('/'.join(parts[1:]))
+        return '.icons/' + mapped, attrs
+    if rel == 'vimrc':
+        return '.vimrc', {name: False for _sfx, name in ATTR_SUFFIXES}
+    return None
 
 
 def session_skip_set(rels: list[str]) -> set[str]:
@@ -170,7 +171,8 @@ def walk_sources(skip_compositor=None, skip_shell=None) -> list[tuple[Path, str,
     home = paths.home()
     out: list[tuple[Path, str, str, dict[str, bool]]] = []
     for dirpath, dirnames, filenames in os.walk(root):
-        # 剪枝 .git（bash 用 -path ... -prune，同理：仓库的 .git 有几千个对象）
+        # 剪枝 .git 与 __pycache__：前者有几千个对象，后者是平台相关的编译产物
+        dirnames[:] = [d for d in dirnames if d not in ('.git', '__pycache__')]
         dirnames[:] = [d for d in dirnames if d != '.git']
         for name in filenames:
             src = Path(dirpath) / name
@@ -251,19 +253,15 @@ def deploy_one_file(src: Path, dst_dir: str, base: str, attrs: dict[str, bool],
         return 'link', target_rel
 
 
-    # ⚠ 返回值要区分「新建」与「覆盖并备份过」—— 调用方（update）用 backup
-    #   计数报给用户「N 个有差异的旧文件备份于 …」。第一版写成
-    #   `'backup' if backup_dir else 'new'`，于是只要传了 backup_dir，新建的
-    #   文件也被算成备份（实测 39 个新增报成 39 个备份，而 bash 报 0）。
+    # 返回值要区分新建与覆盖备份：update 用 backup 计数报给用户。
+    # 只看 backup_dir 是否传入，会把新建的文件也算成备份。
     #
-    # ⚠ 差异判断要照抄 bash 的形状（lib/70-deploy.sh）：
-    #     目标是符号链接 → 比 `readlink(dst)` 与**源文件首行**
-    #     否则           → 比内容
-    #   不能用 fingerprint() 一刀切：源文件本身也可能是符号链接（差异层里
-    #   就有，如 assets/icons/ai-openai-symbolic.svg -> openai-symbolic.svg），
-    #   那时 fingerprint 给的是 "link:目标"，而 bash 读的是**链接指向文件的
-    #   首行** —— 两者不等，于是每次重跑都判「有差异」并多备份一份。
-    #   dryrun 的备份数因此从 20 涨到 22。
+    # 差异判断照抄 lib/70-deploy.sh：
+    #   目标是符号链接 → 比 readlink(dst) 与源文件首行
+    #   否则           → 比内容
+    # 不能用 fingerprint() 一刀切：源文件本身可能是符号链接时，
+    # fingerprint 给 "link:目标"，bash 读的是链接指向文件的首行，两者不等，
+    # 每次重跑都会多备份一份。
     backed_up = False
     if dst.exists() or dst.is_symlink():
         if dst.is_symlink():
@@ -272,12 +270,8 @@ def deploy_one_file(src: Path, dst_dir: str, base: str, attrs: dict[str, bool],
             except OSError:
                 same = False
         else:
-            # ⚠ 源是符号链接时也要比内容：bash 用的是 `cmp -s "$f" "$dir/$base"`，
-            #   而 cmp（与 cp）默认**跟随**符号链接。差异层里就有这种源
-            #   （assets/icons/ai-openai-symbolic.svg -> openai-symbolic.svg），
-            #   目标被 cp 成了普通文件 —— 第二遍比内容相同，bash 判无差异。
-            #   第一版在这里加 `src.is_symlink() → same = False`，于是每次重跑
-            #   都多备份一份（dryrun 从 20 涨到 22）。
+            # 源是符号链接时也要比内容：bash 用 cmp，cmp 与 cp 都跟随链接。
+            # 差异层里有这种源，目标被 cp 成普通文件，比内容才与 bash 一致。
             same = _same_content(src, dst)
         if same:
             return 'same', target_rel
@@ -285,7 +279,7 @@ def deploy_one_file(src: Path, dst_dir: str, base: str, attrs: dict[str, bool],
         backed_up = True
 
     shutil.copy2(src, dst, follow_symlinks=True)
-    if attrs.get('exec'):
+    if src.stat().st_mode & 0o111:
         dst.chmod(dst.stat().st_mode | 0o111)
     if attrs.get('private'):
         dst.chmod(0o600)

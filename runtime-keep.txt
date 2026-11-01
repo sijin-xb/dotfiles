@@ -1,0 +1,50 @@
+# 运行时生成物清单：这些路径由程序自己写回，部署时不覆盖已存在的文件。
+# 与「不部署」不同——目标不存在时仍会写入一份默认值，新机器能直接跑起来。
+#
+# 精确路径 → 目标已存在则保留当前值
+# 目录（以 / 结尾）→ 一律跳过
+
+# matugen 按壁纸生成的配色
+.config/hypr/hyprland/colors.lua
+.config/hypr/hyprlock/colors.conf
+.config/alacritty/matugen-theme.toml
+.config/fuzzel/fuzzel_theme.ini
+.config/fastfetch/config.jsonc
+.config/mako/colors.conf
+.config/niri/matugen-colors.kdl
+.config/gtk-3.0/gtk.css
+.config/gtk-4.0/gtk.css
+
+# matugen 的中间产物与按 profile 复制的结果
+.config/matugen/generated/
+
+# Konsole 配色与 profile 由 matugen 的 post_hook 生成
+.local/share/konsole/Matugen.colorscheme
+.local/share/konsole/Matugen.profile
+
+# rime 编译产物
+.local/share/fcitx5/rime/build/
+
+# quickshell 写回的覆盖层
+.config/hypr/hyprland/shellOverrides/main.lua
+.config/hypr/hyprland/shellOverrides/animations.lua
+.config/illogical-impulse/config.json
+
+# 应用程序运行时写回
+.config/btop/btop.conf
+.config/mimeapps.list
+
+# DMS 插件商店的 git 元数据
+.config/DankMaterialShell/plugins/**/.git
+
+# niri 目录下由 DMS / quickshell 写回的文件
+.config/niri/dms/alttab.kdl
+.config/niri/dms/colors.kdl
+.config/niri/dms/cursor.kdl
+.config/niri/dms/input.kdl
+.config/niri/dms/layout.kdl
+.config/niri/dms/outputs.kdl
+.config/niri/dms/windowrules.kdl
+.config/niri/dms/wpblur.kdl
+.config/niri/dms/*.bak*
+.config/niri/qssettings/

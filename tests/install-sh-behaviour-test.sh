@@ -17,22 +17,25 @@ set -uo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ROOT="$(mktemp -d)"
 trap 'rm -rf "$ROOT"' EXIT
-mkdir -p "$ROOT/src/dot_config"/{fcitx5/conf,systemd/user,hypr/hyprland/services,scripts,quickshell/end4-pC/panelFamilies}
+mkdir -p "$ROOT/src/config/personal/fcitx5/conf" "$ROOT/src/config/desktop/systemd/user" \
+         "$ROOT/src/config/desktop/hypr/hyprland/services" "$ROOT/src/config/desktop/scripts" \
+         "$ROOT/src/config/desktop/quickshell/end4-pC/panelFamilies"
 mkdir -p "$ROOT/home" "$ROOT/backup"
 
-# 假源树：覆盖所有 chezmoi 前缀 + 一个目录被 skip 的场景
-printf '[Hotkey]\nEnumerateWithTriggerKeys=True\n' > "$ROOT/src/dot_config/fcitx5/private_config"
-printf '[ClassicUI]\nTheme=default\n'            > "$ROOT/src/dot_config/fcitx5/conf/private_classicui.conf"
-printf '/dev/null\n'                             > "$ROOT/src/dot_config/systemd/user/symlink_mako.service"
-printf 'require("hyprland/lib")\n'               > "$ROOT/src/dot_config/hypr/hyprland/services/create_custom_config.lua"
-printf '#!/usr/bin/env bash\necho hi\n'          > "$ROOT/src/dot_config/scripts/executable_probe.sh"
-printf 'shell\n'                                 > "$ROOT/src/dot_config/quickshell/end4-pC/shell.qml"
-mkdir -p "$ROOT/src/dot_config/hypr/hyprland"
-printf 'REPO_SNAPSHOT_PALETTE\n'                 > "$ROOT/src/dot_config/hypr/hyprland/colors.lua"
+# 假源树：覆盖属性后缀 + 执行位 + 一个目录被 skip 的场景
+printf '[Hotkey]\nEnumerateWithTriggerKeys=True\n' > "$ROOT/src/config/personal/fcitx5/config.private"
+printf '[ClassicUI]\nTheme=default\n'            > "$ROOT/src/config/personal/fcitx5/conf/classicui.conf.private"
+printf '/dev/null\n'                             > "$ROOT/src/config/desktop/systemd/user/mako.service.symlink"
+printf 'require("hyprland/lib")\n'               > "$ROOT/src/config/desktop/hypr/hyprland/services/create_custom_config.lua"
+printf '#!/usr/bin/env bash\necho hi\n'          > "$ROOT/src/config/desktop/scripts/probe.sh"
+chmod +x "$ROOT/src/config/desktop/scripts/probe.sh"
+printf 'shell\n'                                 > "$ROOT/src/config/desktop/quickshell/end4-pC/shell.qml"
+mkdir -p "$ROOT/src/config/desktop/hypr/hyprland"
+printf 'REPO_SNAPSHOT_PALETTE\n'                 > "$ROOT/src/config/desktop/hypr/hyprland/colors.lua"
 
-# chezmoi_ignore_kind() 读 $SRC/.chezmoiignore（SRC = lib.sh 所在目录 = $ROOT）。
+# runtime_keep_kind() 读 $SRC/runtime-keep.txt（SRC = lib.sh 所在目录 = $ROOT）。
 # 用**真实的**忽略清单，这样测的是真模式而不是自造的玩具模式。
-cp "$REPO/.chezmoiignore" "$ROOT/.chezmoiignore"
+cp "$REPO/runtime-keep.txt" "$ROOT/runtime-keep.txt"
 
 # 整个文件拷过去当库 source。install.sh 末尾有 BASH_SOURCE 守卫，
 # source 时不会执行 main —— 以前靠 `head -n -1` 剥掉入口行，那依赖
@@ -59,39 +62,37 @@ chk() { # chk <描述> <实际> <期望>
 
 say_t() { printf '\n== %s ==\n' "$1"; }
 
-say_t "A. chezmoi 前缀：private_ / symlink_ / executable_ / create_"
-deploy_one_file "$ROOT/src/dot_config/fcitx5/private_config"                 "$HOME/.config/fcitx5"        "private_config"
-deploy_one_file "$ROOT/src/dot_config/fcitx5/conf/private_classicui.conf"    "$HOME/.config/fcitx5/conf"   "private_classicui.conf"
-deploy_one_file "$ROOT/src/dot_config/systemd/user/symlink_mako.service"     "$HOME/.config/systemd/user"  "symlink_mako.service"
-deploy_one_file "$ROOT/src/dot_config/hypr/hyprland/services/create_custom_config.lua" \
-                                                                             "$HOME/.config/hypr/hyprland/services" "create_custom_config.lua"
-deploy_one_file "$ROOT/src/dot_config/scripts/executable_probe.sh"           "$HOME/.config/scripts"       "executable_probe.sh"
+say_t "A. 属性后缀：.private / .symlink / 执行位"
+deploy_one_file "$ROOT/src/config/personal/fcitx5/config.private"                    "$HOME/.config/fcitx5"        "config.private"
+deploy_one_file "$ROOT/src/config/personal/fcitx5/conf/classicui.conf.private"       "$HOME/.config/fcitx5/conf"   "classicui.conf.private"
+deploy_one_file "$ROOT/src/config/desktop/systemd/user/mako.service.symlink"         "$HOME/.config/systemd/user"  "mako.service.symlink"
+deploy_one_file "$ROOT/src/config/desktop/hypr/hyprland/services/create_custom_config.lua" \
+                                                                                     "$HOME/.config/hypr/hyprland/services" "create_custom_config.lua"
+deploy_one_file "$ROOT/src/config/desktop/scripts/probe.sh"                          "$HOME/.config/scripts"       "probe.sh"
 
-chk "private_config → config 名对"        "$([[ -f $HOME/.config/fcitx5/config ]] && echo yes)"            "yes"
-chk "private_config 无残留前缀文件"       "$([[ -e $HOME/.config/fcitx5/private_config ]] && echo yes)"    ""
-chk "private_config 权限 600"             "$(stat -c '%a' "$HOME/.config/fcitx5/config")"                  "600"
-chk "private_classicui → classicui.conf"  "$([[ -f $HOME/.config/fcitx5/conf/classicui.conf ]] && echo yes)" "yes"
+chk "config.private → config 名对"        "$([[ -f $HOME/.config/fcitx5/config ]] && echo yes)"            "yes"
+chk "config.private 无残留后缀文件"       "$([[ -e $HOME/.config/fcitx5/config.private ]] && echo yes)"    ""
+chk "config.private 权限 600"             "$(stat -c '%a' "$HOME/.config/fcitx5/config")"                  "600"
+chk "classicui.conf.private → classicui.conf" "$([[ -f $HOME/.config/fcitx5/conf/classicui.conf ]] && echo yes)" "yes"
 chk "conf 权限 600"                       "$(stat -c '%a' "$HOME/.config/fcitx5/conf/classicui.conf")"     "600"
-chk "symlink_mako 是符号链接"             "$([[ -L $HOME/.config/systemd/user/mako.service ]] && echo yes)" "yes"
+chk "mako.service.symlink 是符号链接"     "$([[ -L $HOME/.config/systemd/user/mako.service ]] && echo yes)" "yes"
 chk "symlink 目标为 /dev/null"            "$(readlink "$HOME/.config/systemd/user/mako.service")"          "/dev/null"
 chk "create_custom_config 名字保持字面"   "$([[ -f $HOME/.config/hypr/hyprland/services/create_custom_config.lua ]] && echo yes)" "yes"
-chk "create_custom_config 没被剥前缀"     "$([[ -e $HOME/.config/hypr/hyprland/services/custom_config.lua ]] && echo yes)"        ""
-chk "executable_probe.sh 可执行"          "$([[ -x $HOME/.config/scripts/probe.sh ]] && echo yes)"         "yes"
-chk "executable_probe.sh 名字无前缀"      "$([[ -e $HOME/.config/scripts/executable_probe.sh ]] && echo yes)" ""
+chk "probe.sh 可执行（跟随源 mode）"       "$([[ -x $HOME/.config/scripts/probe.sh ]] && echo yes)"         "yes"
 
 say_t "B. 幂等：重跑一遍不该产生备份、也不该改坏链接"
 backed=0
-deploy_one_file "$ROOT/src/dot_config/fcitx5/private_config"                 "$HOME/.config/fcitx5"        "private_config"
-deploy_one_file "$ROOT/src/dot_config/systemd/user/symlink_mako.service"     "$HOME/.config/systemd/user"  "symlink_mako.service"
+deploy_one_file "$ROOT/src/config/personal/fcitx5/config.private"                "$HOME/.config/fcitx5"        "config.private"
+deploy_one_file "$ROOT/src/config/desktop/systemd/user/mako.service.symlink"     "$HOME/.config/systemd/user"  "mako.service.symlink"
 chk "重跑 0 次备份"        "$backed"                                                          "0"
 chk "链接仍然正确"         "$(readlink "$HOME/.config/systemd/user/mako.service")"            "/dev/null"
 
 say_t "C. 内容变了 → 备份旧文件（符号链接按链接本身备份）"
-printf '[Hotkey]\nEnumerateWithTriggerKeys=False\n' > "$ROOT/src/dot_config/fcitx5/private_config"
-printf '/dev/zero\n'                                > "$ROOT/src/dot_config/systemd/user/symlink_mako.service"
+printf '[Hotkey]\nEnumerateWithTriggerKeys=False\n' > "$ROOT/src/config/personal/fcitx5/config.private"
+printf '/dev/zero\n'                                > "$ROOT/src/config/desktop/systemd/user/mako.service.symlink"
 backed=0
-deploy_one_file "$ROOT/src/dot_config/fcitx5/private_config"             "$HOME/.config/fcitx5"        "private_config"
-deploy_one_file "$ROOT/src/dot_config/systemd/user/symlink_mako.service" "$HOME/.config/systemd/user"  "symlink_mako.service"
+deploy_one_file "$ROOT/src/config/personal/fcitx5/config.private"            "$HOME/.config/fcitx5"        "config.private"
+deploy_one_file "$ROOT/src/config/desktop/systemd/user/mako.service.symlink" "$HOME/.config/systemd/user"  "mako.service.symlink"
 chk "2 次备份"                                  "$backed"                                              "2"
 chk "旧 config 已备份"                          "$([[ -f $ROOT/backup/$HOME/.config/fcitx5/config ]] && echo yes)" "yes"
 chk "旧链接以链接形式备份"                      "$([[ -L $ROOT/backup/$HOME/.config/systemd/user/mako.service ]] && echo yes)" "yes"
@@ -154,35 +155,32 @@ chk "QS_SHELL=both → 两个都在"        "$(qsp both)$(qsc both)" "11"
 chk "QS_SHELL 空 → 保持旧行为(都算)"  "$(qsp '')$(qsc '')"     "11"
 
 say_t "F. skip_by_shell / skip_by_compositor"
-chk "end4-pC 跳过 caelestia 差异层" "$( (QS_SHELL=end4-pC; skip_by_shell dot_config/quickshell/caelestia/plugin/x.po; echo rc=$?) )" "rc=0"
-chk "end4-pC 不跳自己的差异层"      "$( (QS_SHELL=end4-pC; skip_by_shell dot_config/quickshell/end4-pC/shell.qml; echo rc=$?) )"    "rc=1"
-chk "niri 会话跳过 dot_config/hypr" "$( (COMPOSITOR=niri; skip_by_compositor dot_config/hypr/x; echo rc=$?) )"                     "rc=0"
-chk "hyprland 会话跳过 dot_config/niri" "$( (COMPOSITOR=hyprland; skip_by_compositor dot_config/niri/x; echo rc=$?) )"             "rc=0"
+chk "end4-pC 跳过 caelestia 差异层" "$( (QS_SHELL=end4-pC; skip_by_shell config/desktop/quickshell/caelestia/plugin/x.po; echo rc=$?) )" "rc=0"
+chk "end4-pC 不跳自己的差异层"      "$( (QS_SHELL=end4-pC; skip_by_shell config/desktop/quickshell/end4-pC/shell.qml; echo rc=$?) )"    "rc=1"
+chk "niri 会话跳过 config/hypr" "$( (COMPOSITOR=niri; skip_by_compositor config/desktop/hypr/x; echo rc=$?) )"                     "rc=0"
+chk "hyprland 会话跳过 config/niri" "$( (COMPOSITOR=hyprland; skip_by_compositor config/desktop/niri/x; echo rc=$?) )"             "rc=0"
 
-say_t "G. .chezmoiignore 匹配（用仓库里真实的忽略清单）"
-chk "精确路径 → keep"                 "$(chezmoi_ignore_kind .config/hypr/hyprland/colors.lua)" "keep"
-chk "精确路径(UI 写回) → keep"        "$(chezmoi_ignore_kind .config/mimeapps.list)" "keep"
-chk "未列出的路径 → 空"               "$(chezmoi_ignore_kind .config/fish/config.fish)" ""
-chk "目录条目 → skip"                 "$(chezmoi_ignore_kind .config/niri/qssettings/foo.kdl)" "skip"
-chk "**/*.pyc → skip"                 "$(chezmoi_ignore_kind .config/x/y/z.pyc)" "skip"
-chk "**/__pycache__ → skip"           "$(chezmoi_ignore_kind .config/x/__pycache__)" "skip"
-chk "**/__pycache__/ 内层 → skip"     "$(chezmoi_ignore_kind .config/x/__pycache__/a.pyc)" "skip"
-chk "**/dot_git → skip"               "$(chezmoi_ignore_kind .config/DankMaterialShell/plugins/foo/dot_git)" "skip"
-chk "单层 glob (*.bak*) → skip"       "$(chezmoi_ignore_kind .config/niri/dms/layout.kdl.bak-123)" "skip"
-chk "dms/binds.kdl 未被屏蔽"          "$(chezmoi_ignore_kind .config/niri/dms/binds.kdl)" ""
-chk "create_custom_config 未被屏蔽"   "$(chezmoi_ignore_kind .config/hypr/hyprland/services/create_custom_config.lua)" ""
+say_t "G. runtime-keep.txt 匹配（用仓库里真实的清单）"
+chk "精确路径 → keep"                 "$(runtime_keep_kind .config/hypr/hyprland/colors.lua)" "keep"
+chk "精确路径(UI 写回) → keep"        "$(runtime_keep_kind .config/mimeapps.list)" "keep"
+chk "未列出的路径 → 空"               "$(runtime_keep_kind .config/fish/config.fish)" ""
+chk "目录条目 → skip"                 "$(runtime_keep_kind .config/niri/qssettings/foo.kdl)" "skip"
+chk "**/.git → skip"                  "$(runtime_keep_kind .config/DankMaterialShell/plugins/foo/.git)" "skip"
+chk "单层 glob (*.bak*) → skip"       "$(runtime_keep_kind .config/niri/dms/layout.kdl.bak-123)" "skip"
+chk "dms/binds.kdl 未被屏蔽"          "$(runtime_keep_kind .config/niri/dms/binds.kdl)" ""
+chk "create_custom_config 未被屏蔽"   "$(runtime_keep_kind .config/hypr/hyprland/services/create_custom_config.lua)" ""
 
-say_t "G2. .chezmoiignore 生效路径：运行时生成物不被仓库快照覆盖"
+say_t "G2. runtime-keep 生效路径：运行时生成物不被仓库快照覆盖"
 mkdir -p "$HOME/.config/hypr/hyprland"
 printf 'CURRENT_PALETTE\n' > "$HOME/.config/hypr/hyprland/colors.lua"
 backed=0; ignored_keep=0; ignored_skip=0
-deploy_one_file "$ROOT/src/dot_config/hypr/hyprland/colors.lua" \
+deploy_one_file "$ROOT/src/config/desktop/hypr/hyprland/colors.lua" \
                 "$HOME/.config/hypr/hyprland" "colors.lua"
 chk "目标已存在 → 保留当前值" "$(cat "$HOME/.config/hypr/hyprland/colors.lua")" "CURRENT_PALETTE"
 chk "计入 ignored_keep"       "$ignored_keep" "1"
 chk "不产生备份"              "$backed" "0"
 rm -f "$HOME/.config/hypr/hyprland/colors.lua"
-deploy_one_file "$ROOT/src/dot_config/hypr/hyprland/colors.lua" \
+deploy_one_file "$ROOT/src/config/desktop/hypr/hyprland/colors.lua" \
                 "$HOME/.config/hypr/hyprland" "colors.lua"
 chk "目标不存在 → 部署仓库默认值" "$(cat "$HOME/.config/hypr/hyprland/colors.lua")" "REPO_SNAPSHOT_PALETTE"
 

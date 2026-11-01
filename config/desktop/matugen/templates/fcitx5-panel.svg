@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="31" height="31" version="1.1" viewBox="0 0 31 31" xmlns="http://www.w3.org/2000/svg">
+  <path
+     d="m 3.5,0.5 h 24 a 3,3 0 0 1 3,3 v 24 a 3,3 0 0 1 -3,3 h -24 a 3,3 0 0 1 -3,-3 v -24 a 3,3 0 0 1 3,-3 z"
+     style="fill:{{ colors.surface_container.default.hex }};fill-opacity:1;stroke:{{ colors.outline.default.hex }};stroke-width:0.5;stroke-linecap:round;stroke-linejoin:miter;stroke-opacity:1" />
+</svg>

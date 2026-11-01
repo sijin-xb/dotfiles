@@ -1,6 +1,5 @@
 # ============================================================
-# 会话选择与字体开关（原 §2 尾部）
-# 三选一会话（end4pc / caelestia / dms）与 FONTS 交互。
+# 会话选择（end4pc / caelestia / dms）与 FONTS 交互
 # ============================================================
 # ---------- 会话选择：合成器 + 桌面 Shell（三选一） ----------
 # 三套组合各自对应一套配置：
@@ -11,10 +10,10 @@
 #   3) dms       niri + DankMaterialShell（DMS，niri 专属桌面 shell）
 #                入口 ~/.config/niri/config.kdl，DMS 配置在 ~/.config/DankMaterialShell
 #
-# ⚠ Caelestia QML 插件（end4-pC 与 caelestia 都要，见 [4a/7]）统一
-#   ~/src/caelestia-plugin-src 取源码、out-of-source 编译到 ~/src/caelestia-build，
-#   由 fish/config.fish 与 start_quickshell.sh 两处读取 QML2_IMPORT_PATH 加载，
-#   换位置要同步改那两处。
+# Caelestia QML 插件（end4-pC 与 caelestia 都需要）：源码在
+# ~/src/caelestia-plugin-src，编译到 ~/src/caelestia-build。
+# fish/config.fish 与 start_quickshell.sh 两处读 QML2_IMPORT_PATH，
+# 换位置要同步改这两处。
 #
 # 可交互选择，也可用环境变量预设：SESSION=caelestia ./install.sh install
 # 兼容旧变量：COMPOSITOR=niri 等价 SESSION=dms，COMPOSITOR=hyprland 等价 SESSION=end4pc
@@ -22,16 +21,13 @@ SESSION="${SESSION:-}"        # end4pc | caelestia | dms
 COMPOSITOR="${COMPOSITOR:-}"  # hyprland | niri（由 SESSION 派生，部署过滤/卸载仍用它）
 QS_SHELL="${QS_SHELL:-}"      # end4-pC | caelestia | dms（由 SESSION 派生）
 
-# 字体是否随安装部署：1=装 / 0=跳过 / 空=执行时询问。
-# 不再无条件塞给用户系统字体（200MB+ 的 AUR 字体链 + 改 /etc/fonts），
-# 想脚本化就 FONTS=0 ./install.sh install。
+# 1=装 / 0=跳过 / 空=执行时询问。脚本化时用 FONTS=0。
 FONTS="${FONTS:-}"
 FONTS_ASKED=0                 # 1 = 已经问过/已定，choose_fonts 不再重复问
 
 # SESSION → COMPOSITOR + QS_SHELL。
-# COMPOSITOR 仍被部署过滤 / 卸载范围 / 完成指引使用，所以即使有了 SESSION 也要
-# 把它派生出来，不能只留一个变量。
-# ⚠ 未知值不静默吞掉：环境变量拼错（如 SESSION=niri）以前会静默落到 end4pc，
+# COMPOSITOR 仍被部署过滤、卸载范围、完成指引使用，必须从 SESSION 派生。
+# 未知值不静默吞掉：拼错（如 SESSION=niri）以前会静默落到 end4pc，
 #   装完才发现会话不对。现在显式警告并回退默认。
 session_to_parts() {
     case "$SESSION" in

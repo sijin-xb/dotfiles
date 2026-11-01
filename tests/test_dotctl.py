@@ -1076,18 +1076,14 @@ class TestChezmoiIgnore(TempHome):
             self.assertEqual(deploy.ignore_kind('.config/a'), 'keep')
 
     def test_never_touches_repo_ignore_file(self) -> None:
-        """防回归：测试不得写仓库里真实的 .chezmoiignore。
-
-        第一版 write_ignore 直接写它，把仓库清单覆盖成三行玩具内容，
-        害得 install-sh-behaviour-test.sh 的 G 组整组失败。
-        """
-        real = paths.repo() / '.chezmoiignore'
+        """防回归：测试不得写仓库里真实的 runtime-keep.txt。"""
+        real = paths.repo() / 'runtime-keep.txt'
         before = real.read_text()
         self.write_ignore('# 玩具\n.config/toy\n')
         with mock.patch.object(deploy, 'ignore_file',
-                               return_value=self.home / 'chezmoiignore-test'):
+                               return_value=self.home / 'runtime-keep-test'):
             deploy.parse_ignore()
-        self.assertEqual(real.read_text(), before, '仓库的 .chezmoiignore 被测试改动了')
+        self.assertEqual(real.read_text(), before, '仓库的 runtime-keep.txt 被测试改动了')
 
     def test_real_ignore_file_has_no_surprises(self) -> None:
         """真实清单的每条模式都应能被判定，不抛异常。"""
@@ -1098,42 +1094,50 @@ class TestChezmoiIgnore(TempHome):
 
 
 class TestDeployMapping(TempHome):
-    """chezmoi 前缀 → 目标路径的映射。"""
+    """源树路径 → 目标路径的映射。"""
 
-    def test_dot_prefix(self) -> None:
-        self.assertEqual(deploy.map_target('dot_config/kitty/kitty.conf'),
+    def test_desktop_layer(self) -> None:
+        self.assertEqual(deploy.map_target('config/desktop/kitty/kitty.conf'),
                          ('.config/kitty/kitty.conf', mock.ANY))
 
-    def test_non_dot_ignored(self) -> None:
+    def test_personal_layer(self) -> None:
+        self.assertEqual(deploy.map_target('config/personal/fish/config.fish'),
+                         ('.config/fish/config.fish', mock.ANY))
+
+    def test_non_deployable_ignored(self) -> None:
         self.assertIsNone(deploy.map_target('lib/00-env.sh'))
         self.assertIsNone(deploy.map_target('README.md'))
+        self.assertIsNone(deploy.map_target('config/desktop'))   # 层级不足
 
-    def test_executable_attribute(self) -> None:
-        target, attrs = deploy.map_target('dot_config/fish/executable_config.fish')
-        self.assertEqual(target, '.config/fish/config.fish')
-        self.assertTrue(attrs['exec'])
-
-    def test_private_attribute(self) -> None:
-        target, attrs = deploy.map_target('dot_config/fcitx5/private_config')
+    def test_private_suffix(self) -> None:
+        target, attrs = deploy.map_target('config/personal/fcitx5/config.private')
         self.assertEqual(target, '.config/fcitx5/config')
         self.assertTrue(attrs['private'])
 
-    def test_symlink_attribute(self) -> None:
-        target, attrs = deploy.map_target('dot_config/systemd/user/symlink_mako.service')
+    def test_symlink_suffix(self) -> None:
+        target, attrs = deploy.map_target('config/desktop/systemd/user/mako.service.symlink')
         self.assertEqual(target, '.config/systemd/user/mako.service')
         self.assertTrue(attrs['symlink'])
 
-    def test_stacked_attributes(self) -> None:
-        target, attrs = deploy.map_target('dot_x/executable_private_y')
-        self.assertEqual(target, '.x/y')
-        self.assertTrue(attrs['exec'])
+    def test_stacked_suffixes(self) -> None:
+        target, attrs = deploy.map_target('config/desktop/x/y.private.symlink')
+        self.assertEqual(target, '.config/x/y')
         self.assertTrue(attrs['private'])
+        self.assertTrue(attrs['symlink'])
 
-    def test_walk_sources_only_dot_entries(self) -> None:
+    def test_local_and_icons(self) -> None:
+        self.assertEqual(deploy.map_target('local/share/fcitx5/rime/a.yaml'),
+                         ('.local/share/fcitx5/rime/a.yaml', mock.ANY))
+        self.assertEqual(deploy.map_target('icons/default/index.theme'),
+                         ('.icons/default/index.theme', mock.ANY))
+        self.assertEqual(deploy.map_target('vimrc'), ('.vimrc', mock.ANY))
+
+    def test_walk_sources_only_deployable(self) -> None:
         rows = deploy.walk_sources()
         self.assertTrue(rows, '源树里应该有可部署条目')
         for _src, _dst, rel, _attrs in rows:
-            self.assertTrue(rel.startswith('dot_'), rel)
+            self.assertTrue(
+                rel.startswith(('config/', 'local/', 'icons/')) or rel == 'vimrc', rel)
             self.assertNotIn('/.git/', rel)
 
 
@@ -1181,8 +1185,10 @@ class TestDeployOneFile(TempHome):
         self.assertFalse((Path(self.dstdir) / 'out.conf').exists())
 
     def test_executable_bit(self) -> None:
+        """执行位跟随源文件 mode，不再靠属性标记。"""
+        self.src.chmod(0o755)
         with mock.patch.object(deploy, 'ignore_kind', return_value=''):
-            deploy.deploy_one_file(self.src, self.dstdir, 'run.sh', {'exec': True})
+            deploy.deploy_one_file(self.src, self.dstdir, 'run.sh', {})
         self.assertTrue(os.access(Path(self.dstdir) / 'run.sh', os.X_OK))
 
     def test_private_mode(self) -> None:
@@ -1382,25 +1388,22 @@ class TestUpdateWithPackages(TempHome):
 
 
 class TestDeployAttributes(TempHome):
-    """属性前缀与差异判断 —— 这两处都在 dryrun 里暴露过真 bug。"""
+    """属性后缀与差异判断。"""
 
     def test_create_prefix_is_literal(self) -> None:
-        """`create_` **不是**属性前缀，必须保持字面文件名。
+        """`create_` 是普通文件名的一部分，不是属性。
 
-        chezmoi 的 create_ 语义是「不存在才创建」并会剥前缀，但
         hyprland/services/init.lua 里写的是
-        `require("hyprland/services/create_custom_config")` —— 剥成
-        custom_config.lua 反而 require 不到。
-        第一版把 create_ 列进了 ATTR_PREFIXES，dryrun 的
-        「create_custom_config 字面名」立刻抓到。
+        `require("hyprland/services/create_custom_config")`，任何前缀剥离
+        都会让 require 失败。
         """
-        target, attrs = deploy.map_target('dot_config/hypr/hyprland/services/create_custom_config.lua')
+        target, attrs = deploy.map_target('config/desktop/hypr/hyprland/services/create_custom_config.lua')
         self.assertEqual(target, '.config/hypr/hyprland/services/create_custom_config.lua')
         self.assertFalse(any(attrs.values()))
 
-    def test_three_prefixes_only(self) -> None:
-        names = {name for _pfx, name in deploy.ATTR_PREFIXES}
-        self.assertEqual(names, {'exec', 'private', 'symlink'})
+    def test_two_suffixes_only(self) -> None:
+        names = {name for _sfx, name in deploy.ATTR_SUFFIXES}
+        self.assertEqual(names, {'private', 'symlink'})
 
     def test_same_content_follows_symlink_source(self) -> None:
         """源是符号链接时也比内容 —— bash 用 cmp，而 cmp 跟随链接。
@@ -1462,10 +1465,10 @@ class TestSessionSkip(TempHome):
 
     def test_skip_set_filters_by_compositor(self) -> None:
         with mock.patch.object(deploy, 'session_skip_set',
-                               return_value={'dot_config/niri/config.kdl'}):
+                               return_value={'config/desktop/niri/config.kdl'}):
             rows = deploy.walk_sources()
             rels = [r for _s, _d, r, _a in rows]
-            self.assertIn('dot_config/niri/config.kdl', rels)   # walk 不做过滤
+            self.assertIn('config/desktop/niri/config.kdl', rels)   # walk 不做过滤
             # 过滤由调用方做（install / update），见它们各自的循环
 
     def test_install_counts_skipped_separately(self) -> None:

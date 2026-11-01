@@ -1,29 +1,21 @@
 # ============================================================
-# 自举与其他基础动作（原 §1 尾部）
-# ensure_repo：让「只下一个 install.sh」也能跑；其余是安装期的公共前置。
-# ============================================================
-# ============================================================
-# 自举：让「只下一个 install.sh」也能跑
+# 自举与其他安装期公共前置
 # ============================================================
 #
-# 本脚本的部署源是仓库里的 dot_config/**、.chezmoiignore、check-qml-deps.py，
-# 所以它平时必须和仓库在一起。但也可以只捞这一个文件就跑：
+# 只下载 install.sh 也能跑：
 #
 #     curl -fsSL https://raw.githubusercontent.com/sijin-xb/dotfiles/main/install.sh \
 #         | bash -s -- update
 #
-# 这时 $SRC 指向的不是仓库（`curl | bash` 下 BASH_SOURCE 是空的，$SRC 会落到
-# 当前目录），ensure_repo() 负责把它补上：clone 到 $REPO_CACHE，或者已经 clone
-# 过就 git pull。
+# curl | bash 下 BASH_SOURCE 为空，$SRC 落到当前目录。ensure_repo() 把它补上：
+# clone 到 $REPO_CACHE，已 clone 过就 git pull。
 #
-# ⚠ 补完之后**必须 exec 重跑**，而不是就地改 $SRC 继续跑。原因：刚 clone 下来的
-#   install.sh 才是最新的那一份，手上这个可能是几天前的；就地继续跑等于用旧脚本
-#   配新配置。exec 之后 $SRC 变成 $REPO_CACHE，一切照旧。
+# 补完必须 exec 重跑而不是就地改 $SRC：刚 clone 的 install.sh 才是最新的，
+# 手上这个可能落后几天，就地继续等于用旧脚本配新配置。
 #
-# ⚠ 只在「$SRC 不是可用仓库」时才动网络。仓库里正常执行时这一步是 0 开销的
-#   一次文件存在性判断。
+# $SRC 已是可用仓库时不动网络，只做一次文件存在性判断。
 repo_is_usable() {
-    [[ -f "$SRC/.chezmoiignore" && -d "$SRC/dot_config" ]]
+    [[ -d "$SRC/config" ]]
 }
 
 ensure_repo() {
@@ -39,8 +31,7 @@ ensure_repo() {
             || die "拉取 $REPO_URL 失败（检查网络 / 代理后重试）。"
         local branch
         branch="$(git -C "$REPO_CACHE" rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)"
-        # --ff-only：缓存目录里可能有本脚本的产物（清单等不在这里，但用户可能手改过），
-        # 用 ff-only 保证绝不产生合并冲突、绝不丢本地提交。
+        # --ff-only：用户可能手改过缓存目录，保证不产生合并冲突、不丢本地提交。
         git -C "$REPO_CACHE" merge --ff-only "origin/$branch" \
             || warn "仓库缓存不是 fast-forward，保持现状继续（想强制对齐：rm -rf $REPO_CACHE 后重跑）"
     else
@@ -70,8 +61,7 @@ ensure_dirs() {
 }
 
 session_warning_if_running() {
-    # Hyprland 与 niri 都查：文件覆盖发生在两套合成器共用配置的机器上，
-    # 正跑着的哪个会话都可能被覆盖到。
+    # 两套合成器都查：共用配置的机器上，正跑着的哪个会话都可能被覆盖。
     if have hyprctl && [[ -n $(hyprctl instances 2>/dev/null || true) ]]; then
         warn "检测到 Hyprland 会话正在运行，建议在 TTY 或其他 Wayland 会话下执行文件覆盖操作，避免进程同时写入导致不一致。继续执行，但后果自负。"
     elif pgrep -x niri >/dev/null 2>&1; then

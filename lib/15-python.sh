@@ -1,15 +1,21 @@
 # ============================================================
 # Python 引擎（dotctl）的调用入口
 # ============================================================
-# 迁移期：一部分子命令已迁到 dotctl（纯标准库 Python），其余仍在 bash。
+# 部分子命令已迁到 dotctl（纯标准库 Python），其余仍在 bash。
 # lib/8x-cmd-*.sh 里已迁的只剩一行转发，实现看 dotctl/commands/。
 #
-# ⚠ 用 PYTHONPATH 而不是 cd：后者会改掉工作目录，而脚本里所有相对路径都以
-#   调用者的 cwd 为准（bash 版一直如此），换了目录行为会跟着变。
+# 用 PYTHONPATH 而不是 cd：后者会改工作目录，而脚本里所有相对路径都以调用者
+# 的 cwd 为准，换目录行为会跟着变。
 #
-# ⚠ DOTCTL_SELF：把「调用者看到的安装器路径」传下去。bash 版提示语里写的是
-#   $0（`./install.sh` / `install.sh` / 绝对路径，随调用方式变），Python 侧
-#   拿不到它，硬编码就会让两边输出对不上。
+# 下面这些环境变量必须显式传，Python 子进程拿不到：
+#   DOTCTL_SELF           调用者看到的安装器路径，提示语里要用
+#   DOTCTL_COLOR          按 install.sh 的 fd 1 算好的颜色开关。
+#                         子进程自己判 isatty() 会得出相反结论
+#   DOTCTL_BASH_VERSION   doctor 要显示 bash 版本
+#   DOTCTL_BACKUP_ROOT / _SNAP_ROOT / _STATE_DIR
+#                         这三个在 bash 侧是 source 时冻结的常量。
+#                         Python 若按 $HOME 动态推，改 HOME 后再调就会分叉
+#   TMPRUN                当前这次运行的临时目录，clean 要跳过它
 dotctl_run() {
     have python3 || die "该子命令已迁到 Python 实现，需要 python3 3.11+（sudo pacman -S python）"
     # TMPRUN 要显式传：它是 lib/10-util.sh 里的普通变量（没 export），而
@@ -52,27 +58,21 @@ dotctl_extra_paths() {
     printf '%s\n' "${EXTRA_ARCHIVE_PATHS[@]}"
 }
 
-# 用**冻结的**路径常量建目录（不经 ensure_dirs）。
-# ⚠ 必须这样：ensure_dirs 用的是运行时 $HOME，而 BACKUP_ROOT / SNAP_ROOT /
-#   STATE_DIR 是 source 时算好的常量。在「改了 HOME 再调函数」的场景下两者
-#   会分叉 —— archive 的测试就踩到了：ensure_dirs 在 empty-home 下建出
-#   dotfiles-backup，于是它自己成了「可打包路径」，本该返回 1 的场景返回 0。
-#   这里照抄 bash 的可观察行为：目录建在冻结路径上。
+# 用冻结的路径常量建目录，不走 ensure_dirs。
+# ensure_dirs 按运行时 $HOME 算，改 HOME 后与 BACKUP_ROOT 等常量分叉，
+# 会让「无可打包路径」的场景变成有路径。
 dotctl_ensure_frozen_dirs() {
     mkdir -p "$BACKUP_ROOT" "$SNAP_ROOT" "$STATE_DIR"
 }
 
-# uninstall 用：在**同一个 bash 进程**里跑「选范围 → 算删除清单」。
+# uninstall 用：在同一个 bash 进程里选范围并算删除清单。
 #
-# ⚠ 必须一次 fork 完成，不能分两次调：uninstall_compositor_scope /
-#   uninstall_shell_scope 会设 COMPOSITOR / QS_SHELL /
-#   INSTALL_BOTH_COMPOSITORS，而 active_snap_paths 正是读这几个变量决定
-#   删哪些路径。分两次 fork 的话，第二次看不到第一次设的值，过滤就失效了
-#   —— 会把另一套会话的配置也删掉。
+# 必须一次 fork 完成：uninstall_*_scope 设置的 COMPOSITOR / QS_SHELL /
+# INSTALL_BOTH_COMPOSITORS 正是 active_snap_paths 的输入。分两次 fork
+# 第二次看不到这些值，会把另一套会话的配置也删掉。
 #
-# ⚠ 结果写进 $1 指向的文件，而不是 stdout：这两个函数要打印交互提示并从
-#   stdin 读答案，提示必须原样流到终端。用命令替换捕获输出会把提示一起吞掉、
-#   还会让 read 拿到空的 stdin。所以 stdout 留给提示，清单走文件。
+# 结果写文件而不是 stdout：那两个函数要从 stdin 读答案，用命令替换捕获
+# 输出会吞掉提示、并让 read 拿到空 stdin。
 dotctl_uninstall_plan() {
     local outfile="$1"
     uninstall_compositor_scope
@@ -86,14 +86,11 @@ dotctl_uninstall_plan() {
 # ============================================================
 # install 的外部流程（供 dotctl 经 bashsrc 调用）
 # ============================================================
-# 这几段是「调外部命令」为主（pacman / git clone / cmake 编译 / qs），
-# 迁移期留在 bash 侧、由 Python 编排调用 —— 包一层 bash 不算没迁，
-# 而把它们重写成 Python 只会把同样的 subprocess 调用再抄一遍。
+# 这几段以调外部命令为主（pacman / git clone / cmake / qs），留在 bash 侧
+# 由 Python 编排调用。
 #
-# ⚠ 原来是 cmd_install 里的**嵌套函数**，现在提到顶层：嵌套函数在 cmd_install
-#   之外不可见，bashsrc 调不到。
-# ⚠ install_caelestia_plugin 内部会设 build/overlay 相关局部变量并打印进度，
-#   输出直接进终端（调用方用 call_streaming）。
+# 提到顶层而不是 cmd_install 的嵌套函数，否则 bashsrc 调不到。
+# install_caelestia_plugin 输出直接进终端，调用方用 call_streaming。
 
 install_quickshell() {
     if have qs; then
@@ -141,7 +138,7 @@ install_caelestia_plugin() {
 
     # 2) 本地覆盖层（汉化 po / 改过的 CMakeLists）。
     #    ⚠ 必须在编译前应用：晚一步这些文件赶不上这次编译，翻译会静默不生效。
-    local overlay="$SRC/dot_config/quickshell/caelestia"
+    local overlay="$SRC/config/desktop/quickshell/caelestia"
     local ovl_hash=""
     if [[ -d "$overlay" ]]; then
         while IFS= read -r -d '' rel; do
@@ -152,8 +149,8 @@ install_caelestia_plugin() {
         echo "    已应用 caelestia 覆盖层（$(cd "$overlay" && find . -type f | wc -l) 个文件）"
     fi
 
-    # 3) 编译。幂等：已有 .so 产物**且覆盖层没变**才跳过 —— 否则改了
-    #    po/CMakeLists 却不重编，会静默停留在旧版本。
+    # 幂等：已有 .so 且覆盖层 hash 未变才跳过。只看 .so 会漏掉
+    # po/CMakeLists 的改动，静默停留在旧版本。
     local stamp="$build/.overlay-stamp"
     if compgen -G "$build/qml/Caelestia/*.so" >/dev/null \
         && [[ -f "$stamp" && "$(cat "$stamp")" == "$ovl_hash" ]]; then
@@ -161,13 +158,9 @@ install_caelestia_plugin() {
         return 0
     fi
 
-    # 3a) 构建目录与源码路径必须配对。
-    #     CMakeCache.txt 里记着 CMAKE_HOME_DIRECTORY（= 上次 -S 的源码目录）。
-    #     源码位置换过（旧版本是 ~/.config/quickshell/caelestia）之后直接复用
-    #     旧构建目录，CMake 会拿缓存里的老路径去找 CMakeLists —— 表现为
-    #     "配置失败" 或更糟：配置通过、链接到已删除的目标文件。
-    #     检测到不匹配就整个清掉重配。这也是"编译流程与存放规则一致"的一部分：
-    #     源码路径是这条链的单一事实来源，改它必须连带作废旧构建。
+    # CMakeCache.txt 记录上次的源码目录。源码位置换过后复用旧构建目录，
+    # CMake 会拿缓存里的老路径找 CMakeLists，表现为配置失败或链接到
+    # 已删除的目标文件。不匹配就整个清掉重配。
     if [[ -f "$build/CMakeCache.txt" ]]; then
         local _cached_src
         _cached_src="$(sed -n 's/^CMAKE_HOME_DIRECTORY:INTERNAL=//p' "$build/CMakeCache.txt" | head -1)"
@@ -178,10 +171,9 @@ install_caelestia_plugin() {
     fi
 
     have cmake && have ninja || die "缺少 cmake/ninja，无法编译 Caelestia 插件（end4-pC 锁屏硬依赖）。"
-    # 上游 CMakeLists 对 git 有硬依赖：`git describe --tags` 拿 VERSION、
-    # `git rev-parse HEAD` 拿 GIT_REVISION，任一为空就 FATAL_ERROR 中断安装。
-    # shallow clone 默认没有 tag；源码若是被拷进来的（无 .git）两个都拿不到。
-    # 所以两个变量都由这里显式算出并传入，CMakeLists 的 git 调用就走不到了。
+    # 上游 CMakeLists 用 git describe / rev-parse 取 VERSION 和 GIT_REVISION，
+    # 任一为空就 FATAL_ERROR。shallow clone 没有 tag，源码若被拷贝则无 .git。
+    # 这里显式算好传入，绕开 CMakeLists 里的 git 调用。
     ( cd "$src" && git fetch --tags --depth=1 --quiet 2>/dev/null ) || true
     local _cv="" _rev=""
     _cv="$(cd "$src" && git describe --tags --abbrev=0 2>/dev/null || true)"
@@ -189,14 +181,9 @@ install_caelestia_plugin() {
     [[ -z "$_cv" ]] && _cv="0.0.0"
     [[ -z "$_rev" ]] && _rev="unknown"
     say "    编译 Caelestia QML 插件（约 1-3 分钟），version=$_cv rev=${_rev:0:7}"
-    # ⚠ -DENABLE_MODULES=plugin 是必须的，不是优化：
-    #   上游根 CMakeLists 默认 ENABLE_MODULES="extras;plugin;shell"，
-    #   其中 shell 会 add_subdirectory 整个 caelestia shell 应用
-    #   （assets/components/modules/services/utils）。我们要的只是 QML 模块
-    #   （Caelestia.Config / .Services / .Components / .Images / .Models /
-    #   .Blobs / .I18n），它们全在 plugin/ 下，与 shell/ 无依赖关系。
-    #   不限定的话会白编一个用不到的桌面 shell，多花几分钟，还多一堆
-    #   只有 shell 才需要的依赖。
+    # -DENABLE_MODULES=plugin 是必须的。上游默认编 extras;plugin;shell，
+    # shell 会 add_subdirectory 整个桌面应用。我们只要 plugin/ 下的 QML 模块，
+    # 不限定会白编一个用不到的 shell。
     local _cmake_args=(
         -S "$src" -B "$build" -G Ninja
         -DCMAKE_BUILD_TYPE=RelWithDebInfo
@@ -208,9 +195,8 @@ install_caelestia_plugin() {
     cmake --build "$build" --parallel \
         || die "Caelestia 插件编译失败，见上方输出。手动重试：cmake ${_cmake_args[*]} && cmake --build $build"
 
-    # 3b) 产物自检。没有它的话，一次"看起来成功但没产出"的编译会把 stamp
-    #     写下去，下一轮直接被当成"已编译"跳过 —— 插件对 qs 而言永远不存在，
-    #     而且是静默的。
+    # 产物自检。少了它，一次没真正产出的编译会写下 stamp，
+    # 下一轮被当成已编译跳过，插件永远不存在且静默。
     if ! compgen -G "$build/qml/Caelestia/*.so" >/dev/null; then
         die "编译结束但 $build/qml/Caelestia/*.so 不存在 —— 插件没有真正产出，见上方 cmake 输出。"
     fi
@@ -220,12 +206,11 @@ install_caelestia_plugin() {
 
 install_end4pc_shell() {
     local dst="$HOME/.config/quickshell/end4-pC"
-    # 无条件先清：即使底盘判定为"完整"而提前 return，历史上误拷进来的
-    # .git 也该走（它从来没被用过，只会占空间并被快照整包打包）。
+    # 先清 .git：即使底盘完整提前 return，历史上误拷进来的 .git
+    # 也该走，它只会占空间并被快照整包打包。
     cleanup_stray_git "$dst"
-    # ⚠ 命令替换里 set -e 不生效，但赋值语句的退出码取自替换结果，
-    #   所以 `|| true` 不能省：end4pc_base_missing 返回 1（=完整）时
-    #   会让 `missing=...` 整体非零退出。
+    # || true 不能省：赋值语句的退出码取自命令替换，
+    # end4pc_base_missing 返回 1（完整）会让整个赋值非零退出。
     local missing=""
     if [[ -e "$dst/shell.qml" ]]; then
         missing="$(end4pc_base_missing || true)"
@@ -238,15 +223,13 @@ install_end4pc_shell() {
         warn "  需要还原时跑：./install.sh rollback"
     fi
     say "    拉取 quickshell 底盘 (pctrade/end4-PC)"
-    # 注意：不能直接 clone 进 $dst —— 目录已存在且非空时 git clone 会失败，
-    # 而 set -e 会让整个安装中断。先克隆到临时目录再合并进去。
+    # 不能直接 clone 进 $dst：目录非空时 git clone 失败，
+    # set -e 会中断整个安装。先克隆到临时目录再合并。
     local tmp; tmp="$(mktmpd)"
     if git clone --depth=1 https://github.com/pctrade/end4-pC.git "$tmp/end4-PC"; then
         merge_clone_into "$tmp/end4-PC" "$dst"
-        # 覆盖完立刻自检：网络中断 / 磁盘满都可能让 cp 半途而废，
-        # 别让用户拿到一个"看起来装好了"的残缺树。
-        # ⚠ 基准是刚 clone 下来的那份（而不是硬编码清单），并且必须在
-        #   `rm -rf "$tmp"` 之前取值。
+        # 覆盖后立刻自检。基准是刚 clone 下来的那份而非硬编码清单，
+        # 且必须在 rm -rf "$tmp" 之前取值。
         missing="$(base_tree_missing "$tmp/end4-PC" "$dst" || true)"
     else
         rm -rf "$tmp"
@@ -286,9 +269,8 @@ install_caelestia_shell() {
 dotctl_setup_runtime() {
     local fonts_wanted="$1"
     FONTS="$fonts_wanted"
-# 霞鹜臻楷 GB：serif 别名首选字体，AUR 没有对应包，只能从上游 GitHub Release
-# 取。放在 fc-cache 之前，装完当次就能进缓存；已存在则跳过（不重复下载 17MB）。
-# 与字体链绑定（见 choose_fonts）：FONTS=0 时一个字节都不下。
+# 霞鹜臻楷 GB：serif 首选字体，AUR 无包，只能从 GitHub Release 取。
+# 放在 fc-cache 之前，装完当次进缓存。FONTS=0 时跳过。
 if fonts_enabled; then
     lxgw_zhenkai="$HOME/.local/share/fonts/LXGWZhenKaiGB-Regular.ttf"
     if [[ ! -e "$lxgw_zhenkai" ]]; then
@@ -303,25 +285,17 @@ if fonts_enabled; then
     fi
 fi
 
-# 字体缓存：pacman 装字体包时本身有 hook 会自动跑，这里再显式兜底一次，
-# 让用户手动放进 ~/.local/share/fonts/ 的字体在重跑脚本后也能生效。
-# 跳过字体时也跑：不动配置，只刷新缓存，对已有字体无副作用。
+# pacman 装字体有 hook 会跑 fc-cache，这里兜底一次，
+# 让手动放进 ~/.local/share/fonts/ 的字体也能生效。
 if have fc-cache; then
     fc-cache -f >/dev/null 2>&1 || true
     echo "    字体缓存已刷新（fc-cache -f）"
 fi
-# 文泉驿的系统级配置（65-wqy-zenhei.conf）编号 65，晚于用户配置的
-# 50-user.conf 加载，会用 <prefer> 把文泉驿 / DejaVu 顶到
-# serif / sans-serif / monospace 最前面，压制 ~/.config/fontconfig 的设置。
-# 现在 sans-serif / serif / monospace 都有明确首选（MiSans / 霞鹜臻楷 / Maple Mono），
-# 文泉驿属于更低质量的兜底，去掉它。
-# 失败不影响安装。
-# ⚠ 只在装了推荐字体时才动：FONTS=0 时文泉驿是系统里唯一的中文兜底，
-#   禁掉会让中文衬线/无衬线直接掉回默认字体，比不动更糟。
-# ⚠ 这里曾经是 `rm -f`：删掉系统文件不可逆，而且 /etc 是**整机共享**的，
-#   隔壁 niri/DMS 那套会话、甚至其它用户都会跟着变 —— 安装脚本只该管
-#   自己的 $HOME。改成改名禁用：fontconfig 只加载 `*.conf`，
-#   后缀一变就不再生效，文件仍在，一条命令就能恢复。
+# 65-wqy-zenhei.conf 编号 65，晚于用户的 50-user.conf，用 <prefer> 把文泉驿
+# 顶到 serif/sans-serif/monospace 最前，压制 ~/.config/fontconfig 的设置。
+#
+# 只在装推荐字体时才动：FONTS=0 时文泉驿是唯一的中文兜底，禁掉更糟。
+# 改名禁用而不是 rm：/etc 是整机共享的，且删除不可逆。
 wqy_conf="/etc/fonts/conf.d/65-wqy-zenhei.conf"
 if fonts_enabled && [[ -e $wqy_conf ]]; then
     if "${SUDO:-sudo}" mv -f "$wqy_conf" "$wqy_conf.disabled-by-dotfiles" 2>/dev/null; then
@@ -339,22 +313,15 @@ if [[ ! -x "$VENV/bin/python" ]]; then
     python -m venv "$VENV" \
         || die "创建 Python venv 失败（$VENV）。检查 python 是否完整（pacman -Q python）与磁盘是否可写。"
 fi
-# pypinyin            → 启动器的 app 中文名拼音搜索
-# dbus-python         → 同上（走 D-Bus 拿窗口/应用信息）
-# kde-material-you-colors → KDE/Qt 取色。switchwall.sh 会调
-#   matugen/templates/kde/kde-material-you-colors-wrapper.sh，而那个 wrapper
-#   第 70 行是 `command -v kde-material-you-colors || 跳过` —— 它是个 **pip 包**
-#   不是系统包，以前 venv 里没装，于是 KDE/Qt 配色每次都被静默跳过
-#   （日志里只有一句 "not installed in venv, skipping"，很容易漏掉）。
+# pypinyin                启动器的中文名拼音搜索
+# dbus-python             同上，走 D-Bus 拿窗口与应用信息
+# kde-material-you-colors KDE/Qt 取色。switchwall.sh 调的 wrapper 用
+#   command -v 探测它，是 pip 包不是系统包。缺了 KDE/Qt 配色会静默跳过。
 "$VENV/bin/pip" install --upgrade --quiet pypinyin dbus-python kde-material-you-colors \
     || warn "venv 依赖安装失败——启动器的 app 中文名拼音搜索、KDE/Qt 取色会受影响，其余功能不受影响"
 
-# 图标主题：WhiteSur-dark 提供全部图标，文件夹由 matugen 的
-# [templates.gtk-folder] 每次换壁纸重新着色（生成
-# ~/.local/share/icons/WhiteSur-Matugen-{A,B}，Inherits=WhiteSur-dark）。
-# 这里只负责触发一次，让新机器装完就有主题，不用等用户手动换壁纸。
-# switchwall.sh 是 end4-PC 底盘里的脚本，只有选了 end4-pC 才有；
-# caelestia / DMS 各自在首次换壁纸时触发 matugen，不需要这里代劳。
+# 触发一次 matugen 渲染，让新机器装完就有图标主题，不用等用户换壁纸。
+# switchwall.sh 只存在于 end4-PC 底盘；caelestia 与 DMS 在首次换壁纸时自行触发。
 if [[ "$QS_SHELL" == "end4-pC" && -f "$HOME/.config/illogical-impulse/config.json" ]]; then
     nohup bash "$HOME/.config/quickshell/end4-pC/scripts/colors/switchwall.sh" --noswitch \
         >/dev/null 2>&1 &
@@ -362,16 +329,12 @@ if [[ "$QS_SHELL" == "end4-pC" && -f "$HOME/.config/illogical-impulse/config.jso
 fi
 
 # ---------- QML 模块依赖自检 ----------
-# QML 的模块依赖是运行时解析的：缺一个 import 不会让 shell 启动失败，只会让
-# 「那一个文件」unavailable，然后引用它的东西连带失败 —— 日志里只有一行
-# `WARN scene: ... unavailable`，没有 ERROR，肉眼看到的是「某个组件凭空消失」。
-# 历史上踩过两次：Caelestia 插件（锁屏整个加载不出来）、kirigami
-# （AppIcon.qml 的根类型就是 Kirigami.Icon → Bar 的 workspaces 消失）。
+# QML 模块缺失不会让 shell 启动失败，只会让那个文件 unavailable，
+# 引用它的组件连带消失，日志里只有一行 WARN scene。
 #
-# 更麻烦的是这类缺失在**装过 KDE/Plasma 的机器上不会暴露**（被全家桶顺带补上），
-# 只有纯净安装才看得见。所以这里显式核一遍，把缺的包名和补救命令直接打出来。
+# 这类缺失在装过 Plasma 的机器上不会暴露（被全家桶补上），只有纯净安装才看得见。
 #
-# 只对 quickshell 会话跑：dms 不用 quickshell，没有这套 QML 模块。
+# 只对 quickshell 会话跑，dms 不用这些模块。
 if [[ "$QS_SHELL" != "dms" && -x "$SRC/check-qml-deps.py" ]]; then
     local qml_report qml_rc
     qml_report="$("$SRC/check-qml-deps.py" --quiet 2>&1)"

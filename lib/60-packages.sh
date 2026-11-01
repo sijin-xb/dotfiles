@@ -1,11 +1,10 @@
 # ============================================================
-# 包列表（原 §2 尾部）
-# 各 *_pkgs() 只负责「打印包名」，装包流程在 cmd_install / update。
+# 包列表
+# 各 *_pkgs() 只打印包名，装包流程在 cmd_install / update。
 # ============================================================
 
-# 依据 $COMPOSITOR 给出需要装的**官方仓库**包（合成器本体 + 对应 xdg-desktop-portal）。
-# ⚠ niri 的本体不在这里：本机用的是 AUR 的 fork（见 compositor_aur_pkgs），
-#   官方仓库这边只留 portal。
+# 官方仓库包：合成器本体 + 对应 portal。
+# niri 本体不在这里，见 compositor_aur_pkgs。
 compositor_pkgs() {
     case "$COMPOSITOR" in
         niri) echo "xdg-desktop-portal-gnome" ;;
@@ -13,22 +12,15 @@ compositor_pkgs() {
     esac
 }
 
-# 合成器本体的 AUR 包（官方仓库那侧只放 portal / 依赖）。
+# 合成器本体的 AUR 包。
 #
-#   niri → niri-shorin-fork-git：SHORiN-KiWATA/niri。本仓库的 niri 配置依赖
-#          它独有的几项，换成上游 niri 或 losnoco 的 niri-spicy-git 都会因
-#          未知配置项**拒绝加载整份配置**：
-#            - magnifier / adjust-magnifier-zoom / toggle-magnifier
-#            - grid-overview（及 grid-overview-open-close、ignore-grid-overview、
-#              toggle-grid-overview）—— 「窗口总览」就是它
-#            - cursor 的 shake-to-enlarge
-#            - screen-cast-picker（配色节点，matugen 模板里也有一份）
-#            - 单独一个 Mod 键的绑定（轻触 Super → 启动器）
-#          它 provides niri / conflicts niri，与官方 niri、niri-bin、
-#          niri-spicy-git 都不能共存 —— 换装前先卸掉旧的那个。
+# niri-shorin-fork-git 提供本仓库 niri 配置依赖的扩展：magnifier、
+# grid-overview、cursor shake-to-enlarge、screen-cast-picker 配色、单 Mod 键绑定。
+# 换上游 niri 或 niri-spicy-git 会因未知配置项拒绝加载整份配置。
+# 它 provides/conflicts niri，换装前先 sudo pacman -Rdd 旧包。
 #
-# ⚠ 换分支时要同步改这里，并按上面的清单增删 dot_config/niri/** 里的节点，
-#   改完务必 `niri validate`。
+# 换分支时同步改这里，并按上述扩展增删 config/desktop/niri/ 里的节点，
+# 改完跑 niri validate。
 compositor_aur_pkgs() {
     case "$COMPOSITOR" in
         niri) echo "niri-shorin-fork-git" ;;
@@ -36,41 +28,26 @@ compositor_aur_pkgs() {
     esac
 }
 
-# 各 shell 专属的 AUR 包（通用 AUR 包见 [2/7] 的固定列表）。
+# 各 shell 专属的 AUR 包。
 #
-# ⚠ libcava / qt6-m3shapes-git **不是 caelestia 专属**：
-#   - libcava           → Caelestia QML 插件编译依赖（pkg_check_modules Cava）
-#   - qt6-m3shapes-git  → 锁屏形变动画（MaterialShape）的运行时依赖
-#   end4-pC 的锁屏就是从 caelestia vendor 来的（modules/ii/lock/caelestia/**），
-#   同时依赖这两者。历史上只在 caelestia 分支装，导致 end4-pC 用户既装不了
-#   插件（锁屏 import Caelestia.Config 失败）也缺 MaterialShape。
-#   现在放到 [2/7] 的公共 AUR 列表里（见 base_aur_pkgs），不再按 shell 分支。
+# libcava 与 qt6-m3shapes-git 放在 [2/7] 的公共列表（base_aur_pkgs），不按 shell 分支：
+# libcava 是 Caelestia QML 插件的编译依赖，qt6-m3shapes-git 是锁屏形变动画的
+# 运行时依赖。end4-PC 的锁屏从 caelestia vendor 而来，两者都需要。
 #
-#   dms:  DankMaterialShell 本体 + niri 集成包。用 -git 而不是稳定版：
-#         DMS 迭代很快，稳定版往往落后几个小版本，而 niri 侧的
-#         config.kdl / dms/binds.kdl 是按新版写的（键位、ipc 目标会对不上）。
+# dms 用 -git 版：DMS 迭代快，稳定版落后几个小版本，niri 侧的 config.kdl 与
+# dms/binds.kdl 按新版写，键位和 ipc 目标会对不上。
 #
-#         nirius   → niri 的配套工具。niri/binds.kdl 里有 4 个键位直接 spawn 它：
-#                    Mod+Ctrl+G `nirius toggle-follow-mode`
-#                    Mod+Shift+Q/O/W `nirius focus --app-id <QQ|opencode|wechat>`
-#                    缺了这几个键位就是「按了没反应」，且 niri 不会报错。
-#         awww-git → niri 侧的壁纸后端。scripts/niri_set_overview_blur_dark_bg.sh
-#                    里 WALLPAPER_BACKEND="awww"、scripts/matugen-update.sh 用
-#                    `awww query` 取当前壁纸；install.sh 只装了 mpvpaper（视频
-#                    壁纸），静态壁纸后端以前一直是空的。
+# nirius    niri/binds.kdl 有 4 个键位直接 spawn 它，缺了按键无反应且 niri 不报错
+# awww-git  niri 侧静态壁纸后端。install.sh 只装 mpvpaper（视频壁纸），
+#           没有 awww 时静态壁纸为空
 #                    ⚠ 包名是 awww-git：AUR 上没有叫 awww 的包。
 #
-#   end4-PC: plasma6-themes-colloid-git —— Kvantum 的 Colloid 基底主题。
-#            end4-pC 的 Qt 配色链路（scripts/kvantum/materialQT.sh）把
-#            material_colors.scss 重着色到 MaterialAdw 主题上，而 MaterialAdw
-#            是 **Colloid 的副本**，没有基底就无从生成。
-#            ⚠ 它提供的是 Colloid-kde（vinceliuice/Colloid-kde），装到
-#               /usr/share/Kvantum/Colloid/。AUR 上**没有**只含 Kvantum 部分的
-#               Colloid 包：colloid-gtk-theme-git 的仓库里根本没有 Kvantum 目录，
-#               所以只能装这个（会顺带带上 aurorae / plasma / sddm 主题，
-#               不用 Plasma 也用不到，属于可接受的代价）。
-#            ⚠ 只有 end4-PC 需要：caelestia 没有 scripts/kvantum/ 这条链路
-#               （见 skip_by_shell 对 dot_config/quickshell/end4-pC/** 的过滤）。
+#   end4-PC: plasma6-themes-colloid-git 提供 Kvantum 的 Colloid 基底主题。
+#            scripts/kvantum/materialQT.sh 把 material_colors.scss 重着色到
+#            MaterialAdw（Colloid 的副本），没有基底就生成不了。
+#            AUR 上没有只含 Kvantum 部分的 Colloid 包，只能装这个，
+#            会顺带带上 aurorae / plasma / sddm 主题。
+#            只有 end4-PC 需要，caelestia 没有 scripts/kvantum/ 链路。
 shell_aur_pkgs() {
     case "$QS_SHELL" in
         caelestia) echo "" ;;
@@ -80,10 +57,8 @@ shell_aur_pkgs() {
     esac
 }
 
-# **所有** quickshell 会话（end4-pC / caelestia）都需要的 AUR 包。
-# dms 走 niri + DankMaterialShell，不用 quickshell，因此跳过。
-# 见上面 shell_aur_pkgs 的说明：这两者服务于 Caelestia 插件 / 锁屏，与具体
-# 选哪个 quickshell shell 无关。
+# quickshell 会话（end4-PC / caelestia）共用的 AUR 包，服务于 Caelestia 插件与锁屏。
+# dms 不用 quickshell，跳过。
 base_aur_pkgs() {
     case "$QS_SHELL" in
         dms) echo "" ;;
@@ -91,47 +66,27 @@ base_aur_pkgs() {
     esac
 }
 
-# 各 shell 专属的 pacman 包（官方仓库）。
+# 各 shell 专属的官方仓库包。
 #
-# ⚠ 同 shell_aur_pkgs：`aubio` / `libqalculate` / `libpipewire` / `lm_sensors` /
-#   `fftw` / `spirv-tools` 是 **Caelestia 插件编译与运行的依赖**
-#   （plugin/CMakeLists.txt 里 pkg_check_modules 要求 libqalculate / aubio /
-#   libpipewire，缺一个 CMake 直接 FATAL_ERROR），而 end4-pC 也编这个插件。
-#   所以它们进了 [2/7] 的公共列表（见 base_pacman_pkgs），不在这里按分支给。
+# aubio / libqalculate / libpipewire / lm_sensors / fftw / spirv-tools 是 Caelestia
+# 插件的编译依赖（plugin/CMakeLists.txt 的 pkg_check_modules 缺一个就 FATAL_ERROR），
+# end4-PC 也编这个插件，所以放在 base_pacman_pkgs。
 #
-#   dms:  gpu-screen-recorder —— DMS quickCapture 插件录屏**带声音**的前提，
-#         默认键位 Ctrl+Alt+R（见 dot_config/niri/dms/binds.kdl）。不装也能录，
-#         但会回退到 wf-recorder（CPU 编码、纯画面无声音）；插件按
-#         command -v 探测，装了就自动优先用它。
+# dms:  gpu-screen-recorder 是 DMS quickCapture 录屏带声音的前提，默认键位 Ctrl+Alt+R。
+#       不装也能录，但回退到 wf-recorder（CPU 编码、无声音）。插件用 command -v 探测。
 #
-#   end4-PC: kvantum + kvantum-qt5 —— Qt 应用的 SVG 主题引擎。
-#         end4-pC 的取色链路末端（switchwall.sh 的 post_process →
-#         scripts/kvantum/materialQT.sh）会把 material_colors.scss 落到
-#         MaterialAdw 主题上，再由 kvantummanager 通知 Qt 应用重新读取。
-#         缺了它，MaterialAdw 写出来也没人读，Qt 应用永远停在 Colloid 原色。
-#         kvantum-qt5 是给 Qt5 应用用的（Qt6 由 kvantum 提供），两者一起装
-#         才覆盖完整。同样只有 end4-PC 需要。
+# end4-PC: kvantum + kvantum-qt5 是 Qt 的 SVG 主题引擎。取色链路末端
+#       （switchwall.sh -> scripts/kvantum/materialQT.sh）把配色落到 MaterialAdw，
+#       再由 kvantummanager 通知 Qt 应用重读。缺了 Qt 应用停在 Colloid 原色。
 #
-#         qt6-positioning / kirigami / syntax-highlighting —— QML 模块依赖，
-#         quickshell **不会**带进来（它们不在 quickshell 的依赖列表里）：
-#           qt6-positioning      → services/Weather.qml 的 `import QtPositioning`
-#                                  用的是 PositionSource（GPS 定位）。模块缺失
-#                                  会让整个 Weather.qml 变 unavailable，所有
-#                                  天气组件连带挂掉。
-#           kirigami             → modules/common/widgets/AppIcon.qml 的**根类型**
-#                                  就是 Kirigami.Icon。它一挂，引用它的
-#                                  modules/ii/bar/Workspaces.qml 一起 unavailable
-#                                  → 栏左侧工作区指示器整个消失（没有 ERROR，
-#                                  只有一行 WARN scene: ... unavailable）。
-#           syntax-highlighting  → aiChat/MessageCodeBlock.qml 的代码块高亮。
-#
-#         ⚠ 这三个在本机「看起来不缺」，是因为装了 KDE/Plasma 全家桶
-#           （kirigami 被 36 个 Plasma 包依赖、syntax-highlighting 被 kate 依赖、
-#           qt6-positioning 被 plasma-workspace 依赖）。**纯净安装的机器上会缺。**
-#         ⚠ 别把它们挪进 base_pacman_pkgs()：caelestia 完全不 import 这三个
-#           模块，没有理由让 caelestia 用户多背 19MB。
-#         ⚠ 新增任何 `import <Qt 模块>` 都要回来核一遍这里 —— install.sh 末尾
-#           的 [7/7] 会跑 scripts/check_qml_deps.py 自动扫，缺了会直接报出来。
+#       qt6-positioning / kirigami / syntax-highlighting 是 QML 模块依赖，
+#       quickshell 不会带进来：
+#         qt6-positioning      Weather.qml 的 import QtPositioning，缺了整个天气组件挂掉
+#         kirigami             AppIcon.qml 的根类型是 Kirigami.Icon，缺了栏左侧工作区指示器消失
+#         syntax-highlighting  aiChat/MessageCodeBlock.qml 的代码块高亮
+#       本机看起来不缺是因为装了 Plasma 全家桶，纯净安装会缺。
+#       不要挪进 base_pacman_pkgs：caelestia 不 import 这三个模块。
+#       新增 import 后 [7/7] 会跑 check_qml_deps.py 扫出来。
 shell_pacman_pkgs() {
     case "$QS_SHELL" in
         caelestia) echo "" ;;
@@ -141,8 +96,7 @@ shell_pacman_pkgs() {
     esac
 }
 
-# **所有** quickshell 会话（end4-pC / caelestia）都需要的官方仓库包。
-# 即 Caelestia 插件的编译 / 运行依赖。dms 不编插件，跳过。
+# quickshell 会话共用的官方仓库包，即 Caelestia 插件的编译与运行依赖。
 base_pacman_pkgs() {
     case "$QS_SHELL" in
         dms) echo "" ;;
@@ -151,8 +105,11 @@ base_pacman_pkgs() {
 }
 
 # ============================================================
-# 固定包列表（与所选会话无关的那部分）
+# 固定包列表（与所选会话无关）
 # ============================================================
+#
+# 抽成函数是为了让 update --with-packages 复用同一份列表，
+# 否则会出现「配置更新了、依赖没装」的静默故障。
 #
 # 抽成函数是为了让 `update --with-packages` 也能用同一份列表：
 # 升级时新版本新增的依赖必须补上，否则就是「配置更新了、依赖没装」的静默故障。
@@ -224,7 +181,7 @@ fixed_pacman_pkgs() {
 #                       直接调它，RegionSelection 也用 `pidof wf-recorder` 判断
 #                       录制状态；dms 用 gpu-screen-recorder，多装一个不碍事。
 #   wget                fish 的 `wget` 包装函数（下载进度上报灵动岛，见
-#                       dot_config/fish/functions/wget.fish）内部是 `command wget`，
+#                       config/fish/functions/wget.fish）内部是 `command wget`，
 #                       缺了那个函数直接失效。脚本自身只用 curl，以前一直靠依赖
 #                       顺带带入。
 #   songrec             Shazam 客户端，end4-PC 的音乐识别
@@ -234,7 +191,7 @@ fixed_pacman_pkgs() {
 #                       docs/login-screen.md）。注意：若机器上用的是 plasmalogin
 #                       （KDE 新版 DM），两者可共存，切换只需 systemctl
 #                       disable/enable，见文档。
-#   neovim 生态         配置在 dot_config/nvim/（LazyVim）。**编辑器本体必须在这里
+#   neovim 生态         配置在 config/nvim/（LazyVim）。**编辑器本体必须在这里
 #                       显式声明**：之前只跟踪了配置、没跟踪包，新机器装完是
 #                       「有配置、没编辑器」，而且 install.sh 不会报任何错
 #                       —— 和字体漏装是同一类静默故障。
@@ -245,7 +202,7 @@ fixed_pacman_pkgs() {
 #                                （LazyVim 有 executable 守卫）。
 #                       tree-sitter-cli：手动编译/调试语法解析器用。
 #   neovide             nvim 的 GUI 前端。字体对齐 kitty，见
-#                       dot_config/neovide/config.toml。
+#                       config/neovide/config.toml。
 #   cmake ninja         quickshell 源码编译工具链（三级回退时使用，平时不碍事）。
 
 # 固定 AUR 包（matugen 取色 / mpvpaper 视频壁纸 / walker 启动器 /

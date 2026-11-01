@@ -1,119 +1,113 @@
 # ============================================================
-# 帮助打印（原 §5）
+# 帮助打印
 # ============================================================
-# ============================================================
-# 5. 帮助打印（CLI 层）
-# ============================================================
-# ⚠ 提示语里的「调用者路径」用 ${DOTCTL_SELF:-$0} 而不是裸 $0：
-#   已迁移到 Python 的子命令（rollback / restore …）要打印同一份帮助，而
-#   Python 侧是用 `bash -c ... source install.sh` 调过来的 —— 那种情况下
-#   $0 必须是占位名，不能是安装器路径：install.sh 顶层的「是否直接执行」
-#   守卫判的是 `BASH_SOURCE[0] == $0`，source 时 BASH_SOURCE[0] 正是安装器
-#   路径，$0 一旦相同就会被误判成「直接执行」，顶层 main 立刻跑起来把这次
-#   调用吃掉（实测：help_text 返回空、退出码 2）。
-#   所以名字改由 DOTCTL_SELF 传，没设时退回 $0（bash 直接调用时就是它）。
+# 提示语里的调用者路径用 ${DOTCTL_SELF:-$0} 而不是裸 $0：
+# Python 侧通过 `bash -c ... source install.sh` 调用，此时 $0 必须与
+# BASH_SOURCE[0] 不同，否则 install.sh 顶层的「是否直接执行」守卫会误判成
+# 直接执行并跑起 main，吃掉这次调用。
 print_help() {
     cat <<EOF
-sijin-xb's dotfiles 自部署脚本 —— Rice 版本: ${RICE_VERSION}
-
-核心特性：桌面歌词逐字卡拉OK ·
-         拼音搜索启动器 · SUPER+T 终端召唤 · matugen Material 3 全局取色
+sijin-xb's dotfiles 安装器 —— 版本 ${RICE_VERSION}
 
 用法：
-  ${DOTCTL_SELF:-$0}                    进入 TUI 二级菜单（推荐新手）
-  ${DOTCTL_SELF:-$0} --tui              同上
-  ${DOTCTL_SELF:-$0} install            一键安装（7 步）
-                          默认不滚动系统；FULL_UPGRADE=1 ${DOTCTL_SELF:-$0} install 则执行 pacman -Syu
-  ${DOTCTL_SELF:-$0} update             增量升级（见下）
-  ${DOTCTL_SELF:-$0} rollback / restore / archive / uninstall   见下
-  ${DOTCTL_SELF:-$0} status             当前部署状态一览：会话 / 清单 / 版本 / 快照 / 占用（只读）
-  ${DOTCTL_SELF:-$0} doctor             环境体检：缺哪些包、配置在不在、QML 模块齐不齐（只读）
-  ${DOTCTL_SELF:-$0} deps [--missing]   列出当前会话需要的依赖包；--missing 只看缺口（只读）
-  ${DOTCTL_SELF:-$0} theme              图标 / 光标 / GTK 主题在 9 个 sink 里的取值与一致性（只读）
-  ${DOTCTL_SELF:-$0} clean [--all]      清理临时残留；--all 连自举缓存、旧快照、旧备份一起清
+  ${DOTCTL_SELF:-$0}                     TUI 菜单
+  ${DOTCTL_SELF:-$0} install             完整安装（7 步）
+                                         默认不升级系统；FULL_UPGRADE=1 则先 pacman -Syu
+  ${DOTCTL_SELF:-$0} update              增量同步文件层
+  ${DOTCTL_SELF:-$0} rollback            还原到上次 install 之前
+  ${DOTCTL_SELF:-$0} restore             撤销 rollback
+  ${DOTCTL_SELF:-$0} archive [-o 路径]   打包配置、状态、缓存为 tar.gz
+  ${DOTCTL_SELF:-$0} uninstall           卸载（可先存档）
+  ${DOTCTL_SELF:-$0} status              部署状态：会话、清单、版本、快照、占用
+  ${DOTCTL_SELF:-$0} doctor              环境体检：缺包、配置缺失、QML 模块
+  ${DOTCTL_SELF:-$0} deps [--missing]    依赖包列表
+  ${DOTCTL_SELF:-$0} theme               图标、光标、GTK 主题在 9 个位置的取值
+  ${DOTCTL_SELF:-$0} clean [--all]       清理临时残留
 
-单文件运行（自举）：
-  只把 install.sh 这一个文件捞下来也能跑 —— 它会自己 clone 仓库到
-  ~/.local/share/dotfiles-src，然后用仓库里那份（更新的）脚本重跑自己：
+status / doctor / deps / theme 只读。
 
-    curl -fsSL https://raw.githubusercontent.com/sijin-xb/dotfiles/main/install.sh \
+单文件运行：
+  只下载 install.sh 也能跑。它会 clone 仓库到 ~/.local/share/dotfiles-src，
+  再用仓库里那份重新执行：
+
+    curl -fsSL https://raw.githubusercontent.com/sijin-xb/dotfiles/main/install.sh \\
         | bash -s -- update
 
-  · 想换仓库地址：DOTFILES_REPO_URL=... 或改仓库缓存位置 DOTFILES_SRC_DIR=...
-  · 想彻底重置自举缓存：rm -rf ~/.local/share/dotfiles-src
-  · 在仓库里正常执行时这一步是 0 开销（只做一次文件存在性判断）。
+  DOTFILES_REPO_URL=...   换仓库地址
+  DOTFILES_SRC_DIR=...    换缓存位置
+  rm -rf ~/.local/share/dotfiles-src   重置缓存
 
 环境变量：
+
   SESSION=end4pc|caelestia|dms
-                             选择要安装的会话（合成器 + 桌面 Shell），三选一：
-                             · end4pc   → Hyprland + quickshell（end4-PC 底盘）
-                                          默认；配置入口 ~/.config/hypr/hyprland.lua
-                                          + ~/.config/quickshell/end4-pC
-                             · caelestia → Hyprland + caelestia shell
-                                          shell clone 到 ~/.config/quickshell/caelestia
-                             ⚠ end4pc 与 caelestia 都会把 Caelestia QML 插件
-                             编译到 ~/src/caelestia-build（end4-PC 的锁屏硬依赖
-                             import Caelestia.Config），dms 不需要。
-                             · dms      → niri + DankMaterialShell（DMS）
-                                          配置入口 ~/.config/niri/config.kdl
-                             设定后跳过交互提问，适合脚本/无人值守重装。
-                             例：SESSION=caelestia ./install.sh install
-                             未设置时会在 [1/7] 步交互询问。
-                             ⚠ 只部署**选中的那套**：合成器与 shell 的另一套
-                             都不碰，避免覆盖机器上已有的配置。
-  COMPOSITOR=niri|hyprland   [兼容旧写法] 等价于 SESSION=dms / SESSION=end4pc。
-  INSTALL_BOTH_COMPOSITORS=1 两套合成器配置都部署（默认只部署选中的那套）。
-                              机器上同时用 Hyprland 和 niri 时用它。
-  FONTS=0|1                   是否安装推荐字体（pacman 字体包 + AUR 字体链 +
-                              霞鹜臻楷 GB 下载 + 移除 65-wqy-zenhei.conf）。
-                              · 不设置：执行到时交互询问 [Y/n]
-                              · FONTS=0：一个字体包都不碰，适合已有字体方案的机器
-                              · FONTS=1：跳过询问直接装（等价旧行为）
-                              · 非交互执行（管道 / 重定向）时无法询问，兜底为 1
-                              TUI 的「执行安装」页按 f 可随时切换。
-  FULL_UPGRADE=1             安装时执行 pacman -Syu 全系统升级（默认只装缺失项）
-  ${DOTCTL_SELF:-$0} update [选项]       升级：只做**文件层**的增量同步，不重装包、不重拉底盘
-                          默认在仓库里跑（先 git pull 再 update 即可拿到新版配置）
-                          --dry-run         只打印会改什么，一个字节都不写
-                          --pull            先 git pull 拉最新提交再同步
-                          --with-packages   顺便补齐新增的依赖包（只补不卸）
-                          --no-prune        不做「仓库已删除文件」的清理
-                          --force           版本号没变也照跑
-                          --yes, -y         不交互确认
-                          依赖部署清单区分「新增 / 更新 / 删除」：
-                            ~/.local/state/dotfiles-backup/state/deployed-<shell>-<comp>.tsv
-                          删除项一律**移到备份**（$BACKUP_ROOT/update-<时间戳>/removed/），
-                          不 rm；升级前自动快照，出问题 ${DOTCTL_SELF:-$0} rollback 一条命令还原。
-  ${DOTCTL_SELF:-$0} rollback           回档：还原到最近一次 install 之前的状态
-                           （执行前会自动保存 pre-rollback 快照供 restore 用）
-  ${DOTCTL_SELF:-$0} restore            恢复：回档后，还原回 rollback 之前的 rice 状态
-  ${DOTCTL_SELF:-$0} archive [-o TAR.GZ] [--delete]
-                        打包存档 rice 所有配置/数据/状态文件到 ~/dotfiles-archive-<时间戳>.tar.gz
-                          -o PATH     自定义输出路径
-                          --delete     打包成功后清理源文件（可用于彻底卸载前备份）
-  ${DOTCTL_SELF:-$0} uninstall          卸载 rice（询问是否先存档 → 删除源路径）
-  ${DOTCTL_SELF:-$0} -h, --help         显示本帮助
+      选择会话（合成器 + 桌面 shell），三选一。
+
+      end4pc      Hyprland + quickshell（end4-PC 底盘），默认
+                  入口 ~/.config/hypr/hyprland.lua、~/.config/quickshell/end4-pC
+      caelestia   Hyprland + caelestia shell
+                  shell clone 到 ~/.config/quickshell/caelestia
+      dms         niri + DankMaterialShell
+                  入口 ~/.config/niri/config.kdl
+
+      end4pc 与 caelestia 会把 Caelestia QML 插件编译到 ~/src/caelestia-build
+      （end4-PC 的锁屏依赖 import Caelestia.Config），dms 不需要。
+
+      不设置时在 [1/7] 步交互询问。只部署选中的那套，另一套的配置不动。
+
+  COMPOSITOR=niri|hyprland
+      旧写法，等价于 SESSION=dms / SESSION=end4pc。
+
+  INSTALL_BOTH_COMPOSITORS=1
+      两套合成器配置都部署。
+
+  FONTS=0|1
+      是否安装推荐字体（pacman 字体包、AUR 字体链、霞鹜臻楷 GB，并移除
+      65-wqy-zenhei.conf）。
+
+      不设置   到时交互询问 [Y/n]
+      0        不碰任何字体包
+      1        直接装
+
+      非交互执行时兜底为 1。TUI 的「执行安装」页按 f 切换。
+
+  FULL_UPGRADE=1
+      安装时执行 pacman -Syu 全系统升级。默认只装缺失项。
+
+update 选项：
+  --dry-run          只打印计划，不写文件
+  --pull             先 git pull
+  --with-packages    补齐新增依赖（只补不卸）
+  --no-prune         不清理仓库已删除的文件
+  --force            版本号没变也执行
+  --yes, -y          不交互确认
+
+  部署清单记录新增 / 更新 / 删除，存放在
+  ~/.local/state/dotfiles-backup/state/deployed-<shell>-<comp>.tsv。
+  删除项移到 $BACKUP_ROOT/update-<时间戳>/removed/，不直接 rm。
+  升级前自动快照，出问题用 rollback 还原。
+
+archive 选项：
+  -o PATH            输出路径
+  --delete           打包后清理源文件
 
 环境要求：
-  · Arch Linux 系（/etc/arch-release 必须存在）
-  · Wayland 会话；安装目标为 Hyprland 或 niri + 对应桌面 Shell
-    （Hyprland + quickshell end4-PC / Hyprland + caelestia / niri + DMS）
-  · 普通用户执行（不要 root），需有 sudo 权限用于 pacman
+  Arch 系（/etc/arch-release 存在）
+  Wayland 会话
+  普通用户执行，需 sudo 权限装包
 
-目录说明：
-  · ~/.config/hypr/hyprland.lua     Hyprland 配置入口
-  ·     custom/general.lua          用户差异层（blur / 阴影等高级参数放这里）
-  ·     hyprland/shellOverrides/    quickshell 设置面板写入的值（优先级最高）
-  · ~/.config/quickshell/end4-pC/   quickshell 底盘 + 本仓库的差异层（end4pc）
-  · ~/.config/quickshell/caelestia/ caelestia shell 本体（caelestia）
-  · ~/.config/niri/config.kdl       niri 配置入口（dms）
-  · ~/.local/state/dotfiles-backup/  回档 / 卸载存档 / 备份目录
+目录：
+  ~/.config/hypr/hyprland.lua       Hyprland 入口
+  ~/.config/hypr/custom/            用户差异层（blur、阴影等）
+  ~/.config/hypr/hyprland/shellOverrides/   quickshell 设置面板写入的值
+  ~/.config/quickshell/end4-pC/     quickshell 底盘与差异层
+  ~/.config/quickshell/caelestia/   caelestia shell
+  ~/.config/niri/config.kdl         niri 入口
+  ~/.local/state/dotfiles-backup/   回档、卸载存档、备份
 
-FAQ：
-  1) 回档后想回到 rice？ → 运行 ${DOTCTL_SELF:-$0} restore
-  2) 存档默认位置？       → ~/dotfiles-archive-YYYYMMDD-HHMMSS.tar.gz
-  3) 面板模糊太浓？       → quickshell 设置 → Hyprland：模糊半径 10→8，活动不透明度 82→88
+常见问题：
+  回档后想回到 rice           → ${DOTCTL_SELF:-$0} restore
+  存档默认位置                → ~/dotfiles-archive-YYYYMMDD-HHMMSS.tar.gz
+  面板模糊太浓                → quickshell 设置 → Hyprland：模糊半径 10→8，活动不透明度 82→88
 
 EOF
 }
-

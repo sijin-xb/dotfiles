@@ -163,7 +163,7 @@ def run(argv: list[str]) -> int:
         target_rel = deploy._rel_from_home(dst)
         if rel in skip_rels:
             # 合成器 / shell 维度的跳过分别计数（bash 是两个计数器）
-            if rel.startswith('dot_config/hypr/') or rel.startswith('dot_config/niri/'):
+            if rel.startswith('config/hypr/') or rel.startswith('config/niri/'):
                 skipped += 1
             else:
                 skipped_shell += 1
@@ -202,7 +202,7 @@ def run(argv: list[str]) -> int:
     bashsrc.call_streaming('dotctl_setup_runtime', '1' if _fonts_enabled() else '0')
     # ⚠ QML 自检**不要**在这里再调一次：它属于 [6/7] 尾部，已随
     #   dotctl_setup_runtime 一起抽到 bash 侧（那边就是原 cmd_install 的
-    #   那段代码）。第一版两边都跑，于是「QML 模块依赖自检：齐全」打了两遍。
+    #   那段代码）。两边都跑会让自检结果打印两遍。
 
     # ── [7/7] 收尾 ──────────────────────────────────────────────
     _step('7', '完成！接下来的步骤：')

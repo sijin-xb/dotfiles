@@ -45,7 +45,7 @@ set -uo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC="$HOME/.config/DankMaterialShell/plugins"
-DST="$REPO_DIR/dot_config/DankMaterialShell/plugins"
+DST="$REPO_DIR/config/desktop/DankMaterialShell/plugins"
 
 DO_IT=0; PRUNE=0; VERBOSE=0; WITH_META=0; WITH_CACHE=0
 for a in "$@"; do
@@ -184,8 +184,8 @@ fi
 say
 if (( DO_IT )); then
     say "工作区已改好，没有自动提交。核验与提交："
-    say "  git -C '$REPO_DIR' status --short -- dot_config/DankMaterialShell/plugins"
-    say "  git -C '$REPO_DIR' add -A dot_config/DankMaterialShell/plugins && git commit"
+    say "  git -C '$REPO_DIR' status --short -- config/desktop/DankMaterialShell/plugins"
+    say "  git -C '$REPO_DIR' add -A config/desktop/DankMaterialShell/plugins && git commit"
 else
     say "确认无误后执行： bash $0 --yes"
 fi
