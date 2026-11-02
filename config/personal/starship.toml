@@ -41,10 +41,10 @@ tag_symbol = " "
 format = '[\($state( $progress_current of $progress_total)\)]($style) '
 cherry_pick = "[🍒 PICKING](bold fg:#ffb4ab)"
 
-# 不带端符：format 里的字符是写死的，加了端符会在干净仓库留一个空胶囊。
-# 状态值自带尾随空格，靠它和前面的 branch 胶囊拉开间距。
+# 整个胶囊包在条件组里：条件组自身为空时连端符一起不渲染，
+# 干净仓库不会留空胶囊。状态值自带尾随空格，靠它拉开与 branch 的间距。
 [git_status]
-format = '[$all_status$ahead_behind]($style)'
+format = '([](bold fg:#c2c8c7)[$all_status$ahead_behind](fg:#1c2222 bg:#c2c8c7)[ ](bold fg:#c2c8c7))'
 style = "fg:#1c2222 bg:#c2c8c7"
 conflicted = "🏳 "
 ahead = "🏎💨 "
