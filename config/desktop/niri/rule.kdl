@@ -83,10 +83,20 @@ window-rule {
 }
 // 取消特定软件的背景透明度（opacity 同样已移到 blur.kdl）
 window-rule {
-    match app-id="mpv"
     match app-id="celluloid"
     match app-id="virt-manager"
     // opacity 1.0  → blur.kdl
+}
+
+// mpv：浮动 + 铺满可用区域。
+// 平铺模式下新窗口落在 50% 宽的列里，播放器被压成半屏；mpv 的 autofit-larger
+// 只是建议值，平铺时被合成器忽略。尺寸必须在这里定。
+// proportion 1.0 = 输出宽度减去 gaps 和 DMS 栏，不是全屏（全屏另有 open-fullscreen）。
+window-rule {
+    match app-id="mpv"
+    open-floating true
+    default-column-width { proportion 1.0; }
+    default-window-height { proportion 1.0; }
 }
 
 // 已移除（2026-09-23）：给 niri-sidebar 用的浮动窗口最小尺寸规则
