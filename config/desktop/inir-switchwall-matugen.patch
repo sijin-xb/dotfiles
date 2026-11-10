@@ -1,0 +1,71 @@
+diff --git a/scripts/colors/switchwall.sh b/scripts/colors/switchwall.sh
+index fd6509a..b898498 100755
+--- a/scripts/colors/switchwall.sh
++++ b/scripts/colors/switchwall.sh
+@@ -683,6 +683,66 @@ switch() {
+         read max_width_desired max_height_desired <<< "$(get_max_monitor_resolution)"
+         post_process "$max_width_desired" "$max_height_desired" "$imgpath"
+     fi
++
++    run_user_matugen "$imgpath" "$mode_flag" "$type_flag" "$color_flag" "$color"
++}
++
++# 用户自己的 matugen 模板链（~/.config/matugen/config.toml）。
++# inir-accel 只认 templates.json，不认 matugen 的 config.toml，所以 40 个用户模板
++# 不会被它渲染。这里补一遍，源色复用 inir-accel 刚写出的 colors.json，保证两边同色。
++run_user_matugen() {
++    local img="$1" mode="$2" type="$3" color_flag="$4" color="$5"
++    local cfg="$HOME/.config/matugen/config.toml"
++    local filter="$HOME/.config/quickshell/end4-pC/scripts/colors/filter_matugen_templates.py"
++    local effective="$HOME/.cache/matugen-effective.toml"
++    command -v matugen >/dev/null 2>&1 || return 0
++    [[ -f "$cfg" ]] || return 0
++
++    local -a margs=()
++    if [[ "$color_flag" == "1" && -n "$color" ]]; then
++        margs=(color hex "$color")
++    else
++        [[ -n "$img" && -f "$img" ]] || return 0
++        # matugen 只会解码静态图，喂视频文件直接 panic。视频壁纸在调用方那边
++        # 已经抽好了代表帧（$THUMBNAIL_DIR/<md5>.jpg），这里换成它。
++        local src="$img"
++        if is_video "$src"; then
++            local thumb="$THUMBNAIL_DIR/$(echo -n "$src" | md5sum | cut -d' ' -f1).jpg"
++            if [[ -f "$thumb" ]]; then
++                src="$thumb"
++            else
++                echo "[switchwall] 视频无缩略图，跳过 matugen: $src" >&2
++                return 0
++            fi
++        fi
++        # --prefer 是启发式，按维度挑局部极值，经常挑到图的边角：
++        # 蓝天空+棕外套 -> saturation 挑外套；金黄麦田 -> value 挑灰白云。
++        # index 0 是图中占比最大的主色，最接近人眼对壁纸的印象。
++        margs=(image "$src" --source-color-index 0)
++    fi
++    [[ -n "$mode" ]] && margs+=(--mode "$mode")
++    # iNiR 用 "auto" 表示自动判定，matugen 没有这个值，传了会整轮失败
++    if [[ -n "$type" && "$type" != "auto" ]]; then
++        margs+=(--type "$type")
++    fi
++
++    local -a cargs=()
++    if [[ -f "$filter" ]]; then
++        mkdir -p "$(dirname "$effective")"
++        python3 "$filter" "$cfg" "$effective" >/dev/null 2>&1 && [[ -f "$effective" ]] && cargs=(-c "$effective")
++    fi
++
++    if ! matugen "${margs[@]}" "${cargs[@]}" >/dev/null 2>&1; then
++        local -a retry=()
++        local skip=0 a
++        for a in "${margs[@]}"; do
++            if [[ "$skip" == "1" ]]; then skip=0; continue; fi
++            if [[ "$a" == "--source-color-index" ]]; then skip=1; retry+=(--prefer saturation); continue; fi
++            retry+=("$a")
++        done
++        matugen "${retry[@]}" "${cargs[@]}" >/dev/null 2>&1 || \
++            echo "[switchwall] matugen 失败，用户模板未更新" >&2
++    fi
+ }
+ 
+ main() {
