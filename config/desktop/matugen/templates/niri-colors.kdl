@@ -1,6 +1,6 @@
 layout{
     focus-ring{
-        active-gradient from="{{colors.primary.default.hex}}cc" to="{{colors.tertiary.default.hex}}cc" angle=135
+        active-color "{{colors.primary.default.hex}}cc"
         urgent-color "{{colors.error.default.hex}}"
 
         }
