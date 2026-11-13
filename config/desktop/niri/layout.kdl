@@ -92,17 +92,15 @@ layout {
     border {
         // The settings are the same as for the focus ring.
         // If you enable the border, you probably want to disable the focus ring.
-        // 已启用（原先是 off）；颜色不再写死在这里 —— 由 config.kdl 里
-        // 后引入的 dms/colors.kdl 提供，随 DMS/matugen 配色一起变。
+        // 已启用（原先是 off）；颜色不写在这里 —— 由 config.kdl 后引入的
+        // matugen-colors.kdl 提供，随壁纸配色一起变。
         // 想关掉就把下面这行的注释去掉：
         // off
 
         width 4
-        active-color "#ffc87f"
-        inactive-color "#505050"
 
         // Color of the border around windows that request your attention.
-        urgent-color "#9b0000"
+        // 同样由 matugen-colors.kdl 提供。
 
         // Gradients can use a few different interpolation color spaces.
         // For example, this is a pastel rainbow gradient via in="oklch longer hue".

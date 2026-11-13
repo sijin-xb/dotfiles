@@ -4,6 +4,22 @@ layout{
         urgent-color "#ffb4ab"
 
         }
+    border {
+        active-color "#d2bcff"
+        inactive-color "#948f99"
+        urgent-color "#ffb4ab"
+    }
+    tab-indicator {
+        active-color "#d2bcff"
+        inactive-color "#948f99"
+        urgent-color "#ffb4ab"
+    }
+    insert-hint {
+        color "#d2bcff80"
+    }
+    shadow {
+        color "#00000070"
+    }
 }
 recent-windows {
     highlight {
