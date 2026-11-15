@@ -1,6 +1,12 @@
+// ── niri 键位（单一来源）──────────────────────────────────────────────
+// 本文件合并了原 binds.kdl + binds-hyprland-migrated.kdl + dms/binds.kdl。
+// shell 后端固定为 DMS，所有 shell 动作走 `dms ipc call <target> <function>`
+// （target 清单见 `dms ipc`）。原 noctalia 调用已全部替换。
+//
+// ⚠ niri validate 只校验单文件；跨文件键位冲突和 spawn 命令是否存在都抓不到。
+//   改完用 `niri validate -c ~/.config/niri/config.kdl` 再 `niri msg action load-config-file`。
 
 binds {
-
     Super+Slash hotkey-overlay-title="快捷键教程 Keybind tutorial" { spawn "~/.config/niri/scripts/niri-binds"; }
 
     Mod+Alt+W hotkey-overlay-title="切换壁纸 Change wallpaper" { spawn "dms" "ipc" "call" "dankdash" "wallpaper"; }
@@ -21,7 +27,7 @@ binds {
     Mod+T hotkey-overlay-title="共享终端 Terminal" { spawn "kitty" "--single-instance"; }
     Mod+return hotkey-overlay-title="独立终端 Terminal" { spawn "kitty"; }
     Mod+Alt+E hotkey-overlay-title="文档管理器 File manager" {spawn "env" "GSK_RENDERER=gl" "nautilus" "--new-window";}
-    Mod+Alt+L hotkey-overlay-title="锁屏 Lock screen" { spawn-sh "hyprlock -c ~/.config/niri/hyprlock.conf"; } 
+    Mod+Alt+L hotkey-overlay-title="锁屏 Lock screen" { spawn "dms" "ipc" "call" "lock" "lock"; }
     Mod+P hotkey-overlay-title="提取窗口信息 Pick information" { spawn "~/.config/niri/scripts/niri-pick" "focus"; }
     Mod+Alt+V hotkey-overlay-title="剪贴板 Clipboard" repeat=false {spawn-sh "kitty --single-instance --class cliphist-tui -e cliphist-tui";} // Use spawn-sh to run a shell command. Do this if you need pipes, multiple commands, etc.
 
@@ -76,4 +82,187 @@ binds {
     Mod+Escape hotkey-overlay-title="开关快捷键抑制 Toggle shortcuts inhibit" allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
 
     Mod+Shift+E hotkey-overlay-title="退出niri Quit niri" { quit; }
+
+    Mod+Q hotkey-overlay-title="关闭窗口 Close window" { close-window; }
+    Mod+Left  hotkey-overlay-title="聚焦左列 Focus left"  { focus-column-left; }
+    Mod+Right hotkey-overlay-title="聚焦右列 Focus right" { focus-column-right; }
+    Mod+Up    hotkey-overlay-title="聚焦上一个窗口 Focus up"   { focus-window-up; }
+    Mod+Down  hotkey-overlay-title="聚焦下一个窗口 Focus down" { focus-window-down; }
+
+    Mod+Shift+Left  hotkey-overlay-title="窗口左移 Move left"  { move-column-left; }
+    Mod+Shift+Right hotkey-overlay-title="窗口右移 Move right" { move-column-right; }
+    Mod+Shift+Up    hotkey-overlay-title="窗口上移 Move up"    { move-window-up; }
+    Mod+Shift+Down  hotkey-overlay-title="窗口下移 Move down"  { move-window-down; }
+
+    Mod+D hotkey-overlay-title="最大化列 Maximize column" { maximize-column; }
+    Mod+F hotkey-overlay-title="全屏 Fullscreen" { fullscreen-window; }
+    Mod+Alt+Space hotkey-overlay-title="浮动/平铺 Toggle floating" { toggle-window-floating; }
+
+    Mod+Semicolon  hotkey-overlay-title="列宽-10% Narrower column" { set-column-width "-10%"; }
+    Mod+Apostrophe hotkey-overlay-title="列宽+10% Wider column"    { set-column-width "+10%"; }
+
+    Mod+Comma  hotkey-overlay-title="并入列 Consume into column"  { consume-window-into-column; }
+    Mod+Period hotkey-overlay-title="移出列 Expel from column"    { expel-window-from-column; }
+
+    Mod+1 hotkey-overlay-title="工作区 1 Workspace 1" { focus-workspace 1; }
+    Mod+2 hotkey-overlay-title="工作区 2 Workspace 2" { focus-workspace 2; }
+    Mod+3 hotkey-overlay-title="工作区 3 Workspace 3" { focus-workspace 3; }
+    Mod+4 hotkey-overlay-title="工作区 4 Workspace 4" { focus-workspace 4; }
+    Mod+5 hotkey-overlay-title="工作区 5 Workspace 5" { focus-workspace 5; }
+    Mod+6 hotkey-overlay-title="工作区 6 Workspace 6" { focus-workspace 6; }
+    Mod+7 hotkey-overlay-title="工作区 7 Workspace 7" { focus-workspace 7; }
+    Mod+8 hotkey-overlay-title="工作区 8 Workspace 8" { focus-workspace 8; }
+    Mod+9 hotkey-overlay-title="工作区 9 Workspace 9" { focus-workspace 9; }
+    Mod+0 hotkey-overlay-title="工作区 10 Workspace 10" { focus-workspace 10; }
+
+    Mod+U          hotkey-overlay-title="上一个工作区 Prev workspace" { focus-workspace-up; }
+    Mod+Page_Down  hotkey-overlay-title="下一个工作区 Next workspace" { focus-workspace-down; }
+    Mod+Page_Up    hotkey-overlay-title="上一个工作区 Prev workspace" { focus-workspace-up; }
+    Mod+Ctrl+Left  hotkey-overlay-title="上一个工作区 Prev workspace" { focus-workspace-up; }
+    Mod+Ctrl+Right hotkey-overlay-title="下一个工作区 Next workspace" { focus-workspace-down; }
+    Mod+Ctrl+U hotkey-overlay-title="窗口移到上一个工作区 Move to prev" { move-window-to-workspace-up; }
+    Mod+Ctrl+I hotkey-overlay-title="窗口移到下一个工作区 Move to next" { move-window-to-workspace-down; }
+
+    Mod+Shift+Page_Up   hotkey-overlay-title="整列移到上一个工作区" { move-column-to-workspace-up; }
+    Mod+Shift+Page_Down hotkey-overlay-title="整列移到下一个工作区" { move-column-to-workspace-down; }
+
+    Mod+E hotkey-overlay-title="文件管理器 File manager" { spawn "nautilus"; }
+    Mod+W hotkey-overlay-title="浏览器 Browser" {
+        spawn "/home/xibie/.config/niri/scripts/launch_first_available.sh" "google-chrome-stable" "zen-browser" "firefox" "brave" "chromium" "microsoft-edge-stable" "opera" "librewolf";
+    }
+    Mod+C hotkey-overlay-title="代码编辑器 Code editor" {
+        spawn "/home/xibie/.config/niri/scripts/launch_first_available.sh" "code" "windsurf" "antigravity" "codium" "cursor" "zed" "zedit" "zeditor" "kate" "gnome-text-editor" "emacs";
+    }
+    Mod+X hotkey-overlay-title="文本编辑器 Text editor" {
+        spawn "/home/xibie/.config/niri/scripts/launch_first_available.sh" "kate" "gnome-text-editor" "emacs";
+    }
+    Mod+Ctrl+Shift+Alt+W hotkey-overlay-title="办公软件 Office" {
+        spawn "/home/xibie/.config/niri/scripts/launch_first_available.sh" "wps" "onlyoffice-desktopeditors" "libreoffice";
+    }
+    Mod+Ctrl+V hotkey-overlay-title="音量混合器 Volume mixer" {
+        spawn "/home/xibie/.config/niri/scripts/launch_first_available.sh" "pavucontrol-qt" "pavucontrol";
+    }
+    Mod+Ctrl+Shift+Escape hotkey-overlay-title="任务管理器 Task manager" {
+        spawn "/home/xibie/.config/niri/scripts/launch_first_available.sh" "gnome-system-monitor" "plasma-systemmonitor --page-name Processes";
+    }
+
+    XF86AudioRaiseVolume hotkey-overlay-title="音量+ Volume up" { spawn "dms" "ipc" "call" "audio" "increment" "5"; }
+    XF86AudioLowerVolume hotkey-overlay-title="音量- Volume down" { spawn "dms" "ipc" "call" "audio" "decrement" "5"; }
+    XF86AudioMute        hotkey-overlay-title="扬声器静音 Mute speaker" { spawn "dms" "ipc" "call" "audio" "mute"; }
+    Mod+Shift+M          hotkey-overlay-title="静音 Toggle mute" { spawn "dms" "ipc" "call" "audio" "mute"; }
+
+    XF86AudioMicMute hotkey-overlay-title="麦克风静音 Mute mic" { spawn "dms" "ipc" "call" "mic" "mute"; }
+    Mod+Alt+M        hotkey-overlay-title="麦克风静音 Toggle mic" { spawn "dms" "ipc" "call" "mic" "mute"; }
+    Alt+XF86AudioMute hotkey-overlay-title="麦克风静音 Mute mic" { spawn "dms" "ipc" "call" "mic" "mute"; }
+
+    XF86AudioPlay  hotkey-overlay-title="播放/暂停 Play/Pause" { spawn "dms" "ipc" "call" "mpris" "playPause"; }
+    XF86AudioPause hotkey-overlay-title="播放/暂停 Play/Pause" { spawn "dms" "ipc" "call" "mpris" "playPause"; }
+    XF86AudioNext  hotkey-overlay-title="下一首 Next track" { spawn "dms" "ipc" "call" "mpris" "next"; }
+    XF86AudioPrev  hotkey-overlay-title="上一首 Previous track" { spawn "dms" "ipc" "call" "mpris" "previous"; }
+    Mod+Shift+P    hotkey-overlay-title="播放/暂停 Play/Pause" { spawn "dms" "ipc" "call" "mpris" "playPause"; }
+    Mod+Shift+N    hotkey-overlay-title="下一首 Next track"    { spawn "dms" "ipc" "call" "mpris" "next"; }
+    Mod+Shift+B    hotkey-overlay-title="上一首 Previous track" { spawn "dms" "ipc" "call" "mpris" "previous"; }
+
+    XF86MonBrightnessUp   hotkey-overlay-title="亮度+ Brightness up" { spawn "dms" "ipc" "call" "brightness" "increment" "5"; }
+    XF86MonBrightnessDown hotkey-overlay-title="亮度- Brightness down" { spawn "dms" "ipc" "call" "brightness" "decrement" "5"; }
+
+    Mod+Minus hotkey-overlay-title="缩小 Zoom out" { adjust-magnifier-zoom -0.2; }
+    Mod+Equal hotkey-overlay-title="放大 Zoom in"  { adjust-magnifier-zoom 0.2; }
+    Mod+Ctrl+Shift+Alt+Delete hotkey-overlay-title="关机 Shut down" { spawn "systemctl" "poweroff"; }
+
+    // 启动器 —— 轻触 Super（与 Hyprland 的 Super 单击一致）
+    //
+    // 「单独一个 Mod」这种只有修饰键的绑定是 shorin-fork 的扩展，本机用的正是
+    // 该 fork，所以原生可用。按住 Super 仍是修饰键（Super+Tab 等不受影响）。
+    // （上游 niri / niri-spicy 不支持它，会报 `invalid key: Mod` 拒绝加载整份
+    //   配置。中途为了留在 spicy 试过 keyd 重映射与 mod-tap 补丁，两者都已随
+    //   换回 shorin fork 废弃，别再把它们捡回来。）
+    // 必须用 release：press 绑定会让 Super 一按下就弹启动器，长按也弹。
+    // release 只在「按下后没按别的键、直接松开」时触发。
+    Mod repeat=false hotkey-overlay-title="启动器 Launcher" {
+        release { spawn "dms" "ipc" "call" "launcher" "toggle"; }
+    }
+    // ⚠ 不要再加回 `Mod+Space`：本机用的 shorin-fork 原生支持「单独一个 Mod」，
+    //   轻触 Super 就是启动器；再加一个 Super+Space 是重复绑定，还会白占掉
+    //   「Super+空格」这个组合。
+
+    // 网格总览 —— Super+Tab（shorin-fork 独有，网格预览）
+    Mod+Tab hotkey-overlay-title="网格总览 Grid overview" { toggle-grid-overview; }
+
+    // 通知中心 —— Hyprland 里 Super+N 是右侧栏（通知）
+    Mod+N hotkey-overlay-title="通知 Notifications" { spawn "dms" "ipc" "call" "notifications" "toggle"; }
+
+    // 剪贴板 —— 与 Hyprland 的 Super+V 同键
+    Mod+V hotkey-overlay-title="剪贴板 Clipboard" { spawn "dms" "ipc" "call" "clipboard" "toggle"; }
+
+    // 设置 —— 与 Hyprland 的 Super+I 同键
+    Mod+I hotkey-overlay-title="设置 Settings" { spawn "dms" "ipc" "call" "settings" "toggle"; }
+
+    // 控制中枢 —— Hyprland 的 Super+M 是媒体控制，DMS 里媒体归在控制中枢
+    Mod+M hotkey-overlay-title="控制中枢 Control center" { spawn "dms" "ipc" "call" "control-center" "toggle"; }
+
+    // 挂件 —— 与 Hyprland 的 Super+G（挂件浮层）同键
+    Mod+G hotkey-overlay-title="挂件 Widgets" { spawn "dms" "ipc" "call" "widget" "toggle"; }
+
+    // 栏开关 —— 与 Hyprland 的 Super+J 同键
+    Mod+J hotkey-overlay-title="开关任务栏 Toggle bar" { spawn "dms" "ipc" "call" "bar" "toggle"; }
+
+    // 仪表盘 —— Hyprland 的 Super+B 是左侧栏，DMS 对应的是 dash
+    Mod+B hotkey-overlay-title="仪表盘 Dashboard" { spawn "dms" "ipc" "call" "dash" "toggle"; }
+
+    // Hyprland 里 Super+O 与 Super+B 都开左侧栏，这里保持同键同功能
+    Mod+O hotkey-overlay-title="仪表盘 Dashboard" { spawn "dms" "ipc" "call" "dash" "toggle"; }
+
+    // 快捷键速查 —— 原为 Mod+Slash，2026-10-10 删除（保留为注释）。
+    // 原因：binds.kdl 里那条 Super+Slash（fzf 教程）是同一个物理键。
+    //   Mod 与 Super 在 niri 里是两个修饰位（COMPOSITOR / SUPER），跨文件重复
+    //   不会被 niri validate 抓到；运行时两条都匹配 Super+/，靠配置里靠前的一条
+    //   胜出 —— binds.kdl 先加载，所以按 Super+/ 一直是开 fzf 教程，
+    //   这条 DMS 速查表从来没被触发过。
+    // 想改成开 DMS 速查表：删掉 binds.kdl 的 Super+Slash，再把下面这行取消注释。
+    //Mod+Slash hotkey-overlay-title="快捷键速查表 Keybinds" { spawn "dms" "ipc" "call" "keybinds" "toggle"; }
+
+    // 电源菜单 —— 与 Hyprland 的 Ctrl+Alt+Delete 同键
+    Mod+Ctrl+Delete hotkey-overlay-title="电源菜单 Power menu" { spawn "dms" "ipc" "call" "powermenu" "toggle"; }
+
+    // 取色器 —— 与 Hyprland 的 Super+Shift+C 同键
+    // 原先那条是 hyprpicker 的残缺替代命令（grim+slurp），已停用，改由 DMS 承担
+    Mod+Shift+C hotkey-overlay-title="取色 Color picker" { spawn "dms" "ipc" "call" "color-picker" "toggle"; }
+
+    // 锁屏 —— 与 Hyprland 的 Super+L 同键，改用 DMS 锁屏（原为 loginctl）
+    Mod+L hotkey-overlay-title="锁屏 Lock" { spawn "dms" "ipc" "call" "lock" "lock"; }
+
+    // 欢迎页 —— Hyprland 里 Super+Shift+Alt+/ 打开 quickshell 欢迎页
+    Mod+Shift+Alt+Slash hotkey-overlay-title="欢迎页 Welcome" { spawn "dms" "ipc" "call" "welcome" "open"; }
+
+    // 壁纸选择器 —— Hyprland 里 Ctrl+Super+T 与 Ctrl+Alt+T 都是壁纸选择器
+    // Mod+Ctrl+T  保留原来的 DMS 仪表盘壁纸页
+    Mod+Ctrl+T hotkey-overlay-title="壁纸管理器 Wallpaper" { spawn "dms" "ipc" "call" "dankdash" "wallpaper"; }
+    // Ctrl+Alt+T  改用 wallpaperCarousel 插件（全屏 3D 倾斜轮播挑选器）
+    //   插件需先在「DMS 设置 → Plugins」里启用，且 DMS 要接管壁纸管理。
+    //   键盘：← → 切换，Enter 应用，Esc 关闭。
+    //
+    //   2026-09-28 改：本机 plugins/ 目录为空（dms plugins list → "No plugins
+    //   installed."），`dms ipc call wallpaperCarousel toggle` 直接返回
+    //   "Target not found."，按键因此什么也不发生。
+    //   现改为调用 wallpaper-picker.sh：插件在时仍走轮播，插件不在时回退到
+    //   DMS 内建的仪表盘壁纸页（`dms ipc call dash toggle wallpaper`）。
+    //   插件恢复方式：修好代理后跑 `dms plugins restore`（按 plugins.lock.json）。
+    Ctrl+Alt+T hotkey-overlay-title="壁纸选择器 Wallpaper picker" { spawn "/home/xibie/.config/scripts/wallpaper-picker.sh" "toggle"; }
+
+    // 轮播内切换上/下一张（不必先打开，会自动打开并高亮）
+    Ctrl+Alt+Right hotkey-overlay-title="下一张壁纸 Next wallpaper" { spawn "/home/xibie/.config/scripts/wallpaper-picker.sh" "next"; }
+    Ctrl+Alt+Left  hotkey-overlay-title="上一张壁纸 Prev wallpaper" { spawn "/home/xibie/.config/scripts/wallpaper-picker.sh" "prev"; }
+
+    // 随机壁纸 —— Hyprland 里 Ctrl+Super+Alt+T
+    Mod+Ctrl+Alt+T hotkey-overlay-title="随机壁纸 Random wallpaper" { spawn "dms" "ipc" "call" "wallpaper" "next"; }
+
+    // 录屏 —— quickCapture 插件。同一个键再按一次停止（recordToggle）。
+    //   想改成选区录制，把 screen 换成 region；走 xdg-desktop-portal 用 portal。
+    //   注意：本机没装 gpu-screen-recorder，只有 wf-recorder（CPU 后端），
+    //   按插件文档 wf-recorder 只录画面、不带声音；要声音得装 gpu-screen-recorder。
+    // 全屏录屏 + 系统声音（very_high / 60fps），不弹选区。再按一次停止。
+    // 原 quickCapture 走 wf-recorder，只录画面且需要选窗口。
+    // 注意：脚本用绝对路径 —— niri 的 spawn 不走 shell，~ 不会展开。
+    Ctrl+Alt+R hotkey-overlay-title="全屏扬声器录屏 Fullscreen record + system audio" { spawn "/home/xibie/.local/bin/record-speaker-hq"; }
 }

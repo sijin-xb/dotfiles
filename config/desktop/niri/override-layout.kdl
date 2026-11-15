@@ -37,7 +37,7 @@ layout {
     //   maximize-column → tile 1900×1020  ← 「最大化列」，占满宽度但保留 gaps/边框/栏
     //
     // 注意区分：如果你看到某个窗口几乎铺满屏幕、但四周仍有缝隙，那不是本项失效，
-    // 而是该列处于「最大化列」状态（Mod+D 切换，见 binds-hyprland-migrated.kdl:44）。
+    // 而是该列处于「最大化列」状态（Mod+D 切换，见 binds.kdl:97）。
     default-column-width { proportion 0.5; }
 }
 

@@ -386,7 +386,7 @@ EOF
     dms)
         cat <<'EOF'
   6. DMS（DankMaterialShell）：由 niri 自启，配置在 ~/.config/DankMaterialShell，
-     键位见 ~/.config/niri/dms/binds.kdl，插件在 ~/.config/DankMaterialShell/plugins。
+     键位见 ~/.config/niri/binds.kdl，插件在 ~/.config/DankMaterialShell/plugins。
 EOF
         ;;
     *)

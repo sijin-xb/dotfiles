@@ -137,7 +137,7 @@ fi
 
 # --- 3. 应用模块 ---
 
-awww img "$FINAL_PATH" --transition-duration 2 --transition-type center --transition-fps 60
+dms ipc call wallpaper set "$FINAL_PATH"
 
 # --- 4. 钩子与清理 ---
 (

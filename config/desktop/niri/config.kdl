@@ -1,5 +1,4 @@
 include "binds.kdl"
-include optional=true "binds-hyprland-migrated.kdl"
 include optional=true "rule.kdl"
 include optional=true "output.kdl"
 include optional=true "animations.kdl"
@@ -10,8 +9,8 @@ environment {
     LANGUAGE "zh_CN:en"
     LANG "zh_CN.UTF-8"
     "_JAVA_AWT_WM_NONREPARENTING" "1"
-    XCURSOR_THEME "Matugen-Cursors"
-    XCURSOR_SIZE "24"
+    XCURSOR_THEME "capitaine-cursors-light"
+    XCURSOR_SIZE "32"
     XMODIFIERS "@im=fcitx"
     GTK_IM_MODULE "fcitx"
     QT_IM_MODULE "fcitx"
@@ -21,10 +20,16 @@ environment {
     QT_WAYLAND_DISABLE_WINDOWDECORATION "1"
     QS_ICON_THEME "WhiteSur-dark"
     GSK_RENDERER "gl"
-    EDITOR "vim"
+    EDITOR "/home/xibie/.local/bin/neovide-editor"
+    VISUAL "/home/xibie/.local/bin/neovide-editor"
     DMS_SCREENSHOT_DIR "/home/xibie/Pictures/Screenshots/Niri-screenshots"
 
 }
+
+agent {
+    hide-seat-from "noctalia" "xwayland-satellite" "cursor-manager"
+}
+
 cursor {
     hide-after-inactive-ms 15000
     shake-to-enlarge {
@@ -135,12 +140,23 @@ debug {
 }
 
 include "dms/cursor.kdl"
-include "dms/binds.kdl"
 include "dms/layout.kdl"
 include optional=true "blur.kdl"
 include "dms/windowrules.kdl"
 include "dms/input.kdl"
-include "override-layout.kdl"
+include optional=true "override-layout.kdl"
 include optional=true "nyxuri-windows.kdl"
+
+layer-rule {
+    match namespace="^noctalia-wallpaper"
+    place-within-backdrop true
+}
+
+window-rule {
+    match app-id="dev.noctalia.Noctalia"
+    open-floating true
+    default-column-width { fixed 1080; }
+    default-window-height { fixed 920; }
+}
 
 spawn-at-startup "bash" "-c" "systemctl --user import-environment XDG_MENU_PREFIX && kbuildsycoca6"

@@ -35,7 +35,7 @@ compositor_aur_pkgs() {
 # 运行时依赖。end4-PC 的锁屏从 caelestia vendor 而来，两者都需要。
 #
 # dms 用 -git 版：DMS 迭代快，稳定版落后几个小版本，niri 侧的 config.kdl 与
-# dms/binds.kdl 按新版写，键位和 ipc 目标会对不上。
+# dms/binds.kdl 和 binds.kdl 按新版写，键位和 ipc 目标会对不上。
 #
 # nirius    niri/binds.kdl 有 4 个键位直接 spawn 它，缺了按键无反应且 niri 不报错
 # awww-git  niri 侧静态壁纸后端。install.sh 只装 mpvpaper（视频壁纸），

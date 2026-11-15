@@ -167,7 +167,7 @@ chk "未列出的路径 → 空"               "$(runtime_keep_kind .config/fish
 chk "目录条目 → skip"                 "$(runtime_keep_kind .config/niri/qssettings/foo.kdl)" "skip"
 chk "**/.git → skip"                  "$(runtime_keep_kind .config/DankMaterialShell/plugins/foo/.git)" "skip"
 chk "单层 glob (*.bak*) → skip"       "$(runtime_keep_kind .config/niri/dms/layout.kdl.bak-123)" "skip"
-chk "dms/binds.kdl 未被屏蔽"          "$(runtime_keep_kind .config/niri/dms/binds.kdl)" ""
+chk "binds.kdl 未被屏蔽"          "$(runtime_keep_kind .config/niri/binds.kdl)" ""
 chk "create_custom_config 未被屏蔽"   "$(runtime_keep_kind .config/hypr/hyprland/services/create_custom_config.lua)" ""
 
 say_t "G2. runtime-keep 生效路径：运行时生成物不被仓库快照覆盖"
