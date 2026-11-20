@@ -215,12 +215,12 @@ fixed_aur_pkgs() {
 }
 
 # 字体链（可选，见 choose_fonts）。分开成函数的原因同上。
-#   ttf-jetbrains-mono-nerd  kitty 终端的 Nerd 图标
+#   maple-mono-nf-cn-unhinted kitty/foot/neovide 的终端字体，自带 Nerd 图标（AUR 包，见下）
 #   noto-fonts-cjk           按语言切换 CJK 字形的全部地区变体（JP/KR/TC/HK）
 #   adobe-source-han-sans-cn 思源黑体 CN：GTK settings.ini 与 fcitx5
 #                            classicui.conf 硬编码了它，不能只靠 fontconfig 别名
 font_pacman_pkgs() {
-    printf '%s\n' ttf-jetbrains-mono-nerd ttf-nerd-fonts-symbols \
+    printf '%s\n' ttf-nerd-fonts-symbols \
         noto-fonts noto-fonts-cjk noto-fonts-emoji \
         adobe-source-han-sans-cn-fonts
 }
@@ -228,7 +228,7 @@ font_pacman_pkgs() {
 # ⚠ AUR 包名不规则：上游 README 写的 ttf-maplemononormal-nf-cn 并不存在，
 #   实际是 maplemononormal-nf-cn（无 ttf- 前缀）。
 font_aur_pkgs() {
-    printf '%s\n' otf-misans maplemononormal-nf-cn \
+    printf '%s\n' otf-misans maple-mono-nf-cn-unhinted maplemononormal-nf-cn \
         ttf-lxgw-wenkai ttf-lxgw-wenkai-screen ttf-lxgw-wenkai-tc
 }
 
