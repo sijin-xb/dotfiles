@@ -8,6 +8,8 @@ layout {
     // Set gaps around windows in logical pixels.
     // 窗口和窗口之间的间距
     gaps 10
+    // 浮动窗口恒在平铺之上，聚焦平铺窗口时不再盖住浮动窗（2026-11-20）
+    focused-window-above-floating false
     //empty-workspace-above-first
     // When to center a column when changing focus, options are:
     // - "never", default behavior, focusing an off-screen column will keep at the left
@@ -97,7 +99,7 @@ layout {
         // 想关掉就把下面这行的注释去掉：
         // off
 
-        width 4
+        width 2
 
         // Color of the border around windows that request your attention.
         // 同样由 matugen-colors.kdl 提供。
@@ -136,13 +138,15 @@ layout {
         // pixels and match the CSS box-shadow properties.
 
         // Softness controls the shadow blur radius.
-        softness 20
+        // 2026-11-20：对齐 hdcy/arch_dotfiles —— softness 20→10、spread 2→8、
+        // offset (-4,-4)→(0,5)，光源由上向下，与 noctalia/DMS 面板阴影方向一致。
+        softness 10
 
         // Spread expands the shadow.
-        spread 2
+        spread 8
 
         // Offset moves the shadow relative to the window.
-        offset x=-4 y=-4
+        offset x=0 y=5
 
         // You can also change the shadow color and opacity.
         color "rgba(0, 0, 0, 0.7)"

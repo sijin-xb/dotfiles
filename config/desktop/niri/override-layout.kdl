@@ -20,7 +20,7 @@ layout {
     gaps 10
 
     border {
-        width 4
+        width 2
     }
 
     focus-ring {
@@ -43,6 +43,8 @@ layout {
 
 // 全局圆角。后匹配的规则覆盖先匹配的同名属性。
 // 2026-10-21：18 → 8 → 6，用户觉得太圆。
+// 2026-11-16：6 → 0，用户要求完全关闭窗口圆角。
+// 2026-11-20：0 → 12，改用 hdcy/arch_dotfiles 的取值。
 window-rule {
-    geometry-corner-radius 6
+    geometry-corner-radius 12
 }
