@@ -16,7 +16,7 @@ $cmd_duration$directory$git_branch$git_status$python$nodejs$rust
 
 # Replace the "❯" symbol in the prompt with "➜"
 [character]                            # The name of the module we are configuring is "character"
-success_symbol = "[ ](bold fg:#f0b3e7)"
+success_symbol = "[ ](bold fg:#ffb1c1)"
 error_symbol = "[ ](bold fg:#ffb4ab)"
 
 # Disable the package module, hiding it from the prompt completely
@@ -24,11 +24,11 @@ error_symbol = "[ ](bold fg:#ffb4ab)"
 disabled = true
 
 [git_branch]
-style = "bg:#f0b3e7"
+style = "bg:#ffb1c1"
 symbol = "󰘬"
 truncation_length = 12
 truncation_symbol = ""
-format = " [](bold fg:#f0b3e7)[$symbol $branch(:$remote_branch)](fg:#390e38 bg:#f0b3e7)[ ](bold fg:#f0b3e7)"
+format = " [](bold fg:#ffb1c1)[$symbol $branch(:$remote_branch)](fg:#410d1e bg:#ffb1c1)[ ](bold fg:#ffb1c1)"
 
 [git_commit]
 commit_hash_length = 4
@@ -41,8 +41,8 @@ cherry_pick = "[🍒 PICKING](bold fg:#ffb4ab)"
 # 不带端符：format 里的字符是写死的，加了端符会在干净仓库留一个空胶囊。
 # 状态值自带尾随空格，靠它和前面的 branch 胶囊拉开间距。
 [git_status]
-format = '([](fg:#f0b3e7)[$all_status$ahead_behind]($style)[](fg:#f0b3e7))'
-style = "fg:#390e38 bg:#f0b3e7"
+format = '([](fg:#ffb1c1)[$all_status$ahead_behind]($style)[](fg:#ffb1c1))'
+style = "fg:#410d1e bg:#ffb1c1"
 conflicted = "🏳 "
 ahead = "🏎💨 "
 behind = "😰 "
@@ -50,13 +50,13 @@ diverged = "😵 "
 untracked = "🤷 ‍"
 stashed = "📦 "
 modified = "📝 "
-staged = '[++\($count\)](fg:#390e38) '
+staged = '[++\($count\)](fg:#410d1e) '
 renamed = "✍️ "
 deleted = "🗑 "
 
 [hostname]
 ssh_only = false
-format =  "[•$hostname](bg:#f0b3e7 bold fg:#390e38)[](bold fg:#f0b3e7)"
+format =  "[•$hostname](bg:#ffb1c1 bold fg:#410d1e)[](bold fg:#ffb1c1)"
 trim_at = ".companyname.com"
 disabled = false
 
@@ -67,27 +67,27 @@ disabled = false
 disabled = true
 threshold = -1
 symbol = " "
-style = "bold fg:#f0b3e7"
+style = "bold fg:#ffb1c1"
 
 [time]
 disabled = false
-format = '[](bold fg:#f0b3e7)[󰥔 $time](bg:#f0b3e7 fg:#390e38)[](bold fg:#f0b3e7)'
+format = '[](bold fg:#ffb1c1)[󰥔 $time](bg:#ffb1c1 fg:#410d1e)[](bold fg:#ffb1c1)'
 time_format = "%R"
 
 [username]
-style_user = "bold bg:#f0b3e7 fg:#390e38"
+style_user = "bold bg:#ffb1c1 fg:#410d1e"
 style_root = "red bold"
-format = "[](bold fg:#f0b3e7)[$user]($style)"
+format = "[](bold fg:#ffb1c1)[$user]($style)"
 disabled = false
 show_always = true
 
 [directory]
 home_symbol = " "
 read_only = "  "
-style = "bg:#f0b3e7 fg:#390e38"
+style = "bg:#ffb1c1 fg:#410d1e"
 truncation_length = 2
 truncation_symbol = ".../"
-format = '[](bold fg:#f0b3e7)[󰉋 → $path]($style)[](bold fg:#f0b3e7)'
+format = '[](bold fg:#ffb1c1)[󰉋 → $path]($style)[](bold fg:#ffb1c1)'
 
 
 [directory.substitutions]
@@ -101,20 +101,20 @@ format = '[](bold fg:#f0b3e7)[󰉋 → $path]($style)[](bold fg:#f0b3e7)'
 
 [cmd_duration]
 min_time = 2000
-format = '[](bold fg:#f0b3e7)[󰪢 $duration](bold bg:#f0b3e7 fg:#390e38)[](bold fg:#f0b3e7)'
+format = '[](bold fg:#ffb1c1)[󰪢 $duration](bold bg:#ffb1c1 fg:#410d1e)[](bold fg:#ffb1c1)'
 
 # starship 默认用 emoji（🐍🦀），和 Nerd Font 风格不搭，换成 glyph
 [python]
 symbol = "󰌠 "
-style = "bg:#f0b3e7 fg:#390e38"
-format = '[](bold fg:#f0b3e7)[$symbol$version]($style)[](bold fg:#f0b3e7)'
+style = "bg:#ffb1c1 fg:#410d1e"
+format = '[](bold fg:#ffb1c1)[$symbol$version]($style)[](bold fg:#ffb1c1)'
 
 [nodejs]
 symbol = "󰎙 "
-style = "bg:#f0b3e7 fg:#390e38"
-format = '[](bold fg:#f0b3e7)[$symbol$version]($style)[](bold fg:#f0b3e7)'
+style = "bg:#ffb1c1 fg:#410d1e"
+format = '[](bold fg:#ffb1c1)[$symbol$version]($style)[](bold fg:#ffb1c1)'
 
 [rust]
 symbol = "󱘗 "
-style = "bg:#f0b3e7 fg:#390e38"
-format = '[](bold fg:#f0b3e7)[$symbol$version]($style)[](bold fg:#f0b3e7)'
+style = "bg:#ffb1c1 fg:#410d1e"
+format = '[](bold fg:#ffb1c1)[$symbol$version]($style)[](bold fg:#ffb1c1)'
