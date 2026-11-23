@@ -1,5 +1,6 @@
 # Don't print a new line at the start of the prompt
 add_newline = false
+right_format = """$time"""
 # Pipes ╰─ ╭─
 # Powerline symbols                                     
 # Wedges 🭧🭒 🭣🭧🭓
@@ -10,12 +11,8 @@ add_newline = false
 # $directory $fill $git_branch $cmd_duration
 #  $character"""
 format = """
-$cmd_duration $directory$git_branch$git_status$python$nodejs$rust
+$cmd_duration$directory$git_branch$git_status$python$nodejs$rust
   $character"""
-
-[fill]
-symbol = '-'
-style = 'fg:{{colors.outline.default.hex}}'
 
 # Replace the "❯" symbol in the prompt with "➜"
 [character]                            # The name of the module we are configuring is "character"
@@ -31,7 +28,7 @@ style = "bg:{{colors.primary.default.hex}}"
 symbol = "󰘬"
 truncation_length = 12
 truncation_symbol = ""
-format = " 󰜥 [](bold fg:{{colors.primary.default.hex}})[$symbol $branch(:$remote_branch)](fg:{{colors.on_primary.default.hex}} bg:{{colors.primary.default.hex}})[ ](bold fg:{{colors.primary.default.hex}})"
+format = " [](bold fg:{{colors.primary.default.hex}})[$symbol $branch(:$remote_branch)](fg:{{colors.on_primary.default.hex}} bg:{{colors.primary.default.hex}})[ ](bold fg:{{colors.primary.default.hex}})"
 
 [git_commit]
 commit_hash_length = 4
@@ -41,10 +38,10 @@ tag_symbol = " "
 format = '[\($state( $progress_current of $progress_total)\)]($style) '
 cherry_pick = "[🍒 PICKING](bold fg:{{colors.error.default.hex}})"
 
-# 整个胶囊包在条件组里：条件组自身为空时连端符一起不渲染，
-# 干净仓库不会留空胶囊。状态值自带尾随空格，靠它拉开与 branch 的间距。
+# 不带端符：format 里的字符是写死的，加了端符会在干净仓库留一个空胶囊。
+# 状态值自带尾随空格，靠它和前面的 branch 胶囊拉开间距。
 [git_status]
-format = '([](bold fg:{{colors.primary.default.hex}})[$all_status$ahead_behind]($style)[](bold fg:{{colors.primary.default.hex}}))'
+format = '([](fg:{{colors.primary.default.hex}})[$all_status$ahead_behind]($style)[](fg:{{colors.primary.default.hex}}))'
 style = "fg:{{colors.on_primary.default.hex}} bg:{{colors.primary.default.hex}}"
 conflicted = "🏳 "
 ahead = "🏎💨 "
@@ -73,9 +70,9 @@ symbol = " "
 style = "bold fg:{{colors.primary.default.hex}}"
 
 [time]
-disabled = true
-format = '🕙[\[ $time \]]($style) '
-time_format = "%T"
+disabled = false
+format = '[](bold fg:{{colors.primary.default.hex}})[󰥔 $time](bg:{{colors.primary.default.hex}} fg:{{colors.on_primary.default.hex}})[](bold fg:{{colors.primary.default.hex}})'
+time_format = "%R"
 
 [username]
 style_user = "bold bg:{{colors.primary.default.hex}} fg:{{colors.on_primary.default.hex}}"
@@ -103,7 +100,7 @@ format = '[](bold fg:{{colors.primary.default.hex}})[󰉋 → $path]($style)[
 "GitHub" = " 󰊤 "
 
 [cmd_duration]
-min_time = 0
+min_time = 2000
 format = '[](bold fg:{{colors.primary.default.hex}})[󰪢 $duration](bold bg:{{colors.primary.default.hex}} fg:{{colors.on_primary.default.hex}})[](bold fg:{{colors.primary.default.hex}})'
 
 # starship 默认用 emoji（🐍🦀），和 Nerd Font 风格不搭，换成 glyph

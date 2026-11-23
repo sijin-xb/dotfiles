@@ -16,9 +16,10 @@
     多少像素是「真的带颜色」。只要占比超过 CHROMA_COVERAGE_THRESHOLD
     就认为这张图有明确的色彩身份，交给 scheme-tonal-spot。
 
-实测（24 张壁纸）：真·灰调壁纸占比 0.00%~0.07%，其余 ≥ 10.9%，
-用 5% 作阈值两边都有充足余量。全程 Pillow C 实现（point +
-logical_and + ImageStat），没有 Python 逐像素循环。
+实测（35 张壁纸）：视觉上的灰调壁纸占比 0.00%~0.076%，其余 ≥ 14.2%。
+旧阈值 5% 把 0.057 的灰图判成 tonal-spot，取色出暖棕；10% 让这批图
+归入灰调分支。全程 Pillow C 实现（point + logical_and + ImageStat），
+没有 Python 逐像素循环。
 
 输出：一个 scheme-* 字符串；识别不了就退回 scheme-tonal-spot。
 """
@@ -30,7 +31,7 @@ import sys
 from PIL import Image, ImageChops, ImageStat
 
 # 彩色像素占比阈值：低于此值才认为是真·灰调壁纸
-CHROMA_COVERAGE_THRESHOLD = 0.05
+CHROMA_COVERAGE_THRESHOLD = 0.10
 # HSV 分量下限（0-255）：滤掉近黑背景 / 近白高光 / 纯灰
 SAT_FLOOR = 64
 VAL_FLOOR = 38
