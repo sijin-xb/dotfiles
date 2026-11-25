@@ -133,12 +133,6 @@ binds {
     Mod+C hotkey-overlay-title="代码编辑器 Code editor" {
         spawn "/home/xibie/.config/niri/scripts/launch_first_available.sh" "code" "windsurf" "antigravity" "codium" "cursor" "zed" "zedit" "zeditor" "kate" "gnome-text-editor" "emacs";
     }
-    Mod+X hotkey-overlay-title="文本编辑器 Text editor" {
-        spawn "/home/xibie/.config/niri/scripts/launch_first_available.sh" "kate" "gnome-text-editor" "emacs";
-    }
-    Mod+Ctrl+Shift+Alt+W hotkey-overlay-title="办公软件 Office" {
-        spawn "/home/xibie/.config/niri/scripts/launch_first_available.sh" "wps" "onlyoffice-desktopeditors" "libreoffice";
-    }
     Mod+Ctrl+V hotkey-overlay-title="音量混合器 Volume mixer" {
         spawn "/home/xibie/.config/niri/scripts/launch_first_available.sh" "pavucontrol-qt" "pavucontrol";
     }
